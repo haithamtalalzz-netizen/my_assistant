@@ -1,5 +1,17 @@
 # SESSION_HANDOVER — My Assistant
 
+## 2026-07-10 — دفعة ٣٠: الإضافات السريعة فوق كارت الصلاة + ٧ أزرار جديدة ✅ (145/145، مثبّت)
+
+- **نقل**: صف الإضافات السريعة اتنقل **فوق كارت الصلاة** في `today_screen._body`
+  (كان تحته). دلوقتي: header → quickActions → heroAndSummary.
+- **+٧ أزرار** (اختارهم المستخدم): 💧 مياه (`_addWaterCup` فوري+snackbar) · 💊 جرعة دوا
+  (`_markNextDose` يعلّم أقرب جرعة فاضلة) · 🏋️ تمرين (`_markWorkoutDone`) · 💵 دخل
+  (`showIncomeSheet`) · 📏 قياس (`_quickMeasurement` dialog: نوع من `kMeasurementTypes` +
+  قيمة/قيمتين للضغط) · 📝 تذكير (`_quickInbox` dialog→`InboxRepo.add`) · 🧠 اسأل مديرك
+  (`ChatScreen`). الصف بقى **١٣ زرار**، الأكتر استخدامًا الأول. imports جديدة:
+  `inbox_repo` + `money/income_sheet` + `brain/chat_screen`.
+- analyze نضيف · **145/145** · APK 56.3MB مثبّت + فتح نضيف.
+
 ## 2026-07-10 — دفعة ٢٩: top bar موحّد — أيقونة بحث في كل الصفحات ✅ (145/145، مثبّت)
 
 - **الرئيسية (Today)**: اتشال مربع البحث الكبير من الـ body، واتحط **أيقونة 🔍 في الـ AppBar**
