@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- هلال أخضر أعرض ومتوسّط (دائرة خارجية ناقص دائرة داخلية مزاحة) -->
+    <path
+        android:fillColor="#FF2FDE9B"
+        android:fillType="evenOdd"
+        android:pathData="M22,54 a32,32 0 1,0 64,0 a32,32 0 1,0 -64,0 Z M14,47 a28,28 0 1,0 56,0 a28,28 0 1,0 -56,0 Z" />
+    <!-- نجمة صغيرة رباعية أعلى الهلال -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M74,26 L77,34 L85,37 L77,40 L74,48 L71,40 L63,37 L71,34 Z" />
+</vector>

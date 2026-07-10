@@ -1,0 +1,774 @@
+import 'package:path/path.dart' as p;
+import 'package:sqflite/sqflite.dart';
+
+/// اتصال قاعدة البيانات — singleton زي ما اتعودنا، ومايتقفلش أبدًا.
+class AppDb {
+  AppDb._();
+
+  static Database? _db;
+
+  static Future<Database> get instance async {
+    _db ??= await _open();
+    return _db!;
+  }
+
+  static Future<Database> _open() async {
+    return openDatabase(
+      await dbPath(),
+      version: 27,
+      onCreate: createSchema,
+      onUpgrade: upgradeSchema,
+    );
+  }
+
+  static Future<String> dbPath() async {
+    final dir = await getDatabasesPath();
+    return p.join(dir, 'my_assistant.db');
+  }
+
+  /// يقفل الاتصال مؤقتًا — للاستعادة من نسخة احتياطية فقط.
+  static Future<void> close() async {
+    final db = _db;
+    _db = null;
+    await db?.close();
+  }
+
+  /// يمسح كل بيانات المستخدم من كل الجداول. [keepSettings] بيحافظ على الثيم واللغة.
+  static Future<void> wipeAllData({bool keepSettings = true}) async {
+    final db = await instance;
+    final tables = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name NOT LIKE 'sqlite_%' AND name != 'android_metadata'");
+    final batch = db.batch();
+    for (final t in tables) {
+      final name = t['name'] as String;
+      if (keepSettings && name == 'settings') continue;
+      batch.delete(name);
+    }
+    await batch.commit(noResult: true);
+  }
+
+  static Future<void> upgradeSchema(Database db, int oldV, int newV) async {
+    if (oldV < 2 && newV >= 2) {
+      await db.execute(
+          'ALTER TABLE appointments ADD COLUMN postpone_count INTEGER NOT NULL DEFAULT 0');
+      await db.execute('''
+        CREATE TABLE weekly_reviews(
+          week_key TEXT PRIMARY KEY,
+          went_well TEXT NOT NULL DEFAULT '',
+          blocked_me TEXT NOT NULL DEFAULT '',
+          next_focus TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL
+        )''');
+    }
+    if (oldV < 3 && newV >= 3) {
+      for (final ddl in _v3Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 4 && newV >= 4) {
+      for (final ddl in _v4Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 5 && newV >= 5) {
+      for (final ddl in _v5Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 6 && newV >= 6) {
+      for (final ddl in _v6Statements) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 7 && newV >= 7) {
+      for (final ddl in _v7Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 8 && newV >= 8) {
+      for (final ddl in _v8Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 9 && newV >= 9) {
+      for (final ddl in _v9Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 10 && newV >= 10) {
+      for (final ddl in _v10Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 11 && newV >= 11) {
+      for (final ddl in _v11Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 12 && newV >= 12) {
+      for (final ddl in _v12Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 13 && newV >= 13) {
+      for (final ddl in _v13Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 14 && newV >= 14) {
+      for (final ddl in _v14Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 15 && newV >= 15) {
+      for (final ddl in _v15Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 16 && newV >= 16) {
+      for (final ddl in _v16Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 17 && newV >= 17) {
+      for (final ddl in _v17Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 18 && newV >= 18) {
+      for (final ddl in _v18Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 19 && newV >= 19) {
+      for (final ddl in _v19Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 20 && newV >= 20) {
+      for (final ddl in _v20Tables) {
+        await db.execute(ddl);
+      }
+      await db.execute(
+          'ALTER TABLE appointments ADD COLUMN travel_min INTEGER NOT NULL DEFAULT 0');
+    }
+    if (oldV < 21 && newV >= 21) {
+      for (final ddl in _v21Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 22 && newV >= 22) {
+      for (final ddl in _v22Tables) {
+        await db.execute(ddl);
+      }
+      await db.execute('ALTER TABLE expenses ADD COLUMN wallet_id INTEGER');
+      await db.execute('ALTER TABLE income ADD COLUMN wallet_id INTEGER');
+    }
+    if (oldV < 23 && newV >= 23) {
+      await db.execute(
+          "ALTER TABLE appointments ADD COLUMN repeat TEXT NOT NULL DEFAULT 'none'");
+    }
+    if (oldV < 24 && newV >= 24) {
+      for (final ddl in _v24Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 25 && newV >= 25) {
+      for (final ddl in _v25Tables) {
+        await db.execute(ddl);
+      }
+    }
+    if (oldV < 26 && newV >= 26) {
+      await db.execute(
+          "ALTER TABLE medications ADD COLUMN form TEXT NOT NULL DEFAULT ''");
+      await db.execute(
+          "ALTER TABLE medications ADD COLUMN unit TEXT NOT NULL DEFAULT ''");
+    }
+    if (oldV < 27 && newV >= 27) {
+      for (final ddl in _v27Tables) {
+        await db.execute(ddl);
+      }
+    }
+  }
+
+  static const List<String> _v27Tables = [
+    '''
+      CREATE TABLE pharmacy_batches(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_id INTEGER NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        expiry TEXT
+      )''',
+    'CREATE INDEX idx_pharm_batch_item ON pharmacy_batches(item_id)',
+  ];
+
+  static const List<String> _v24Tables = [
+    '''
+      CREATE TABLE assets(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'gold',
+        value REAL NOT NULL DEFAULT 0,
+        note TEXT NOT NULL DEFAULT ''
+      )''',
+  ];
+
+  static const List<String> _v25Tables = [
+    '''
+      CREATE TABLE plants(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        location TEXT NOT NULL DEFAULT '',
+        water_interval_days INTEGER NOT NULL DEFAULT 3,
+        last_watered TEXT,
+        note TEXT NOT NULL DEFAULT ''
+      )''',
+  ];
+
+  static const List<String> _v22Tables = [
+    '''
+      CREATE TABLE wallets(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'cash',
+        opening_balance REAL NOT NULL DEFAULT 0
+      )''',
+    '''
+      CREATE TABLE wallet_transfers(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        from_wallet INTEGER NOT NULL,
+        to_wallet INTEGER NOT NULL,
+        amount REAL NOT NULL,
+        day TEXT NOT NULL
+      )''',
+  ];
+
+  static const List<String> _v21Tables = [
+    '''
+      CREATE TABLE diaries(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        day TEXT NOT NULL,
+        text TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )''',
+    '''
+      CREATE TABLE recipes(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        photo TEXT NOT NULL DEFAULT '',
+        ingredients TEXT NOT NULL DEFAULT '',
+        steps TEXT NOT NULL DEFAULT ''
+      )''',
+  ];
+
+  static const List<String> _v20Tables = [
+    '''
+      CREATE TABLE relatives(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        phone TEXT NOT NULL DEFAULT '',
+        interval_days INTEGER NOT NULL DEFAULT 14,
+        last_contacted TEXT
+      )''',
+    '''
+      CREATE TABLE challenges(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        start_date TEXT NOT NULL,
+        days INTEGER NOT NULL DEFAULT 30
+      )''',
+    '''
+      CREATE TABLE challenge_logs(
+        challenge_id INTEGER NOT NULL,
+        day TEXT NOT NULL,
+        PRIMARY KEY(challenge_id, day)
+      )''',
+    '''
+      CREATE TABLE time_capsules(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        message TEXT NOT NULL,
+        open_date TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        opened INTEGER NOT NULL DEFAULT 0
+      )''',
+  ];
+
+  static const List<String> _v19Tables = [
+    '''
+      CREATE TABLE quran_reviews(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        portion TEXT NOT NULL,
+        last_reviewed TEXT,
+        interval_days INTEGER NOT NULL DEFAULT 1,
+        reps INTEGER NOT NULL DEFAULT 0
+      )''',
+    '''
+      CREATE TABLE secret_notes(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+    '''
+      CREATE TABLE quit_counters(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        start_date TEXT NOT NULL,
+        daily_saving REAL NOT NULL DEFAULT 0
+      )''',
+  ];
+
+  static const List<String> _v16Tables = [
+    '''
+      CREATE TABLE home_pharmacy(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        expiry TEXT,
+        notes TEXT NOT NULL DEFAULT ''
+      )''',
+  ];
+
+  static const List<String> _v17Tables = [
+    '''
+      CREATE TABLE warranties(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_name TEXT NOT NULL,
+        purchase_date TEXT NOT NULL,
+        warranty_months INTEGER NOT NULL,
+        photo TEXT NOT NULL DEFAULT '',
+        notes TEXT NOT NULL DEFAULT ''
+      )''',
+  ];
+
+  static const List<String> _v18Tables = [
+    '''
+      CREATE TABLE meter_readings(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        meter_type TEXT NOT NULL,
+        reading REAL NOT NULL,
+        cost REAL,
+        day TEXT NOT NULL
+      )''',
+    'CREATE INDEX idx_meter_type_day ON meter_readings(meter_type, day)',
+  ];
+
+  static const List<String> _v15Tables = [
+    '''
+      CREATE TABLE social_obligations(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        person TEXT NOT NULL,
+        type TEXT NOT NULL,
+        direction TEXT NOT NULL,
+        amount REAL,
+        occasion TEXT NOT NULL DEFAULT '',
+        day TEXT NOT NULL,
+        notes TEXT NOT NULL DEFAULT '',
+        reciprocated INTEGER NOT NULL DEFAULT 0
+      )''',
+    'CREATE INDEX idx_social_person ON social_obligations(person)',
+  ];
+
+  static const List<String> _v14Tables = [
+    '''
+      CREATE TABLE body_progress(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        day TEXT NOT NULL,
+        weight REAL,
+        waist REAL,
+        chest REAL,
+        arms REAL,
+        photo TEXT NOT NULL DEFAULT ''
+      )''',
+    'CREATE INDEX idx_body_progress_day ON body_progress(day)',
+  ];
+
+  static const List<String> _v13Tables = [
+    '''
+      CREATE TABLE savings_goals(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        target REAL NOT NULL,
+        created_at TEXT NOT NULL,
+        deadline TEXT
+      )''',
+    '''
+      CREATE TABLE savings_contributions(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        goal_id INTEGER NOT NULL,
+        amount REAL NOT NULL,
+        day TEXT NOT NULL
+      )''',
+  ];
+
+  static const List<String> _v12Tables = [
+    '''
+      CREATE TABLE clothes(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        color TEXT NOT NULL DEFAULT '',
+        season TEXT NOT NULL DEFAULT 'all',
+        formality TEXT NOT NULL DEFAULT 'casual',
+        photo TEXT NOT NULL DEFAULT '',
+        last_worn TEXT,
+        favorite INTEGER NOT NULL DEFAULT 0
+      )''',
+  ];
+
+  static const List<String> _v11Tables = [
+    '''
+      CREATE TABLE gym_sessions(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        day TEXT NOT NULL,
+        program TEXT NOT NULL DEFAULT '',
+        duration_min INTEGER NOT NULL DEFAULT 0,
+        notes TEXT NOT NULL DEFAULT ''
+      )''',
+    'CREATE INDEX idx_gym_sessions_day ON gym_sessions(day)',
+    '''
+      CREATE TABLE gym_sets(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id INTEGER NOT NULL,
+        exercise TEXT NOT NULL,
+        reps INTEGER NOT NULL DEFAULT 0,
+        weight REAL NOT NULL DEFAULT 0,
+        set_index INTEGER NOT NULL DEFAULT 0
+      )''',
+    'CREATE INDEX idx_gym_sets_session ON gym_sets(session_id)',
+  ];
+
+  static const List<String> _v10Tables = [
+    '''
+      CREATE TABLE medical_records(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL,
+        day TEXT NOT NULL,
+        title TEXT NOT NULL,
+        provider TEXT NOT NULL DEFAULT '',
+        specialty TEXT NOT NULL DEFAULT '',
+        result TEXT NOT NULL DEFAULT '',
+        cost REAL NOT NULL DEFAULT 0,
+        photos TEXT NOT NULL DEFAULT ''
+      )''',
+    'CREATE INDEX idx_medical_day ON medical_records(day)',
+  ];
+
+  static const List<String> _v8Tables = [
+    '''
+      CREATE TABLE fitness_logs(
+        day TEXT PRIMARY KEY,
+        calories INTEGER,
+        distance_km REAL
+      )''',
+  ];
+
+  static const List<String> _v9Tables = [
+    '''
+      CREATE TABLE income(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        amount REAL NOT NULL,
+        source TEXT NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        day TEXT NOT NULL,
+        wallet_id INTEGER
+      )''',
+    'CREATE INDEX idx_income_day ON income(day)',
+    '''
+      CREATE TABLE recurring_income(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source TEXT NOT NULL,
+        amount REAL NOT NULL,
+        day_of_month INTEGER NOT NULL,
+        last_received_month TEXT NOT NULL DEFAULT ''
+      )''',
+  ];
+
+  static const List<String> _v7Tables = [
+    '''
+      CREATE TABLE debts(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        person TEXT NOT NULL,
+        amount REAL NOT NULL,
+        direction TEXT NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        settled INTEGER NOT NULL DEFAULT 0
+      )''',
+    '''
+      CREATE TABLE gameya(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        amount REAL NOT NULL,
+        day_of_month INTEGER NOT NULL DEFAULT 1,
+        total_months INTEGER NOT NULL,
+        my_turn INTEGER NOT NULL,
+        start_month TEXT NOT NULL
+      )''',
+    '''
+      CREATE TABLE gameya_payments(
+        gameya_id INTEGER NOT NULL,
+        month_key TEXT NOT NULL,
+        PRIMARY KEY(gameya_id, month_key)
+      )''',
+    '''
+      CREATE TABLE home_maintenance(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        interval_months INTEGER NOT NULL,
+        last_done TEXT NOT NULL,
+        notes TEXT NOT NULL DEFAULT ''
+      )''',
+  ];
+
+  static const List<String> _v6Statements = [
+    '''
+      CREATE TABLE inbox_notes(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )''',
+    'ALTER TABLE medications ADD COLUMN end_date TEXT',
+  ];
+
+  static const List<String> _v5Tables = [
+    '''
+      CREATE TABLE recurring_bills(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        amount REAL NOT NULL,
+        day_of_month INTEGER NOT NULL,
+        category TEXT NOT NULL DEFAULT 'فواتير',
+        last_paid_month TEXT NOT NULL DEFAULT ''
+      )''',
+  ];
+
+  static const List<String> _v4Tables = [
+    '''
+      CREATE TABLE measurements(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        day TEXT NOT NULL,
+        type TEXT NOT NULL,
+        value REAL NOT NULL,
+        value2 REAL,
+        unit TEXT NOT NULL DEFAULT ''
+      )''',
+    'CREATE INDEX idx_measurements_day ON measurements(day)',
+    '''
+      CREATE TABLE steps_logs(
+        day TEXT PRIMARY KEY,
+        steps INTEGER NOT NULL
+      )''',
+  ];
+
+  static const List<String> _v3Tables = [
+    '''
+      CREATE TABLE meals(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        day TEXT NOT NULL,
+        slot TEXT NOT NULL,
+        description TEXT NOT NULL,
+        calories REAL
+      )''',
+    'CREATE INDEX idx_meals_day ON meals(day)',
+    '''
+      CREATE TABLE shopping_items(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        checked INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      )''',
+    '''
+      CREATE TABLE workout_plan(
+        weekday INTEGER PRIMARY KEY,
+        title TEXT NOT NULL
+      )''',
+    '''
+      CREATE TABLE workout_logs(
+        day TEXT PRIMARY KEY,
+        title TEXT NOT NULL DEFAULT ''
+      )''',
+    '''
+      CREATE TABLE occasions(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        person TEXT NOT NULL DEFAULT '',
+        month INTEGER NOT NULL,
+        day INTEGER NOT NULL,
+        remind_days INTEGER NOT NULL DEFAULT 1
+      )''',
+  ];
+
+  static Future<void> createSchema(Database db, int version) async {
+    final batch = db.batch();
+    batch.execute('''
+      CREATE TABLE appointments(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'شخصي',
+        when_at TEXT NOT NULL,
+        notes TEXT NOT NULL DEFAULT '',
+        remind_before_min INTEGER NOT NULL DEFAULT 60,
+        done INTEGER NOT NULL DEFAULT 0,
+        postpone_count INTEGER NOT NULL DEFAULT 0,
+        travel_min INTEGER NOT NULL DEFAULT 0,
+        repeat TEXT NOT NULL DEFAULT 'none'
+      )''');
+    batch.execute('''
+      CREATE TABLE weekly_reviews(
+        week_key TEXT PRIMARY KEY,
+        went_well TEXT NOT NULL DEFAULT '',
+        blocked_me TEXT NOT NULL DEFAULT '',
+        next_focus TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''');
+    batch.execute('''
+      CREATE TABLE medications(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        dosage TEXT NOT NULL DEFAULT '',
+        times TEXT NOT NULL,
+        notes TEXT NOT NULL DEFAULT '',
+        active INTEGER NOT NULL DEFAULT 1,
+        end_date TEXT,
+        form TEXT NOT NULL DEFAULT '',
+        unit TEXT NOT NULL DEFAULT ''
+      )''');
+    batch.execute('''
+      CREATE TABLE inbox_notes(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )''');
+    batch.execute('''
+      CREATE TABLE med_logs(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        med_id INTEGER NOT NULL,
+        day TEXT NOT NULL,
+        time_slot TEXT NOT NULL,
+        UNIQUE(med_id, day, time_slot)
+      )''');
+    batch.execute('''
+      CREATE TABLE water_logs(
+        day TEXT PRIMARY KEY,
+        glasses INTEGER NOT NULL DEFAULT 0
+      )''');
+    batch.execute('''
+      CREATE TABLE sleep_logs(
+        day TEXT PRIMARY KEY,
+        hours REAL NOT NULL
+      )''');
+    batch.execute('''
+      CREATE TABLE expenses(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        amount REAL NOT NULL,
+        category TEXT NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        day TEXT NOT NULL,
+        wallet_id INTEGER
+      )''');
+    batch.execute('''
+      CREATE TABLE documents(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        image_path TEXT NOT NULL DEFAULT '',
+        expiry TEXT,
+        remind_days INTEGER NOT NULL DEFAULT 30,
+        notes TEXT NOT NULL DEFAULT ''
+      )''');
+    batch.execute('''
+      CREATE TABLE habits(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        archived INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      )''');
+    batch.execute('''
+      CREATE TABLE habit_logs(
+        habit_id INTEGER NOT NULL,
+        day TEXT NOT NULL,
+        PRIMARY KEY(habit_id, day)
+      )''');
+    batch.execute('''
+      CREATE TABLE settings(
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )''');
+    batch.execute('CREATE INDEX idx_appointments_when ON appointments(when_at)');
+    batch.execute('CREATE INDEX idx_expenses_day ON expenses(day)');
+    batch.execute('CREATE INDEX idx_med_logs_day ON med_logs(day)');
+    batch.execute('CREATE INDEX idx_habit_logs_day ON habit_logs(day)');
+    for (final ddl in _v3Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v4Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v5Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v7Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v8Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v9Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v10Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v11Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v12Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v13Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v14Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v15Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v16Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v17Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v18Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v19Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v20Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v21Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v22Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v24Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v25Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v27Tables) {
+      batch.execute(ddl);
+    }
+    await batch.commit(noResult: true);
+  }
+
+  /// للاختبارات فقط: يركّب قاعدة في الذاكرة بدل الملف.
+  static void useForTests(Database db) => _db = db;
+  static void reset() => _db = null;
+}
