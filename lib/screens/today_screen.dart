@@ -17,6 +17,7 @@ import '../data/docs_repo.dart';
 import '../data/habits_repo.dart';
 import '../data/health_repo.dart';
 import '../data/home_maintenance_repo.dart';
+import '../data/inbox_repo.dart';
 import '../data/plants_repo.dart';
 import '../data/meals_repo.dart';
 import '../data/measurements_repo.dart';
@@ -29,11 +30,13 @@ import '../data/workout_repo.dart';
 import '../models/models.dart';
 import '../widgets/common.dart';
 import '../widgets/decorations.dart';
+import 'brain/chat_screen.dart';
 import 'brain/day_plan_screen.dart';
 import 'food/meal_sheet.dart';
 import 'food/shopping_list_screen.dart';
 import 'calendar_screen.dart';
 import 'home/pharmacy_screen.dart';
+import 'money/income_sheet.dart';
 import 'money/quick_expense_sheet.dart';
 import '../widgets/search_action.dart';
 import 'schedule/appointment_form.dart';
@@ -375,9 +378,9 @@ class _TodayScreenState extends State<TodayScreen> {
         children: [
           _header(context),
           const SizedBox(height: 12),
-          _heroAndSummary(context),
-          const SizedBox(height: 12),
           _quickActions(context),
+          const SizedBox(height: 12),
+          _heroAndSummary(context),
           const SizedBox(height: 12),
           if (_weeklyDue) ...[
             _weeklyBanner(context),
@@ -741,6 +744,167 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   /// لوحة تشغيل سريعة — تايلز ملوّنة في كارت واحد (زي الموكاب).
+  // ---- إجراءات سريعة فورية ----
+
+  Future<void> _addWaterCup() async {
+    final n = await HealthRepo().addWater(dayKey(DateTime.now()), 1);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr('زوّدت كوب مياه 💧 (المجموع ${arNum(n)})',
+            'Added a cup 💧 (total ${arNum(n)})'))));
+    await _load();
+  }
+
+  Future<void> _markNextDose() async {
+    final day = dayKey(DateTime.now());
+    final meds = await MedsRepo().all(activeOnly: true);
+    final taken = await MedsRepo().takenOn(day);
+    for (final m in meds) {
+      for (final s in m.times) {
+        if (!taken.contains('${m.id}|$s')) {
+          await MedsRepo().setTaken(m.id!, day, s, true);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(tr('سجّلت جرعة «${m.name}» ✅',
+                  'Logged a dose of "${m.name}" ✅'))));
+          await _load();
+          return;
+        }
+      }
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(meds.isEmpty
+            ? tr('مفيش أدوية مسجلة', 'No meds logged')
+            : tr('خلّصت كل جرعات النهاردة 👏', 'All doses done today 👏'))));
+  }
+
+  Future<void> _markWorkoutDone() async {
+    final now = DateTime.now();
+    final repo = WorkoutRepo();
+    final title = (await repo.plan())[now.weekday];
+    if (title == null || title.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr('مفيش تمرين متجدول النهاردة', 'No workout scheduled today'))));
+      return;
+    }
+    await repo.setDone(dayKey(now), true, title: title);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr('علّمت تمرين «$title» ✅', 'Marked "$title" done ✅'))));
+    await _load();
+  }
+
+  Future<void> _quickInbox() async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('تذكير سريع', 'Quick reminder')),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: InputDecoration(
+              hintText: tr('اكتب اللي عايز تفتكره...', 'What to remember...')),
+          onSubmitted: (_) => Navigator.pop(ctx, true),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('إلغاء', 'Cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(tr('حفظ', 'Save'))),
+        ],
+      ),
+    );
+    if (ok == true && ctrl.text.trim().isNotEmpty) {
+      await InboxRepo().add(ctrl.text.trim());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('اتحطّت في الوارد 📝', 'Saved to inbox 📝'))));
+      await _load();
+    }
+  }
+
+  Future<void> _quickMeasurement() async {
+    var type = kMeasurementTypes.first;
+    final v1 = TextEditingController();
+    final v2 = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: Text(tr('قياس سريع', 'Quick measurement')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (final t in kMeasurementTypes)
+                    ChoiceChip(
+                        label: Text(t),
+                        selected: type == t,
+                        onSelected: (_) => setD(() => type = t)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: v1,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                          labelText: type == 'ضغط'
+                              ? tr('الانقباضي', 'Systolic')
+                              : tr('القيمة', 'Value')),
+                    ),
+                  ),
+                  if (type == 'ضغط') ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: v2,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                            labelText: tr('الانبساطي', 'Diastolic')),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(tr('إلغاء', 'Cancel'))),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(tr('حفظ', 'Save'))),
+          ],
+        ),
+      ),
+    );
+    if (ok == true) {
+      final a = parseNumber(v1.text);
+      if (a == null) return;
+      await MeasurementsRepo().add(Measurement(
+        day: dayKey(DateTime.now()),
+        type: type,
+        value: a,
+        value2: type == 'ضغط' ? parseNumber(v2.text) : null,
+      ));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('اتسجّل القياس 📏', 'Measurement saved 📏'))));
+      await _load();
+    }
+  }
+
   Widget _quickActions(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     Future<void> reloadAfter(Future<void> Function() f) async {
@@ -788,25 +952,41 @@ class _TodayScreenState extends State<TodayScreen> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              tile(Icons.medication_outlined, tr('الصيدلية', 'Pharmacy'),
-                  Colors.purple,
-                  () => reloadAfter(() => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const PharmacyScreen())))),
-              tile(Icons.calendar_month_outlined, tr('التقويم', 'Calendar'),
-                  Colors.teal,
-                  () => reloadAfter(() => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const CalendarScreen())))),
-              tile(Icons.event_available_outlined, tr('موعد', 'Appointment'),
-                  Colors.blue,
-                  () => reloadAfter(() => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const AppointmentForm())))),
-              tile(Icons.mic_none, tr('بصوتك', 'Voice'), scheme.primary,
-                  () => reloadAfter(_openVoice)),
+              tile(Icons.water_drop_outlined, tr('مياه', 'Water'),
+                  Colors.lightBlue, _addWaterCup),
+              tile(Icons.medication_outlined, tr('جرعة دوا', 'Dose'),
+                  Colors.pink, _markNextDose),
+              tile(Icons.fitness_center, tr('تمرين', 'Workout'),
+                  Colors.green, _markWorkoutDone),
               tile(Icons.restaurant_outlined, tr('وجبة', 'Meal'),
                   Colors.orange, () => reloadAfter(() => showMealSheet(context))),
               tile(Icons.account_balance_wallet_outlined,
                   tr('مصروف', 'Expense'), Colors.redAccent,
                   () => reloadAfter(() => showQuickExpenseSheet(context))),
+              tile(Icons.south_west, tr('دخل', 'Income'), Colors.teal,
+                  () => reloadAfter(() => showIncomeSheet(context))),
+              tile(Icons.monitor_heart_outlined, tr('قياس', 'Measure'),
+                  Colors.indigo, _quickMeasurement),
+              tile(Icons.push_pin_outlined, tr('تذكير', 'Reminder'),
+                  Colors.amber.shade800, _quickInbox),
+              tile(Icons.mic_none, tr('بصوتك', 'Voice'), scheme.primary,
+                  () => reloadAfter(_openVoice)),
+              tile(Icons.psychology_outlined, tr('اسأل مديرك', 'Manager'),
+                  Colors.deepPurple,
+                  () => reloadAfter(() => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const ChatScreen())))),
+              tile(Icons.event_available_outlined, tr('موعد', 'Appointment'),
+                  Colors.blue,
+                  () => reloadAfter(() => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const AppointmentForm())))),
+              tile(Icons.calendar_month_outlined, tr('التقويم', 'Calendar'),
+                  Colors.cyan,
+                  () => reloadAfter(() => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const CalendarScreen())))),
+              tile(Icons.local_pharmacy_outlined, tr('الصيدلية', 'Pharmacy'),
+                  Colors.purple,
+                  () => reloadAfter(() => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const PharmacyScreen())))),
             ],
           ),
         ),
