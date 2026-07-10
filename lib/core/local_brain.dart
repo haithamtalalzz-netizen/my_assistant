@@ -59,6 +59,39 @@ class LocalBrain {
       return (text: await _briefing(), handled: true);
     }
 
+    // «ينفع أصرف/أشتري بـ N؟» — قدرة الشراء (محتاج رقم).
+    if (_has(t, ['ينفع اصرف', 'ينفع اشتري', 'اقدر اشتري', 'اقدر اصرف', 'اشتري ب', 'لو صرفت', 'ينفع اخد', 'اصرف كام'])) {
+      final amount = _extractAmount(raw);
+      if (amount != null && amount > 0) {
+        return (text: await _affordability(amount), handled: true);
+      }
+    }
+
+    // صرف الأسبوع (آخر ٧ أيام).
+    if (_has(t, ['الاسبوع ده', 'اخر اسبوع', 'صرفت الاسبوع', 'الاسبوع الحالي', 'اخر ٧ ايام', 'اخر 7 ايام'])) {
+      return (text: await _weekSpending(), handled: true);
+    }
+
+    // أكتر بند صرف.
+    if (_has(t, ['اكتر بند', 'اكتر حاجه صرفت', 'بصرف على ايه', 'اكتر مصروف', 'فين فلوسي', 'فلوسي بتروح'])) {
+      return (text: await _topCategory(), handled: true);
+    }
+
+    // توقّع الوصول لهدف الادخار.
+    if (_has(t, ['هوصل هدفي', 'هوصل الهدف', 'امتى اوصل', 'فاضل كام على هدف', 'هخلص ادخار'])) {
+      return (text: await _savingsProjection(), handled: true);
+    }
+
+    // فاضل كام يوم على أقرب حاجة.
+    if (_has(t, ['فاضل كام يوم', 'كام يوم على', 'اقرب حاجه', 'اقرب مناسبه', 'اقرب موعد', 'امتى اقرب'])) {
+      return (text: await _daysUntil(), handled: true);
+    }
+
+    // أحسن/أوحش عادة.
+    if (_has(t, ['احسن عاده', 'اقوى عاده', 'اطول سلسله', 'اوحش عاده', 'اضعف عاده', 'عاده بفوتها'])) {
+      return (text: await _habitExtremes(), handled: true);
+    }
+
     // صافي الثروة (محافظ + أصول − ديون).
     if (_has(t, ['ثروتي', 'صافي ثروتي', 'ثروه', 'اصولي', 'صافي مالي', 'net worth'])) {
       return (text: await _netWorth(), handled: true);
@@ -701,6 +734,150 @@ class LocalBrain {
     return b.toString().trim();
   }
 
+  static Future<String> _affordability(double amount) async {
+    final balance = await WalletsRepo().totalBalance();
+    final b = StringBuffer();
+    if (balance <= 0) {
+      return tr('مسجلتش رصيد في المحافظ عشان أقولك تقدر ولا لأ. ضيف محفظة الأول.',
+          "No wallet balance logged, so I can't tell. Add a wallet first.");
+    }
+    if (amount > balance) {
+      b.writeln(tr(
+          'معاك ${egp(balance)} بس، و${egp(amount)} أكتر من كده بـ ${egp(amount - balance)}. الأحسن تأجّلها.',
+          'You have ${egp(balance)}, and ${egp(amount)} is ${egp(amount - balance)} more than that. Better hold off.'));
+    } else {
+      b.writeln(tr('آه تقدر — معاك ${egp(balance)}، هيتبقالك ${egp(balance - amount)} بعدها.',
+          "Yes you can — you have ${egp(balance)}, you'd have ${egp(balance - amount)} left."));
+    }
+    final now = DateTime.now();
+    final spent = await MoneyRepo().totalForMonth(now.year, now.month);
+    final budget = await SettingsRepo().monthlyBudget();
+    if (budget > 0) {
+      final leftBudget = budget - spent - amount;
+      b.writeln(leftBudget >= 0
+          ? tr('وهتفضل جوّه ميزانيتك (فاضل ${egp(leftBudget)}).',
+              'And you\'d stay within budget (${egp(leftBudget)} left).')
+          : tr('بس هتعدّي ميزانية الشهر بـ ${egp(-leftBudget)}.',
+              "But you'd go over this month's budget by ${egp(-leftBudget)}."));
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _weekSpending() async {
+    final now = DateTime.now();
+    final money = MoneyRepo();
+    var total = 0.0;
+    for (var i = 0; i < 7; i++) {
+      total += await money.totalForDay(dayKey(now.subtract(Duration(days: i))));
+    }
+    return tr('صرفت آخر ٧ أيام: ${egp(total)} (متوسط ${egp(total / 7)}/يوم).',
+        'Last 7 days: ${egp(total)} (avg ${egp(total / 7)}/day).');
+  }
+
+  static Future<String> _topCategory() async {
+    final now = DateTime.now();
+    final byCat = await MoneyRepo().byCategory(now.year, now.month);
+    if (byCat.isEmpty) {
+      return tr('لسه مفيش مصاريف الشهر ده.', 'No expenses yet this month.');
+    }
+    final top = byCat.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final b = StringBuffer();
+    b.writeln(tr('أكتر بنود صرفت عليها الشهر ده:', 'Where your money went this month:'));
+    for (final e in top.take(3)) {
+      b.writeln('• ${e.key}: ${egp(e.value)}');
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _savingsProjection() async {
+    final repo = SavingsRepo();
+    final goals = await repo.all();
+    if (goals.isEmpty) {
+      return tr('مفيش أهداف ادخار.', 'No savings goals.');
+    }
+    final b = StringBuffer();
+    for (final g in goals) {
+      if (g.saved >= g.target) {
+        b.writeln(tr('• ${g.name}: خلّصت الهدف 🎉', '• ${g.name}: goal reached 🎉'));
+        continue;
+      }
+      final months = await repo.monthsToGoal(g);
+      final left = g.target - g.saved;
+      b.writeln(months == null
+          ? tr('• ${g.name}: فاضل ${egp(left)} — لسه مفيش مدخرات كفاية أحسبلك المدة.',
+              '• ${g.name}: ${egp(left)} to go — not enough history to estimate.')
+          : tr('• ${g.name}: فاضل ${egp(left)} — بمعدلك هتوصله خلال ${arNum(months)} شهر.',
+              '• ${g.name}: ${egp(left)} to go — at your rate ~${arNum(months)} months.'));
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _daysUntil() async {
+    final now = DateTime.now();
+    final today = dateOnly(now);
+    DateTime? bestDate;
+    String? bestTitle;
+    for (final a in await AppointmentsRepo().all()) {
+      if (!a.done && a.when.isAfter(now)) {
+        if (bestDate == null || a.when.isBefore(bestDate)) {
+          bestDate = a.when;
+          bestTitle = a.title;
+        }
+      }
+    }
+    for (final o in await OccasionsRepo().upcomingWithinWindow(now)) {
+      var d = DateTime(now.year, o.month, o.day);
+      if (d.isBefore(today)) d = DateTime(now.year + 1, o.month, o.day);
+      if (bestDate == null || d.isBefore(bestDate)) {
+        bestDate = d;
+        bestTitle = o.title;
+      }
+    }
+    if (bestDate == null) {
+      return tr('مفيش حاجة قريبة متجدولة.', 'Nothing scheduled coming up.');
+    }
+    final days = dateOnly(bestDate).difference(today).inDays;
+    final when = days <= 0
+        ? tr('النهاردة', 'today')
+        : days == 1
+            ? tr('بكرة', 'tomorrow')
+            : tr('بعد ${arNum(days)} يوم', 'in ${arNum(days)} days');
+    return tr('أقرب حاجة: «$bestTitle» — $when (${arShortDate(bestDate)}).',
+        'Next up: "$bestTitle" — $when (${arShortDate(bestDate)}).');
+  }
+
+  static Future<String> _habitExtremes() async {
+    final repo = HabitsRepo();
+    final habits = await repo.active();
+    if (habits.isEmpty) {
+      return tr('مفيش عادات مسجلة.', 'No habits yet.');
+    }
+    final now = DateTime.now();
+    String? bestName;
+    var bestStreak = -1;
+    String? worstName;
+    var worstStreak = 1 << 30;
+    for (final h in habits) {
+      final s = computeStreak(await repo.daysFor(h.id!), now);
+      if (s > bestStreak) {
+        bestStreak = s;
+        bestName = h.name;
+      }
+      if (s < worstStreak) {
+        worstStreak = s;
+        worstName = h.name;
+      }
+    }
+    final b = StringBuffer();
+    b.writeln(tr('أقوى عادة: «$bestName» — سلسلة ${arNum(bestStreak)} يوم 💪',
+        'Strongest habit: "$bestName" — ${arNum(bestStreak)}-day streak 💪'));
+    if (habits.length > 1 && worstName != bestName) {
+      b.writeln(tr('محتاجة اهتمام: «$worstName» — سلسلة ${arNum(worstStreak)} يوم',
+          'Needs attention: "$worstName" — ${arNum(worstStreak)}-day streak'));
+    }
+    return b.toString().trim();
+  }
+
   static Future<String> _briefing() async {
     final now = DateTime.now();
     final key = dayKey(now);
@@ -863,7 +1040,7 @@ class LocalBrain {
       'أنا مديرك — بجاوبك من بياناتك مباشرة على الجهاز (من غير إنترنت). '
           'جرّب تسألني:\n'
           '• «طمني على يومي» (ملخص شامل)\n'
-          '• «معايا كام فلوس؟»\n'
+          '• «معايا كام فلوس؟» / «ينفع أصرف ٥٠٠؟»\n'
           '• «صرفت كام الشهر ده؟»\n'
           '• «عليا ديون؟»\n'
           '• «مواعيدي إيه؟» أو «عندي حاجة بكرة؟»\n'
@@ -875,7 +1052,7 @@ class LocalBrain {
       "I'm your manager — I answer straight from your data, on-device (no internet). "
           'Try asking:\n'
           '• "Brief me on my day" (full summary)\n'
-          '• "How much money do I have?"\n'
+          '• "How much money do I have?" / "Can I spend 500?"\n'
           '• "How much did I spend this month?"\n'
           '• "Do I owe any debts?"\n'
           '• "What are my appointments?" or "Anything tomorrow?"\n'
@@ -902,13 +1079,16 @@ class LocalBrain {
 
   static bool _has(String t, List<String> keywords) {
     for (final k in keywords) {
-      if (t.contains(_normKeyword(k))) return true;
+      if (t.contains(_norm(k))) return true;
     }
     return false;
   }
 
-  static String _normKeyword(String k) => k
-      .replaceAll(RegExp('[أإآ]'), 'ا')
-      .replaceAll('ى', 'ي')
-      .replaceAll('ة', 'ه');
+  /// يستخرج أول رقم من السؤال (بيحوّل الأرقام العربية للإنجليزية الأول).
+  static double? _extractAmount(String raw) {
+    final en = toEnglishDigits(raw);
+    final m = RegExp(r'\d+(?:[.,]\d+)?').firstMatch(en);
+    if (m == null) return null;
+    return double.tryParse(m[0]!.replaceAll(',', '.'));
+  }
 }

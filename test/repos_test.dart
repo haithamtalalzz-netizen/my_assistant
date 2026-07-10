@@ -137,6 +137,22 @@ void main() {
       expect(r.handled, isTrue);
       expect(r.text.contains('عيش'), isTrue);
     });
+
+    test('قدرة الشراء: مبلغ أقل من الرصيد → تقدر', () async {
+      await WalletsRepo().save(const Wallet(name: 'كاش', openingBalance: 1000));
+      final r = await LocalBrain.answer('ينفع أصرف ٣٠٠؟');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('تقدر') || r.text.contains('هيتبقالك'), isTrue);
+    });
+
+    test('أكتر بند صرف بيرجّع الفئة الأعلى', () async {
+      final now = DateTime.now();
+      await MoneyRepo().add(Expense(
+          amount: 500, category: 'أكل', day: dayKey(now), note: ''));
+      final r = await LocalBrain.answer('أكتر بند صرفت عليه؟');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('أكل'), isTrue);
+    });
   });
 
   group('المياه والنوم', () {
