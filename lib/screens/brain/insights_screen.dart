@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/doctor_report.dart';
 import '../../core/insights.dart';
 import '../../core/l10n.dart';
+import '../../widgets/search_action.dart';
 import '../../data/insights_repo.dart';
 import '../../data/settings_repo.dart';
 import 'charts_screen.dart';
@@ -61,6 +62,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
       appBar: AppBar(
         title: Text(tr('رؤى المدير', 'Insights')),
         actions: [
+          searchAction(context),
           IconButton(
             onPressed: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const ChartsScreen())),

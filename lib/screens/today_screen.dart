@@ -35,7 +35,7 @@ import 'food/shopping_list_screen.dart';
 import 'calendar_screen.dart';
 import 'home/pharmacy_screen.dart';
 import 'money/quick_expense_sheet.dart';
-import 'search_screen.dart';
+import '../widgets/search_action.dart';
 import 'schedule/appointment_form.dart';
 import 'voice/voice_sheet.dart';
 import 'weekly/weekly_planning_screen.dart';
@@ -346,6 +346,7 @@ class _TodayScreenState extends State<TodayScreen> {
       drawer: widget.drawer,
       appBar: AppBar(
         title: Text(tr('اليوم', 'Today')),
+        actions: [searchAction(context)],
       ),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 450),
@@ -373,8 +374,6 @@ class _TodayScreenState extends State<TodayScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
           _header(context),
-          const SizedBox(height: 12),
-          _searchBar(context),
           const SizedBox(height: 12),
           _heroAndSummary(context),
           const SizedBox(height: 12),
@@ -463,36 +462,6 @@ class _TodayScreenState extends State<TodayScreen> {
       child: Text(tr('الكل', 'All')));
 
   /// شريط بحث بارز (زي طارة) — بيفتح البحث الشامل الحي.
-  Widget _searchBar(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: () async {
-        await Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const SearchScreen()));
-        if (mounted) await _load();
-      },
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: scheme.outlineVariant),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.search, color: scheme.outline, size: 20),
-            const SizedBox(width: 10),
-            Text(
-                tr('ابحث في كل حاجة سجّلتها...',
-                    'Search everything you logged...'),
-                style: TextStyle(color: scheme.outline)),
-          ],
-        ),
-      ),
-    );
-  }
-
   /// بانر وضع «يوم صعب» — بيهدّي بدل الضغط.
   Widget _hardDayBanner(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;

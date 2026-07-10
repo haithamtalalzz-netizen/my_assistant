@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../widgets/search_action.dart';
 import '../../data/settings_repo.dart';
 import '../../data/workout_repo.dart';
 
@@ -83,7 +84,9 @@ class _WorkoutPlanScreenState extends State<WorkoutPlanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('خطة التمرين', 'Workout plan'))),
+      appBar: AppBar(
+          title: Text(tr('خطة التمرين', 'Workout plan')),
+          actions: [searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(

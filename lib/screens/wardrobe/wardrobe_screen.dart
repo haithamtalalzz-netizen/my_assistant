@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
+import '../../widgets/search_action.dart';
 import '../../data/wardrobe_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
@@ -223,6 +224,7 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
       appBar: AppBar(
         title: Text(tr('خزانة الملابس', 'Wardrobe')),
         actions: [
+          searchAction(context),
           IconButton(
             onPressed: _suggestOutfit,
             tooltip: tr('إيه ألبس؟', 'What to wear?'),

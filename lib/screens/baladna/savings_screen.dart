@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../widgets/search_action.dart';
 import '../../data/savings_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
@@ -140,7 +141,9 @@ class _SavingsScreenState extends State<SavingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('أهداف الادخار', 'Savings goals'))),
+      appBar: AppBar(
+          title: Text(tr('أهداف الادخار', 'Savings goals')),
+          actions: [searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _goals.isEmpty

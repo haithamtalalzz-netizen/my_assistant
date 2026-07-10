@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../widgets/search_action.dart';
 import '../../data/home_maintenance_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
@@ -49,7 +50,9 @@ class _HomeMaintenanceScreenState extends State<HomeMaintenanceScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('صيانة البيت', 'Home maintenance'))),
+      appBar: AppBar(
+          title: Text(tr('صيانة البيت', 'Home maintenance')),
+          actions: [searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../core/doctor_report.dart';
 import '../core/l10n.dart';
+import '../widgets/search_action.dart';
 import '../core/month_report.dart';
 import 'brain/charts_screen.dart';
 import 'brain/insights_screen.dart';
@@ -16,7 +17,9 @@ class ReportsHubScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('التقارير', 'Reports'))),
+      appBar: AppBar(
+          title: Text(tr('التقارير', 'Reports')),
+          actions: [searchAction(context)]),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [

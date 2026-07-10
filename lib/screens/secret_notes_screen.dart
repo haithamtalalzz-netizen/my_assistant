@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 
 import '../core/l10n.dart';
+import '../widgets/search_action.dart';
 import '../data/secret_notes_repo.dart';
 import '../models/models.dart';
 import '../widgets/common.dart';
@@ -115,7 +116,9 @@ class _SecretNotesScreenState extends State<SecretNotesScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('الخزنة السرية', 'Secret vault'))),
+      appBar: AppBar(
+          title: Text(tr('الخزنة السرية', 'Secret vault')),
+          actions: [searchAction(context)]),
       body: _checking
           ? const Center(child: CircularProgressIndicator())
           : !_authed

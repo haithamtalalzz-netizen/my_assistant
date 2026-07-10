@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../widgets/search_action.dart';
 import '../../data/health_repo.dart';
 import '../../data/meals_repo.dart';
 import '../../data/measurements_repo.dart';
@@ -79,7 +80,9 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('لوحة الصحة', 'Health hub'))),
+      appBar: AppBar(
+          title: Text(tr('لوحة الصحة', 'Health hub')),
+          actions: [searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../widgets/search_action.dart';
 import '../../data/body_progress_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
@@ -69,7 +70,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('التقدّم والمقاسات', 'Progress & measurements'))),
+      appBar: AppBar(
+          title: Text(tr('التقدّم والمقاسات', 'Progress & measurements')),
+          actions: [searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _entries.isEmpty

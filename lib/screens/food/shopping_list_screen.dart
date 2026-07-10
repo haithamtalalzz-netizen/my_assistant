@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
+import '../../widgets/search_action.dart';
 import '../../data/meals_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
@@ -54,6 +55,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       appBar: AppBar(
         title: Text(tr('قائمة التسوق', 'Shopping list')),
         actions: [
+          searchAction(context),
           if (checkedCount > 0)
             TextButton(
               onPressed: () async {

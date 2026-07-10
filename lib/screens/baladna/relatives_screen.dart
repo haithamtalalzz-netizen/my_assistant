@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../widgets/search_action.dart';
 import '../../data/relatives_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
@@ -107,7 +108,9 @@ class _RelativesScreenState extends State<RelativesScreen> {
     final scheme = Theme.of(context).colorScheme;
     final now = DateTime.now();
     return Scaffold(
-      appBar: AppBar(title: Text(tr('صلة الرحم', 'Keep in touch'))),
+      appBar: AppBar(
+          title: Text(tr('صلة الرحم', 'Keep in touch')),
+          actions: [searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty

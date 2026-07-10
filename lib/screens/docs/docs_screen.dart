@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../widgets/search_action.dart';
 import '../../data/docs_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
@@ -57,7 +58,9 @@ class _DocsScreenState extends State<DocsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: widget.drawer,
-      appBar: AppBar(title: Text(tr('خزنة المستندات', 'Documents'))),
+      appBar: AppBar(
+          title: Text(tr('خزنة المستندات', 'Documents')),
+          actions: [searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

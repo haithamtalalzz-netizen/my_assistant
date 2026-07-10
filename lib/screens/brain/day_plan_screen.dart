@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/ar.dart';
 import '../../core/day_planner.dart';
 import '../../core/l10n.dart';
+import '../../widgets/search_action.dart';
 import '../../core/notifications.dart';
 import '../../core/prayers.dart';
 import '../../data/appointments_repo.dart';
@@ -125,7 +126,9 @@ class _DayPlanScreenState extends State<DayPlanScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('خطة باقي اليوم', 'Rest of day plan'))),
+      appBar: AppBar(
+          title: Text(tr('خطة باقي اليوم', 'Rest of day plan')),
+          actions: [searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _plan.isEmpty

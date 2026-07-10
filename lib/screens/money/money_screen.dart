@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../widgets/search_action.dart';
 import '../../core/month_summary.dart';
 import '../../core/ocr.dart';
 import '../../data/bills_repo.dart';
@@ -284,6 +285,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
       appBar: AppBar(
         title: Text(tr('المحفظة', 'Wallet')),
         actions: [
+          searchAction(context),
           IconButton(
             onPressed: () async {
               await Navigator.push(context,

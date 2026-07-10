@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/ar.dart';
 import '../core/l10n.dart';
+import '../widgets/search_action.dart';
 import '../data/appointments_repo.dart';
 import '../data/bills_repo.dart';
 import '../data/docs_repo.dart';
@@ -92,7 +93,9 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('التنبيهات', 'Alerts'))),
+      appBar: AppBar(
+          title: Text(tr('التنبيهات', 'Alerts')),
+          actions: [searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty

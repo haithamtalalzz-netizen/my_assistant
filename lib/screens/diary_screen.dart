@@ -3,6 +3,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 
 import '../core/ar.dart';
 import '../core/l10n.dart';
+import '../widgets/search_action.dart';
 import '../data/diaries_repo.dart';
 import '../models/models.dart';
 import '../widgets/common.dart';
@@ -43,7 +44,9 @@ class _DiaryScreenState extends State<DiaryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('اليوميات', 'Diary'))),
+      appBar: AppBar(
+          title: Text(tr('اليوميات', 'Diary')),
+          actions: [searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../widgets/search_action.dart';
 import '../../data/appointments_repo.dart';
 import '../../data/meds_repo.dart';
 import '../../core/contacts_import.dart';
@@ -25,6 +26,7 @@ class ScheduleScreen extends StatelessWidget {
         drawer: drawer,
         appBar: AppBar(
           title: Text(tr('الجدول', 'Schedule')),
+          actions: [searchAction(context)],
           bottom: TabBar(tabs: [
             Tab(text: tr('المواعيد', 'Appointments')),
             Tab(text: tr('الأدوية', 'Medications')),

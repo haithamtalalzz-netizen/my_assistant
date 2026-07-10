@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/ar.dart';
 import '../../core/db.dart';
 import '../../core/l10n.dart';
+import '../../widgets/search_action.dart';
 import '../../data/measurements_repo.dart';
 import '../../data/money_repo.dart';
 import '../../models/models.dart';
@@ -149,7 +150,9 @@ class _ChartsScreenState extends State<ChartsScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('إحصائياتك', 'Charts'))),
+      appBar: AppBar(
+          title: Text(tr('إحصائياتك', 'Charts')),
+          actions: [searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(

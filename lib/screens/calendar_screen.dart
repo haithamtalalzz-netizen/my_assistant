@@ -4,6 +4,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import '../core/app_state.dart';
 import '../core/ar.dart';
 import '../core/l10n.dart';
+import '../widgets/search_action.dart';
 import '../core/month_report.dart';
 import '../data/day_log_repo.dart';
 
@@ -305,6 +306,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       appBar: AppBar(
         title: Text(tr('تقويم النتيجة', 'Activity calendar')),
         actions: [
+          searchAction(context),
           IconButton(
             tooltip: tr('فلتر الأنواع', 'Filter types'),
             icon: Icon(_hiddenKinds.isEmpty

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/l10n.dart';
+import '../widgets/search_action.dart';
 import '../data/inbox_repo.dart';
 import '../data/meals_repo.dart';
 import '../models/models.dart';
@@ -77,7 +78,9 @@ class _InboxScreenState extends State<InboxScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('صندوق الوارد', 'Inbox'))),
+      appBar: AppBar(
+          title: Text(tr('صندوق الوارد', 'Inbox')),
+          actions: [searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(

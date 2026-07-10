@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
+import '../../widgets/search_action.dart';
 import '../../core/workout_programs.dart';
 import '../../data/workout_repo.dart';
 
@@ -110,7 +111,9 @@ class _WorkoutProgramsScreenState extends State<WorkoutProgramsScreen> {
   Widget build(BuildContext context) {
     final progs = _filtered;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('برامج التمارين', 'Workout programs'))),
+      appBar: AppBar(
+          title: Text(tr('برامج التمارين', 'Workout programs')),
+          actions: [searchAction(context)]),
       body: Column(
         children: [
           Padding(

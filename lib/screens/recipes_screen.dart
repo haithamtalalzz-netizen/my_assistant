@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../core/l10n.dart';
+import '../widgets/search_action.dart';
 import '../data/recipes_repo.dart';
 import '../models/models.dart';
 import '../widgets/common.dart';
@@ -104,7 +105,9 @@ class _RecipesScreenState extends State<RecipesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('دفتر الوصفات', 'Recipes'))),
+      appBar: AppBar(
+          title: Text(tr('دفتر الوصفات', 'Recipes')),
+          actions: [searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
