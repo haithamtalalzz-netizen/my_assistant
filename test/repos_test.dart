@@ -307,6 +307,28 @@ void main() {
       expect(r.handled, isTrue);
       expect(r.text.contains('مرتب'), isTrue);
     });
+
+    test('المركز المالي بيجمع الرصيد', () async {
+      await WalletsRepo().save(const Wallet(name: 'كاش', openingBalance: 700));
+      final r = await LocalBrain.answer('وضعي المالي');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('700'), isTrue);
+    });
+
+    test('المركز الصحي بيعرض المياه', () async {
+      await HealthRepo().addWater(dayKey(DateTime.now()), 2);
+      final r = await LocalBrain.answer('وضعي الصحي');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('مياه'), isTrue);
+    });
+
+    test('زرار مسح الوارد بيفضّيه', () async {
+      await InboxRepo().add('حاجة');
+      final actions = await LocalBrain.quickActions('الوارد');
+      expect(actions.any((a) => a.kind == 'clear_inbox'), isTrue);
+      await LocalBrain.runAction('clear_inbox');
+      expect(await InboxRepo().count(), 0);
+    });
   });
 
   group('المياه والنوم', () {

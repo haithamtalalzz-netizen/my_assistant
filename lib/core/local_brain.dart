@@ -162,6 +162,11 @@ class LocalBrain {
       return (text: await _habitExtremes(), handled: true);
     }
 
+    // مركز مالي مجمّع.
+    if (_has(t, ['وضعي المالي', 'الوضع المالي', 'فلوسي كلها', 'ملخص فلوسي', 'فلوسي عامله ايه', 'ماليتي'])) {
+      return (text: await _moneyHub(), handled: true);
+    }
+
     // صافي الثروة (محافظ + أصول − ديون).
     if (_has(t, ['ثروتي', 'صافي ثروتي', 'ثروه', 'اصولي', 'صافي مالي', 'net worth'])) {
       return (text: await _netWorth(), handled: true);
@@ -267,6 +272,11 @@ class LocalBrain {
     // عادات.
     if (_has(t, ['عاداتي', 'عادات', 'سلسله', 'سلسلتي', 'streak', 'التزامي'])) {
       return (text: await _habits(), handled: true);
+    }
+
+    // مركز صحي مجمّع.
+    if (_has(t, ['وضعي الصحي', 'الوضع الصحي', 'صحتي عامله', 'صحتي كلها', 'صحتي عامله ايه'])) {
+      return (text: await _healthHub(), handled: true);
     }
 
     // جودة النوم امبارح.
@@ -1575,6 +1585,59 @@ class LocalBrain {
     return b.toString().trim();
   }
 
+  static Future<String> _moneyHub() async {
+    final now = DateTime.now();
+    final cash = await WalletsRepo().totalBalance();
+    final assets = await AssetsRepo().totalValue();
+    final (owedToMe, iOwe) = await DebtsRepo().totals();
+    final spend = await MoneyRepo().totalForMonth(now.year, now.month);
+    final bills = await BillsRepo().due(now);
+    final b = StringBuffer();
+    b.writeln(tr('وضعك المالي:', 'Your finances:'));
+    b.writeln(tr('• فلوس (محافظ): ${egp(cash)}', '• Cash (wallets): ${egp(cash)}'));
+    b.writeln(tr('• صافي الثروة: ${egp(cash + assets + owedToMe - iOwe)}',
+        '• Net worth: ${egp(cash + assets + owedToMe - iOwe)}'));
+    if (iOwe > 0) b.writeln(tr('• عليك ديون: ${egp(iOwe)}', '• You owe: ${egp(iOwe)}'));
+    b.writeln(tr('• صرفت الشهر: ${egp(spend)}', '• Spent this month: ${egp(spend)}'));
+    if (bills.isNotEmpty) {
+      b.writeln(tr('• فواتير مستحقة: ${arNum(bills.length)}', '• Bills due: ${arNum(bills.length)}'));
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _healthHub() async {
+    final key = dayKey(DateTime.now());
+    final water = await HealthRepo().waterOn(key);
+    final sleep = await HealthRepo().sleepOn(key);
+    final steps = (await MeasurementsRepo().stepsSince(key))[key];
+    final b = StringBuffer();
+    b.writeln(tr('وضعك الصحي النهاردة:', 'Your health today:'));
+    b.writeln(tr('• مياه: ${arNum(water)} كوب', '• Water: ${arNum(water)} cups'));
+    if (sleep != null) {
+      b.writeln(tr('• نوم امبارح: ${arNum(sleep.toStringAsFixed(1))} ساعة',
+          '• Sleep: ${arNum(sleep.toStringAsFixed(1))} h'));
+    }
+    if (steps != null) b.writeln(tr('• خطوات: ${arNum(steps)}', '• Steps: ${arNum(steps)}'));
+    final meds = await MedsRepo().all(activeOnly: true);
+    if (meds.isNotEmpty) {
+      final taken = await MedsRepo().takenOn(key);
+      var left = 0;
+      for (final m in meds) {
+        for (final s in m.times) {
+          if (!taken.contains('${m.id}|$s')) left++;
+        }
+      }
+      b.writeln(left == 0
+          ? tr('• الدوا: خلّصت جرعات النهاردة 👏', '• Meds: all doses done 👏')
+          : tr('• الدوا: فاضل ${arNum(left)} جرعة', '• Meds: ${arNum(left)} dose(s) left'));
+    }
+    final w = await MeasurementsRepo().recent(limit: 1, type: 'وزن');
+    if (w.isNotEmpty) {
+      b.writeln(tr('• آخر وزن: ${w.first.display()}', '• Last weight: ${w.first.display()}'));
+    }
+    return b.toString().trim();
+  }
+
   static Future<String> _briefing() async {
     final now = DateTime.now();
     final key = dayKey(now);
@@ -1819,6 +1882,12 @@ class LocalBrain {
             'log_expense:${amt.toStringAsFixed(2)}'));
       }
     }
+    // امسح صندوق الوارد.
+    if (_has(t, ['الوارد', 'تذكيراتي', 'صندوق الوارد', 'الملاحظات', 'التذكيرات'])) {
+      if ((await InboxRepo().all()).isNotEmpty) {
+        out.add(BrainAction(tr('🗑 امسح الوارد', '🗑 Clear inbox'), 'clear_inbox'));
+      }
+    }
     return out;
   }
 
@@ -1845,6 +1914,13 @@ class LocalBrain {
       await MoneyRepo().add(Expense(
           amount: amt, category: 'أخرى', day: day, note: tr('من الشات', 'via chat')));
       return tr('سجّلت مصروف ${egp(amt)} ✅', 'Logged ${egp(amt)} expense ✅');
+    }
+    if (kind == 'clear_inbox') {
+      final notes = await InboxRepo().all();
+      for (final n in notes) {
+        if (n.id != null) await InboxRepo().delete(n.id!);
+      }
+      return tr('مسحت صندوق الوارد ✅', 'Cleared your inbox ✅');
     }
     switch (kind) {
       case 'water+1':
