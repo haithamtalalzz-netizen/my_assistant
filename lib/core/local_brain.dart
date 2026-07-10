@@ -70,6 +70,22 @@ class LocalBrain {
       return (text: await _weekSummary(), handled: true);
     }
 
+    // ردود ودّية قصيرة.
+    if (['تمام', 'جميل', 'حلو', 'عاش', 'اوك', 'ok', 'تسلم'].contains(t)) {
+      return (text: tr('تحت أمرك 👍 اسألني أي حاجة تانية.', 'Anytime 👍 ask me anything else.'), handled: true);
+    }
+    if (_has(t, ['شكرا', 'متشكر', 'ربنا يخليك', 'thanks', 'thank you'])) {
+      return (text: tr('العفو! أنا في خدمتك 🙌', "You're welcome! Happy to help 🙌"), handled: true);
+    }
+    if (_has(t, ['مين انت', 'انت مين', 'اسمك ايه', 'انت ايه'])) {
+      return (
+        text: tr(
+            'أنا مديرك الشخصي جوّه التطبيق — بجاوبك من بياناتك على الجهاز من غير إنترنت. اسألني عن فلوسك أو مواعيدك أو صحتك.',
+            "I'm your personal manager inside the app — I answer from your data on-device, no internet. Ask me about your money, schedule or health."),
+        handled: true,
+      );
+    }
+
     // ترحيب / مساعدة / قدرات.
     if (_has(t, [
       'ازيك', 'ازايك', 'اهلا', 'هاي', 'هلا', 'السلام', 'مرحبا', 'صباح', 'مساء',
@@ -1718,6 +1734,14 @@ class LocalBrain {
         out.add(BrainAction(tr('دفعت ${bill.name}', 'Paid ${bill.name}'), 'bill_paid:${bill.id}'));
       }
     }
+    // سجّل المصروف بعد سؤال «ينفع أصرف N؟».
+    if (_has(t, ['ينفع اصرف', 'ينفع اشتري', 'اقدر اشتري', 'اقدر اصرف', 'اشتري ب', 'لو صرفت'])) {
+      final amt = _extractAmount(raw);
+      if (amt != null && amt > 0) {
+        out.add(BrainAction(tr('سجّل المصروف ${egp(amt)}', 'Log ${egp(amt)} expense'),
+            'log_expense:${amt.toStringAsFixed(2)}'));
+      }
+    }
     return out;
   }
 
@@ -1737,6 +1761,13 @@ class LocalBrain {
       if (id == null) return '';
       await BillsRepo().markPaid(id);
       return tr('سجّلت الفاتورة اتدفعت ✅', 'Marked the bill paid ✅');
+    }
+    if (kind.startsWith('log_expense:')) {
+      final amt = double.tryParse(kind.substring('log_expense:'.length));
+      if (amt == null || amt <= 0) return '';
+      await MoneyRepo().add(Expense(
+          amount: amt, category: 'أخرى', day: day, note: tr('من الشات', 'via chat')));
+      return tr('سجّلت مصروف ${egp(amt)} ✅', 'Logged ${egp(amt)} expense ✅');
     }
     switch (kind) {
       case 'water+1':

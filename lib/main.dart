@@ -18,6 +18,7 @@ import 'core/prayers.dart';
 import 'core/month_summary.dart';
 import 'core/streak_guard.dart';
 import 'core/water_guard.dart';
+import 'core/week_summary_notify.dart';
 import 'core/widget_bridge.dart';
 import 'data/bills_repo.dart';
 import 'data/gameya_repo.dart';
@@ -57,6 +58,7 @@ Future<void> main() async {
   unawaited(WidgetBridge.push());
   unawaited(OccasionsRepo().rescheduleAll());
   unawaited(EveningScheduler.ensureScheduled());
+  unawaited(WeekSummaryScheduler.ensureScheduled());
   unawaited(BillsRepo().rescheduleAll());
   // وضع السفر بيوقف تذكيرات الروتين (السلاسل + المياه).
   final travelMode = await SettingsRepo().travelMode();

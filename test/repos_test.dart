@@ -268,6 +268,21 @@ void main() {
       expect(r.handled, isTrue);
       expect(r.text.contains('كشف'), isTrue);
     });
+
+    test('رد ودّي على الشكر', () async {
+      final r = await LocalBrain.answer('شكرا');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('العفو'), isTrue);
+    });
+
+    test('زرار «سجّل المصروف» بيسجّل مصروف فعلاً', () async {
+      final actions = await LocalBrain.quickActions('ينفع أصرف ٢٠٠؟');
+      expect(actions.any((a) => a.kind.startsWith('log_expense:')), isTrue);
+      final day = dayKey(DateTime.now());
+      final before = await MoneyRepo().totalForDay(day);
+      await LocalBrain.runAction('log_expense:200');
+      expect(await MoneyRepo().totalForDay(day), before + 200);
+    });
   });
 
   group('المياه والنوم', () {

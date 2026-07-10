@@ -41,6 +41,7 @@ class Notifications {
   static int capsuleNotifId(int id) => 1040000 + id;
   static int leaveNotifId(int id) => 1050000 + id;
   static int plantNotifId(int id) => 1060000 + id;
+  static const int weekSummaryNotifId = 1070001;
 
   static const NotificationDetails _details = NotificationDetails(
     android: AndroidNotificationDetails(
