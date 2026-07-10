@@ -230,6 +230,25 @@ void main() {
       expect(msg.contains('مياه'), isTrue);
       expect(await HealthRepo().waterOn(day), before + 1);
     });
+
+    test('متابعة السياق: «وأمبارح» بعد سؤال المصاريف', () async {
+      final yesterday = dayKey(DateTime.now().subtract(const Duration(days: 1)));
+      await MoneyRepo().add(
+          Expense(amount: 120, category: 'أكل', day: yesterday, note: ''));
+      final r = await LocalBrain.answer('وأمبارح؟', previous: 'صرفت كام الشهر ده؟');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('امبارح'), isTrue);
+      expect(r.text.contains('120'), isTrue);
+    });
+
+    test('زرار «علّم عادة» بيعلّمها فعلاً', () async {
+      final id = await HabitsRepo().add('مشي');
+      final actions = await LocalBrain.quickActions('عاداتي');
+      expect(actions.any((a) => a.kind.startsWith('habit_done:')), isTrue);
+      await LocalBrain.runAction('habit_done:$id');
+      final done = await HabitsRepo().doneOn(dayKey(DateTime.now()));
+      expect(done.contains(id), isTrue);
+    });
   });
 
   group('المياه والنوم', () {

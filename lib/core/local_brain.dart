@@ -56,9 +56,14 @@ class BrainAction {
 
 class LocalBrain {
   /// يجاوب سؤال المستخدم من بياناته المحلية.
-  static Future<BrainReply> answer(String raw) async {
+  /// [previous] = آخر سؤال للمستخدم (لمتابعة السياق زي «وأمبارح؟»).
+  static Future<BrainReply> answer(String raw, {String? previous}) async {
     final t = _norm(raw);
     if (t.isEmpty) return (text: helpText(), handled: true);
+
+    // متابعة سياق: لو السؤال السابق كان عن المصاريف والسؤال ده وقت بس.
+    final followUp = await _spendingFollowUp(t, previous);
+    if (followUp != null) return (text: followUp, handled: true);
 
     // ترحيب / مساعدة / قدرات.
     if (_has(t, [
@@ -843,6 +848,43 @@ class LocalBrain {
     return b.toString().trim();
   }
 
+  /// لو السؤال السابق كان عن المصاريف، والسؤال الحالي «امبارح/الشهر اللي فات/…»
+  /// نرجّع مصاريف الفترة دي — من غير ما المستخدم يعيد كلمة «صرفت».
+  static Future<String?> _spendingFollowUp(String t, String? previous) async {
+    if (previous == null || previous.trim().isEmpty) return null;
+    final p = _norm(previous);
+    final prevSpending = _has(p, ['صرفت', 'مصاريف', 'مصروف', 'بصرف', 'ميزانيتي']);
+    if (!prevSpending) return null;
+    final now = DateTime.now();
+    if (_has(t, ['امبارح', 'امبارح', 'يوم امبارح'])) {
+      return _daySpending(
+          dayKey(now.subtract(const Duration(days: 1))), tr('امبارح', 'yesterday'));
+    }
+    if (t.split(' ').length <= 3 && _has(t, ['النهارده', 'اليوم'])) {
+      return _daySpending(dayKey(now), tr('النهاردة', 'today'));
+    }
+    if (_has(t, ['الشهر اللي فات', 'الشهر الماضي'])) {
+      final prev = DateTime(now.year, now.month - 1);
+      final total = await MoneyRepo().totalForMonth(prev.year, prev.month);
+      return total == 0
+          ? tr('مصرفتش حاجة الشهر اللي فات.', 'No spending last month.')
+          : tr('صرفت الشهر اللي فات: ${egp(total)}.', 'Last month you spent ${egp(total)}.');
+    }
+    if (_has(t, ['الاسبوع'])) return _weekSpending();
+    final mon = _monthInText(t);
+    if (mon != null && t.split(' ').length <= 4) {
+      return _monthSpending(mon.$1, mon.$2);
+    }
+    return null;
+  }
+
+  static Future<String> _daySpending(String key, String label) async {
+    final total = await MoneyRepo().totalForDay(key);
+    return total == 0
+        ? tr('مصرفتش حاجة $label.', 'No spending $label.')
+        : tr('صرفت $label: ${egp(total)}.', 'You spent $label: ${egp(total)}.');
+  }
+
   static Future<String?> _specificWallet(String t) async {
     final list = await WalletsRepo().allWithBalances();
     if (list.isEmpty) return null;
@@ -1595,12 +1637,41 @@ class LocalBrain {
         }
       }
     }
+    // علّم عادة ناقصة.
+    if (_has(t, ['عاداتي', 'عادات', 'سلسله', 'اعمل ايه', 'مهامي', 'يومي', 'طمني', 'ملخص', 'باقي اليوم'])) {
+      final repo = HabitsRepo();
+      final habits = await repo.active();
+      final done = await repo.doneOn(dayKey(DateTime.now()));
+      for (final h in habits.where((h) => !done.contains(h.id)).take(3)) {
+        out.add(BrainAction('✓ ${h.name}', 'habit_done:${h.id}'));
+      }
+    }
+    // سجّل فاتورة اتدفعت.
+    if (_has(t, ['فواتير', 'فاتوره', 'مستحق', 'طمني', 'ملخص'])) {
+      for (final bill in (await BillsRepo().due(DateTime.now())).take(3)) {
+        out.add(BrainAction(tr('دفعت ${bill.name}', 'Paid ${bill.name}'), 'bill_paid:${bill.id}'));
+      }
+    }
     return out;
   }
 
   /// ينفّذ زرار الإجراء ويرجّع تأكيد.
   static Future<String> runAction(String kind) async {
     final day = dayKey(DateTime.now());
+    if (kind.startsWith('habit_done:')) {
+      final id = int.tryParse(kind.substring('habit_done:'.length));
+      if (id == null) return '';
+      final done = await HabitsRepo().doneOn(day);
+      if (done.contains(id)) return tr('العادة دي معلّمة خلاص 👍', 'Already marked 👍');
+      await HabitsRepo().toggle(id, day);
+      return tr('علّمت العادة ✅', 'Marked the habit ✅');
+    }
+    if (kind.startsWith('bill_paid:')) {
+      final id = int.tryParse(kind.substring('bill_paid:'.length));
+      if (id == null) return '';
+      await BillsRepo().markPaid(id);
+      return tr('سجّلت الفاتورة اتدفعت ✅', 'Marked the bill paid ✅');
+    }
     switch (kind) {
       case 'water+1':
         final n = await HealthRepo().addWater(day, 1);

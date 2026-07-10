@@ -79,13 +79,21 @@ class _ChatScreenState extends State<ChatScreen> {
     question = question.trim();
     if (question.isEmpty || _sending) return;
     _input.clear();
+    // آخر سؤال للمستخدم (لمتابعة السياق) — قبل ما نضيف الرسالة الجديدة.
+    String? previous;
+    for (final m in _messages.reversed) {
+      if (m.fromUser) {
+        previous = m.text;
+        break;
+      }
+    }
     setState(() {
       _messages.add(_ChatMessage(true, question));
       _sending = true;
     });
     _scrollDown();
 
-    final local = await LocalBrain.answer(question);
+    final local = await LocalBrain.answer(question, previous: previous);
     String reply;
     if (local.handled) {
       reply = local.text;
