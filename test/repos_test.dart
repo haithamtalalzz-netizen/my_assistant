@@ -26,6 +26,7 @@ import 'package:my_assistant/data/debts_repo.dart';
 import 'package:my_assistant/data/gameya_repo.dart';
 import 'package:my_assistant/data/home_maintenance_repo.dart';
 import 'package:my_assistant/data/inbox_repo.dart';
+import 'package:my_assistant/data/income_repo.dart';
 import 'package:my_assistant/data/meals_repo.dart';
 import 'package:my_assistant/data/measurements_repo.dart';
 import 'package:my_assistant/data/occasions_repo.dart';
@@ -282,6 +283,29 @@ void main() {
       final before = await MoneyRepo().totalForDay(day);
       await LocalBrain.runAction('log_expense:200');
       expect(await MoneyRepo().totalForDay(day), before + 200);
+    });
+
+    test('ملخص الشهر بيرجّع الصرف', () async {
+      await MoneyRepo().add(Expense(
+          amount: 300, category: 'أكل', day: dayKey(DateTime.now()), note: ''));
+      final r = await LocalBrain.answer('ملخص الشهر');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('صرفت'), isTrue);
+    });
+
+    test('بحث المستندات بالاسم (رخصتي ↔ رخصة)', () async {
+      await DocsRepo().save(const DocItem(title: 'رخصة القيادة'));
+      final r = await LocalBrain.answer('رخصتي فين؟');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('رخصة'), isTrue);
+    });
+
+    test('ميعاد المرتب الجاي', () async {
+      await IncomeRepo().saveRecurring(
+          const RecurringIncome(source: 'مرتب', amount: 5000, dayOfMonth: 28));
+      final r = await LocalBrain.answer('امتى مرتبي؟');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('مرتب'), isTrue);
     });
   });
 

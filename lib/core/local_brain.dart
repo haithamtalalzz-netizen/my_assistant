@@ -70,6 +70,11 @@ class LocalBrain {
       return (text: await _weekSummary(), handled: true);
     }
 
+    // ملخص الشهر.
+    if (_has(t, ['ملخص الشهر', 'الشهر عامل ايه', 'ملخص شهري', 'الشهر كله', 'مراجعه الشهر'])) {
+      return (text: await _monthSummary(), handled: true);
+    }
+
     // ردود ودّية قصيرة.
     if (['تمام', 'جميل', 'حلو', 'عاش', 'اوك', 'ok', 'تسلم'].contains(t)) {
       return (text: tr('تحت أمرك 👍 اسألني أي حاجة تانية.', 'Anytime 👍 ask me anything else.'), handled: true);
@@ -186,6 +191,11 @@ class LocalBrain {
       return (text: await _spending(), handled: true);
     }
 
+    // ميعاد المرتب/الدخل الجاي.
+    if (_has(t, ['امتى مرتبي', 'المرتب الجاي', 'الدخل الجاي', 'امتى الدخل', 'مرتبي امتى', 'امتى المرتب'])) {
+      return (text: await _nextIncome(), handled: true);
+    }
+
     // دخل / صافي.
     if (_has(t, [
       'دخلي', 'دخل الشهر', 'قبضت', 'مرتبي', 'مرتب', 'الصافي', 'صافي الشهر',
@@ -292,9 +302,9 @@ class LocalBrain {
       return (text: await _measurements(), handled: true);
     }
 
-    // مستندات.
-    if (_has(t, ['مستنداتي', 'مستندات', 'بطاقتي', 'رخصتي', 'رخصه', 'جواز', 'وثايق', 'وثيقه'])) {
-      return (text: await _docs(), handled: true);
+    // مستندات (بحث بالاسم أو القرب على الانتهاء).
+    if (_has(t, ['مستنداتي', 'مستندات', 'بطاقتي', 'رخصتي', 'رخصه', 'جواز', 'وثايق', 'وثيقه', 'شهاده'])) {
+      return (text: await _docs(t), handled: true);
     }
 
     // الصلاة — كل المواعيد لو طلبها، وإلا الجاية بس.
@@ -785,10 +795,20 @@ class LocalBrain {
     return b.toString().trim();
   }
 
-  static Future<String> _docs() async {
+  static Future<String> _docs(String t) async {
+    final all = await DocsRepo().all();
+    // بحث باسم المستند (مطابقة جذر مبسّطة تتحمّل «رخصتي» ↔ «رخصة»).
+    for (final d in all) {
+      if (_docMatch(t, d.title)) {
+        final exp = d.expiry != null
+            ? tr(' — صلاحية ${arShortDate(DateTime.parse(d.expiry!))}',
+                ' — expires ${arShortDate(DateTime.parse(d.expiry!))}')
+            : '';
+        return tr('لقيت «${d.title}»$exp.', 'Found "${d.title}"$exp.');
+      }
+    }
     final soon = await DocsRepo().expiringSoon();
     if (soon.isEmpty) {
-      final all = await DocsRepo().all();
       return all.isEmpty
           ? tr('مفيش مستندات محفوظة.', 'No documents saved.')
           : tr('عندك ${arNum(all.length)} مستند، ومفيش حاجة قربت تنتهي. تمام. 👌',
@@ -801,6 +821,63 @@ class LocalBrain {
           ? ' — ${arShortDate(DateTime.parse(d.expiry!))}'
           : '';
       b.writeln('• ${d.title}$exp');
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _monthSummary() async {
+    final now = DateTime.now();
+    final money = MoneyRepo();
+    final spend = await money.totalForMonth(now.year, now.month);
+    final byCat = await money.byCategory(now.year, now.month);
+    final inc = await IncomeRepo().totalForMonth(now.year, now.month);
+    final b = StringBuffer();
+    b.writeln(tr('ملخص الشهر:', 'This month:'));
+    b.writeln(tr('• صرفت: ${egp(spend)}', '• Spent: ${egp(spend)}'));
+    if (inc > 0) {
+      b.writeln(tr('• دخل: ${egp(inc)} — الصافي: ${egp(inc - spend)}',
+          '• Income: ${egp(inc)} — net: ${egp(inc - spend)}'));
+    }
+    if (byCat.isNotEmpty) {
+      final top = byCat.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+      b.writeln(tr('• أكتر بند: ${top.first.key} (${egp(top.first.value)})',
+          '• Top category: ${top.first.key} (${egp(top.first.value)})'));
+    }
+    final budget = await SettingsRepo().monthlyBudget();
+    if (budget > 0) {
+      final left = budget - spend;
+      b.writeln(left >= 0
+          ? tr('• فاضل من الميزانية: ${egp(left)}', '• Left in budget: ${egp(left)}')
+          : tr('• عدّيت الميزانية بـ ${egp(-left)}', '• Over budget by ${egp(-left)}'));
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _nextIncome() async {
+    final list = await IncomeRepo().allRecurring();
+    if (list.isEmpty) {
+      return tr('مسجلتش دخل متكرر (زي المرتب). ضيفه من قسم الدخل.',
+          'No recurring income (like salary) logged. Add it in the Income section.');
+    }
+    final now = DateTime.now();
+    DateTime next(RecurringIncome r) {
+      var d = DateTime(now.year, now.month, r.dayOfMonth);
+      if (!d.isAfter(now)) d = DateTime(now.year, now.month + 1, r.dayOfMonth);
+      return d;
+    }
+
+    final sorted = list.toList()..sort((a, b) => next(a).compareTo(next(b)));
+    final b = StringBuffer();
+    b.writeln(tr('الدخل الجاي:', 'Upcoming income:'));
+    for (final r in sorted.take(4)) {
+      final d = next(r);
+      final days = dateOnly(d).difference(dateOnly(now)).inDays;
+      final when = days == 0
+          ? tr('النهاردة', 'today')
+          : days == 1
+              ? tr('بكرة', 'tomorrow')
+              : tr('بعد ${arNum(days)} يوم', 'in ${arNum(days)} days');
+      b.writeln('• ${r.source}: ${egp(r.amount)} — $when (${arShortDate(d)})');
     }
     return b.toString().trim();
   }
@@ -1888,6 +1965,16 @@ class LocalBrain {
       for (final nm in names) {
         if (tok == nm || tok.endsWith(nm)) return true;
       }
+    }
+    return false;
+  }
+
+  /// مطابقة اسم مستند بجذر مبسّط (أول ٤ حروف بعد نزع «ال») عشان «رخصتي» تلاقي
+  /// «رخصة» و«بطاقتي» تلاقي «البطاقة».
+  static bool _docMatch(String t, String title) {
+    for (var w in _norm(title).split(' ')) {
+      w = w.replaceFirst(RegExp('^ال'), '');
+      if (w.length >= 3 && t.contains(w.substring(0, 3))) return true;
     }
     return false;
   }
