@@ -61,9 +61,14 @@ class LocalBrain {
     final t = _norm(raw);
     if (t.isEmpty) return (text: helpText(), handled: true);
 
-    // متابعة سياق: لو السؤال السابق كان عن المصاريف والسؤال ده وقت بس.
-    final followUp = await _spendingFollowUp(t, previous);
+    // متابعة سياق: لو السؤال السابق كان عن المصاريف/المواعيد والسؤال ده وقت بس.
+    final followUp = await _followUp(t, previous);
     if (followUp != null) return (text: followUp, handled: true);
+
+    // ملخص الأسبوع (قبل الملخص اليومي عشان «ملخص الأسبوع» مايتلقطش كـ«ملخص»).
+    if (_has(t, ['ملخص الاسبوع', 'الاسبوع عامل ايه', 'مراجعه الاسبوع', 'ملخص اسبوعي', 'الاسبوع كله'])) {
+      return (text: await _weekSummary(), handled: true);
+    }
 
     // ترحيب / مساعدة / قدرات.
     if (_has(t, [
@@ -848,34 +853,95 @@ class LocalBrain {
     return b.toString().trim();
   }
 
-  /// لو السؤال السابق كان عن المصاريف، والسؤال الحالي «امبارح/الشهر اللي فات/…»
-  /// نرجّع مصاريف الفترة دي — من غير ما المستخدم يعيد كلمة «صرفت».
-  static Future<String?> _spendingFollowUp(String t, String? previous) async {
+  /// متابعة سياق: لو السؤال السابق كان عن المصاريف أو المواعيد، والسؤال الحالي
+  /// «امبارح/بكرة/الشهر اللي فات/…» بس — نرجّع نفس النوع للفترة دي.
+  static Future<String?> _followUp(String t, String? previous) async {
     if (previous == null || previous.trim().isEmpty) return null;
+    // لازم السؤال الحالي يكون قصير (متابعة) وفيه إشارة وقت.
+    final isTemporal = _has(t, [
+          'امبارح', 'النهارده', 'اليوم', 'بكره', 'بكرة', 'الشهر اللي فات',
+          'الشهر الماضي', 'الاسبوع'
+        ]) ||
+        _monthInText(t) != null;
+    if (!isTemporal || t.split(' ').length > 4) return null;
     final p = _norm(previous);
-    final prevSpending = _has(p, ['صرفت', 'مصاريف', 'مصروف', 'بصرف', 'ميزانيتي']);
-    if (!prevSpending) return null;
     final now = DateTime.now();
-    if (_has(t, ['امبارح', 'امبارح', 'يوم امبارح'])) {
-      return _daySpending(
-          dayKey(now.subtract(const Duration(days: 1))), tr('امبارح', 'yesterday'));
+
+    if (_has(p, ['صرفت', 'مصاريف', 'مصروف', 'بصرف', 'ميزانيتي'])) {
+      if (_has(t, ['امبارح', 'يوم امبارح'])) {
+        return _daySpending(dayKey(now.subtract(const Duration(days: 1))),
+            tr('امبارح', 'yesterday'));
+      }
+      if (_has(t, ['النهارده', 'اليوم'])) {
+        return _daySpending(dayKey(now), tr('النهاردة', 'today'));
+      }
+      if (_has(t, ['الشهر اللي فات', 'الشهر الماضي'])) {
+        final prev = DateTime(now.year, now.month - 1);
+        final total = await MoneyRepo().totalForMonth(prev.year, prev.month);
+        return total == 0
+            ? tr('مصرفتش حاجة الشهر اللي فات.', 'No spending last month.')
+            : tr('صرفت الشهر اللي فات: ${egp(total)}.',
+                'Last month you spent ${egp(total)}.');
+      }
+      if (_has(t, ['الاسبوع'])) return _weekSpending();
+      final mon = _monthInText(t);
+      if (mon != null) return _monthSpending(mon.$1, mon.$2);
     }
-    if (t.split(' ').length <= 3 && _has(t, ['النهارده', 'اليوم'])) {
-      return _daySpending(dayKey(now), tr('النهاردة', 'today'));
-    }
-    if (_has(t, ['الشهر اللي فات', 'الشهر الماضي'])) {
-      final prev = DateTime(now.year, now.month - 1);
-      final total = await MoneyRepo().totalForMonth(prev.year, prev.month);
-      return total == 0
-          ? tr('مصرفتش حاجة الشهر اللي فات.', 'No spending last month.')
-          : tr('صرفت الشهر اللي فات: ${egp(total)}.', 'Last month you spent ${egp(total)}.');
-    }
-    if (_has(t, ['الاسبوع'])) return _weekSpending();
-    final mon = _monthInText(t);
-    if (mon != null && t.split(' ').length <= 4) {
-      return _monthSpending(mon.$1, mon.$2);
+
+    if (_has(p, ['مواعيد', 'معاد', 'ميعاد', 'اجندتي'])) {
+      // _appointments بيقرا «بكرة» من النص؛ باقي الفترات = الجايّة.
+      return _appointments(t);
     }
     return null;
+  }
+
+  static Future<String> _weekSummary() async {
+    final now = DateTime.now();
+    final money = MoneyRepo();
+    final health = HealthRepo();
+    var spend = 0.0, water = 0, workouts = 0;
+    final sleeps = <double>[];
+    for (var i = 0; i < 7; i++) {
+      final d = dayKey(now.subtract(Duration(days: i)));
+      spend += await money.totalForDay(d);
+      final s = await health.sleepOn(d);
+      if (s != null) sleeps.add(s);
+      water += await health.waterOn(d);
+      if (await WorkoutRepo().doneOn(d)) workouts++;
+    }
+    final steps = await MeasurementsRepo()
+        .stepsSince(dayKey(now.subtract(const Duration(days: 6))));
+    final totalSteps = steps.values.fold<int>(0, (s, x) => s + x);
+
+    final b = StringBuffer();
+    b.writeln(tr('ملخص آخر ٧ أيام:', 'Last 7 days:'));
+    b.writeln(tr('• صرفت: ${egp(spend)} (متوسط ${egp(spend / 7)}/يوم)',
+        '• Spent: ${egp(spend)} (avg ${egp(spend / 7)}/day)'));
+    if (sleeps.isNotEmpty) {
+      final avg = sleeps.reduce((a, b) => a + b) / sleeps.length;
+      b.writeln(tr('• متوسط النوم: ${arNum(avg.toStringAsFixed(1))} ساعة',
+          '• Avg sleep: ${arNum(avg.toStringAsFixed(1))} h'));
+    }
+    b.writeln(tr('• مياه: ${arNum(water)} كوب', '• Water: ${arNum(water)} cups'));
+    if (totalSteps > 0) {
+      b.writeln(tr('• خطوات: ${arNum(totalSteps)}', '• Steps: ${arNum(totalSteps)}'));
+    }
+    b.writeln(tr('• تمارين: ${arNum(workouts)} من ٧', '• Workouts: ${arNum(workouts)} of 7'));
+    final hrepo = HabitsRepo();
+    final habits = await hrepo.active();
+    if (habits.isNotEmpty) {
+      var totalDone = 0, totalPossible = 0;
+      for (final h in habits) {
+        final days = await hrepo.daysFor(h.id!);
+        for (var i = 0; i < 7; i++) {
+          totalPossible++;
+          if (days.contains(dayKey(now.subtract(Duration(days: i))))) totalDone++;
+        }
+      }
+      final pct = totalPossible > 0 ? (totalDone / totalPossible * 100).round() : 0;
+      b.writeln(tr('• التزام العادات: ${arNum(pct)}%', '• Habit adherence: ${arNum(pct)}%'));
+    }
+    return b.toString().trim();
   }
 
   static Future<String> _daySpending(String key, String label) async {
@@ -1707,7 +1773,7 @@ class LocalBrain {
   static String helpText() => tr(
       'أنا مديرك — بجاوبك من بياناتك مباشرة على الجهاز (من غير إنترنت). '
           'جرّب تسألني:\n'
-          '• «طمني على يومي» (ملخص شامل)\n'
+          '• «طمني على يومي» / «ملخص الأسبوع»\n'
           '• «معايا كام فلوس؟» / «ينفع أصرف ٥٠٠؟»\n'
           '• «صرفت كام الشهر ده؟»\n'
           '• «عليا ديون؟» / «أنا مديون لأحمد بكام؟»\n'
@@ -1721,7 +1787,7 @@ class LocalBrain {
           '• «اديني نصيحة من أرقامي»',
       "I'm your manager — I answer straight from your data, on-device (no internet). "
           'Try asking:\n'
-          '• "Brief me on my day" (full summary)\n'
+          '• "Brief me on my day" / "This week summary"\n'
           '• "How much money do I have?" / "Can I spend 500?"\n'
           '• "How much did I spend this month?"\n'
           '• "Do I owe any debts?" / "How much do I owe Ahmed?"\n'

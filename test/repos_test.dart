@@ -249,6 +249,25 @@ void main() {
       final done = await HabitsRepo().doneOn(dayKey(DateTime.now()));
       expect(done.contains(id), isTrue);
     });
+
+    test('ملخص الأسبوع بيرجّع نظرة', () async {
+      await MoneyRepo().add(Expense(
+          amount: 50, category: 'أكل', day: dayKey(DateTime.now()), note: ''));
+      final r = await LocalBrain.answer('ملخص الأسبوع');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('أيام') || r.text.contains('صرفت'), isTrue);
+    });
+
+    test('متابعة السياق للمواعيد: «وبكرة» بعد سؤال المواعيد', () async {
+      final tm = DateTime.now().add(const Duration(days: 1));
+      await AppointmentsRepo().save(Appointment(
+          title: 'كشف',
+          category: 'دكتور',
+          when: DateTime(tm.year, tm.month, tm.day, 17)));
+      final r = await LocalBrain.answer('وبكرة؟', previous: 'مواعيدي إيه؟');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('كشف'), isTrue);
+    });
   });
 
   group('المياه والنوم', () {
