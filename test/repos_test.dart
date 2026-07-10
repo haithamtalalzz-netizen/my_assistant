@@ -177,6 +177,22 @@ void main() {
       expect(r.handled, isTrue);
       expect(r.text.contains('الصافي'), isTrue);
     });
+
+    test('«ذكّرني بـ…» بيضيف تذكير في صندوق الوارد', () async {
+      final r = await LocalBrain.answer('ذكرني بشراء اللبن');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('الوارد'), isTrue);
+      expect(await InboxRepo().count(), 1);
+    });
+
+    test('اتجاه القياس بيقارن آخر قياسين', () async {
+      final repo = MeasurementsRepo();
+      await repo.add(const Measurement(day: '2026-07-01', type: 'وزن', value: 90));
+      await repo.add(const Measurement(day: '2026-07-10', type: 'وزن', value: 88));
+      final r = await LocalBrain.answer('وزني نزل؟');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('نزل'), isTrue);
+    });
   });
 
   group('المياه والنوم', () {

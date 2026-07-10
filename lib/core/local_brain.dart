@@ -7,10 +7,13 @@ import '../data/appointments_repo.dart';
 import '../data/assets_repo.dart';
 import '../data/bills_repo.dart';
 import '../data/debts_repo.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import '../data/docs_repo.dart';
 import '../data/gameya_repo.dart';
 import '../data/gym_repo.dart';
 import '../data/habits_repo.dart';
+import '../data/inbox_repo.dart';
 import '../data/health_repo.dart';
 import '../data/home_maintenance_repo.dart';
 import '../data/income_repo.dart';
@@ -30,6 +33,7 @@ import '../data/workout_repo.dart';
 import 'ar.dart';
 import 'insights.dart';
 import 'l10n.dart';
+import 'notifications.dart';
 import 'prayers.dart';
 import 'weather.dart';
 
@@ -57,6 +61,11 @@ class LocalBrain {
       'اخر الاخبار', 'وريني كله', 'الوضع', 'اطمن'
     ])) {
       return (text: await _briefing(), handled: true);
+    }
+
+    // «ذكّرني بـ…» — يضيف تذكير من الشات.
+    if (_has(t, ['ذكرني', 'فكرني', 'افتكرلي', 'افكرلي', 'نبهني'])) {
+      return (text: await _reminder(raw), handled: true);
     }
 
     // «ينفع أصرف/أشتري بـ N؟» — قدرة الشراء (محتاج رقم).
@@ -195,6 +204,16 @@ class LocalBrain {
       'حالتي النهارده'
     ])) {
       return (text: await _healthToday(), handled: true);
+    }
+
+    // اتجاه قياس محدد («ضغطي اتحسن؟» / «وزني نزل؟») — قبل عرض كل القياسات.
+    final mtype = _measurementType(t);
+    if (mtype != null &&
+        _has(t, [
+          'اتحسن', 'اتغير', 'نزل', 'زاد', 'عامل ايه', 'مقارنه', 'قارن', 'احسن',
+          'اسوا', 'قل', 'طلع', 'بيتحسن', 'بقى', 'ولا لسه'
+        ])) {
+      return (text: await _measurementTrend(mtype), handled: true);
     }
 
     // قياسات (وزن/ضغط/سكر).
@@ -744,6 +763,113 @@ class LocalBrain {
     return b.toString().trim();
   }
 
+  static Future<String> _reminder(String raw) async {
+    // نص التذكير: نشيل كلمة التنبيه + السوابق + كلمات الوقت.
+    const stop = {
+      'ذكرني', 'فكرني', 'افتكرلي', 'افكرلي', 'نبهني', 'من', 'فضلك', 'لو', 'سمحت',
+      'ب', 'بان', 'ان', 'اني', 'انى', 'بكره', 'بكرة', 'بعد', 'ساعه', 'ساعتين',
+      'دقيقه', 'دقايق', 'الليله', 'شويه', 'كمان', 'غدا', 'النهارده',
+    };
+    final words = _norm(raw)
+        .split(' ')
+        .where((w) => w.isNotEmpty && !stop.contains(w))
+        .toList();
+    var text = words.join(' ').trim();
+    if (text.isEmpty) text = raw.trim();
+
+    final when = _relativeTime(raw);
+    final id = await InboxRepo().add(text);
+    if (when != null && !kIsWeb) {
+      await Notifications.scheduleOnce(
+        id: 1100000 + (id % 100000),
+        title: tr('تذكير من مديرك', 'Reminder from your manager'),
+        body: text,
+        when: when,
+      );
+      return tr('تمام، هفكّرك بـ«$text» ${_whenLabel(when)}. وكمان حطّيتها في صندوق الوارد.',
+          'Done — I\'ll remind you to "$text" ${_whenLabel(when)}. Also saved to your inbox.');
+    }
+    return tr(
+        'حطّيت «$text» في صندوق الوارد تفتكرها. لو عايز وقت قول مثلًا «ذكّرني بكرة» أو «بعد ساعتين».',
+        'Saved "$text" to your inbox. For a time, say e.g. "remind me tomorrow" or "in 2 hours".');
+  }
+
+  static DateTime? _relativeTime(String raw) {
+    final t = toEnglishDigits(_norm(raw));
+    final now = DateTime.now();
+    if (t.contains('بعد ساعتين')) return now.add(const Duration(hours: 2));
+    if (t.contains('بعد ساعه')) return now.add(const Duration(hours: 1));
+    final hM = RegExp(r'بعد (\d+) ساع').firstMatch(t);
+    if (hM != null) {
+      final h = int.tryParse(hM[1]!) ?? 0;
+      if (h > 0) return now.add(Duration(hours: h));
+    }
+    final mM = RegExp(r'بعد (\d+) (?:دقيق|دق)').firstMatch(t);
+    if (mM != null) {
+      final m = int.tryParse(mM[1]!) ?? 0;
+      if (m > 0) return now.add(Duration(minutes: m));
+    }
+    if (t.contains('بعد شويه') || t.contains('كمان شويه')) {
+      return now.add(const Duration(hours: 2));
+    }
+    if (t.contains('بكره') || t.contains('بكرة') || t.contains('غدا')) {
+      return DateTime(now.year, now.month, now.day + 1, 9);
+    }
+    if (t.contains('الليله') || t.contains('بالليل')) {
+      final d = DateTime(now.year, now.month, now.day, 21);
+      return d.isAfter(now) ? d : null;
+    }
+    return null;
+  }
+
+  static String _whenLabel(DateTime when) {
+    final now = DateTime.now();
+    if (dateOnly(when) == dateOnly(now)) {
+      return tr('الساعة ${arTime(when)}', 'at ${arTime(when)}');
+    }
+    if (dateOnly(when) == dateOnly(now.add(const Duration(days: 1)))) {
+      return tr('بكرة ${arTime(when)}', 'tomorrow ${arTime(when)}');
+    }
+    return '${arShortDate(when)} ${arTime(when)}';
+  }
+
+  static String? _measurementType(String t) {
+    if (_has(t, ['ضغطي', 'الضغط', 'ضغط'])) return 'ضغط';
+    if (_has(t, ['سكري', 'السكر', 'سكر'])) return 'سكر';
+    if (_has(t, ['وزني', 'الوزن', 'وزن'])) return 'وزن';
+    if (_has(t, ['حرارتي', 'الحراره', 'سخونيتي', 'حراره'])) return 'حرارة';
+    return null;
+  }
+
+  static Future<String> _measurementTrend(String type) async {
+    final list = await MeasurementsRepo().recent(limit: 5, type: type);
+    if (list.isEmpty) {
+      return tr('مسجلتش $type لسه. سجّله من قسم القياسات وأنا أتابعه معاك.',
+          'No $type readings yet. Log it in Measurements and I\'ll track it.');
+    }
+    if (list.length < 2) {
+      return tr('عندك قياس $type واحد بس: ${list.first.display()} (${list.first.day}). سجّل تاني عشان أقارن.',
+          'Only one $type reading: ${list.first.display()} (${list.first.day}). Log another to compare.');
+    }
+    final latest = list[0], prev = list[1];
+    final b = StringBuffer();
+    b.writeln(tr('$type — آخر قياسين:', '$type — last two:'));
+    b.writeln('• ${latest.display()} (${latest.day})');
+    b.writeln('• ${prev.display()} (${prev.day})');
+    final diff = latest.value - prev.value;
+    if (diff == 0) {
+      b.writeln(tr('ثابت من غير تغيير.', 'No change.'));
+    } else {
+      final d = diff.abs();
+      final ds = d % 1 == 0 ? arNum(d.toInt()) : arNum(d.toStringAsFixed(1));
+      b.writeln(diff > 0
+          ? tr('زاد بمقدار $ds عن آخر مرة.', 'Up by $ds since last time.')
+          : tr('نزل بمقدار $ds عن آخر مرة.', 'Down by $ds since last time.'));
+    }
+    b.writeln(tr('(للتقييم الدقيق راجع دكتورك.)', '(For an accurate assessment, see your doctor.)'));
+    return b.toString().trim();
+  }
+
   static Future<String> _monthSpending(int month, String monthName) async {
     final now = DateTime.now();
     final year = month > now.month ? now.year - 1 : now.year;
@@ -1115,7 +1241,8 @@ class LocalBrain {
           '• «أدويتي إيه؟» / «عندي بانادول؟»\n'
           '• «أعمل إيه باقي النهاردة؟»\n'
           '• «صافي ثروتي؟» / «الجمعية» / «مناسبات جاية؟»\n'
-          '• «إزاي نومي؟» / «قياساتي» / «الجو النهاردة؟»\n'
+          '• «إزاي نومي؟» / «ضغطي اتحسن؟» / «الجو النهاردة؟»\n'
+          '• «ذكّرني بكرة بالدوا» (بيضيف تذكير)\n'
           '• «اديني نصيحة من أرقامي»',
       "I'm your manager — I answer straight from your data, on-device (no internet). "
           'Try asking:\n'
@@ -1127,7 +1254,8 @@ class LocalBrain {
           '• "What are my meds?" / "Do I have Panadol?"\n'
           '• "What should I do the rest of today?"\n'
           '• "My net worth?" / "My gameya" / "Any occasions coming up?"\n'
-          '• "How\'s my sleep?" / "My measurements" / "Today\'s weather?"\n'
+          '• "How\'s my sleep?" / "Is my blood pressure better?" / "Today\'s weather?"\n'
+          '• "Remind me tomorrow about my meds" (adds a reminder)\n'
           '• "Give me advice from my numbers"');
 
   // ---- أدوات مساعدة ----
