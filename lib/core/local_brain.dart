@@ -1523,6 +1523,61 @@ class LocalBrain {
     return b.toString().trim();
   }
 
+  /// أهم حاجة محتاجة انتباه دلوقتي — تُعرض كترحيب استباقي أول ما الشات يفتح.
+  static Future<String> proactiveTip() async {
+    final now = DateTime.now();
+    final appts = await AppointmentsRepo().all();
+    final overdue = [
+      for (final a in appts) if (!a.done && a.when.isBefore(dateOnly(now))) a
+    ];
+    if (overdue.isNotEmpty) {
+      return tr(
+          '👋 عندك ${arNum(overdue.length)} موعد فايت محتاج قرار. اكتب «مواعيد فايتة» أعرضهملك.',
+          '👋 You have ${arNum(overdue.length)} overdue appointment(s). Type "overdue" to see them.');
+    }
+    final bills = await BillsRepo().due(now);
+    if (bills.isNotEmpty) {
+      return tr('👋 فيه ${arNum(bills.length)} فاتورة مستحقة. اكتب «فواتير» تشوفها.',
+          '👋 ${arNum(bills.length)} bill(s) are due. Type "bills" to see them.');
+    }
+    final meds = await MedsRepo().all(activeOnly: true);
+    if (meds.isNotEmpty) {
+      final taken = await MedsRepo().takenOn(dayKey(now));
+      var left = 0;
+      for (final m in meds) {
+        for (final s in m.times) {
+          if (!taken.contains('${m.id}|$s')) left++;
+        }
+      }
+      if (left > 0) {
+        return tr('👋 فاضلك ${arNum(left)} جرعة دوا النهاردة. اكتب «خدت الدوا؟».',
+            '👋 You have ${arNum(left)} med dose(s) left today. Type "meds today".');
+      }
+    }
+    final rel = await RelativesRepo().due(now);
+    if (rel.isNotEmpty) {
+      return tr('👋 محتاج تطمن على ${rel.first.name}. اكتب «مين أتصل بيه».',
+          '👋 Time to check on ${rel.first.name}. Type "who to call".');
+    }
+    final docs = await DocsRepo().expiringSoon();
+    if (docs.isNotEmpty) {
+      return tr('👋 مستند «${docs.first.title}» قرب ينتهي. اكتب «مستنداتي».',
+          '👋 Document "${docs.first.title}" is expiring soon. Type "documents".');
+    }
+    return tr(
+        '👋 أهلاً! أنا مديرك — اسألني عن فلوسك، مواعيدك، أو صحتك، أو قوللي «طمني على يومي».',
+        '👋 Hi! I\'m your manager — ask about your money, schedule or health, or say "brief me on my day".');
+  }
+
+  /// اقتراحات سريعة تتعرض كأزرار في الشات.
+  static List<String> suggestions() => [
+        tr('طمني على يومي', 'Brief me on my day'),
+        tr('معايا كام فلوس؟', 'How much money do I have?'),
+        tr('أعمل إيه النهاردة؟', 'What should I do today?'),
+        tr('عليا ديون؟', 'Do I owe debts?'),
+        tr('ذكّرني بكرة بالدوا', 'Remind me tomorrow about meds'),
+      ];
+
   /// رسالة المساعدة/القدرات — تُستخدم كردّ ترحيب وكـ fallback.
   static String helpText() => tr(
       'أنا مديرك — بجاوبك من بياناتك مباشرة على الجهاز (من غير إنترنت). '

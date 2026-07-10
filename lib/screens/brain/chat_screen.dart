@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/gemini.dart';
@@ -25,18 +27,23 @@ class _ChatScreenState extends State<ChatScreen> {
   final _input = TextEditingController();
   final _keyInput = TextEditingController();
   final _scroll = ScrollController();
+  final _stt = SpeechToText();
   final List<_ChatMessage> _messages = [];
   bool _hasKey = false;
   bool _sending = false;
+  bool _listening = false;
+  bool _sttReady = false;
 
   @override
   void initState() {
     super.initState();
     _check();
+    _greet();
   }
 
   @override
   void dispose() {
+    _stt.stop();
     _input.dispose();
     _keyInput.dispose();
     _scroll.dispose();
@@ -47,6 +54,12 @@ class _ChatScreenState extends State<ChatScreen> {
     final hasKey = await GeminiClient.hasKey();
     if (!mounted) return;
     setState(() => _hasKey = hasKey);
+  }
+
+  Future<void> _greet() async {
+    final tip = await LocalBrain.proactiveTip();
+    if (!mounted) return;
+    setState(() => _messages.add(_ChatMessage(false, tip)));
   }
 
   Future<void> _saveKey() async {
@@ -61,8 +74,8 @@ class _ChatScreenState extends State<ChatScreen> {
             'Gemini enabled for open questions ✅'))));
   }
 
-  Future<void> _send() async {
-    final question = _input.text.trim();
+  Future<void> _sendText(String question) async {
+    question = question.trim();
     if (question.isEmpty || _sending) return;
     _input.clear();
     setState(() {
@@ -71,13 +84,11 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     _scrollDown();
 
-    // ١) العقل المحلي المجاني الأول.
     final local = await LocalBrain.answer(question);
     String reply;
     if (local.handled) {
       reply = local.text;
     } else if (_hasKey) {
-      // ٢) سؤال مفتوح + المستخدم مفعّل Gemini → نبعته.
       final context = await buildBrainContext();
       final history = _messages.length <= 1
           ? ''
@@ -94,7 +105,6 @@ class _ChatScreenState extends State<ChatScreen> {
       );
       reply = answer ?? LocalBrain.helpText();
     } else {
-      // ٣) سؤال مفتوح من غير مفتاح → مساعدة + اقتراح تفعيل Gemini.
       reply = '${tr('مش متأكد من السؤال ده. ', "I'm not sure about that one. ")}'
           '${LocalBrain.helpText()}\n\n'
           '${tr('وللأسئلة المفتوحة تقدر تفعّل Gemini المجاني من زر ✨ فوق.', 'For open-ended questions, enable free Gemini from the ✨ button above.')}';
@@ -106,6 +116,47 @@ class _ChatScreenState extends State<ChatScreen> {
       _sending = false;
     });
     _scrollDown();
+  }
+
+  Future<void> _toggleVoice() async {
+    if (_listening) {
+      await _stt.stop();
+      if (mounted) setState(() => _listening = false);
+      return;
+    }
+    if (!_sttReady) {
+      try {
+        _sttReady = await _stt.initialize(
+          onStatus: (s) {
+            if (s == 'notListening' && mounted) {
+              setState(() => _listening = false);
+              final t = _input.text.trim();
+              if (t.isNotEmpty) _sendText(t);
+            }
+          },
+          onError: (_) {},
+        );
+      } on Exception {
+        _sttReady = false;
+      }
+      if (!_sttReady) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(tr('التعرف الصوتي مش متاح على الجهاز',
+                  'Speech recognition unavailable'))));
+        }
+        return;
+      }
+    }
+    setState(() => _listening = true);
+    await _stt.listen(
+      listenOptions:
+          SpeechListenOptions(partialResults: true, localeId: 'ar_EG'),
+      onResult: (r) {
+        if (!mounted) return;
+        setState(() => _input.text = r.recognizedWords);
+      },
+    );
   }
 
   void _scrollDown() {
@@ -124,9 +175,7 @@ class _ChatScreenState extends State<ChatScreen> {
       showDragHandle: true,
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-            left: 4,
-            right: 4),
+            bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 4, right: 4),
         child: _geminiSetup(ctx),
       ),
     );
@@ -203,67 +252,82 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: _messages.isEmpty
-                ? Center(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        LocalBrain.helpText(),
-                        style: TextStyle(color: scheme.outline, height: 1.9),
-                      ),
+            child: ListView.builder(
+              controller: _scroll,
+              padding: const EdgeInsets.all(12),
+              itemCount: _messages.length,
+              itemBuilder: (context, i) {
+                final m = _messages[i];
+                return Align(
+                  alignment:
+                      m.fromUser ? Alignment.centerLeft : Alignment.centerRight,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.82),
+                    decoration: BoxDecoration(
+                      color: m.fromUser
+                          ? scheme.primaryContainer
+                          : scheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                  )
-                : ListView.builder(
-                    controller: _scroll,
-                    padding: const EdgeInsets.all(12),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, i) {
-                      final m = _messages[i];
-                      return Align(
-                        alignment: m.fromUser
-                            ? Alignment.centerLeft
-                            : Alignment.centerRight,
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 10),
-                          constraints: BoxConstraints(
-                              maxWidth:
-                                  MediaQuery.of(context).size.width * 0.82),
-                          decoration: BoxDecoration(
-                            color: m.fromUser
-                                ? scheme.primaryContainer
-                                : scheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(m.text,
-                              style: const TextStyle(height: 1.6)),
-                        ),
-                      );
-                    },
+                    child: Text(m.text, style: const TextStyle(height: 1.6)),
                   ),
+                );
+              },
+            ),
           ),
           if (_sending)
             const Padding(
               padding: EdgeInsets.all(8),
               child: LinearProgressIndicator(),
             ),
+          // اقتراحات سريعة — تظهر في البداية بس.
+          if (_messages.length <= 1)
+            SizedBox(
+              height: 44,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                children: [
+                  for (final s in LocalBrain.suggestions())
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 6),
+                      child: ActionChip(
+                        label: Text(s),
+                        onPressed: _sending ? null : () => _sendText(s),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
               child: Row(
                 children: [
+                  if (!kIsWeb)
+                    IconButton(
+                      onPressed: _sending ? null : _toggleVoice,
+                      tooltip: tr('اسأل بصوتك', 'Ask by voice'),
+                      icon: Icon(_listening ? Icons.mic : Icons.mic_none,
+                          color: _listening ? scheme.error : null),
+                    ),
                   Expanded(
                     child: TextField(
                       controller: _input,
                       decoration: InputDecoration(
-                          hintText: tr('اسأل مديرك...', 'Ask your manager...')),
-                      onSubmitted: (_) => _send(),
+                          hintText: _listening
+                              ? tr('بسمعك...', 'Listening...')
+                              : tr('اسأل مديرك...', 'Ask your manager...')),
+                      onSubmitted: (v) => _sendText(v),
                     ),
                   ),
                   const SizedBox(width: 8),
                   IconButton.filled(
-                    onPressed: _sending ? null : _send,
+                    onPressed: _sending ? null : () => _sendText(_input.text),
                     icon: const Icon(Icons.send),
                   ),
                 ],

@@ -211,6 +211,15 @@ void main() {
       expect(r.handled, isTrue);
       expect(r.text.contains('ورد'), isTrue);
     });
+
+    test('الترحيب الاستباقي بيرجّع رسالة', () async {
+      final tip = await LocalBrain.proactiveTip();
+      expect(tip.isNotEmpty, isTrue);
+    });
+
+    test('الاقتراحات السريعة فيها عناصر', () {
+      expect(LocalBrain.suggestions().length, greaterThanOrEqualTo(3));
+    });
   });
 
   group('المياه والنوم', () {
