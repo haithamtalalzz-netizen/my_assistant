@@ -19,8 +19,9 @@ class ChatScreen extends StatefulWidget {
 class _ChatMessage {
   final bool fromUser;
   final String text;
+  final List<BrainAction> actions;
 
-  const _ChatMessage(this.fromUser, this.text);
+  const _ChatMessage(this.fromUser, this.text, {this.actions = const []});
 }
 
 class _ChatScreenState extends State<ChatScreen> {
@@ -110,9 +111,26 @@ class _ChatScreenState extends State<ChatScreen> {
           '${tr('وللأسئلة المفتوحة تقدر تفعّل Gemini المجاني من زر ✨ فوق.', 'For open-ended questions, enable free Gemini from the ✨ button above.')}';
     }
 
+    final actions = local.handled
+        ? await LocalBrain.quickActions(question)
+        : const <BrainAction>[];
     if (!mounted) return;
     setState(() {
-      _messages.add(_ChatMessage(false, reply));
+      _messages.add(_ChatMessage(false, reply, actions: actions));
+      _sending = false;
+    });
+    _scrollDown();
+  }
+
+  Future<void> _runAction(BrainAction a, int index) async {
+    setState(() => _sending = true);
+    final msg = await LocalBrain.runAction(a.kind);
+    if (!mounted) return;
+    setState(() {
+      final old = _messages[index];
+      // نشيل الأزرار من الرسالة بعد التنفيذ.
+      _messages[index] = _ChatMessage(old.fromUser, old.text);
+      if (msg.isNotEmpty) _messages.add(_ChatMessage(false, msg));
       _sending = false;
     });
     _scrollDown();
@@ -258,22 +276,48 @@ class _ChatScreenState extends State<ChatScreen> {
               itemCount: _messages.length,
               itemBuilder: (context, i) {
                 final m = _messages[i];
+                final bubble = Container(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.82),
+                  decoration: BoxDecoration(
+                    color: m.fromUser
+                        ? scheme.primaryContainer
+                        : scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(m.text, style: const TextStyle(height: 1.6)),
+                );
+                if (m.fromUser || m.actions.isEmpty) {
+                  return Align(
+                    alignment: m.fromUser
+                        ? Alignment.centerLeft
+                        : Alignment.centerRight,
+                    child: bubble,
+                  );
+                }
                 return Align(
-                  alignment:
-                      m.fromUser ? Alignment.centerLeft : Alignment.centerRight,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width * 0.82),
-                    decoration: BoxDecoration(
-                      color: m.fromUser
-                          ? scheme.primaryContainer
-                          : scheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(m.text, style: const TextStyle(height: 1.6)),
+                  alignment: Alignment.centerRight,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      bubble,
+                      const SizedBox(height: 6),
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final a in m.actions)
+                            FilledButton.tonal(
+                              onPressed: _sending ? null : () => _runAction(a, i),
+                              child: Text(a.label),
+                            ),
+                        ],
+                      ),
+                    ],
                   ),
                 );
               },

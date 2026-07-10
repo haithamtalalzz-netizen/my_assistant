@@ -46,6 +46,14 @@ import 'weather.dart';
 /// نتيجة سؤال: النص + هل اتعامل معاه محليًا ولا لأ.
 typedef BrainReply = ({String text, bool handled});
 
+/// زرار إجراء سريع بيتعرض تحت رد العقل (زي «+ كوب مياه»).
+class BrainAction {
+  final String label;
+  final String kind;
+
+  const BrainAction(this.label, this.kind);
+}
+
 class LocalBrain {
   /// يجاوب سؤال المستخدم من بياناته المحلية.
   static Future<BrainReply> answer(String raw) async {
@@ -1567,6 +1575,52 @@ class LocalBrain {
     return tr(
         '👋 أهلاً! أنا مديرك — اسألني عن فلوسك، مواعيدك، أو صحتك، أو قوللي «طمني على يومي».',
         '👋 Hi! I\'m your manager — ask about your money, schedule or health, or say "brief me on my day".');
+  }
+
+  /// أزرار إجراء سريعة تناسب السؤال (تتنفّذ من الشات مباشرة).
+  static Future<List<BrainAction>> quickActions(String raw) async {
+    final t = _norm(raw);
+    final out = <BrainAction>[];
+    if (_has(t, ['المياه', 'مياه', 'نومي', 'حالتي النهارده', 'طمني', 'ملخص', 'صحتي'])) {
+      out.add(BrainAction(tr('+ كوب مياه', '+ Water cup'), 'water+1'));
+    }
+    if (_has(t, ['خدت الدوا', 'جرعات النهارده', 'الدوا انهارده', 'دوا', 'ادويتي', 'ملخص', 'طمني'])) {
+      final meds = await MedsRepo().all(activeOnly: true);
+      if (meds.isNotEmpty) {
+        final taken = await MedsRepo().takenOn(dayKey(DateTime.now()));
+        final hasLeft =
+            meds.any((m) => m.times.any((s) => !taken.contains('${m.id}|$s')));
+        if (hasLeft) {
+          out.add(BrainAction(tr('سجّل جرعة اتاخدت', 'Log a dose taken'), 'med_taken'));
+        }
+      }
+    }
+    return out;
+  }
+
+  /// ينفّذ زرار الإجراء ويرجّع تأكيد.
+  static Future<String> runAction(String kind) async {
+    final day = dayKey(DateTime.now());
+    switch (kind) {
+      case 'water+1':
+        final n = await HealthRepo().addWater(day, 1);
+        return tr('زوّدت كوب مياه ✅ (المجموع ${arNum(n)})',
+            'Added a cup of water ✅ (total ${arNum(n)})');
+      case 'med_taken':
+        final meds = await MedsRepo().all(activeOnly: true);
+        final taken = await MedsRepo().takenOn(day);
+        for (final m in meds) {
+          for (final s in m.times) {
+            if (!taken.contains('${m.id}|$s')) {
+              await MedsRepo().setTaken(m.id!, day, s, true);
+              return tr('سجّلت جرعة «${m.name}» ✅', 'Logged a dose of "${m.name}" ✅');
+            }
+          }
+        }
+        return tr('خلّصت كل الجرعات النهاردة 👏', 'All doses done today 👏');
+      default:
+        return '';
+    }
   }
 
   /// اقتراحات سريعة تتعرض كأزرار في الشات.

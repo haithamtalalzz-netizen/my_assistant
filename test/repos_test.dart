@@ -220,6 +220,16 @@ void main() {
     test('الاقتراحات السريعة فيها عناصر', () {
       expect(LocalBrain.suggestions().length, greaterThanOrEqualTo(3));
     });
+
+    test('زرار «+ كوب مياه» بيزوّد المياه فعلاً', () async {
+      final actions = await LocalBrain.quickActions('حالتي النهاردة');
+      expect(actions.any((a) => a.kind == 'water+1'), isTrue);
+      final day = dayKey(DateTime.now());
+      final before = await HealthRepo().waterOn(day);
+      final msg = await LocalBrain.runAction('water+1');
+      expect(msg.contains('مياه'), isTrue);
+      expect(await HealthRepo().waterOn(day), before + 1);
+    });
   });
 
   group('المياه والنوم', () {
