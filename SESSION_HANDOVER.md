@@ -1,5 +1,28 @@
 # SESSION_HANDOVER — My Assistant
 
+## 2026-07-10 — دفعة ١٣: نسخة ويب + نشر تلقائي على Firebase Hosting (زى طارة) ✅
+
+**الكود جاهز ومتّجرب في المتصفح؛ باقي خطوات console على المستخدم — تفاصيل في `WEB_DEPLOY.md`.**
+
+- **الويب اشتغل**: `flutter build web` بيعدّي + بيشتغل فعليًا في المتصفح.
+  - `sqflite` على الويب عبر **`sqflite_common_ffi_web`** (IndexedDB + `sqlite3.wasm`).
+    الفاكتوري بيتظبط من `db_init_web.dart` (conditional import، ستَب على الموبايل
+    `db_init_stub.dart`). `dart run sqflite_common_ffi_web:setup` نسخ `web/sqflite_sw.js`
+    + `web/sqlite3.wasm` (اتعملهم commit).
+  - `main()`: الإشعارات/الودجت/الجدولة كلها جوّه `if (!kIsWeb)` + `if (kIsWeb) return;`.
+  - **ML Kit OCR** اتعمله conditional import: `ocr_recognizer_native.dart` (موبايل) /
+    `ocr_recognizer_stub.dart` (ويب يرجّع null) — دي كانت العقبة الوحيدة في الـ compile.
+  - `web/index.html` + `manifest.json` عربي RTL باسم «مساعدي».
+  - **تحقّق محلي**: served `build/web`، الصفحة حمّلت، IndexedDB `sqflite_databases`
+    اتعمل (القاعدة فتحت)، صفر أخطاء console.
+- **النشر التلقائي (زى طارة)**: `firebase.json` (hosting + no-cache) + `.firebaserc`
+  (placeholder للـ project id) + `.github/workflows/deploy-web.yml` (يبني وينشر مع كل
+  push على master، بسرّ `FIREBASE_SERVICE_ACCOUNT`).
+- **git init + أول commit** (`0395fe4`, 240 ملف؛ `build/` متجاهل، الـ wasm/worker متضمّنين).
+- **باقي على المستخدم** (WEB_DEPLOY.md): إنشاء ريبو GitHub + مشروع Firebase + سرّ حساب
+  الخدمة + استبدال project id في `.firebaserc`. اللينك هيبقى `https://<project>.web.app`.
+- تحذير: `git config user.email` اتظبط **local** للريبو ده على haithamtalalzz@gmail.com.
+
 ## 2026-07-10 — دفعة ١٢: صلاحية لكل كمية (دفعات الصيدلية) DB v27 ✅ (مثبّت، 112/112)
 
 - **موديل `PharmacyBatch`** (itemId/quantity/expiry) + **DB v27** جدول `pharmacy_batches` + index. اختبار «v26←v27».

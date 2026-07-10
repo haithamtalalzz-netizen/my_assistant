@@ -5,6 +5,7 @@ import 'package:my_assistant/core/backup.dart';
 import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/day_planner.dart';
 import 'package:my_assistant/core/insights.dart';
+import 'package:my_assistant/core/local_brain.dart';
 import 'package:my_assistant/core/ocr.dart';
 import 'package:my_assistant/core/prayers.dart';
 import 'package:my_assistant/core/seed_demo.dart';
@@ -73,6 +74,37 @@ void main() {
     test('مفتاح اليوم', () {
       expect(dayKey(DateTime(2026, 6, 12)), '2026-06-12');
       expect(dayKey(DateTime(2026, 1, 5)), '2026-01-05');
+    });
+  });
+
+  group('عقل المدير المحلي (مجاني)', () {
+    test('الترحيب بيرجّع مساعدة متعامل معاها', () async {
+      final r = await LocalBrain.answer('ازيك');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('مديرك'), isTrue);
+    });
+
+    test('السؤال الفاضي بيرجّع مساعدة', () async {
+      final r = await LocalBrain.answer('');
+      expect(r.handled, isTrue);
+    });
+
+    test('كلام مش مفهوم مابيتعاملش معاه (يروح للـ fallback)', () async {
+      final r = await LocalBrain.answer('qwerty zxcv');
+      expect(r.handled, isFalse);
+    });
+
+    test('سؤال الفلوس بيرد بالرصيد من المحافظ', () async {
+      await WalletsRepo().save(const Wallet(name: 'كاش', openingBalance: 500));
+      final r = await LocalBrain.answer('معايا كام فلوس؟');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('500'), isTrue);
+    });
+
+    test('سؤال الديون من غير ديون بيقول مفيش', () async {
+      final r = await LocalBrain.answer('عليا ديون؟');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('مفيش'), isTrue);
     });
   });
 
