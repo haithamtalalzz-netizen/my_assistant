@@ -4,17 +4,24 @@
 // handled=false فالشات يقرر يبعته لـ Gemini (لو المستخدم مفعّله) أو يعرض مساعدة.
 
 import '../data/appointments_repo.dart';
+import '../data/assets_repo.dart';
 import '../data/bills_repo.dart';
 import '../data/debts_repo.dart';
 import '../data/docs_repo.dart';
+import '../data/gameya_repo.dart';
 import '../data/habits_repo.dart';
 import '../data/health_repo.dart';
+import '../data/home_maintenance_repo.dart';
 import '../data/income_repo.dart';
 import '../data/insights_repo.dart';
+import '../data/meals_repo.dart';
 import '../data/measurements_repo.dart';
 import '../data/meds_repo.dart';
 import '../data/money_repo.dart';
+import '../data/occasions_repo.dart';
 import '../data/pharmacy_repo.dart';
+import '../data/plants_repo.dart';
+import '../data/relatives_repo.dart';
 import '../data/savings_repo.dart';
 import '../data/settings_repo.dart';
 import '../data/wallets_repo.dart';
@@ -22,6 +29,7 @@ import 'ar.dart';
 import 'insights.dart';
 import 'l10n.dart';
 import 'prayers.dart';
+import 'weather.dart';
 
 /// نتيجة سؤال: النص + هل اتعامل معاه محليًا ولا لأ.
 typedef BrainReply = ({String text, bool handled});
@@ -41,19 +49,25 @@ class LocalBrain {
       return (text: helpText(), handled: true);
     }
 
+    // صافي الثروة (محافظ + أصول − ديون).
+    if (_has(t, ['ثروتي', 'صافي ثروتي', 'ثروه', 'اصولي', 'صافي مالي', 'net worth'])) {
+      return (text: await _netWorth(), handled: true);
+    }
+
     // فلوس / رصيد / محافظ.
     if (_has(t, [
       'رصيد', 'رصيدي', 'محفظه', 'محفظتي', 'محافظي', 'محافظ', 'فلوسي',
       'فلوس معايا', 'معايا كام', 'كام معايا', 'معايا فلوس', 'عندي كام', 'كام عندي',
-      'فلوس عندي', 'ثروتي', 'كاش', 'صافي فلوسي'
+      'فلوس عندي', 'كاش'
     ])) {
       return (text: await _balance(), handled: true);
     }
 
-    // مصاريف الشهر.
+    // مصاريف الشهر (بمقارنة بالشهر اللي فات).
     if (_has(t, [
       'صرفت', 'مصاريف', 'مصروف', 'مصروفاتي', 'مصاريفي', 'فلوس راحت', 'اتصرف',
-      'صرفي', 'ميزانيتي', 'الميزانيه'
+      'صرفي', 'ميزانيتي', 'الميزانيه', 'اكتر ولا اقل', 'قارن', 'مقارنه',
+      'الشهر اللي فات', 'الشهر الماضي'
     ])) {
       return (text: await _spending(), handled: true);
     }
@@ -130,6 +144,41 @@ class LocalBrain {
       return (text: await _prayer(), handled: true);
     }
 
+    // الجمعية.
+    if (_has(t, ['الجمعيه', 'جمعيه', 'جمعيتي', 'القسط'])) {
+      return (text: await _gameya(), handled: true);
+    }
+
+    // مناسبات / أعياد ميلاد.
+    if (_has(t, ['مناسبات', 'مناسبه', 'اعياد ميلاد', 'عيد ميلاد', 'مناسبات جايه', 'احتفال'])) {
+      return (text: await _occasions(), handled: true);
+    }
+
+    // مين أتصل بيه (صلة رحم).
+    if (_has(t, ['اتصل بمين', 'مين اتصل', 'صله رحم', 'قرايبي', 'اكلم مين', 'صلة الرحم'])) {
+      return (text: await _relatives(), handled: true);
+    }
+
+    // صيانة البيت.
+    if (_has(t, ['صيانه البيت', 'صيانه', 'الصيانه', 'محتاج صيانه'])) {
+      return (text: await _maintenance(), handled: true);
+    }
+
+    // نباتات البيت.
+    if (_has(t, ['نباتات', 'الزرع', 'ازرع', 'اسقي', 'نباتاتي'])) {
+      return (text: await _plants(), handled: true);
+    }
+
+    // الطقس.
+    if (_has(t, ['الجو', 'الطقس', 'درجه الحراره', 'الجو النهارده', 'الطقس النهارده', 'الجو عامل ايه'])) {
+      return (text: await _weather(), handled: true);
+    }
+
+    // سعرات النهاردة / الأكل.
+    if (_has(t, ['اكلت كام', 'سعرات', 'كام سعر', 'اكلي النهارده', 'كاليوري', 'سعراتي'])) {
+      return (text: await _mealsToday(), handled: true);
+    }
+
     // نصيحة / رؤى.
     if (_has(t, ['نصيحه', 'رايك', 'حللي', 'رؤى', 'رؤيه', 'اقتراح', 'انصحني', 'ملاحظاتك', 'ارقامي'])) {
       return (text: await _advice(), handled: true);
@@ -169,8 +218,25 @@ class LocalBrain {
     final total = await money.totalForMonth(now.year, now.month);
     final byCat = await money.byCategory(now.year, now.month);
     final budget = await SettingsRepo().monthlyBudget();
+    // مقارنة بالشهر اللي فات (لحد نفس اليوم للعدل).
+    final prev = DateTime(now.year, now.month - 1);
+    final prevTotal = await money.totalForMonth(prev.year, prev.month);
+
     final b = StringBuffer();
     b.writeln(tr('مصاريف الشهر: ${egp(total)}', "This month's spending: ${egp(total)}"));
+    if (prevTotal > 0) {
+      final diff = total - prevTotal;
+      final pct = (diff.abs() / prevTotal * 100).round();
+      if (diff > 0) {
+        b.writeln(tr('أكتر من الشهر اللي فات بـ ${egp(diff)} (+${arNum(pct)}%). صرفت وقتها ${egp(prevTotal)}.',
+            'More than last month by ${egp(diff)} (+${arNum(pct)}%). You spent ${egp(prevTotal)} then.'));
+      } else if (diff < 0) {
+        b.writeln(tr('أقل من الشهر اللي فات بـ ${egp(-diff)} (−${arNum(pct)}%) — شغل نضيف 👍',
+            'Less than last month by ${egp(-diff)} (−${arNum(pct)}%) — nice 👍'));
+      } else {
+        b.writeln(tr('زي الشهر اللي فات بالظبط.', 'Exactly the same as last month.'));
+      }
+    }
     if (budget > 0) {
       final left = budget - total;
       b.writeln(left >= 0
@@ -184,6 +250,134 @@ class LocalBrain {
       b.writeln(tr('أكتر بنود صرف:', 'Top categories:'));
       for (final e in top.take(3)) {
         b.writeln('• ${e.key}: ${egp(e.value)}');
+      }
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _netWorth() async {
+    final cash = await WalletsRepo().totalBalance();
+    final assets = await AssetsRepo().totalValue();
+    final (owedToMe, iOwe) = await DebtsRepo().totals();
+    final net = cash + assets + owedToMe - iOwe;
+    final b = StringBuffer();
+    b.writeln(tr('صافي ثروتك: ${egp(net)}', 'Your net worth: ${egp(net)}'));
+    b.writeln(tr('• فلوس (محافظ): ${egp(cash)}', '• Cash (wallets): ${egp(cash)}'));
+    if (assets > 0) b.writeln(tr('• أصول: ${egp(assets)}', '• Assets: ${egp(assets)}'));
+    if (owedToMe > 0) b.writeln(tr('• ليك عند الناس: ${egp(owedToMe)}', '• Owed to you: ${egp(owedToMe)}'));
+    if (iOwe > 0) b.writeln(tr('• عليك: ${egp(iOwe)}', '• You owe: ${egp(iOwe)}'));
+    return b.toString().trim();
+  }
+
+  static Future<String> _gameya() async {
+    final list = await GameyaRepo().all();
+    if (list.isEmpty) {
+      return tr('مفيش جمعيات مسجلة.', 'No gameyas (savings circles) logged.');
+    }
+    final b = StringBuffer();
+    b.writeln(tr('جمعياتك:', 'Your savings circles:'));
+    for (final g in list) {
+      b.writeln(tr(
+          '• ${g.name}: ${egp(g.amount)}/شهر — دورك الشهر ${arNum(g.myTurn)} من ${arNum(g.totalMonths)}',
+          '• ${g.name}: ${egp(g.amount)}/mo — your turn is month ${arNum(g.myTurn)} of ${arNum(g.totalMonths)}'));
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _occasions() async {
+    final now = DateTime.now();
+    final up = await OccasionsRepo().upcomingWithinWindow(now);
+    if (up.isEmpty) {
+      return tr('مفيش مناسبات قريبة في الأيام الجاية.', 'No occasions coming up soon.');
+    }
+    DateTime nextDate(int month, int day) {
+      var d = DateTime(now.year, month, day);
+      if (d.isBefore(DateTime(now.year, now.month, now.day))) {
+        d = DateTime(now.year + 1, month, day);
+      }
+      return d;
+    }
+
+    final b = StringBuffer();
+    b.writeln(tr('مناسبات قريبة:', 'Upcoming occasions:'));
+    for (final o in up.take(8)) {
+      final who = o.person.isNotEmpty ? ' (${o.person})' : '';
+      b.writeln('• ${o.title}$who — ${arShortDate(nextDate(o.month, o.day))}');
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _relatives() async {
+    final due = await RelativesRepo().due(DateTime.now());
+    if (due.isEmpty) {
+      return tr('مفيش حد فات عليه معاد اتصال. صلة رحمك تمام 👌',
+          'No one is overdue for a call. Your family ties are on track 👌');
+    }
+    final b = StringBuffer();
+    b.writeln(tr('محتاج تطمن على:', 'Time to check on:'));
+    for (final r in due.take(8)) {
+      final phone = r.phone.isNotEmpty ? ' — ${r.phone}' : '';
+      b.writeln('• ${r.name}$phone');
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _maintenance() async {
+    final due = await HomeMaintenanceRepo().due(DateTime.now());
+    if (due.isEmpty) {
+      return tr('مفيش صيانة مستحقة في البيت دلوقتي. 👌',
+          'No home maintenance due right now. 👌');
+    }
+    final b = StringBuffer();
+    b.writeln(tr('صيانة مستحقة:', 'Maintenance due:'));
+    for (final m in due.take(8)) {
+      b.writeln('• ${m.name}');
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _plants() async {
+    final due = await PlantsRepo().due(DateTime.now());
+    if (due.isEmpty) {
+      return tr('كل النباتات اترويت. 🪴', 'All plants are watered. 🪴');
+    }
+    final b = StringBuffer();
+    b.writeln(tr('نباتات محتاجة مياه:', 'Plants needing water:'));
+    for (final p in due.take(10)) {
+      final loc = p.location.isNotEmpty ? ' (${p.location})' : '';
+      b.writeln('• ${p.name}$loc');
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _weather() async {
+    final w = await WeatherService.today();
+    if (w == null) {
+      return tr('مقدرش أجيب الطقس دلوقتي — اتأكد إنك محدد محافظتك ومتصل بالنت.',
+          "Can't get the weather now — make sure your governorate is set and you're online.");
+    }
+    return w.summaryLine();
+  }
+
+  static Future<String> _mealsToday() async {
+    final meals = await MealsRepo().forDay(dayKey(DateTime.now()));
+    if (meals.isEmpty) {
+      return tr('مسجلتش أي أكل النهاردة لسه.', "You haven't logged any meals today yet.");
+    }
+    final withCal = [for (final m in meals) if (m.calories != null) m.calories!];
+    final total = withCal.fold<double>(0, (s, c) => s + c);
+    final b = StringBuffer();
+    b.writeln(tr('أكلت النهاردة ${arNum(meals.length)} وجبة.',
+        'You logged ${arNum(meals.length)} meals today.'));
+    if (total > 0) {
+      b.writeln(tr('إجمالي السعرات المسجلة: ${arNum(total.round())}',
+          'Total logged calories: ${arNum(total.round())}'));
+      final goal = await SettingsRepo().calorieGoal();
+      if (goal > 0) {
+        final left = goal - total;
+        b.writeln(left >= 0
+            ? tr('فاضل من هدفك: ${arNum(left.round())} سعر', 'Left of your goal: ${arNum(left.round())} kcal')
+            : tr('عدّيت هدفك بـ ${arNum((-left).round())} سعر', 'Over your goal by ${arNum((-left).round())} kcal'));
       }
     }
     return b.toString().trim();
@@ -489,7 +683,8 @@ class LocalBrain {
           '• «مواعيدي إيه؟» أو «عندي حاجة بكرة؟»\n'
           '• «أدويتي إيه؟» / «عندي بانادول؟»\n'
           '• «أعمل إيه باقي النهاردة؟»\n'
-          '• «إزاي نومي؟» / «قياساتي»\n'
+          '• «صافي ثروتي؟» / «الجمعية» / «مناسبات جاية؟»\n'
+          '• «إزاي نومي؟» / «قياساتي» / «الجو النهاردة؟»\n'
           '• «اديني نصيحة من أرقامي»',
       "I'm your manager — I answer straight from your data, on-device (no internet). "
           'Try asking:\n'
@@ -499,7 +694,8 @@ class LocalBrain {
           '• "What are my appointments?" or "Anything tomorrow?"\n'
           '• "What are my meds?" / "Do I have Panadol?"\n'
           '• "What should I do the rest of today?"\n'
-          '• "How\'s my sleep?" / "My measurements"\n'
+          '• "My net worth?" / "My gameya" / "Any occasions coming up?"\n'
+          '• "How\'s my sleep?" / "My measurements" / "Today\'s weather?"\n'
           '• "Give me advice from my numbers"');
 
   // ---- أدوات مساعدة ----

@@ -106,6 +106,24 @@ void main() {
       expect(r.handled, isTrue);
       expect(r.text.contains('مفيش'), isTrue);
     });
+
+    test('صافي الثروة بيجمع المحافظ والأصول', () async {
+      await WalletsRepo().save(const Wallet(name: 'كاش', openingBalance: 1000));
+      final r = await LocalBrain.answer('صافي ثروتي؟');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('ثروت'), isTrue);
+      expect(r.text.contains('1000'), isTrue);
+    });
+
+    test('مقارنة المصاريف بالشهر اللي فات', () async {
+      final now = DateTime.now();
+      final prev = DateTime(now.year, now.month - 1, 15);
+      await MoneyRepo().add(Expense(
+          amount: 200, category: 'أكل', day: dayKey(prev), note: ''));
+      final r = await LocalBrain.answer('صرفت كام الشهر ده؟');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('الشهر اللي فات'), isTrue);
+    });
   });
 
   group('المياه والنوم', () {
