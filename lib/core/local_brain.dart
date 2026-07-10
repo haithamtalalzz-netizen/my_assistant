@@ -9,6 +9,7 @@ import '../data/bills_repo.dart';
 import '../data/debts_repo.dart';
 import '../data/docs_repo.dart';
 import '../data/gameya_repo.dart';
+import '../data/gym_repo.dart';
 import '../data/habits_repo.dart';
 import '../data/health_repo.dart';
 import '../data/home_maintenance_repo.dart';
@@ -25,6 +26,7 @@ import '../data/relatives_repo.dart';
 import '../data/savings_repo.dart';
 import '../data/settings_repo.dart';
 import '../data/wallets_repo.dart';
+import '../data/workout_repo.dart';
 import 'ar.dart';
 import 'insights.dart';
 import 'l10n.dart';
@@ -47,6 +49,14 @@ class LocalBrain {
       'بتعمل ايه', 'اسالك عن ايه'
     ])) {
       return (text: helpText(), handled: true);
+    }
+
+    // ملخص شامل ليومك (فلوس + مهام + صحة + تنبيهات).
+    if (_has(t, [
+      'ملخص', 'ملخصي', 'طمني', 'يومي كله', 'اليوم كله', 'عامل ايه انهارده',
+      'اخر الاخبار', 'وريني كله', 'الوضع', 'اطمن'
+    ])) {
+      return (text: await _briefing(), handled: true);
     }
 
     // صافي الثروة (محافظ + أصول − ديون).
@@ -98,9 +108,24 @@ class LocalBrain {
       return (text: await _bills(), handled: true);
     }
 
+    // جرعات النهاردة المتبقية.
+    if (_has(t, ['خدت الدوا', 'جرعات النهارده', 'جرعه النهارده', 'الدوا انهارده', 'دوا الصبح', 'فاضل دوا', 'باقي الدوا'])) {
+      return (text: await _medsToday(), handled: true);
+    }
+
     // أدوية (بصيغة الملكية/الجمع — مش «عندي دوا»).
     if (_has(t, ['ادويتي', 'دوايا', 'الادويه', 'ادويه بتاخدها', 'العلاج بتاعي', 'جرعاتي', 'مواعيد الدوا'])) {
       return (text: await _meds(), handled: true);
+    }
+
+    // تمرين النهاردة / الجيم.
+    if (_has(t, ['تمريني', 'تمرين النهارده', 'الجيم', 'برنامج التمرين', 'تماريني', 'الجيم النهارده'])) {
+      return (text: await _gymToday(), handled: true);
+    }
+
+    // قايمة المشتريات.
+    if (_has(t, ['مشتريات', 'لازم اشتري', 'قايمه الشراء', 'قائمه الشراء', 'اشتري ايه', 'قايمه المشتريات'])) {
+      return (text: await _shopping(), handled: true);
     }
 
     // خطة باقي اليوم / المهام.
@@ -139,7 +164,10 @@ class LocalBrain {
       return (text: await _docs(), handled: true);
     }
 
-    // الصلاة الجاية.
+    // الصلاة — كل المواعيد لو طلبها، وإلا الجاية بس.
+    if (_has(t, ['الصلوات', 'مواعيد الصلاه', 'كل الصلوات', 'اوقات الصلاه'])) {
+      return (text: await _prayersAll(), handled: true);
+    }
     if (_has(t, ['الصلاه', 'صلاه', 'اذان', 'الفرض', 'موعد الصلاه', 'الفجر', 'الضهر', 'العصر', 'المغرب', 'العشا'])) {
       return (text: await _prayer(), handled: true);
     }
@@ -673,10 +701,168 @@ class LocalBrain {
     return b.toString().trim();
   }
 
+  static Future<String> _briefing() async {
+    final now = DateTime.now();
+    final key = dayKey(now);
+    final b = StringBuffer();
+    b.writeln(tr('ملخص يومك:', 'Your day at a glance:'));
+
+    final spend = await MoneyRepo().totalForMonth(now.year, now.month);
+    final budget = await SettingsRepo().monthlyBudget();
+    if (budget > 0) {
+      final left = budget - spend;
+      b.writeln(left >= 0
+          ? tr('💰 صرفت ${egp(spend)} — فاضل ${egp(left)} من الميزانية',
+              '💰 Spent ${egp(spend)} — ${egp(left)} left in budget')
+          : tr('💰 صرفت ${egp(spend)} — عدّيت الميزانية بـ ${egp(-left)} ⚠️',
+              '💰 Spent ${egp(spend)} — over budget by ${egp(-left)} ⚠️'));
+    } else {
+      b.writeln(tr('💰 صرفت الشهر ده ${egp(spend)}',
+          '💰 Spent this month: ${egp(spend)}'));
+    }
+
+    final appts = await AppointmentsRepo().all();
+    final todayAppts = [
+      for (final a in appts)
+        if (!a.done && a.when.isAfter(now) && dateOnly(a.when) == dateOnly(now)) a
+    ];
+    if (todayAppts.isNotEmpty) {
+      b.writeln(tr('📅 مواعيد لسه النهاردة: ${arNum(todayAppts.length)}',
+          '📅 Appointments left today: ${arNum(todayAppts.length)}'));
+    }
+    final prayer = await _nextPrayerShort(now);
+    if (prayer != null) b.writeln('🕌 $prayer');
+
+    final hrepo = HabitsRepo();
+    final habits = await hrepo.active();
+    final done = await hrepo.doneOn(key);
+    final pending = [for (final h in habits) if (!done.contains(h.id)) h.name];
+    if (habits.isNotEmpty) {
+      b.writeln(pending.isEmpty
+          ? tr('✅ خلّصت كل عاداتك النهاردة — تحفة!', '✅ All habits done today — great!')
+          : tr('🔄 عادات لسه: ${pending.join('، ')}',
+              '🔄 Habits left: ${pending.join(', ')}'));
+    }
+
+    final water = await HealthRepo().waterOn(key);
+    b.writeln(tr('💧 شربت ${arNum(water)} كوب مياه', '💧 Water today: ${arNum(water)} cups'));
+
+    final alerts = <String>[];
+    final overdue = [
+      for (final a in appts)
+        if (!a.done && a.when.isBefore(dateOnly(now))) a.title
+    ];
+    if (overdue.isNotEmpty) {
+      alerts.add(tr('مواعيد فايتة: ${overdue.take(3).join('، ')}',
+          'Overdue: ${overdue.take(3).join(', ')}'));
+    }
+    final bills = await BillsRepo().due(now);
+    if (bills.isNotEmpty) {
+      alerts.add(tr('فواتير مستحقة: ${bills.map((x) => x.name).join('، ')}',
+          'Bills due: ${bills.map((x) => x.name).join(', ')}'));
+    }
+    final (_, iOwe) = await DebtsRepo().totals();
+    if (iOwe > 0) alerts.add(tr('عليك ديون ${egp(iOwe)}', 'You owe ${egp(iOwe)}'));
+    final docs = await DocsRepo().expiringSoon();
+    if (docs.isNotEmpty) {
+      alerts.add(tr('مستندات قربت تنتهي: ${docs.map((d) => d.title).take(3).join('، ')}',
+          'Docs expiring: ${docs.map((d) => d.title).take(3).join(', ')}'));
+    }
+    final relatives = await RelativesRepo().due(now);
+    if (relatives.isNotEmpty) {
+      alerts.add(tr('اطمن على: ${relatives.map((r) => r.name).take(3).join('، ')}',
+          'Check on: ${relatives.map((r) => r.name).take(3).join(', ')}'));
+    }
+    if (alerts.isNotEmpty) {
+      b.writeln(tr('⚠️ محتاج تاخد بالك:', '⚠️ Needs attention:'));
+      for (final a in alerts) {
+        b.writeln('• $a');
+      }
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _medsToday() async {
+    final meds = await MedsRepo().all(activeOnly: true);
+    if (meds.isEmpty) return tr('مفيش أدوية حالية.', 'No current meds.');
+    final taken = await MedsRepo().takenOn(dayKey(DateTime.now()));
+    final b = StringBuffer();
+    var remaining = 0;
+    for (final m in meds) {
+      final left = [for (final s in m.times) if (!taken.contains('${m.id}|$s')) s];
+      remaining += left.length;
+      if (left.isNotEmpty) b.writeln('• ${m.name}: ${left.join('، ')}');
+    }
+    if (remaining == 0) {
+      return tr('خلّصت كل جرعاتك النهاردة 👏', "You've taken all today's doses 👏");
+    }
+    return '${tr('جرعات لسه النهاردة:', 'Doses left today:')}\n${b.toString().trim()}';
+  }
+
+  static Future<String> _gymToday() async {
+    final now = DateTime.now();
+    final plan = await WorkoutRepo().plan();
+    final title = plan[now.weekday];
+    final done = await WorkoutRepo().doneOn(dayKey(now));
+    final b = StringBuffer();
+    if (title == null || title.isEmpty) {
+      b.writeln(tr('مفيش تمرين متجدول النهاردة — يوم راحة 💪',
+          'No workout scheduled today — rest day 💪'));
+    } else if (done) {
+      b.writeln(tr('تمرين النهاردة «$title» — خلّصته ✅',
+          'Today\'s workout "$title" — done ✅'));
+    } else {
+      b.writeln(tr('تمرين النهاردة: $title', "Today's workout: $title"));
+    }
+    final program = await GymRepo().currentProgram();
+    if (program.isNotEmpty) {
+      b.writeln(tr('برنامجك: ${gymProgramLabel(program)}',
+          'Your program: ${gymProgramLabel(program)}'));
+    }
+    final prs = await GymRepo().personalRecords();
+    if (prs.isNotEmpty) {
+      b.writeln(tr('أعلى أوزانك:', 'Your PRs:'));
+      for (final p in prs.take(4)) {
+        final w = p.weight % 1 == 0 ? p.weight.toInt() : p.weight;
+        b.writeln('• ${p.exercise}: ${arNum(w)} ${tr('كجم', 'kg')}');
+      }
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _shopping() async {
+    final items = await MealsRepo().shoppingItems();
+    final toBuy = [for (final i in items) if (!i.checked) i.name];
+    if (toBuy.isEmpty) {
+      return tr('قايمة المشتريات فاضية. 🛒', 'Your shopping list is empty. 🛒');
+    }
+    final b = StringBuffer();
+    b.writeln(tr('لازم تشتري (${arNum(toBuy.length)}):', 'To buy (${arNum(toBuy.length)}):'));
+    for (final n in toBuy.take(20)) {
+      b.writeln('• $n');
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _prayersAll() async {
+    final now = DateTime.now();
+    final gov = governorateByName(await SettingsRepo().governorateName());
+    final day = prayerTimesFor(now, gov);
+    final next = day.nextIndex(now);
+    final b = StringBuffer();
+    b.writeln(tr('مواعيد الصلاة النهاردة:', "Today's prayer times:"));
+    for (var i = 0; i < day.times.length; i++) {
+      final marker = i == next ? tr('  ← الجاية', '  ← next') : '';
+      b.writeln('• ${prayerNameLabel(i)}: ${arTime(day.times[i])}$marker');
+    }
+    return b.toString().trim();
+  }
+
   /// رسالة المساعدة/القدرات — تُستخدم كردّ ترحيب وكـ fallback.
   static String helpText() => tr(
       'أنا مديرك — بجاوبك من بياناتك مباشرة على الجهاز (من غير إنترنت). '
           'جرّب تسألني:\n'
+          '• «طمني على يومي» (ملخص شامل)\n'
           '• «معايا كام فلوس؟»\n'
           '• «صرفت كام الشهر ده؟»\n'
           '• «عليا ديون؟»\n'
@@ -688,6 +874,7 @@ class LocalBrain {
           '• «اديني نصيحة من أرقامي»',
       "I'm your manager — I answer straight from your data, on-device (no internet). "
           'Try asking:\n'
+          '• "Brief me on my day" (full summary)\n'
           '• "How much money do I have?"\n'
           '• "How much did I spend this month?"\n'
           '• "Do I owe any debts?"\n'

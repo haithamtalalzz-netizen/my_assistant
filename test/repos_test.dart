@@ -124,6 +124,19 @@ void main() {
       expect(r.handled, isTrue);
       expect(r.text.contains('الشهر اللي فات'), isTrue);
     });
+
+    test('الملخص الشامل بيرجّع نظرة على اليوم', () async {
+      final r = await LocalBrain.answer('طمني على يومي');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('ملخص يومك'), isTrue);
+    });
+
+    test('قايمة المشتريات بترجع الحاجات غير المعلّمة', () async {
+      await MealsRepo().addShoppingItem('عيش');
+      final r = await LocalBrain.answer('لازم اشتري ايه؟');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('عيش'), isTrue);
+    });
   });
 
   group('المياه والنوم', () {
