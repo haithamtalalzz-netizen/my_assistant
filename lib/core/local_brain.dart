@@ -6,6 +6,7 @@
 import '../data/appointments_repo.dart';
 import '../data/assets_repo.dart';
 import '../data/bills_repo.dart';
+import '../data/challenges_repo.dart';
 import '../data/debts_repo.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
@@ -21,15 +22,20 @@ import '../data/insights_repo.dart';
 import '../data/meals_repo.dart';
 import '../data/measurements_repo.dart';
 import '../data/meds_repo.dart';
+import '../data/meters_repo.dart';
 import '../data/money_repo.dart';
 import '../data/occasions_repo.dart';
 import '../data/pharmacy_repo.dart';
 import '../data/plants_repo.dart';
+import '../data/quit_repo.dart';
+import '../data/quran_repo.dart';
 import '../data/relatives_repo.dart';
 import '../data/savings_repo.dart';
 import '../data/settings_repo.dart';
 import '../data/wallets_repo.dart';
+import '../data/warranty_repo.dart';
 import '../data/workout_repo.dart';
+import '../models/models.dart';
 import 'ar.dart';
 import 'insights.dart';
 import 'l10n.dart';
@@ -88,8 +94,18 @@ class LocalBrain {
     }
 
     // أكتر بند صرف.
-    if (_has(t, ['اكتر بند', 'اكتر حاجه صرفت', 'بصرف على ايه', 'اكتر مصروف', 'فين فلوسي', 'فلوسي بتروح'])) {
+    if (_has(t, ['اكتر بند', 'اكتر حاجه صرفت', 'بصرف على ايه', 'فين فلوسي', 'فلوسي بتروح'])) {
       return (text: await _topCategory(), handled: true);
+    }
+
+    // أكبر مصروف مفرد.
+    if (_has(t, ['اكبر مصروف', 'اغلى حاجه صرفت', 'اكبر حاجه صرفت', 'اغلى مصروف'])) {
+      return (text: await _biggestExpense(), handled: true);
+    }
+
+    // نسبة الادخار (وفّرت ولا لأ).
+    if (_has(t, ['اوفر ولا', 'بوفر', 'نسبة ادخار', 'نسبه ادخار', 'مبذر', 'بصرف كتير', 'وفرت قد ايه'])) {
+      return (text: await _savingsRate(), handled: true);
     }
 
     // توقّع الوصول لهدف الادخار.
@@ -110,6 +126,12 @@ class LocalBrain {
     // صافي الثروة (محافظ + أصول − ديون).
     if (_has(t, ['ثروتي', 'صافي ثروتي', 'ثروه', 'اصولي', 'صافي مالي', 'net worth'])) {
       return (text: await _netWorth(), handled: true);
+    }
+
+    // رصيد محفظة معيّنة («كام في الكاش/البنك»).
+    if (_has(t, ['في الكاش', 'في البنك', 'كام في', 'رصيد الكاش', 'رصيد البنك', 'فلوس الكاش', 'فلوس البنك'])) {
+      final w = await _specificWallet(t);
+      if (w != null) return (text: w, handled: true);
     }
 
     // فلوس / رصيد / محافظ.
@@ -188,6 +210,11 @@ class LocalBrain {
       return (text: await _todayPlan(), handled: true);
     }
 
+    // مواعيد فايتة.
+    if (_has(t, ['مواعيد فايته', 'فايت عليا', 'مواعيد متاخره', 'فوتت مواعيد', 'مواعيد فاتت'])) {
+      return (text: await _overdue(), handled: true);
+    }
+
     // مواعيد.
     if (_has(t, ['مواعيد', 'مواعيدي', 'معاد', 'ميعاد', 'معادي', 'حاجه بكره', 'عندي بكره', 'اجندتي'])) {
       return (text: await _appointments(t), handled: true);
@@ -196,6 +223,16 @@ class LocalBrain {
     // عادات.
     if (_has(t, ['عاداتي', 'عادات', 'سلسله', 'سلسلتي', 'streak', 'التزامي'])) {
       return (text: await _habits(), handled: true);
+    }
+
+    // جودة النوم امبارح.
+    if (_has(t, ['نمت كويس', 'نومي كويس', 'نمت كفايه', 'نومي كافي', 'نمت مليح'])) {
+      return (text: await _sleepQuality(), handled: true);
+    }
+
+    // بيانات الساعة الذكية.
+    if (_has(t, ['ساعتي', 'الساعه الذكيه', 'حرقت', 'سعرات حرقت', 'مشيت كام', 'ساعتك'])) {
+      return (text: await _fitness(), handled: true);
     }
 
     // صحة النهاردة (مياه/نوم/خطوات).
@@ -267,6 +304,41 @@ class LocalBrain {
     // سعرات النهاردة / الأكل.
     if (_has(t, ['اكلت كام', 'سعرات', 'كام سعر', 'اكلي النهارده', 'كاليوري', 'سعراتي'])) {
       return (text: await _mealsToday(), handled: true);
+    }
+
+    // ضمانات.
+    if (_has(t, ['ضمان', 'الضمانات', 'ضماناتي', 'ضمان الجهاز', 'الضمان'])) {
+      return (text: await _warranties(), handled: true);
+    }
+
+    // ورد القرآن / المراجعة.
+    if (_has(t, ['وردي', 'ورد القران', 'مراجعه القران', 'حفظي', 'القران', 'المراجعه'])) {
+      return (text: await _quran(), handled: true);
+    }
+
+    // عدّاد الإقلاع.
+    if (_has(t, ['بطلت', 'عداد الاقلاع', 'فطمت', 'بقالي كام يوم مبطل', 'مبطل'])) {
+      return (text: await _quit(), handled: true);
+    }
+
+    // قراءات العدادات.
+    if (_has(t, ['قراية العداد', 'قراءه العداد', 'عداد الكهربا', 'عداد المياه', 'عداد الغاز', 'العدادات', 'العداد'])) {
+      return (text: await _meters(), handled: true);
+    }
+
+    // التحديات.
+    if (_has(t, ['التحدي', 'تحدياتي', 'تحدي', 'التحديات'])) {
+      return (text: await _challenges(), handled: true);
+    }
+
+    // صندوق الوارد / التذكيرات.
+    if (_has(t, ['الوارد', 'تذكيراتي', 'صندوق الوارد', 'الملاحظات', 'التذكيرات'])) {
+      return (text: await _inbox(), handled: true);
+    }
+
+    // التاريخ والوقت.
+    if (_has(t, ['النهارده ايه', 'التاريخ', 'تاريخ النهارده', 'الساعه كام', 'الوقت', 'اليوم كام'])) {
+      return (text: _dateTime(), handled: true);
     }
 
     // نصيحة / رؤى.
@@ -763,6 +835,228 @@ class LocalBrain {
     return b.toString().trim();
   }
 
+  static Future<String?> _specificWallet(String t) async {
+    final list = await WalletsRepo().allWithBalances();
+    if (list.isEmpty) return null;
+    for (final e in list) {
+      final typeWord = switch (e.wallet.type) {
+        'cash' => 'كاش',
+        'bank' => 'بنك',
+        'card' => 'فيزا',
+        'mobile' => 'محفظه',
+        _ => '',
+      };
+      final hitType = typeWord.isNotEmpty && t.contains(_norm(typeWord));
+      final hitName = e.wallet.name.length >= 3 && t.contains(_norm(e.wallet.name));
+      if (hitType || hitName) {
+        return tr('${e.wallet.name}: ${egp(e.balance)}', '${e.wallet.name}: ${egp(e.balance)}');
+      }
+    }
+    return null;
+  }
+
+  static Future<String> _biggestExpense() async {
+    final now = DateTime.now();
+    final list = await MoneyRepo().forMonth(now.year, now.month);
+    if (list.isEmpty) return tr('مفيش مصاريف الشهر ده.', 'No expenses this month.');
+    final top = list.reduce((a, b) => a.amount >= b.amount ? a : b);
+    final note = top.note.isNotEmpty ? ' (${top.note})' : '';
+    return tr('أكبر مصروف الشهر ده: ${egp(top.amount)} على «${top.category}»$note يوم ${top.day}.',
+        'Biggest expense this month: ${egp(top.amount)} on "${top.category}"$note on ${top.day}.');
+  }
+
+  static Future<String> _savingsRate() async {
+    final now = DateTime.now();
+    final inc = await IncomeRepo().totalForMonth(now.year, now.month);
+    final exp = await MoneyRepo().totalForMonth(now.year, now.month);
+    if (inc <= 0) {
+      return tr('مسجلتش دخل الشهر ده عشان أحسب نسبة ادخارك.',
+          'No income logged this month to compute a saving rate.');
+    }
+    final saved = inc - exp;
+    final rate = (saved / inc * 100).round();
+    final b = StringBuffer();
+    b.writeln(tr('دخلك ${egp(inc)}، صرفت ${egp(exp)}.', 'Income ${egp(inc)}, spent ${egp(exp)}.'));
+    if (saved >= 0) {
+      b.writeln(tr(
+          'وفّرت ${egp(saved)} = ${arNum(rate)}% من دخلك ${rate >= 20 ? '— تمام 👍' : '— حاول توصل ٢٠٪'}.',
+          'Saved ${egp(saved)} = ${arNum(rate)}% of income ${rate >= 20 ? '— great 👍' : '— aim for 20%'}.'));
+    } else {
+      b.writeln(tr('صرفت أكتر من دخلك بـ ${egp(-saved)} ⚠️',
+          'You spent ${egp(-saved)} more than you earned ⚠️'));
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _sleepQuality() async {
+    final sleep = await HealthRepo().sleepOn(dayKey(DateTime.now()));
+    if (sleep == null) {
+      return tr('مسجلتش نوم امبارح.', 'No sleep logged for last night.');
+    }
+    final h = arNum(sleep.toStringAsFixed(1));
+    if (sleep >= 7) return tr('نمت $h ساعة — كفاية وكويس 👍', 'You slept $h hours — good 👍');
+    if (sleep >= 6) {
+      return tr('نمت $h ساعة — مقبول بس حاول توصل ٧-٨.', 'You slept $h hours — okay, aim for 7-8.');
+    }
+    return tr('نمت $h ساعة بس — قليل، حاول تنام بدري النهاردة.',
+        'Only $h hours — try sleeping earlier tonight.');
+  }
+
+  static Future<String> _fitness() async {
+    final key = dayKey(DateTime.now());
+    final fit = (await MeasurementsRepo().fitnessSince(key))[key];
+    final steps = (await MeasurementsRepo().stepsSince(key))[key];
+    final cal = fit?.calories;
+    final dist = fit?.distanceKm;
+    final b = StringBuffer();
+    b.writeln(tr('من ساعتك النهاردة:', 'From your watch today:'));
+    var any = false;
+    if (steps != null) {
+      b.writeln(tr('• خطوات: ${arNum(steps)}', '• Steps: ${arNum(steps)}'));
+      any = true;
+    }
+    if (cal != null) {
+      b.writeln(tr('• سعرات محروقة: ${arNum(cal)}', '• Calories burned: ${arNum(cal)}'));
+      any = true;
+    }
+    if (dist != null) {
+      b.writeln(tr('• مسافة: ${arNum(dist.toStringAsFixed(1))} كم',
+          '• Distance: ${arNum(dist.toStringAsFixed(1))} km'));
+      any = true;
+    }
+    if (!any) {
+      return tr('مفيش بيانات من الساعة النهاردة — اتأكد إن مزامنة الساعة شغّالة.',
+          'No watch data today — check that watch sync is on.');
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _overdue() async {
+    final now = DateTime.now();
+    final all = await AppointmentsRepo().all();
+    final od = [for (final a in all) if (!a.done && a.when.isBefore(dateOnly(now))) a]
+      ..sort((a, b) => b.when.compareTo(a.when));
+    if (od.isEmpty) {
+      return tr('مفيش مواعيد فايتة — كله متعمل 👌', 'No overdue appointments 👌');
+    }
+    final b = StringBuffer();
+    b.writeln(tr('مواعيد فايتة:', 'Overdue appointments:'));
+    for (final a in od.take(8)) {
+      b.writeln('• ${a.title} — ${arShortDate(a.when)}');
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _warranties() async {
+    final list = await WarrantyRepo().all();
+    if (list.isEmpty) return tr('مفيش ضمانات مسجلة.', 'No warranties logged.');
+    final now = DateTime.now();
+    DateTime expiryOf(Warranty w) {
+      final p = DateTime.tryParse(w.purchaseDate) ?? now;
+      return DateTime(p.year, p.month + w.warrantyMonths, p.day);
+    }
+
+    final soon = [
+      for (final w in list)
+        if (expiryOf(w).isAfter(now) && expiryOf(w).difference(now).inDays <= 60) w
+    ];
+    final expired = [for (final w in list) if (!expiryOf(w).isAfter(now)) w];
+    if (soon.isEmpty && expired.isEmpty) {
+      return tr('كل ضماناتك سارية. عندك ${arNum(list.length)} جهاز مسجّل.',
+          'All warranties valid. ${arNum(list.length)} items logged.');
+    }
+    final b = StringBuffer();
+    if (soon.isNotEmpty) {
+      b.writeln(tr('ضمانات قربت تنتهي:', 'Warranties ending soon:'));
+      for (final w in soon) {
+        b.writeln('• ${w.itemName} — ${arShortDate(expiryOf(w))}');
+      }
+    }
+    if (expired.isNotEmpty) {
+      b.writeln(tr('انتهى ضمانها: ${expired.map((w) => w.itemName).take(4).join('، ')}',
+          'Expired: ${expired.map((w) => w.itemName).take(4).join(', ')}'));
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _quran() async {
+    final due = await QuranRepo().due(DateTime.now());
+    if (due.isEmpty) {
+      final all = await QuranRepo().all();
+      return all.isEmpty
+          ? tr('مفيش ورد قرآن مسجّل.', 'No Quran review portions logged.')
+          : tr('مفيش مراجعة مستحقة النهاردة — كله في ميعاده 👌', 'No reviews due today 👌');
+    }
+    final b = StringBuffer();
+    b.writeln(tr('ورد المراجعة النهاردة:', "Today's Quran review:"));
+    for (final q in due.take(8)) {
+      b.writeln('• ${q.portion}');
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _quit() async {
+    final list = await QuitRepo().all();
+    if (list.isEmpty) return tr('مفيش عدّادات إقلاع مسجّلة.', 'No quit counters logged.');
+    final now = DateTime.now();
+    final b = StringBuffer();
+    for (final q in list) {
+      final start = DateTime.tryParse(q.startDate) ?? now;
+      final days = now.difference(start).inDays;
+      final saved = days * q.dailySaving;
+      b.writeln(tr(
+          '• ${q.name}: بقالك ${arNum(days)} يوم${saved > 0 ? ' ووفّرت ${egp(saved)}' : ''} 💪',
+          '• ${q.name}: ${arNum(days)} days${saved > 0 ? ', saved ${egp(saved)}' : ''} 💪'));
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _meters() async {
+    final latest = await MetersRepo().latestByType();
+    if (latest.isEmpty) return tr('مفيش قراءات عدادات مسجّلة.', 'No meter readings logged.');
+    final b = StringBuffer();
+    b.writeln(tr('آخر قراءات العدادات:', 'Latest meter readings:'));
+    latest.forEach((type, r) {
+      final val = r.reading % 1 == 0 ? arNum(r.reading.toInt()) : arNum(r.reading);
+      b.writeln('• ${meterTypeLabel(type)}: $val (${r.day})');
+    });
+    return b.toString().trim();
+  }
+
+  static Future<String> _challenges() async {
+    final repo = ChallengesRepo();
+    final list = await repo.all();
+    if (list.isEmpty) return tr('مفيش تحديات شغّالة.', 'No active challenges.');
+    final now = DateTime.now();
+    final b = StringBuffer();
+    b.writeln(tr('تحدياتك:', 'Your challenges:'));
+    for (final c in list) {
+      final start = DateTime.tryParse(c.startDate) ?? now;
+      final dayNum = (now.difference(start).inDays + 1).clamp(1, c.days);
+      final done = await repo.doneCount(c.id!);
+      b.writeln(tr('• ${c.name}: يوم ${arNum(dayNum)} من ${arNum(c.days)} — علّمت ${arNum(done)}',
+          '• ${c.name}: day ${arNum(dayNum)} of ${arNum(c.days)} — ${arNum(done)} done'));
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _inbox() async {
+    final notes = await InboxRepo().all();
+    if (notes.isEmpty) return tr('صندوق الوارد فاضي.', 'Your inbox is empty.');
+    final b = StringBuffer();
+    b.writeln(tr('صندوق الوارد (${arNum(notes.length)}):', 'Inbox (${arNum(notes.length)}):'));
+    for (final n in notes.take(12)) {
+      b.writeln('• ${n.text}');
+    }
+    return b.toString().trim();
+  }
+
+  static String _dateTime() {
+    final now = DateTime.now();
+    return tr('النهاردة ${arFullDate(now)} — الساعة ${arTime(now)}.',
+        'Today is ${arFullDate(now)} — the time is ${arTime(now)}.');
+  }
+
   static Future<String> _reminder(String raw) async {
     // نص التذكير: نشيل كلمة التنبيه + السوابق + كلمات الوقت.
     const stop = {
@@ -1243,6 +1537,7 @@ class LocalBrain {
           '• «صافي ثروتي؟» / «الجمعية» / «مناسبات جاية؟»\n'
           '• «إزاي نومي؟» / «ضغطي اتحسن؟» / «الجو النهاردة؟»\n'
           '• «ذكّرني بكرة بالدوا» (بيضيف تذكير)\n'
+          '• «أوفر ولا مبذّر؟» / «الضمانات» / «التحدي» / «الوارد»\n'
           '• «اديني نصيحة من أرقامي»',
       "I'm your manager — I answer straight from your data, on-device (no internet). "
           'Try asking:\n'
@@ -1256,6 +1551,7 @@ class LocalBrain {
           '• "My net worth?" / "My gameya" / "Any occasions coming up?"\n'
           '• "How\'s my sleep?" / "Is my blood pressure better?" / "Today\'s weather?"\n'
           '• "Remind me tomorrow about my meds" (adds a reminder)\n'
+          '• "Am I saving or overspending?" / "Warranties" / "Inbox"\n'
           '• "Give me advice from my numbers"');
 
   // ---- أدوات مساعدة ----

@@ -193,6 +193,24 @@ void main() {
       expect(r.handled, isTrue);
       expect(r.text.contains('نزل'), isTrue);
     });
+
+    test('التاريخ والوقت', () async {
+      final r = await LocalBrain.answer('الساعة كام؟');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('الساعة'), isTrue);
+    });
+
+    test('صندوق الوارد الفاضي', () async {
+      final r = await LocalBrain.answer('الوارد');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('الوارد'), isTrue);
+    });
+
+    test('ورد القرآن من غير تسجيل', () async {
+      final r = await LocalBrain.answer('وردي؟');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('ورد'), isTrue);
+    });
   });
 
   group('المياه والنوم', () {
