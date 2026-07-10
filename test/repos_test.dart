@@ -153,6 +153,30 @@ void main() {
       expect(r.handled, isTrue);
       expect(r.text.contains('أكل'), isTrue);
     });
+
+    test('سؤال عن شخص بالاسم بيرجّع ديونه (مع السابقة «لأحمد»)', () async {
+      await DebtsRepo().add(Debt(
+          person: 'أحمد',
+          amount: 300,
+          direction: 'عليا',
+          createdAt: dayKey(DateTime.now())));
+      final r = await LocalBrain.answer('أنا مديون لأحمد بكام؟');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('أحمد'), isTrue);
+      expect(r.text.contains('300'), isTrue);
+    });
+
+    test('«عليا ديون» ما تتلغبطش باسم شخص «علي»', () async {
+      await DebtsRepo().add(Debt(
+          person: 'علي',
+          amount: 50,
+          direction: 'عليا',
+          createdAt: dayKey(DateTime.now())));
+      final r = await LocalBrain.answer('عليا ديون؟');
+      // لازم يرد بإجمالي الديون مش صفحة الشخص «علي»
+      expect(r.handled, isTrue);
+      expect(r.text.contains('الصافي'), isTrue);
+    });
   });
 
   group('المياه والنوم', () {

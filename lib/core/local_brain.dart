@@ -72,6 +72,12 @@ class LocalBrain {
       return (text: await _weekSpending(), handled: true);
     }
 
+    // صرف شهر محدد بالاسم («صرفت كام في يوليو»).
+    final mon = _monthInText(t);
+    if (mon != null && _has(t, ['صرفت', 'مصاريف', 'مصروف', 'صرف'])) {
+      return (text: await _monthSpending(mon.$1, mon.$2), handled: true);
+    }
+
     // أكتر بند صرف.
     if (_has(t, ['اكتر بند', 'اكتر حاجه صرفت', 'بصرف على ايه', 'اكتر مصروف', 'فين فلوسي', 'فلوسي بتروح'])) {
       return (text: await _topCategory(), handled: true);
@@ -122,6 +128,10 @@ class LocalBrain {
     ])) {
       return (text: await _income(), handled: true);
     }
+
+    // سؤال عن شخص بالاسم (ديونه + تليفونه) — قبل الديون العامة.
+    final person = await _person(t);
+    if (person != null) return (text: person, handled: true);
 
     // ديون / سلف.
     if (_has(t, [
@@ -734,6 +744,64 @@ class LocalBrain {
     return b.toString().trim();
   }
 
+  static Future<String> _monthSpending(int month, String monthName) async {
+    final now = DateTime.now();
+    final year = month > now.month ? now.year - 1 : now.year;
+    final total = await MoneyRepo().totalForMonth(year, month);
+    if (total == 0) {
+      return tr('مصرفتش حاجة مسجلة في $monthName ${arNum(year)}.',
+          'No spending logged in $monthName ${arNum(year)}.');
+    }
+    return tr('صرفت في $monthName ${arNum(year)}: ${egp(total)}.',
+        'Spending in $monthName ${arNum(year)}: ${egp(total)}.');
+  }
+
+  static Future<String?> _person(String t) async {
+    final debts = await DebtsRepo().all();
+    final relatives = await RelativesRepo().all();
+    String? name;
+    for (final d in debts) {
+      if (_mentions(t, d.person)) {
+        name = d.person;
+        break;
+      }
+    }
+    if (name == null) {
+      for (final r in relatives) {
+        if (_mentions(t, r.name)) {
+          name = r.name;
+          break;
+        }
+      }
+    }
+    if (name == null) return null;
+
+    final b = StringBuffer();
+    b.writeln('$name:');
+    var owedToMe = 0.0, iOwe = 0.0;
+    for (final d in debts) {
+      if (_norm(d.person) == _norm(name)) {
+        if (d.theyOweMe) {
+          owedToMe += d.amount;
+        } else {
+          iOwe += d.amount;
+        }
+      }
+    }
+    if (iOwe > 0) b.writeln(tr('• انت مديون له ${egp(iOwe)}', '• You owe them ${egp(iOwe)}'));
+    if (owedToMe > 0) b.writeln(tr('• هو مديون لك ${egp(owedToMe)}', '• They owe you ${egp(owedToMe)}'));
+    if (owedToMe == 0 && iOwe == 0) {
+      b.writeln(tr('• مفيش ديون مفتوحة معاه', '• No open debts with them'));
+    }
+    for (final r in relatives) {
+      if (_norm(r.name) == _norm(name) && r.phone.isNotEmpty) {
+        b.writeln(tr('• تليفونه: ${r.phone}', '• Phone: ${r.phone}'));
+        break;
+      }
+    }
+    return b.toString().trim();
+  }
+
   static Future<String> _affordability(double amount) async {
     final balance = await WalletsRepo().totalBalance();
     final b = StringBuffer();
@@ -1042,7 +1110,7 @@ class LocalBrain {
           '• «طمني على يومي» (ملخص شامل)\n'
           '• «معايا كام فلوس؟» / «ينفع أصرف ٥٠٠؟»\n'
           '• «صرفت كام الشهر ده؟»\n'
-          '• «عليا ديون؟»\n'
+          '• «عليا ديون؟» / «أنا مديون لأحمد بكام؟»\n'
           '• «مواعيدي إيه؟» أو «عندي حاجة بكرة؟»\n'
           '• «أدويتي إيه؟» / «عندي بانادول؟»\n'
           '• «أعمل إيه باقي النهاردة؟»\n'
@@ -1054,7 +1122,7 @@ class LocalBrain {
           '• "Brief me on my day" (full summary)\n'
           '• "How much money do I have?" / "Can I spend 500?"\n'
           '• "How much did I spend this month?"\n'
-          '• "Do I owe any debts?"\n'
+          '• "Do I owe any debts?" / "How much do I owe Ahmed?"\n'
           '• "What are my appointments?" or "Anything tomorrow?"\n'
           '• "What are my meds?" / "Do I have Panadol?"\n'
           '• "What should I do the rest of today?"\n'
@@ -1090,5 +1158,36 @@ class LocalBrain {
     final m = RegExp(r'\d+(?:[.,]\d+)?').firstMatch(en);
     if (m == null) return null;
     return double.tryParse(m[0]!.replaceAll(',', '.'));
+  }
+
+  static const Map<String, int> _monthNames = {
+    'يناير': 1, 'فبراير': 2, 'مارس': 3, 'ابريل': 4, 'مايو': 5, 'يونيو': 6,
+    'يوليو': 7, 'اغسطس': 8, 'سبتمبر': 9, 'اكتوبر': 10, 'نوفمبر': 11, 'ديسمبر': 12,
+  };
+
+  /// يلاقي اسم شهر ميلادي في النص → (رقمه، اسمه)، أو null.
+  static (int, String)? _monthInText(String t) {
+    for (final e in _monthNames.entries) {
+      if (t.contains(e.key)) return (e.value, e.key);
+    }
+    return null;
+  }
+
+  /// هل السؤال بيذكر اسم الشخص ده؟ بيطابق التوكن نفسه أو بنهايته (عشان
+  /// السوابق المتصلة زي «لأحمد»/«وأحمد») من غير ما «عليا» تطابق «علي».
+  static bool _mentions(String t, String name) {
+    final n = _norm(name);
+    final names = <String>{
+      if (n.length >= 3) n,
+      for (final x in n.split(' '))
+        if (x.length >= 3) x,
+    };
+    if (names.isEmpty) return false;
+    for (final tok in t.split(' ')) {
+      for (final nm in names) {
+        if (tok == nm || tok.endsWith(nm)) return true;
+      }
+    }
+    return false;
   }
 }
