@@ -492,30 +492,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: _prayerNotifs,
                   onChanged: (v) => setState(() => _prayerNotifs = v),
                 ),
-                SectionHeader(tr('عناصر الصفحة الرئيسية', 'Home screen sections')),
-                Text(
-                    tr('اختار اللي يظهر في الرئيسية — كل عنصر يظهر لوحده (كارت الصلاة أساسي، بيتحكم فيه من هنا بس).',
-                        'Pick what shows on Home — each section independently.'),
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.outline)),
-                for (final key in kHomeSectionKeys)
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    title: Text(homeSectionLabel(key)),
-                    value: !_hiddenHome.contains(key),
-                    onChanged: (show) async {
-                      await _settings.setHomeSectionHidden(key, !show);
-                      setState(() {
-                        if (show) {
-                          _hiddenHome.remove(key);
-                        } else {
-                          _hiddenHome.add(key);
-                        }
-                      });
-                    },
+                SectionHeader(tr('الصفحة الرئيسية', 'Home screen')),
+                Card(
+                  margin: EdgeInsets.zero,
+                  clipBehavior: Clip.antiAlias,
+                  child: ExpansionTile(
+                    leading: const Icon(Icons.dashboard_customize_outlined),
+                    title: Text(tr('إظهار وإخفاء عناصر الرئيسية',
+                        'Show / hide home sections')),
+                    subtitle: Text(
+                        tr('اختار اللي يظهر — كل عنصر لوحده',
+                            'Pick what shows — each independently'),
+                        style: const TextStyle(fontSize: 12)),
+                    childrenPadding:
+                        const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      for (final key in kHomeSectionKeys)
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          title: Text(homeSectionLabel(key)),
+                          value: !_hiddenHome.contains(key),
+                          onChanged: (show) async {
+                            await _settings.setHomeSectionHidden(key, !show);
+                            setState(() {
+                              if (show) {
+                                _hiddenHome.remove(key);
+                              } else {
+                                _hiddenHome.add(key);
+                              }
+                            });
+                          },
+                        ),
+                      const SizedBox(height: 8),
+                    ],
                   ),
+                ),
                 SectionHeader(tr('الإشعارات', 'Notifications')),
                 Row(
                   children: [

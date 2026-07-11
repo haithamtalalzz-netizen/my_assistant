@@ -93,6 +93,7 @@ class _TodayScreenState extends State<TodayScreen> {
   double _todaySpend = 0;
   List<DocItem> _expiring = [];
   PrayerDay? _prayers;
+  PrayerDay? _prayersTomorrow; // عشان الكارت يفضل يوري الصلاة الجاية بعد العشا
   bool _weeklyDue = false;
   List<Appointment> _chronic = [];
   int? _steps;
@@ -182,8 +183,10 @@ class _TodayScreenState extends State<TodayScreen> {
     }
     final spend = await _money.totalForDay(day);
     final expiring = await _docs.expiringSoon();
-    final prayers =
-        prayerTimesFor(now, await resolvePlace(_settings));
+    final place = await resolvePlace(_settings);
+    final prayers = prayerTimesFor(now, place);
+    final prayersTomorrow =
+        prayerTimesFor(now.add(const Duration(days: 1)), place);
     // بانر التخطيط الأسبوعي يظهر من الجمعة للأحد لو أسبوع ده لسه مااتخططش.
     final weekendDay = now.weekday == DateTime.friday ||
         now.weekday == DateTime.saturday ||
@@ -221,6 +224,7 @@ class _TodayScreenState extends State<TodayScreen> {
       _todaySpend = spend;
       _expiring = expiring;
       _prayers = prayers;
+      _prayersTomorrow = prayersTomorrow;
       _weeklyDue = weeklyDue;
       _chronic = chronic;
       _steps = steps;
@@ -587,10 +591,17 @@ class _TodayScreenState extends State<TodayScreen> {
   /// كارت الصلاة الرئيسي (البطل) — خلفية ليلية متدرجة + هلال + عدّاد تنازلي حي.
   Widget _prayerHeroCard(BuildContext context, {bool fill = false}) {
     final now = DateTime.now();
-    final p = _prayers;
-    if (p == null) return _nowCard(context);
-    final idx = p.nextIndex(now);
-    if (idx == null) return _nowCard(context);
+    var p = _prayers;
+    var idx = p?.nextIndex(now);
+    var isTomorrow = false;
+    // كل صلوات النهارده فاتت (أو لسه ماتحسبتش) → نوري فجر بكرة. الكارت أساسي
+    // ومابيرجعش لـ nowCard — يفضل يوري مواعيد الصلاة دايمًا.
+    if (p == null || idx == null) {
+      p = _prayersTomorrow ?? p;
+      idx = 0;
+      isTomorrow = true;
+    }
+    if (p == null) return _nowCard(context); // نظري: لو لسه مفيش بيانات خالص
     final when = p.times[idx];
     final name = prayerNameLabel(idx);
     // نسبة التقدّم بين الصلاة اللي فاتت والجاية (للشريط).
@@ -639,7 +650,10 @@ class _TodayScreenState extends State<TodayScreen> {
                             style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.65),
                                 fontSize: 13)),
-                        Text(tr('صلاة $name', '$name prayer'),
+                        Text(
+                            isTomorrow
+                                ? tr('صلاة $name (بكرة)', '$name prayer (tomorrow)')
+                                : tr('صلاة $name', '$name prayer'),
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 22,
