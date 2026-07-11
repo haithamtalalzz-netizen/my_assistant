@@ -22,6 +22,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
   bool _loading = true;
   List<(int, double)> _sleep = [];
   List<(int, double)> _calories = [];
+  List<(int, double)> _steps = [];
+  List<(int, double)> _water = [];
   List<(String, double)> _monthTotals = [];
   List<Measurement> _weights = [];
 
@@ -72,6 +74,34 @@ class _ChartsScreenState extends State<ChartsScreen> {
       if (calBy.containsKey(key)) calories.add((i, calBy[key]!));
     }
 
+    // الخطوات: آخر ٣٠ يوم من steps_logs.
+    final stepsRows = await db.query('steps_logs',
+        where: 'day >= ?', whereArgs: [dayKey(from)]);
+    final stepsBy = {
+      for (final r in stepsRows)
+        r['day'] as String: (r['steps'] as num).toDouble()
+    };
+    final steps = <(int, double)>[];
+    for (var i = 0; i < 30; i++) {
+      final key = dayKey(from.add(Duration(days: i)));
+      if (stepsBy.containsKey(key)) steps.add((i, stepsBy[key]!));
+    }
+
+    // المياه: آخر ٣٠ يوم من water_logs.
+    final waterRows = await db.query('water_logs',
+        where: 'day >= ?', whereArgs: [dayKey(from)]);
+    final waterBy = {
+      for (final r in waterRows)
+        r['day'] as String: (r['glasses'] as num).toDouble()
+    };
+    final water = <(int, double)>[];
+    for (var i = 0; i < 30; i++) {
+      final key = dayKey(from.add(Duration(days: i)));
+      if (waterBy.containsKey(key) && waterBy[key]! > 0) {
+        water.add((i, waterBy[key]!));
+      }
+    }
+
     final weights =
         (await MeasurementsRepo().recent(limit: 60, type: 'وزن'))
             .reversed
@@ -81,11 +111,18 @@ class _ChartsScreenState extends State<ChartsScreen> {
     setState(() {
       _sleep = sleep;
       _calories = calories;
+      _steps = steps;
+      _water = water;
       _monthTotals = monthTotals;
       _weights = weights;
       _loading = false;
     });
   }
+
+  /// متوسط قيم سلسلة (للعرض تحت عنوان الرسم).
+  double _avg(List<(int, double)> data) => data.isEmpty
+      ? 0
+      : data.fold<double>(0, (s, e) => s + e.$2) / data.length;
 
   Future<void> _logWeight() async {
     final controller = TextEditingController();
@@ -125,7 +162,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
     controller.dispose();
   }
 
-  Widget _chartCard(BuildContext context, String title, Widget chart) {
+  Widget _chartCard(BuildContext context, String title, Widget chart,
+      {String? subtitle}) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: Padding(
@@ -138,6 +176,13 @@ class _ChartsScreenState extends State<ChartsScreen> {
                     .textTheme
                     .titleMedium
                     ?.copyWith(fontWeight: FontWeight.w600)),
+            if (subtitle != null) ...[
+              const SizedBox(height: 2),
+              Text(subtitle,
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      color: Theme.of(context).colorScheme.outline)),
+            ],
             const SizedBox(height: 12),
             SizedBox(height: 180, child: chart),
           ],
@@ -162,6 +207,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
                   _chartCard(
                     context,
                     tr('النوم — آخر ٣٠ يوم (ساعات)', 'Sleep — last 30 days (hours)'),
+                    subtitle: tr('متوسط ${arNum(_avg(_sleep).toStringAsFixed(1))} ساعة',
+                        'Avg ${arNum(_avg(_sleep).toStringAsFixed(1))}h'),
                     LineChart(LineChartData(
                       minY: 0,
                       maxY: 12,
@@ -209,6 +256,59 @@ class _ChartsScreenState extends State<ChartsScreen> {
                       ],
                     )),
                   ),
+                if (_steps.length >= 3)
+                  _chartCard(
+                    context,
+                    tr('الخطوات — آخر ٣٠ يوم', 'Steps — last 30 days'),
+                    subtitle: tr('متوسط ${arNum(_avg(_steps).round())} خطوة/يوم',
+                        'Avg ${arNum(_avg(_steps).round())} steps/day'),
+                    LineChart(LineChartData(
+                      minY: 0,
+                      titlesData: const FlTitlesData(show: false),
+                      gridData: const FlGridData(show: true),
+                      borderData: FlBorderData(show: false),
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: [
+                            for (final (i, v) in _steps) FlSpot(i.toDouble(), v)
+                          ],
+                          isCurved: true,
+                          color: Colors.brown,
+                          dotData: const FlDotData(show: false),
+                          belowBarData: BarAreaData(
+                              show: true,
+                              color: Colors.brown.withValues(alpha: .12)),
+                        ),
+                      ],
+                    )),
+                  ),
+                if (_water.length >= 3)
+                  _chartCard(
+                    context,
+                    tr('المياه — آخر ٣٠ يوم (كوباية)',
+                        'Water — last 30 days (glasses)'),
+                    subtitle: tr('متوسط ${arNum(_avg(_water).toStringAsFixed(1))} كوباية/يوم',
+                        'Avg ${arNum(_avg(_water).toStringAsFixed(1))} glasses/day'),
+                    LineChart(LineChartData(
+                      minY: 0,
+                      titlesData: const FlTitlesData(show: false),
+                      gridData: const FlGridData(show: true),
+                      borderData: FlBorderData(show: false),
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: [
+                            for (final (i, v) in _water) FlSpot(i.toDouble(), v)
+                          ],
+                          isCurved: true,
+                          color: Colors.lightBlue,
+                          dotData: const FlDotData(show: false),
+                          belowBarData: BarAreaData(
+                              show: true,
+                              color: Colors.lightBlue.withValues(alpha: .15)),
+                        ),
+                      ],
+                    )),
+                  ),
                 if (_monthTotals.any((m) => m.$2 > 0))
                   _chartCard(
                     context,
@@ -251,6 +351,16 @@ class _ChartsScreenState extends State<ChartsScreen> {
                   _chartCard(
                     context,
                     tr('الوزن (كجم)', 'Weight (kg)'),
+                    subtitle: () {
+                      final change =
+                          _weights.last.value - _weights.first.value;
+                      if (change == 0) return tr('ثابت', 'No change');
+                      final v = change.abs();
+                      final s = arNum(v % 1 == 0 ? v.toInt() : v.toStringAsFixed(1));
+                      return change < 0
+                          ? tr('نزلت $s كجم من البداية', 'Down $s kg overall')
+                          : tr('زودت $s كجم من البداية', 'Up $s kg overall');
+                    }(),
                     LineChart(LineChartData(
                       titlesData: const FlTitlesData(show: false),
                       gridData: const FlGridData(show: true),

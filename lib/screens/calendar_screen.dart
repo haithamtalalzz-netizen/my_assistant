@@ -307,6 +307,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
         title: Text(tr('تقويم النتيجة', 'Activity calendar')),
         actions: [
           searchAction(context),
+          if (!(_month.year == DateTime.now().year &&
+              _month.month == DateTime.now().month))
+            IconButton(
+              tooltip: tr('ارجع للشهر الحالي', 'Jump to this month'),
+              icon: const Icon(Icons.today_outlined),
+              onPressed: () {
+                final now = DateTime.now();
+                setState(() {
+                  _month = DateTime(now.year, now.month);
+                  _loading = true;
+                });
+                _load();
+              },
+            ),
           IconButton(
             tooltip: tr('فلتر الأنواع', 'Filter types'),
             icon: Icon(_hiddenKinds.isEmpty
@@ -326,11 +340,48 @@ class _CalendarScreenState extends State<CalendarScreen> {
           : Column(
               children: [
                 _monthNav(context),
+                _summaryStrip(context),
                 _weekdayHeader(context),
                 Expanded(child: _grid(context)),
                 _legend(context),
               ],
             ),
+    );
+  }
+
+  /// شريط ملخص الشهر: كام يوم فيه نشاط من إجمالي أيام الشهر + شريط تقدّم.
+  Widget _summaryStrip(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final daysInMonth = DateTime(_month.year, _month.month + 1, 0).day;
+    final active = _activeDays.length;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(Icons.local_fire_department,
+                  size: 16,
+                  color: active > 0 ? Colors.deepOrange : scheme.outline),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                    tr('نشطت ${arNum(active)} يوم من ${arNum(daysInMonth)} الشهر ده',
+                        'Active ${arNum(active)} of ${arNum(daysInMonth)} days this month'),
+                    style: TextStyle(fontSize: 12.5, color: scheme.outline)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: daysInMonth == 0 ? 0 : active / daysInMonth,
+              minHeight: 5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
