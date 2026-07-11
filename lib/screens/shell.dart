@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:quick_actions/quick_actions.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -48,7 +49,9 @@ class _ShellState extends State<Shell> {
   }
 
   /// استقبال المشاركة من التطبيقات التانية: صورة → مستند، نص → صندوق الوارد.
+  /// إضافة موبايل فقط — مالهاش تنفيذ على الويب (تعمل MissingPluginException).
   void _initSharing() {
+    if (kIsWeb) return;
     final intent = ReceiveSharingIntent.instance;
     intent.getInitialMedia().then((media) async {
       await _handleShared(media);
@@ -81,8 +84,9 @@ class _ShellState extends State<Shell> {
     }
   }
 
-  /// اختصارات الضغطة المطولة على أيقونة التطبيق.
+  /// اختصارات الضغطة المطولة على أيقونة التطبيق — موبايل فقط.
   void _initQuickActions() {
+    if (kIsWeb) return;
     const actions = QuickActions();
     actions.initialize((type) async {
       if (!mounted) return;
