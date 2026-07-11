@@ -294,6 +294,11 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
                 : _items.isEmpty
                     ? EmptyHint(
                         icon: Icons.medication_outlined,
+                        actionLabel: _searchCtrl.text.isEmpty
+                            ? tr('ضيف دوا', 'Add medicine')
+                            : null,
+                        onAction:
+                            _searchCtrl.text.isEmpty ? () => _form() : null,
                         text: _searchCtrl.text.isEmpty
                             ? tr('سجّل أدوية البيت وصلاحيتها — تعرف عندك إيه وتتنبّه قبل ما تخلص',
                                 'Log home meds & expiry — know what you have and get alerts')

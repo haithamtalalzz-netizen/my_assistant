@@ -145,6 +145,8 @@ class _QuitScreenState extends State<QuitScreen> {
           : _items.isEmpty
               ? EmptyHint(
                   icon: Icons.emoji_events_outlined,
+                  actionLabel: tr('ابدأ عدّاد', 'Start counter'),
+                  onAction: _add,
                   text: tr('بطّلت حاجة؟ ابدأ عدّاد وشوف بقالك كام يوم وفّرت كام',
                       'Quit something? Start a counter — see your streak & savings'))
               : ListView.builder(

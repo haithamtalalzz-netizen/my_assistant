@@ -32,7 +32,17 @@ class EmptyHint extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const EmptyHint({super.key, required this.icon, required this.text});
+  /// زر اختياري تحت النص (مثلًا «＋ ضيف أول واحد») — بيبدأ إجراء الإضافة مباشرة.
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  const EmptyHint({
+    super.key,
+    required this.icon,
+    required this.text,
+    this.actionLabel,
+    this.onAction,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +78,14 @@ class EmptyHint extends StatelessWidget {
                       .textTheme
                       .bodyMedium
                       ?.copyWith(color: muted)),
+              if (actionLabel != null && onAction != null) ...[
+                const SizedBox(height: 16),
+                FilledButton.tonalIcon(
+                  onPressed: onAction,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: Text(actionLabel!),
+                ),
+              ],
             ],
           ),
         ),

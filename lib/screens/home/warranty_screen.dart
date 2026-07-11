@@ -200,6 +200,8 @@ class _WarrantyScreenState extends State<WarrantyScreen> {
           : _items.isEmpty
               ? EmptyHint(
                   icon: Icons.verified_outlined,
+                  actionLabel: tr('ضيف ضمان', 'Add warranty'),
+                  onAction: () => _form(),
                   text: tr(
                       'سجّل أجهزتك وفواتيرها ومدة الضمان — وهنبّهك قبل ما يخلص',
                       'Log devices, receipts & warranty period — get alerted before it ends'))

@@ -89,6 +89,8 @@ class _DocsScreenState extends State<DocsScreen> {
                       const SizedBox(height: 80),
                       EmptyHint(
                           icon: Icons.folder_open,
+                          actionLabel: tr('ضيف مستند', 'Add document'),
+                          onAction: () => _openForm(),
                           text:
                               tr('لسه مفيش مستندات — صور البطاقة والرخصة وأي مستند مهم\nوهفكرك قبل ما ينتهي',
                                   'No documents — snap your ID, license & key papers\nreminded before they expire')),

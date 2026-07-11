@@ -123,6 +123,12 @@ class _MedicalScreenState extends State<MedicalScreen> {
                   child: shown.isEmpty
                       ? EmptyHint(
                           icon: Icons.medical_information_outlined,
+                          actionLabel: _filter == null && _specFilter == null
+                              ? tr('ضيف سجل', 'Add record')
+                              : null,
+                          onAction: _filter == null && _specFilter == null
+                              ? () => _openForm()
+                              : null,
                           text: tr(
                               'سجّل زياراتك وتحاليلك وأشعتك وإجراءاتك — كلها في مكان واحد وتطلع في تقرير الدكتور',
                               'Log your visits, labs, scans & procedures — all in one place and in the doctor report'))

@@ -69,6 +69,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
           : _items.isEmpty
               ? EmptyHint(
                   icon: Icons.auto_stories_outlined,
+                  actionLabel: tr('اكتب يومية', 'Write entry'),
+                  onAction: _add,
                   text: tr('اكتب أو احكي دقيقة عن يومك — بعد فترة يبقى أرشيف لحياتك',
                       'Write or speak a minute about your day — a life archive over time'))
               : RefreshIndicator(

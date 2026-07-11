@@ -63,6 +63,8 @@ class _GameyaScreenState extends State<GameyaScreen> {
                       const SizedBox(height: 80),
                       EmptyHint(
                           icon: Icons.groups_outlined,
+                          actionLabel: tr('ضيف جمعية', "Add gam'iya"),
+                          onAction: () => _form(),
                           text:
                               tr('مفيش جمعيات — سجل جمعيتك وهنتابع القسط ودورك',
                                   "No gam'iyas — add yours and we'll track the installment & your turn")),

@@ -149,6 +149,8 @@ class _SavingsScreenState extends State<SavingsScreen> {
           : _goals.isEmpty
               ? EmptyHint(
                   icon: Icons.savings_outlined,
+                  actionLabel: tr('ضيف هدف', 'Add goal'),
+                  onAction: () => _goalForm(),
                   text: tr(
                       'حدد هدف تجمعله — واعرف فاضلك كام شهر بمعدل ادخارك',
                       'Set a goal to save for — and see how many months at your pace'))

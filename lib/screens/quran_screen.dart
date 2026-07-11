@@ -108,6 +108,8 @@ class _QuranScreenState extends State<QuranScreen> {
           : _items.isEmpty
               ? EmptyHint(
                   icon: Icons.menu_book_outlined,
+                  actionLabel: tr('ضيف ورد', 'Add portion'),
+                  onAction: _add,
                   text: tr(
                       'ضيف السور اللي حافظها — والتطبيق يذكّرك تراجعها بالتكرار المتباعد',
                       'Add memorized surahs — spaced-repetition reminds you to review'))

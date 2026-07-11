@@ -173,6 +173,10 @@ class _SocialScreenState extends State<SocialScreen> {
                   child: _items.isEmpty
                       ? EmptyHint(
                           icon: Icons.volunteer_activism_outlined,
+                          actionLabel: _filter == null
+                              ? tr('ضيف واجب', 'Add obligation')
+                              : null,
+                          onAction: _filter == null ? () => _form() : null,
                           text: tr(
                               'سجّل النقوط والعزومات والعيديات — واعرف مين لسه مردتلوش',
                               'Log gift money, invites & Eidiya — know who to reciprocate'))

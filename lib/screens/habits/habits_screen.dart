@@ -211,6 +211,8 @@ class _HabitsScreenState extends State<HabitsScreen> {
                       const SizedBox(height: 80),
                       EmptyHint(
                           icon: Icons.task_alt,
+                          actionLabel: tr('ضيف عادة', 'Add habit'),
+                          onAction: _addHabit,
                           text:
                               tr('لسه مفيش عادات — ابدأ بعادة واحدة بسيطة\nالسلسلة فيها يوم رحمة كل أسبوع، فمتقلقش من يوم فايت',
                                   'No habits yet — start with one simple habit\nEach week has a mercy day, so one miss is fine')),

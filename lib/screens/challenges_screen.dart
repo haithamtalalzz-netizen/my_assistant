@@ -137,6 +137,8 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
           : _items.isEmpty
               ? EmptyHint(
                   icon: Icons.flag_outlined,
+                  actionLabel: tr('ابدأ تحدّي', 'Start challenge'),
+                  onAction: _add,
                   text: tr('ابدأ تحدّي (شهر بلا سكر، مشي يومي...) وعلّم كل يوم تنجح فيه',
                       'Start a challenge (no sugar, daily walk...) and check off each day'))
               : ListView.builder(

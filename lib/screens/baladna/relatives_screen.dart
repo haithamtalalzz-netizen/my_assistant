@@ -150,6 +150,8 @@ class _RelativesScreenState extends State<RelativesScreen> {
           : _items.isEmpty
               ? EmptyHint(
                   icon: Icons.diversity_1_outlined,
+                  actionLabel: tr('ضيف قريب', 'Add relative'),
+                  onAction: () => _form(),
                   text: tr('ضيف أهلك وقرايبك — والتطبيق يفكّرك تطمن عليهم كل فترة',
                       'Add family & relatives — get reminded to check on them regularly'))
               : RefreshIndicator(

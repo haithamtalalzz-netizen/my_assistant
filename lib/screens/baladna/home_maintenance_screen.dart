@@ -65,6 +65,8 @@ class _HomeMaintenanceScreenState extends State<HomeMaintenanceScreen> {
                       const SizedBox(height: 80),
                       EmptyHint(
                           icon: Icons.home_repair_service_outlined,
+                          actionLabel: tr('ضيف صيانة', 'Add maintenance'),
+                          onAction: _addForm,
                           text:
                               tr('سجل صيانات بيتك الدورية — فلتر المياه، التكييف، السخان\nوهفكرك كل واحدة في ميعادها',
                                   'Log home upkeep — water filter, AC, heater\nreminded when each is due')),

@@ -162,6 +162,8 @@ class _DebtsScreenState extends State<DebtsScreen> {
                   if (_debts.isEmpty)
                     EmptyHint(
                         icon: Icons.handshake_outlined,
+                        actionLabel: tr('سجّل دين', 'Log a debt'),
+                        onAction: _addDebt,
                         text:
                             tr('مفيش ديون متسجلة — سجل اللي ليك واللي عليك\nوبالصوت كمان: «سلفت أحمد ٢٠٠»',
                                 'No debts yet — log what you owe and what you\'re owed\nvoice too: "سلفت أحمد ٢٠٠"'))

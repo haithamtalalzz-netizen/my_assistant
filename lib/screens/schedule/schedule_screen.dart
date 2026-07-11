@@ -100,6 +100,8 @@ class _OccasionsTabState extends State<_OccasionsTab> {
                       const SizedBox(height: 80),
                       EmptyHint(
                           icon: Icons.cake_outlined,
+                          actionLabel: tr('ضيف مناسبة', 'Add occasion'),
+                          onAction: () => _openForm(),
                           text:
                               tr('مفيش مناسبات متسجلة — ضيف أعياد الميلاد\nوالمناسبات المهمة وهفكرك قبلها',
                                   'No occasions — add birthdays\nand key dates, reminded ahead')),
