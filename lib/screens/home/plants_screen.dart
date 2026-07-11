@@ -143,15 +143,14 @@ class _PlantsScreenState extends State<PlantsScreen> {
                       if (dueCount > 0)
                         Card(
                           margin: const EdgeInsets.only(bottom: 8),
-                          color: scheme.tertiaryContainer,
+                          color: scheme.tertiary.withValues(alpha: .13),
                           child: ListTile(
-                            leading: Text('🪴',
-                                style: const TextStyle(fontSize: 24)),
+                            leading: const Text('🪴',
+                                style: TextStyle(fontSize: 24)),
                             title: Text(
                               tr('${arNum(dueCount)} نبتة محتاجة مياه النهارده',
                                   '${arNum(dueCount)} plant(s) need water today'),
-                              style: TextStyle(
-                                  color: scheme.onTertiaryContainer,
+                              style: const TextStyle(
                                   fontWeight: FontWeight.w600),
                             ),
                           ),
@@ -173,19 +172,14 @@ class _PlantsScreenState extends State<PlantsScreen> {
     final due = p.isDue(now);
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 3),
-      color: due ? scheme.tertiaryContainer : null,
+      color: due ? scheme.tertiary.withValues(alpha: .13) : null,
       child: ListTile(
-        leading: Text('🪴', style: const TextStyle(fontSize: 26)),
+        leading: const Text('🪴', style: TextStyle(fontSize: 26)),
         title: Text(p.name,
             style: due
-                ? TextStyle(
-                    color: scheme.onTertiaryContainer,
-                    fontWeight: FontWeight.w600)
+                ? const TextStyle(fontWeight: FontWeight.w600)
                 : null),
-        subtitle: Text(
-          _subtitle(p, now),
-          style: due ? TextStyle(color: scheme.onTertiaryContainer) : null,
-        ),
+        subtitle: Text(_subtitle(p, now)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

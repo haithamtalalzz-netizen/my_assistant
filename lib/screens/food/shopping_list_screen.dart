@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../widgets/search_action.dart';
 import '../../data/meals_repo.dart';
@@ -33,6 +35,11 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
   Future<void> _load() async {
     final items = await _repo.shoppingItems();
+    // اللي لسه ماتشالش فوق، المتشال تحت.
+    items.sort((a, b) {
+      if (a.checked == b.checked) return 0;
+      return a.checked ? 1 : -1;
+    });
     if (!mounted) return;
     setState(() {
       _items = items;
@@ -46,6 +53,34 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
     await _repo.addShoppingItem(name);
     _input.clear();
     await _load();
+  }
+
+  Widget _progressHeader(BuildContext context, int checked) {
+    final total = _items.length;
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+              checked == total
+                  ? tr('اشتريت كل حاجة ✓', 'Got everything ✓')
+                  : tr('${arNum(checked)} من ${arNum(total)} اتشالت',
+                      '${arNum(checked)} of ${arNum(total)} in cart'),
+              style: TextStyle(fontSize: 12.5, color: scheme.outline)),
+          const SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: total == 0 ? 0 : checked / total,
+              minHeight: 6,
+              color: checked == total ? Colors.green : scheme.primary,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -89,6 +124,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                     ],
                   ),
                 ),
+                if (_items.isNotEmpty) _progressHeader(context, checkedCount),
                 Expanded(
                   child: _items.isEmpty
                       ? EmptyHint(
@@ -102,6 +138,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                               CheckboxListTile(
                                 value: item.checked,
                                 onChanged: (v) async {
+                                  HapticFeedback.selectionClick();
                                   await _repo.setChecked(
                                       item.id!, v ?? false);
                                   await _load();

@@ -184,7 +184,7 @@ class _WeeklyPlanningScreenState extends State<WeeklyPlanningScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: scheme.tertiaryContainer,
+              color: scheme.tertiary.withValues(alpha: .13),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Column(
@@ -192,13 +192,10 @@ class _WeeklyPlanningScreenState extends State<WeeklyPlanningScreen> {
               children: [
                 Text(tr('اتأجلوا كتير — فكر تقسمهم لخطوات أصغر:',
                     'Often postponed — split into smaller steps:'),
-                    style: TextStyle(
-                        color: scheme.onTertiaryContainer,
-                        fontWeight: FontWeight.w600)),
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
                 for (final a in s.chronicPostponed.take(3))
                   Text(tr('• ${a.title} (اتأجل ${arNum(a.postponeCount)} مرات)',
-                      '• ${a.title} (postponed ${arNum(a.postponeCount)}×)'),
-                      style: TextStyle(color: scheme.onTertiaryContainer)),
+                      '• ${a.title} (postponed ${arNum(a.postponeCount)}×)')),
               ],
             ),
           ),

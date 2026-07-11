@@ -508,21 +508,18 @@ class _MoneyScreenState extends State<MoneyScreen> {
     final due = i.isDue(DateTime.now());
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 3),
-      color: due ? scheme.tertiaryContainer : null,
+      color: due ? scheme.tertiary.withValues(alpha: .13) : null,
       child: ListTile(
         dense: true,
         leading: Icon(Icons.event_repeat,
-            color: due ? scheme.onTertiaryContainer : Colors.green),
+            color: due ? scheme.tertiary : Colors.green),
         title: Text(incomeSourceLabel(i.source),
             style: due
-                ? TextStyle(
-                    color: scheme.onTertiaryContainer,
-                    fontWeight: FontWeight.w600)
+                ? const TextStyle(fontWeight: FontWeight.w600)
                 : null),
         subtitle: Text(
             tr('${egp(i.amount)} • يوم ${arNum(i.dayOfMonth)}${due ? ' — قبضته؟' : ''}',
-                '${egp(i.amount)} • day ${arNum(i.dayOfMonth)}${due ? ' — received?' : ''}'),
-            style: due ? TextStyle(color: scheme.onTertiaryContainer) : null),
+                '${egp(i.amount)} • day ${arNum(i.dayOfMonth)}${due ? ' — received?' : ''}')),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -777,20 +774,16 @@ class _MoneyScreenState extends State<MoneyScreen> {
     final due = b.isDue(DateTime.now());
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 3),
-      color: due ? scheme.tertiaryContainer : null,
+      color: due ? scheme.tertiary.withValues(alpha: .13) : null,
       child: ListTile(
         dense: true,
         title: Text(b.name,
             style: due
-                ? TextStyle(
-                    color: scheme.onTertiaryContainer,
-                    fontWeight: FontWeight.w600)
+                ? const TextStyle(fontWeight: FontWeight.w600)
                 : null),
         subtitle: Text(
             tr('${egp(b.amount)} • يوم ${arNum(b.dayOfMonth)} من الشهر${due ? ' — مستحقة!' : ''}',
-                '${egp(b.amount)} • day ${arNum(b.dayOfMonth)}${due ? ' — due!' : ''}'),
-            style:
-                due ? TextStyle(color: scheme.onTertiaryContainer) : null),
+                '${egp(b.amount)} • day ${arNum(b.dayOfMonth)}${due ? ' — due!' : ''}')),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
