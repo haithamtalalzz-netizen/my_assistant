@@ -2065,17 +2065,14 @@ class _TodayScreenState extends State<TodayScreen> {
       );
     }
     if (_missedWorkout != null) {
-      return Card(
-        margin: EdgeInsets.zero,
-        color: scheme.tertiaryContainer,
+      return _attentionCard(
         child: ListTile(
-          leading: Icon(Icons.fitness_center,
-              color: scheme.onTertiaryContainer),
+          leading: Icon(Icons.fitness_center, color: scheme.tertiary),
           title: Text(
               tr('تمرين امبارح ($_missedWorkout) فاتك',
-                  "Yesterday's workout ($_missedWorkout) was missed"),
-              style: TextStyle(color: scheme.onTertiaryContainer)),
-          trailing: FilledButton.tonal(
+                  "Yesterday's workout ($_missedWorkout) was missed")),
+          trailing: FilledButton(
+            style: _amberButtonStyle,
             onPressed: () async {
               await WorkoutRepo()
                   .setDone(_today, true, title: _missedWorkout!);
@@ -2384,11 +2381,34 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
-  Widget _dueBillsCard(BuildContext context) {
+  /// كارت تنبيه نظيف: خلفية الكارت العادية + شريط كهرماني على جنب البداية
+  /// (يمين في RTL) — بدل إغراق الكارت كله في اللون البني (tertiaryContainer).
+  Widget _attentionCard({required Widget child}) {
     final scheme = Theme.of(context).colorScheme;
     return Card(
       margin: EdgeInsets.zero,
-      color: scheme.tertiaryContainer,
+      clipBehavior: Clip.antiAlias,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: BorderDirectional(
+            start: BorderSide(color: scheme.tertiary, width: 4),
+          ),
+        ),
+        child: child,
+      ),
+    );
+  }
+
+  /// زر أصفر كهرماني واضح (اتدفعت/اعمله) — تباين عالي على الخلفية الغامقة.
+  ButtonStyle get _amberButtonStyle => FilledButton.styleFrom(
+        backgroundColor: Theme.of(context).colorScheme.tertiary,
+        foregroundColor: Colors.black87,
+        visualDensity: VisualDensity.compact,
+      );
+
+  Widget _dueBillsCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return _attentionCard(
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: Column(
@@ -2397,15 +2417,12 @@ class _TodayScreenState extends State<TodayScreen> {
               ListTile(
                 dense: true,
                 leading: Icon(Icons.receipt_long_outlined,
-                    color: scheme.onTertiaryContainer),
+                    color: scheme.tertiary),
                 title: Text(b.name,
-                    style: TextStyle(
-                        color: scheme.onTertiaryContainer,
-                        fontWeight: FontWeight.w600)),
-                subtitle: Text(egp(b.amount),
-                    style:
-                        TextStyle(color: scheme.onTertiaryContainer)),
-                trailing: FilledButton.tonal(
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(egp(b.amount)),
+                trailing: FilledButton(
+                  style: _amberButtonStyle,
                   onPressed: () async {
                     await BillsRepo().markPaid(b.id!);
                     if (mounted) await _load();
@@ -2422,29 +2439,24 @@ class _TodayScreenState extends State<TodayScreen> {
   Widget _expiringCard(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final today = dateOnly(DateTime.now());
-    return Card(
-      margin: EdgeInsets.zero,
-      color: scheme.tertiaryContainer,
+    return _attentionCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             for (final d in _expiring)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
+                padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
                   children: [
                     Icon(Icons.warning_amber_rounded,
-                        size: 18, color: scheme.onTertiaryContainer),
+                        size: 18, color: scheme.tertiary),
                     const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(d.title,
-                          style: TextStyle(color: scheme.onTertiaryContainer)),
-                    ),
+                    Expanded(child: Text(d.title)),
                     Text(
                       _expiryLabel(today, DateTime.parse(d.expiry!)),
                       style: TextStyle(
-                          color: scheme.onTertiaryContainer,
+                          color: scheme.tertiary,
                           fontWeight: FontWeight.w600),
                     ),
                   ],
