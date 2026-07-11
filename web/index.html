@@ -76,9 +76,12 @@
         return false;
       }
       var tries = 0;
+      var titleSeen = 0;
       var poll = setInterval(function () {
         tries++;
-        if (anyCanvas(document)) {
+        // التطبيق اشتغل (غيّر عنوان الصفحة) → نشيل شاشة التحميل بعد لحظة.
+        if (document.title === 'My Assistant') { titleSeen++; }
+        if (anyCanvas(document) || titleSeen >= 4) {
           var boot = document.getElementById('boot');
           if (boot) boot.remove();
           clearInterval(poll);
