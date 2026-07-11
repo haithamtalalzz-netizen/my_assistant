@@ -7,6 +7,7 @@ import '../../data/workout_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 import '../../widgets/search_action.dart';
+import 'exercise_library_screen.dart';
 import 'gym_session_form.dart';
 import 'progress_screen.dart';
 import 'workout_programs_screen.dart';
@@ -109,6 +110,12 @@ class _GymScreenState extends State<GymScreen> {
       appBar: AppBar(
         title: Text(tr('الجيم', 'Gym')),
         actions: [
+          IconButton(
+            tooltip: tr('مكتبة التمارين', 'Exercise library'),
+            icon: const Icon(Icons.menu_book_outlined),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const ExerciseLibraryScreen())),
+          ),
           IconButton(
             tooltip: tr('برامج جاهزة', 'Workout programs'),
             icon: const Icon(Icons.list_alt_outlined),

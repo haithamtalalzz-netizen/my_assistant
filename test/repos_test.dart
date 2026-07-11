@@ -4,6 +4,7 @@ import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/backup.dart';
 import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/food_db.dart';
+import 'package:my_assistant/core/exercise_library.dart';
 import 'package:my_assistant/core/day_planner.dart';
 import 'package:my_assistant/core/insights.dart';
 import 'package:my_assistant/core/local_brain.dart';
@@ -1353,6 +1354,27 @@ void main() {
       expect(s.protein, 14);
       expect(s.carbs, 13);
       expect(s.fat, 3);
+    });
+  });
+
+  group('مكتبة التمارين', () {
+    test('فيه تمارين لكل عضلة', () {
+      for (final m in kMuscles) {
+        expect(filterExercises(muscle: m).isNotEmpty, true,
+            reason: 'العضلة $m لازم يكون ليها تمارين');
+      }
+    });
+
+    test('فلتر «بدون معدّات» بيرجّع تمارين وزن الجسم بس', () {
+      final noGear = filterExercises(equipment: 'none');
+      expect(noGear.isNotEmpty, true);
+      expect(noGear.every((e) => e.equipment == eBody), true);
+    });
+
+    test('فلتر معدّة معيّنة بيرجّع نوعها بس', () {
+      final dumbbell = filterExercises(equipment: eDumbbell);
+      expect(dumbbell.isNotEmpty, true);
+      expect(dumbbell.every((e) => e.equipment == eDumbbell), true);
     });
   });
 

@@ -23,8 +23,10 @@ import 'brain/chat_screen.dart';
 import 'emergency_view.dart';
 import 'food/shopping_list_screen.dart';
 import 'group_hub_screen.dart';
+import 'gym/exercise_library_screen.dart';
 import 'gym/gym_screen.dart';
 import 'gym/progress_screen.dart';
+import 'gym/workout_programs_screen.dart';
 import 'health/health_hub_screen.dart';
 import 'home/meters_screen.dart';
 import 'home/pharmacy_screen.dart';
@@ -187,6 +189,12 @@ class AppDrawer extends StatelessWidget {
                       tabIndex: 3),
                   GroupHubItem(Icons.fitness_center, tr('الجيم', 'Gym'),
                       screen: const GymScreen()),
+                  GroupHubItem(Icons.menu_book_outlined,
+                      tr('مكتبة التمارين', 'Exercise library'),
+                      screen: const ExerciseLibraryScreen()),
+                  GroupHubItem(Icons.list_alt_outlined,
+                      tr('برامج التمارين', 'Workout programs'),
+                      screen: const WorkoutProgramsScreen()),
                   GroupHubItem(Icons.monitor_weight_outlined,
                       tr('التقدم البدني', 'Body progress'),
                       screen: const ProgressScreen()),
