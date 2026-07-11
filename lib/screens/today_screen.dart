@@ -764,23 +764,6 @@ class _TodayScreenState extends State<TodayScreen> {
   /// لوحة تشغيل سريعة — تايلز ملوّنة في كارت واحد (زي الموكاب).
   // ---- إجراءات سريعة فورية ----
 
-  Future<void> _markWorkoutDone() async {
-    final now = DateTime.now();
-    final repo = WorkoutRepo();
-    final title = (await repo.plan())[now.weekday];
-    if (title == null || title.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(tr('مفيش تمرين متجدول النهاردة', 'No workout scheduled today'))));
-      return;
-    }
-    await repo.setDone(dayKey(now), true, title: title);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(tr('علّمت تمرين «$title» ✅', 'Marked "$title" done ✅'))));
-    await _load();
-  }
-
   Future<void> _quickInbox() async {
     final ctrl = TextEditingController();
     final ok = await showDialog<bool>(
@@ -817,61 +800,77 @@ class _TodayScreenState extends State<TodayScreen> {
     var type = kMeasurementTypes.first;
     final v1 = TextEditingController();
     final v2 = TextEditingController();
-    final ok = await showDialog<bool>(
+    final ok = await showModalBottomSheet<bool>(
       context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) => AlertDialog(
-          title: Text(tr('قياس سريع', 'Quick measurement')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Wrap(
-                spacing: 6,
-                children: [
-                  for (final t in kMeasurementTypes)
-                    ChoiceChip(
-                        label: Text(t),
-                        selected: type == t,
-                        onSelected: (_) => setD(() => type = t)),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: v1,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                          labelText: type == 'ضغط'
-                              ? tr('الانقباضي', 'Systolic')
-                              : tr('القيمة', 'Value')),
-                    ),
-                  ),
-                  if (type == 'ضغط') ...[
-                    const SizedBox(width: 8),
+        builder: (ctx, setSheet) {
+          final scheme = Theme.of(ctx).colorScheme;
+          return Padding(
+            padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 4,
+                bottom: 28 + MediaQuery.of(ctx).viewInsets.bottom),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.monitor_heart_outlined, color: scheme.primary),
+                  const SizedBox(width: 8),
+                  Text(tr('قياس سريع', 'Quick measurement'),
+                      style: Theme.of(ctx).textTheme.titleMedium),
+                ]),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  children: [
+                    for (final t in kMeasurementTypes)
+                      ChoiceChip(
+                          label: Text(t),
+                          selected: type == t,
+                          onSelected: (_) => setSheet(() => type = t)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
                     Expanded(
                       child: TextField(
-                        controller: v2,
+                        controller: v1,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
-                            labelText: tr('الانبساطي', 'Diastolic')),
+                            labelText: type == 'ضغط'
+                                ? tr('الانقباضي', 'Systolic')
+                                : tr('القيمة', 'Value')),
                       ),
                     ),
+                    if (type == 'ضغط') ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: v2,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                              labelText: tr('الانبساطي', 'Diastolic')),
+                        ),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(tr('إلغاء', 'Cancel'))),
-            FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: Text(tr('حفظ', 'Save'))),
-          ],
-        ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: Text(tr('حفظ', 'Save'))),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
     if (ok == true) {
@@ -895,78 +894,283 @@ class _TodayScreenState extends State<TodayScreen> {
     if (mounted) await _load();
   }
 
-  Future<void> _logSteps() async {
-    final ctrl = TextEditingController();
-    final ok = await showDialog<bool>(
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  /// شباك تمرين النهاردة — عنوانه + زر «اتعمل» (أو يوم راحة + تعديل الخطة).
+  Future<void> _openWorkoutSheet() async {
+    final now = DateTime.now();
+    final repo = WorkoutRepo();
+    final title = (await repo.plan())[now.weekday];
+    final done = await repo.doneOn(dayKey(now));
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr('خطوات النهاردة', "Today's steps")),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(labelText: tr('عدد الخطوات', 'Steps')),
-          onSubmitted: (_) => Navigator.pop(ctx, true),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('إلغاء', 'Cancel'))),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('حفظ', 'Save'))),
-        ],
+      showDragHandle: true,
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Icon(Icons.fitness_center, color: scheme.primary),
+                const SizedBox(width: 8),
+                Text(tr('تمرين النهاردة', "Today's workout"),
+                    style: Theme.of(ctx).textTheme.titleMedium),
+              ]),
+              const SizedBox(height: 16),
+              if (title == null || title.isEmpty) ...[
+                Text(tr('مفيش تمرين متجدول النهاردة — يوم راحة 💪',
+                    'No workout today — rest day 💪')),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _openWorkoutPlan();
+                  },
+                  icon: const Icon(Icons.edit_calendar_outlined),
+                  label: Text(tr('عدّل خطة التمرين', 'Edit workout plan')),
+                ),
+              ] else ...[
+                Text(title,
+                    style: Theme.of(ctx)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 14),
+                if (done)
+                  Row(children: [
+                    const Icon(Icons.check_circle, color: Colors.green),
+                    const SizedBox(width: 8),
+                    Text(tr('اتعمل خلاص ✅', 'Done ✅')),
+                  ])
+                else
+                  FilledButton.icon(
+                    onPressed: () async {
+                      await repo.setDone(dayKey(now), true, title: title);
+                      if (mounted) await _load();
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      _snack(tr('علّمت التمرين ✅', 'Workout marked ✅'));
+                    },
+                    icon: const Icon(Icons.check),
+                    label: Text(tr('علّمته اتعمل', 'Mark done')),
+                  ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// شباك الخطوات — شيبس جاهزة + رقم مخصّص.
+  Future<void> _openStepsSheet() async {
+    final ctrl = TextEditingController();
+    final day = dayKey(DateTime.now());
+    Future<void> save(int steps) async {
+      await MeasurementsRepo().upsertSteps(day, steps);
+      if (mounted) await _load();
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        return Padding(
+          padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 4,
+              bottom: 28 + MediaQuery.of(ctx).viewInsets.bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Icon(Icons.directions_walk, color: scheme.primary),
+                const SizedBox(width: 8),
+                Text(tr('خطوات النهاردة', "Today's steps"),
+                    style: Theme.of(ctx).textTheme.titleMedium),
+              ]),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final s in [2000, 4000, 6000, 8000, 10000, 12000, 15000])
+                    ActionChip(
+                      label: Text(arNum(s)),
+                      onPressed: () async {
+                        await save(s);
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        _snack(tr('اتسجّلت الخطوات 🚶', 'Steps saved 🚶'));
+                      },
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(
+                  child: TextField(
+                    controller: ctrl,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(labelText: tr('رقم مخصّص', 'Custom')),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: () async {
+                    final v = parseNumber(ctrl.text);
+                    if (v == null || v <= 0) return;
+                    await save(v.toInt());
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    _snack(tr('اتسجّلت الخطوات 🚶', 'Steps saved 🚶'));
+                  },
+                  child: Text(tr('حفظ', 'Save')),
+                ),
+              ]),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// شباك الفواتير المستحقة — تعلّم منها اللي اتدفع.
+  Future<void> _openBillsSheet() async {
+    final due = await BillsRepo().due(DateTime.now());
+    if (due.isEmpty) {
+      _snack(tr('مفيش فواتير مستحقة', 'No bills due'));
+      return;
+    }
+    if (!mounted) return;
+    final bills = List.of(due);
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final scheme = Theme.of(ctx).colorScheme;
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(children: [
+                    Icon(Icons.receipt_long_outlined, color: scheme.primary),
+                    const SizedBox(width: 8),
+                    Text(tr('فواتير مستحقة', 'Bills due'),
+                        style: Theme.of(ctx).textTheme.titleMedium),
+                  ]),
+                ),
+                const SizedBox(height: 8),
+                if (bills.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(tr('كله اتدفع 👌', 'All paid 👌')),
+                  )
+                else
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          for (final b in bills)
+                            ListTile(
+                              leading: const Icon(Icons.receipt_outlined),
+                              title: Text(b.name),
+                              subtitle: Text(egp(b.amount)),
+                              trailing: FilledButton.tonal(
+                                onPressed: () async {
+                                  await BillsRepo().markPaid(b.id!);
+                                  bills.remove(b);
+                                  if (mounted) await _load();
+                                  setSheet(() {});
+                                },
+                                child: Text(tr('دفعت', 'Paid')),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
       ),
     );
-    if (ok == true) {
-      final s = parseNumber(ctrl.text);
-      if (s == null || s <= 0) return;
-      await MeasurementsRepo().upsertSteps(dayKey(DateTime.now()), s.toInt());
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('اتسجّلت الخطوات 🚶', 'Steps saved 🚶'))));
-      await _load();
-    }
   }
 
   Future<void> _quickHabit() async {
     final repo = HabitsRepo();
     final habits = await repo.active();
     if (habits.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('مفيش عادات مسجلة', 'No habits yet'))));
+      _snack(tr('مفيش عادات مسجلة', 'No habits yet'));
       return;
     }
     final day = dayKey(DateTime.now());
     var done = await repo.doneOn(day);
     if (!mounted) return;
-    await showDialog<void>(
+    await showModalBottomSheet<void>(
       context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) => AlertDialog(
-          title: Text(tr('علّم عاداتك', 'Mark habits')),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView(
-              shrinkWrap: true,
+        builder: (ctx, setSheet) {
+          final scheme = Theme.of(ctx).colorScheme;
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (final h in habits)
-                  CheckboxListTile(
-                    value: done.contains(h.id),
-                    title: Text(h.name),
-                    onChanged: (_) async {
-                      await repo.toggle(h.id!, day);
-                      done = await repo.doneOn(day);
-                      setD(() {});
-                    },
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(children: [
+                    Icon(Icons.task_alt, color: scheme.primary),
+                    const SizedBox(width: 8),
+                    Text(tr('علّم عاداتك', 'Mark habits'),
+                        style: Theme.of(ctx).textTheme.titleMedium),
+                  ]),
+                ),
+                const SizedBox(height: 6),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        for (final h in habits)
+                          CheckboxListTile(
+                            value: done.contains(h.id),
+                            title: Text(h.name),
+                            onChanged: (_) async {
+                              await repo.toggle(h.id!, day);
+                              done = await repo.doneOn(day);
+                              if (mounted) await _load();
+                              setSheet(() {});
+                            },
+                          ),
+                      ],
+                    ),
                   ),
+                ),
               ],
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('تمام', 'Done'))),
-          ],
-        ),
+          );
+        },
       ),
     );
-    if (mounted) await _load();
   }
 
   Future<void> _addShoppingItem() async {
@@ -1050,22 +1254,6 @@ class _TodayScreenState extends State<TodayScreen> {
           SnackBar(content: Text(tr('تمّ التحويل 💳', 'Transferred 💳'))));
       await _load();
     }
-  }
-
-  Future<void> _markNextBillPaid() async {
-    final due = await BillsRepo().due(DateTime.now());
-    if (due.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('مفيش فواتير مستحقة', 'No bills due'))));
-      return;
-    }
-    final bill = due.first;
-    await BillsRepo().markPaid(bill.id!);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(tr('سجّلت «${bill.name}» اتدفعت ✅', 'Marked "${bill.name}" paid ✅'))));
-    await _load();
   }
 
   Future<void> _quickDebt() async {
@@ -1297,11 +1485,11 @@ class _TodayScreenState extends State<TodayScreen> {
       _QuickAct('dose', Icons.medication_outlined, tr('جرعة دوا', 'Dose'),
           Colors.pink, _openDoseSheet),
       _QuickAct('workout', Icons.fitness_center, tr('تمرين', 'Workout'),
-          Colors.green, _markWorkoutDone),
+          Colors.green, _openWorkoutSheet),
       _QuickAct('sleep', Icons.bedtime_outlined, tr('نوم', 'Sleep'),
           Colors.indigo, _openSleepSheet),
       _QuickAct('steps', Icons.directions_walk, tr('خطوات', 'Steps'),
-          Colors.brown, _logSteps),
+          Colors.brown, _openStepsSheet),
       _QuickAct('habit', Icons.task_alt, tr('عادة', 'Habit'),
           Colors.lightGreen, _quickHabit),
       _QuickAct('meal', Icons.restaurant_outlined, tr('وجبة', 'Meal'),
@@ -1314,7 +1502,7 @@ class _TodayScreenState extends State<TodayScreen> {
       _QuickAct('transfer', Icons.swap_horiz, tr('تحويل', 'Transfer'),
           Colors.blueGrey, _walletTransfer),
       _QuickAct('bill_paid', Icons.receipt_long_outlined, tr('فاتورة اتدفعت', 'Bill paid'),
-          Colors.deepOrange, _markNextBillPaid),
+          Colors.deepOrange, _openBillsSheet),
       _QuickAct('debt', Icons.handshake_outlined, tr('دَين', 'Debt'),
           Colors.amber.shade900, _quickDebt),
       _QuickAct('measure', Icons.monitor_heart_outlined, tr('قياس', 'Measure'),
