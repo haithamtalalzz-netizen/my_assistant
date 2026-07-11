@@ -442,7 +442,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           'Monthly budget (EGP) — leave empty to skip')),
                 ),
                 SectionHeader(tr('الموقع والصلاة', 'Location & prayer')),
-                if (_customLoc == null) ...[
+                SegmentedButton<bool>(
+                  segments: [
+                    ButtonSegment(
+                        value: false,
+                        icon: const Text('🇪🇬'),
+                        label: Text(tr('مصر', 'Egypt'))),
+                    ButtonSegment(
+                        value: true,
+                        icon: const Text('🌍'),
+                        label: Text(tr('دولة تانية', 'Other country'))),
+                  ],
+                  selected: {_customLoc != null},
+                  onSelectionChanged: (s) async {
+                    if (s.first) {
+                      await _pickWorldCity();
+                    } else {
+                      await _settings.clearCustomLocation();
+                      await _settings.set('governorate', _governorate);
+                      if (mounted) setState(() => _customLoc = null);
+                      unawaited(PrayerScheduler.ensureScheduled());
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                if (_customLoc == null)
                   DropdownButtonFormField<String>(
                     initialValue: kGovernorates
                             .any((g) => g.name == _governorate)
@@ -454,34 +478,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       for (final g in kGovernorates)
                         DropdownMenuItem(value: g.name, child: Text(g.name)),
                     ],
-                    onChanged: (v) =>
-                        setState(() => _governorate = v ?? _governorate),
-                  ),
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: TextButton.icon(
-                      onPressed: _pickWorldCity,
-                      icon: const Icon(Icons.public, size: 18),
-                      label: Text(tr('مدينة تانية في العالم؟ دوّر عليها',
-                          'Another city worldwide? Search it')),
-                    ),
-                  ),
-                ] else
+                    onChanged: (v) async {
+                      setState(() => _governorate = v ?? _governorate);
+                      await _settings.set('governorate', _governorate);
+                      unawaited(PrayerScheduler.ensureScheduled());
+                    },
+                  )
+                else
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(Icons.public,
                         color: Theme.of(context).colorScheme.primary),
                     title: Text(_customLoc!),
-                    subtitle: Text(tr('مدينتك الحالية', 'Your current city')),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.close),
-                      tooltip: tr('رجوع للمحافظات', 'Back to governorates'),
-                      onPressed: () async {
-                        await _settings.clearCustomLocation();
-                        if (mounted) setState(() => _customLoc = null);
-                        unawaited(PrayerScheduler.ensureScheduled());
-                      },
-                    ),
+                    subtitle: Text(tr('مدينتك الحالية — اضغط للتغيير',
+                        'Your current city — tap to change')),
+                    trailing: const Icon(Icons.edit_location_alt_outlined),
                     onTap: _pickWorldCity,
                   ),
                 SwitchListTile(
