@@ -18,9 +18,10 @@ import '../core/notifications.dart';
 import '../core/prayers.dart';
 import '../core/seed_demo.dart';
 import '../core/theme.dart';
+import '../core/widget_bridge.dart';
 import '../data/settings_repo.dart';
-import '../widgets/city_search_sheet.dart';
 import '../widgets/common.dart';
+import '../widgets/location_fields.dart';
 import 'quick_actions_settings_screen.dart';
 
 const List<String> kBloodTypes = [
@@ -66,14 +67,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _load();
-  }
-
-  Future<void> _pickWorldCity() async {
-    final place = await pickCity(context);
-    if (place == null || !mounted) return;
-    await _settings.setCustomLocation(place.lat, place.lng, place.label);
-    setState(() => _customLoc = place.label);
-    unawaited(PrayerScheduler.ensureScheduled());
   }
 
   Future<void> _load() async {
@@ -442,59 +435,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           'Monthly budget (EGP) — leave empty to skip')),
                 ),
                 SectionHeader(tr('الموقع والصلاة', 'Location & prayer')),
-                SegmentedButton<bool>(
-                  segments: [
-                    ButtonSegment(
-                        value: false,
-                        icon: const Text('🇪🇬'),
-                        label: Text(tr('مصر', 'Egypt'))),
-                    ButtonSegment(
-                        value: true,
-                        icon: const Text('🌍'),
-                        label: Text(tr('دولة تانية', 'Other country'))),
-                  ],
-                  selected: {_customLoc != null},
-                  onSelectionChanged: (s) async {
-                    if (s.first) {
-                      await _pickWorldCity();
-                    } else {
-                      await _settings.clearCustomLocation();
-                      await _settings.set('governorate', _governorate);
-                      if (mounted) setState(() => _customLoc = null);
-                      unawaited(PrayerScheduler.ensureScheduled());
-                    }
+                if (_customLoc != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.place,
+                            size: 18,
+                            color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                              '${tr('موقعك الحالي', 'Current location')}: $_customLoc',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ),
+                  ),
+                LocationFields(
+                  initialCityLabel: _customLoc,
+                  onPicked: (place) async {
+                    await _settings.setCustomLocation(
+                        place.lat, place.lng, place.label);
+                    if (mounted) setState(() => _customLoc = place.label);
+                    unawaited(PrayerScheduler.ensureScheduled());
+                    unawaited(WidgetBridge.push());
                   },
                 ),
-                const SizedBox(height: 12),
-                if (_customLoc == null)
-                  DropdownButtonFormField<String>(
-                    initialValue: kGovernorates
-                            .any((g) => g.name == _governorate)
-                        ? _governorate
-                        : kGovernorates.first.name,
-                    decoration: InputDecoration(
-                        labelText: tr('المحافظة', 'Governorate')),
-                    items: [
-                      for (final g in kGovernorates)
-                        DropdownMenuItem(value: g.name, child: Text(g.name)),
-                    ],
-                    onChanged: (v) async {
-                      setState(() => _governorate = v ?? _governorate);
-                      await _settings.set('governorate', _governorate);
-                      unawaited(PrayerScheduler.ensureScheduled());
-                    },
-                  )
-                else
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.public,
-                        color: Theme.of(context).colorScheme.primary),
-                    title: Text(_customLoc!),
-                    subtitle: Text(tr('مدينتك الحالية — اضغط للتغيير',
-                        'Your current city — tap to change')),
-                    trailing: const Icon(Icons.edit_location_alt_outlined),
-                    onTap: _pickWorldCity,
-                  ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(tr('إشعارات الأذان', 'Adhan notifications')),

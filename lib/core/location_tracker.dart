@@ -117,6 +117,20 @@ class WalkTracker {
   }
 }
 
+/// موقع الجهاز الحالي مرة واحدة (للـ«حدد موقعي تلقائيًا»). null لو فشل/مرفوض.
+Future<Position?> currentPosition() async {
+  if (kIsWeb) return null;
+  final err = await WalkTracker.ensureReady();
+  if (err != null) return null;
+  try {
+    return await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+    ).timeout(const Duration(seconds: 15));
+  } on Exception catch (_) {
+    return null;
+  }
+}
+
 /// تقدير السعرات المحروقة (تقريبي): مسافة × وزن × معامل النشاط.
 double estimateCalories({
   required double distanceKm,

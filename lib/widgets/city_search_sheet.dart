@@ -2,24 +2,125 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../core/countries.dart';
 import '../core/geocoding.dart';
 import '../core/l10n.dart';
 
-/// شيت البحث عن أي مدينة في العالم — يرجّع [GeoPlace] المختار أو null.
-Future<GeoPlace?> pickCity(BuildContext context) {
+/// شيت البحث عن مدينة — يرجّع [GeoPlace] المختار أو null.
+/// لو اتحدد [countryCode] بيفلتر على الدولة دي بس.
+Future<GeoPlace?> pickCity(BuildContext context,
+    {String? countryCode, String? countryName}) {
   return showModalBottomSheet<GeoPlace>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     builder: (ctx) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-      child: const _CitySearchSheet(),
+      child: _CitySearchSheet(countryCode: countryCode, countryName: countryName),
     ),
   );
 }
 
+/// شيت اختيار الدولة — قائمة كل دول العالم مع بحث. يرجّع [Country] أو null.
+Future<Country?> pickCountry(BuildContext context) {
+  return showModalBottomSheet<Country>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (ctx) => Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+      child: const _CountryPickerSheet(),
+    ),
+  );
+}
+
+class _CountryPickerSheet extends StatefulWidget {
+  const _CountryPickerSheet();
+
+  @override
+  State<_CountryPickerSheet> createState() => _CountryPickerSheetState();
+}
+
+class _CountryPickerSheetState extends State<_CountryPickerSheet> {
+  String _q = '';
+
+  List<Country> get _filtered {
+    final q = _q.trim().toLowerCase();
+    if (q.isEmpty) return kCountries;
+    return kCountries
+        .where((c) =>
+            c.ar.toLowerCase().contains(q) || c.en.toLowerCase().contains(q))
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final list = _filtered;
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.8,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(tr('اختر الدولة', 'Choose country'),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 10),
+            TextField(
+              autofocus: true,
+              onChanged: (v) => setState(() => _q = v),
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
+                hintText: tr('دوّر على الدولة', 'Search country'),
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: list.isEmpty
+                  ? Center(
+                      child: Text(tr('مفيش نتائج', 'No results'),
+                          style: TextStyle(color: scheme.outline)))
+                  : ListView.builder(
+                      itemCount: list.length,
+                      itemBuilder: (context, i) {
+                        final c = list[i];
+                        return ListTile(
+                          dense: true,
+                          leading: Text(_flag(c.code),
+                              style: const TextStyle(fontSize: 22)),
+                          title: Text(c.name),
+                          onTap: () => Navigator.pop(context, c),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// علم الدولة كإيموجي من كود ISO (حرفين → Regional Indicator).
+String _flag(String code) {
+  if (code.length != 2) return '🏳️';
+  const base = 0x1F1E6;
+  final cc = code.toUpperCase();
+  return String.fromCharCodes([
+    base + (cc.codeUnitAt(0) - 65),
+    base + (cc.codeUnitAt(1) - 65),
+  ]);
+}
+
 class _CitySearchSheet extends StatefulWidget {
-  const _CitySearchSheet();
+  final String? countryCode;
+  final String? countryName;
+  const _CitySearchSheet({this.countryCode, this.countryName});
 
   @override
   State<_CitySearchSheet> createState() => _CitySearchSheetState();
@@ -46,7 +147,7 @@ class _CitySearchSheetState extends State<_CitySearchSheet> {
         return;
       }
       setState(() => _loading = true);
-      final r = await searchCities(q);
+      final r = await searchCities(q, countryCode: widget.countryCode);
       if (mounted) {
         setState(() {
           _results = r;

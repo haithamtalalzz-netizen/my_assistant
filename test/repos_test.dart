@@ -5,6 +5,7 @@ import 'package:my_assistant/core/backup.dart';
 import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/food_db.dart';
 import 'package:my_assistant/core/exercise_library.dart';
+import 'package:my_assistant/core/countries.dart';
 import 'package:my_assistant/core/diet_plans.dart';
 import 'package:my_assistant/core/location_tracker.dart';
 import 'package:my_assistant/data/activity_repo.dart';
@@ -1319,6 +1320,22 @@ void main() {
       expect(rows.first['type'], 'run');
       expect((rows.first['distance_km'] as num).toDouble(), 5.0);
       await v28.close();
+    });
+  });
+
+  group('قائمة الدول', () {
+    test('مصر موجودة والبحث بالكود شغّال', () {
+      expect(countryByCode('EG')?.ar, 'مصر');
+      expect(countryByCode('eg')?.en, 'Egypt'); // غير حسّاس لحالة الأحرف
+      expect(countryByCode('ZZ'), null);
+      expect(countryByCode(''), null);
+    });
+
+    test('كل الأكواد فريدة وحرفين', () {
+      final codes = kCountries.map((c) => c.code).toList();
+      expect(codes.toSet().length, codes.length, reason: 'مفيش كود متكرر');
+      expect(kCountries.every((c) => c.code.length == 2), true);
+      expect(kCountries.length > 100, true);
     });
   });
 

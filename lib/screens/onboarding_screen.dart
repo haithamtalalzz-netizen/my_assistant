@@ -4,7 +4,7 @@ import '../core/geocoding.dart';
 import '../core/l10n.dart';
 import '../core/prayers.dart';
 import '../data/settings_repo.dart';
-import '../widgets/city_search_sheet.dart';
+import '../widgets/location_fields.dart';
 
 /// تهيئة أول مرة — بتجمع الاسم والمحافظة (للصلاة والطقس) في خطوة واحدة بسيطة.
 class OnboardingScreen extends StatefulWidget {
@@ -19,8 +19,8 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final _settings = SettingsRepo();
   final _name = TextEditingController();
-  String _governorate = kGovernorates.first.name;
-  GeoPlace? _worldCity; // مدينة عالمية مختارة (بديلة للمحافظة)
+  final String _governorate = kGovernorates.first.name; // احتياطي لو مااختارش
+  GeoPlace? _worldCity; // مكان مختار (دولة+مدينة أو GPS)
   bool _saving = false;
 
   @override
@@ -42,11 +42,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
     await _settings.set('onboarded', '1');
     widget.onDone();
-  }
-
-  Future<void> _pickWorldCity() async {
-    final place = await pickCity(context);
-    if (place != null && mounted) setState(() => _worldCity = place);
   }
 
   @override
@@ -84,7 +79,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              // اختيار الموقع (لمواعيد الصلاة والطقس): مصر أو أي دولة/مدينة بالعالم.
+              // اختيار الموقع (لمواعيد الصلاة والطقس): الدولة ← المدينة أو GPS.
               Align(
                 alignment: AlignmentDirectional.centerStart,
                 child: Text(tr('موقعك (لمواعيد الصلاة والطقس)',
@@ -92,57 +87,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     style: TextStyle(fontSize: 13, color: scheme.outline)),
               ),
               const SizedBox(height: 8),
-              SegmentedButton<bool>(
-                segments: [
-                  ButtonSegment(
-                      value: false,
-                      icon: const Text('🇪🇬'),
-                      label: Text(tr('مصر', 'Egypt'))),
-                  ButtonSegment(
-                      value: true,
-                      icon: const Text('🌍'),
-                      label: Text(tr('دولة تانية', 'Other country'))),
-                ],
-                selected: {_worldCity != null},
-                onSelectionChanged: (s) {
-                  if (s.first) {
-                    _pickWorldCity();
-                  } else {
-                    setState(() => _worldCity = null);
-                  }
-                },
+              LocationFields(
+                initialCityLabel: _worldCity?.label,
+                onPicked: (place) => setState(() => _worldCity = place),
               ),
-              const SizedBox(height: 12),
-              if (_worldCity == null)
-                DropdownButtonFormField<String>(
-                  initialValue: _governorate,
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    labelText: tr('محافظتك', 'Your governorate'),
-                    prefixIcon: const Icon(Icons.location_on_outlined),
-                    border: const OutlineInputBorder(),
-                  ),
-                  items: [
-                    for (final g in kGovernorates)
-                      DropdownMenuItem(value: g.name, child: Text(g.name)),
+              if (_worldCity != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.check_circle, size: 16, color: scheme.primary),
+                    const SizedBox(width: 6),
+                    Expanded(child: Text(_worldCity!.label,
+                        style: TextStyle(fontSize: 12, color: scheme.primary))),
                   ],
-                  onChanged: (v) =>
-                      setState(() => _governorate = v ?? _governorate),
-                )
-              else
-                Card(
-                  child: ListTile(
-                    leading: Icon(Icons.public, color: scheme.primary),
-                    title: Text(_worldCity!.name),
-                    subtitle: Text(_worldCity!.label),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.edit_location_alt_outlined),
-                      tooltip: tr('غيّر المدينة', 'Change city'),
-                      onPressed: _pickWorldCity,
-                    ),
-                    onTap: _pickWorldCity,
-                  ),
                 ),
+              ],
               const SizedBox(height: 12),
               Text(
                   tr('تقدر تفعّل قفل البصمة ومزامنة الساعة لاحقًا من الإعدادات.',
