@@ -1,4 +1,5 @@
 import '../core/db.dart';
+import '../core/food_db.dart';
 import '../core/l10n.dart';
 import '../models/models.dart';
 
@@ -31,6 +32,22 @@ class MealsRepo {
   Future<void> delete(int id) async {
     final db = await AppDb.instance;
     await db.delete('meals', where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// إجمالي القيم الغذائية ليوم (سعرات + بروتين + كارب + دهون).
+  Future<Nutrients> dayNutrients(String day) async {
+    final meals = await forDay(day);
+    var total = const Nutrients();
+    for (final m in meals) {
+      total = total +
+          Nutrients(
+            kcal: m.calories ?? 0,
+            protein: m.protein ?? 0,
+            carbs: m.carbs ?? 0,
+            fat: m.fat ?? 0,
+          );
+    }
+    return total;
   }
 
   // ---- قائمة التسوق ----

@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 27,
+      version: 28,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -189,6 +189,23 @@ class AppDb {
       for (final ddl in _v27Tables) {
         await db.execute(ddl);
       }
+    }
+    if (oldV < 28 && newV >= 28) {
+      // ماكروز الوجبات — بروتين/كارب/دهون + الكمية بالجرام.
+      await _safeAddColumn(db, 'meals', 'protein', 'REAL');
+      await _safeAddColumn(db, 'meals', 'carbs', 'REAL');
+      await _safeAddColumn(db, 'meals', 'fat', 'REAL');
+      await _safeAddColumn(db, 'meals', 'grams', 'REAL');
+    }
+  }
+
+  /// يضيف عمود لجدول موجود فقط لو مش موجود (آمن ضد التكرار في الترقيات).
+  static Future<void> _safeAddColumn(
+      Database db, String table, String col, String type) async {
+    final info = await db.rawQuery('PRAGMA table_info($table)');
+    final exists = info.any((r) => r['name'] == col);
+    if (!exists) {
+      await db.execute('ALTER TABLE $table ADD COLUMN $col $type');
     }
   }
 
@@ -569,7 +586,11 @@ class AppDb {
         day TEXT NOT NULL,
         slot TEXT NOT NULL,
         description TEXT NOT NULL,
-        calories REAL
+        calories REAL,
+        protein REAL,
+        carbs REAL,
+        fat REAL,
+        grams REAL
       )''',
     'CREATE INDEX idx_meals_day ON meals(day)',
     '''

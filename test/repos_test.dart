@@ -3,6 +3,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/backup.dart';
 import 'package:my_assistant/core/db.dart';
+import 'package:my_assistant/core/food_db.dart';
 import 'package:my_assistant/core/day_planner.dart';
 import 'package:my_assistant/core/insights.dart';
 import 'package:my_assistant/core/local_brain.dart';
@@ -1292,6 +1293,66 @@ void main() {
       expect(rows.length, 1);
       expect((rows.first['quantity'] as num).toInt(), 3);
       await v26.close();
+    });
+  });
+
+  group('ترقية قاعدة البيانات v27 ← v28', () {
+    test('أعمدة الماكروز بتتضاف لجدول الوجبات', () async {
+      final v27 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await v27.execute('''
+        CREATE TABLE meals(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          day TEXT NOT NULL,
+          slot TEXT NOT NULL,
+          description TEXT NOT NULL,
+          calories REAL
+        )''');
+      await AppDb.upgradeSchema(v27, 27, 28);
+      await v27.insert('meals', {
+        'day': '2026-07-12',
+        'slot': 'غدا',
+        'description': 'فراخ ورز',
+        'calories': 500.0,
+        'protein': 40.0,
+        'carbs': 55.0,
+        'fat': 12.0,
+        'grams': 300.0,
+      });
+      final row = (await v27.query('meals')).first;
+      expect((row['protein'] as num).toDouble(), 40.0);
+      expect((row['carbs'] as num).toDouble(), 55.0);
+      expect((row['fat'] as num).toDouble(), 12.0);
+      expect((row['grams'] as num).toDouble(), 300.0);
+      // آمن ضد التكرار: ترقية تانية مش بترمي خطأ.
+      await AppDb.upgradeSchema(v27, 27, 28);
+      await v27.close();
+    });
+  });
+
+  group('قاعدة الأكل والماكروز', () {
+    test('البحث بيلاقي الأصناف بالعربي غير حسّاس للهمزات', () {
+      expect(searchFoods('فراخ').isNotEmpty, true);
+      expect(searchFoods('أرز').isNotEmpty, true); // بهمزة
+      expect(searchFoods('رز').isNotEmpty, true); // بدون همزة
+      expect(searchFoods('chicken').isNotEmpty, true);
+    });
+
+    test('حساب القيم بيتناسب مع الكمية', () {
+      final chicken = kFoods.firstWhere((f) => f.en == 'Grilled chicken breast');
+      final n = chicken.forQty(200); // ضعف الـ100 جم
+      expect(n.kcal.round(), (chicken.kcal * 2).round());
+      expect(n.protein.round(), (chicken.protein * 2).round());
+    });
+
+    test('جمع القيم الغذائية بيشتغل', () {
+      const a = Nutrients(kcal: 100, protein: 10, carbs: 5, fat: 2);
+      const b = Nutrients(kcal: 50, protein: 4, carbs: 8, fat: 1);
+      final s = a + b;
+      expect(s.kcal, 150);
+      expect(s.protein, 14);
+      expect(s.carbs, 13);
+      expect(s.fat, 3);
     });
   });
 

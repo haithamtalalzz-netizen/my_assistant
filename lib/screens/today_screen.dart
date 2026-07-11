@@ -2169,6 +2169,15 @@ class _TodayScreenState extends State<TodayScreen> {
   int get _eatenCalories =>
       _meals.fold<double>(0, (s, m) => s + (m.calories ?? 0)).round();
 
+  int get _eatenProtein =>
+      _meals.fold<double>(0, (s, m) => s + (m.protein ?? 0)).round();
+  int get _eatenCarbs =>
+      _meals.fold<double>(0, (s, m) => s + (m.carbs ?? 0)).round();
+  int get _eatenFat =>
+      _meals.fold<double>(0, (s, m) => s + (m.fat ?? 0)).round();
+  bool get _hasMacros =>
+      _meals.any((m) => m.protein != null || m.carbs != null || m.fat != null);
+
   bool get _showNutrition =>
       _calorieGoal > 0 ||
       _calories != null ||
@@ -2245,11 +2254,34 @@ class _TodayScreenState extends State<TodayScreen> {
                       fontSize: 12,
                       color: remaining >= 0 ? Colors.green : scheme.error)),
             ],
+            if (_hasMacros) ...[
+              const Divider(height: 18),
+              Row(
+                children: [
+                  _macroTotal(tr('بروتين', 'Protein'), _eatenProtein, Colors.red),
+                  _macroTotal(tr('كارب', 'Carbs'), _eatenCarbs, Colors.orange),
+                  _macroTotal(tr('دهون', 'Fat'), _eatenFat, Colors.blue),
+                ],
+              ),
+            ],
           ],
         ),
       ),
     );
   }
+
+  Widget _macroTotal(String label, int grams, Color color) => Expanded(
+        child: Column(
+          children: [
+            Text('${arNum(grams)}${tr('جم', 'g')}',
+                style: TextStyle(fontWeight: FontWeight.w700, color: color)),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.outline)),
+          ],
+        ),
+      );
 
   Future<void> _editCalorieGoal() async {
     final controller = TextEditingController(

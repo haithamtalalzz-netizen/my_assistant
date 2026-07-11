@@ -1438,6 +1438,12 @@ class Meal {
   final String slot;
   final String description;
   final double? calories;
+  final double? protein;
+  final double? carbs;
+  final double? fat;
+
+  /// الكمية بالجرام/المل (اختياري — لو الوجبة اتسجّلت من قاعدة الأكل).
+  final double? grams;
 
   const Meal({
     this.id,
@@ -1445,6 +1451,10 @@ class Meal {
     required this.slot,
     required this.description,
     this.calories,
+    this.protein,
+    this.carbs,
+    this.fat,
+    this.grams,
   });
 
   factory Meal.fromMap(Map<String, Object?> m) => Meal(
@@ -1453,6 +1463,10 @@ class Meal {
         slot: m['slot'] as String,
         description: m['description'] as String,
         calories: (m['calories'] as num?)?.toDouble(),
+        protein: (m['protein'] as num?)?.toDouble(),
+        carbs: (m['carbs'] as num?)?.toDouble(),
+        fat: (m['fat'] as num?)?.toDouble(),
+        grams: (m['grams'] as num?)?.toDouble(),
       );
 
   Map<String, Object?> toMap() => {
@@ -1460,6 +1474,10 @@ class Meal {
         'slot': slot,
         'description': description,
         'calories': calories,
+        'protein': protein,
+        'carbs': carbs,
+        'fat': fat,
+        'grams': grams,
       };
 }
 

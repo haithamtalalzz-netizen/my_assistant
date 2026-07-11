@@ -5,6 +5,7 @@ import '../../core/l10n.dart';
 import '../../data/meals_repo.dart';
 import '../../data/settings_repo.dart';
 import '../../models/models.dart';
+import 'food_picker_sheet.dart';
 
 /// تسجيل وجبة سريع: نوع الوجبة + وصف سطر واحد + سعرات اختياري.
 Future<bool?> showMealSheet(BuildContext context) {
@@ -32,6 +33,12 @@ class _MealFormState extends State<_MealForm> {
   final _calories = TextEditingController();
   List<String> _slots = kMealSlots;
   String _slot = kMealSlots.first;
+
+  // ماكروز محسوبة من قاعدة الأكل (لو المستخدم اختار صنف).
+  double? _protein;
+  double? _carbs;
+  double? _fat;
+  double? _grams;
 
   @override
   void initState() {
@@ -75,10 +82,45 @@ class _MealFormState extends State<_MealForm> {
       slot: _slot,
       description: desc,
       calories: parseNumber(_calories.text),
+      protein: _protein,
+      carbs: _carbs,
+      fat: _fat,
+      grams: _grams,
     ));
     if (!mounted) return;
     Navigator.pop(context, true);
   }
+
+  Future<void> _pickFromDb() async {
+    final picked = await pickFood(context);
+    if (picked == null || !mounted) return;
+    setState(() {
+      final qty = '${picked.grams.round()}${picked.unit} ';
+      _description.text = '$qty${picked.name}';
+      _calories.text = picked.n.kcal.round().toString();
+      _protein = picked.n.protein;
+      _carbs = picked.n.carbs;
+      _fat = picked.n.fat;
+      _grams = picked.grams;
+    });
+  }
+
+  void _clearMacros() {
+    setState(() {
+      _protein = null;
+      _carbs = null;
+      _fat = null;
+      _grams = null;
+    });
+  }
+
+  Widget _macroChip(String label, double? value, Color color) => Chip(
+        visualDensity: VisualDensity.compact,
+        backgroundColor: color.withValues(alpha: 0.12),
+        side: BorderSide(color: color.withValues(alpha: 0.3)),
+        label: Text('$label ${(value ?? 0).round()}${tr('جم', 'g')}',
+            style: TextStyle(fontSize: 12, color: color)),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -106,6 +148,16 @@ class _MealFormState extends State<_MealForm> {
             ],
           ),
           const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _pickFromDb,
+              icon: const Icon(Icons.restaurant_menu),
+              label: Text(tr('اختر من قاعدة الأكل (بالسعرات والماكروز)',
+                  'Pick from food database (calories & macros)')),
+            ),
+          ),
+          const SizedBox(height: 12),
           TextField(
             controller: _description,
             autofocus: true,
@@ -122,6 +174,28 @@ class _MealFormState extends State<_MealForm> {
                 labelText:
                     tr('سعرات تقريبية (اختياري)', 'Approx. calories (optional)')),
           ),
+          if (_protein != null || _carbs != null || _fat != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: 6,
+                    children: [
+                      _macroChip(tr('بروتين', 'P'), _protein, Colors.red),
+                      _macroChip(tr('كارب', 'C'), _carbs, Colors.orange),
+                      _macroChip(tr('دهون', 'F'), _fat, Colors.blue),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: tr('مسح الماكروز', 'Clear macros'),
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: _clearMacros,
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
