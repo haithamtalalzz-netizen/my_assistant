@@ -2,4 +2,5 @@
 <resources>
     <!-- لون خلفية الإطلاق = خلفية الثيم الغامق (يمنع فلاش أبيض عند الفتح) -->
     <color name="launch_bg">#FF0B0F17</color>
+	<color name="ic_launcher_background">#FFFFFF</color>
 </resources>

@@ -47,6 +47,18 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   sqflite_common_ffi: ^2.3.3
+  flutter_launcher_icons: ^0.14.1
+  image: ^4.2.0
+
+# أيقونة التطبيق — تُولَّد من الصورة عبر: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 26
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/app_icon_fg.png"
+  remove_alpha_ios: true
 
 flutter:
   uses-material-design: true
