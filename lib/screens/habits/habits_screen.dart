@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
@@ -51,6 +52,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
   }
 
   Future<void> _toggleDay(Habit h, String day) async {
+    HapticFeedback.selectionClick();
     await _repo.toggle(h.id!, day);
     final d = await _repo.daysFor(h.id!);
     if (!mounted) return;
@@ -58,6 +60,63 @@ class _HabitsScreenState extends State<HabitsScreen> {
       _days[h.id!] = d;
       _streaks[h.id!] = computeStreak(d, DateTime.now());
     });
+  }
+
+  /// عدد أيام الإنجاز في آخر ٧ أيام (بما فيها النهارده).
+  int _weekCount(Habit h) {
+    final days = _days[h.id] ?? const <String>{};
+    final today = dateOnly(DateTime.now());
+    var n = 0;
+    for (var i = 0; i < 7; i++) {
+      if (days.contains(dayKey(today.subtract(Duration(days: i))))) n++;
+    }
+    return n;
+  }
+
+  /// كارت علوي: كام عادة اتعملت النهارده من الإجمالي + شريط تقدّم.
+  Widget _summaryCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final total = _habits.length;
+    final doneToday =
+        _habits.where((h) => (_days[h.id] ?? const {}).contains(_today)).length;
+    final allDone = total > 0 && doneToday == total;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(allDone ? '🎉' : '🎯', style: const TextStyle(fontSize: 20)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    allDone
+                        ? tr('كمّلت كل عاداتك النهارده — تحفة!',
+                            'All habits done today — great!')
+                        : tr('أنجزت ${arNum(doneToday)} من ${arNum(total)} عادة النهارده',
+                            'Done ${arNum(doneToday)} of ${arNum(total)} habits today'),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            LinearProgressIndicator(
+              value: total == 0 ? 0 : doneToday / total,
+              minHeight: 8,
+              borderRadius: BorderRadius.circular(4),
+              color: allDone ? Colors.green : scheme.primary,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   List<String> get _suggestions => [
@@ -159,6 +218,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
                       children: [
+                        _summaryCard(context),
                         for (final h in _habits) _habitCard(context, h),
                       ],
                     ),
@@ -217,6 +277,13 @@ class _HabitsScreenState extends State<HabitsScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 2),
+            Text(
+              tr('آخر ٧ أيام: ${arNum(_weekCount(h))}/٧',
+                  'Last 7 days: ${arNum(_weekCount(h))}/7'),
+              style: TextStyle(
+                  fontSize: 12, color: Theme.of(context).colorScheme.outline),
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -247,24 +314,27 @@ class _HabitsScreenState extends State<HabitsScreen> {
             final d = today.subtract(Duration(days: i));
             final done = days.contains(dayKey(d));
             final isToday = i == 0;
-            return Container(
-              width: 26,
-              height: 26,
-              margin: const EdgeInsets.symmetric(horizontal: 2),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: done ? scheme.primary : scheme.surfaceContainerHighest,
-                border: isToday
-                    ? Border.all(color: scheme.primary, width: 2)
-                    : null,
-              ),
-              child: Text(
-                arNum(d.day),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: done ? scheme.onPrimary : scheme.outline,
-                  fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
+            return GestureDetector(
+              onTap: () => _toggleDay(h, dayKey(d)),
+              child: Container(
+                width: 26,
+                height: 26,
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: done ? scheme.primary : scheme.surfaceContainerHighest,
+                  border: isToday
+                      ? Border.all(color: scheme.primary, width: 2)
+                      : null,
+                ),
+                child: Text(
+                  arNum(d.day),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: done ? scheme.onPrimary : scheme.outline,
+                    fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
+                  ),
                 ),
               ),
             );

@@ -32,11 +32,30 @@ class _DocsScreenState extends State<DocsScreen> {
 
   Future<void> _load() async {
     final docs = await _repo.all();
+    // الأقرب انتهاءً (والمنتهي) الأول؛ اللي من غير تاريخ في الآخر.
+    docs.sort((a, b) {
+      if (a.expiry == null && b.expiry == null) return 0;
+      if (a.expiry == null) return 1;
+      if (b.expiry == null) return -1;
+      return a.expiry!.compareTo(b.expiry!);
+    });
     if (!mounted) return;
     setState(() {
       _docs = docs;
       _loading = false;
     });
+  }
+
+  /// عدد المستندات المنتهية أو القريبة من الانتهاء (خلال مدة التذكير).
+  int _needRenewalCount() {
+    final today = dateOnly(DateTime.now());
+    var n = 0;
+    for (final d in _docs) {
+      if (d.expiry == null) continue;
+      final days = dateOnly(DateTime.parse(d.expiry!)).difference(today).inDays;
+      if (days <= d.remindDays) n++;
+    }
+    return n;
   }
 
   Future<void> _openForm([DocItem? d]) async {
@@ -77,6 +96,7 @@ class _DocsScreenState extends State<DocsScreen> {
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
                       children: [
+                        _renewalBanner(context),
                         for (final d in _docs) _docTile(context, d),
                       ],
                     ),
@@ -86,6 +106,34 @@ class _DocsScreenState extends State<DocsScreen> {
         onPressed: () => _openForm(),
         tooltip: tr('مستند جديد', 'New document'),
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _renewalBanner(BuildContext context) {
+    final n = _needRenewalCount();
+    if (n == 0) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: scheme.onErrorContainer),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              tr('${arNum(n)} مستند محتاج تجديد قريب',
+                  '${arNum(n)} document(s) need renewal soon'),
+              style: TextStyle(
+                  color: scheme.onErrorContainer, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
       ),
     );
   }
