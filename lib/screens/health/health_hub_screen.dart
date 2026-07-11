@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
@@ -8,6 +9,8 @@ import '../../data/meals_repo.dart';
 import '../../data/measurements_repo.dart';
 import '../../data/medical_repo.dart';
 import '../../data/pharmacy_repo.dart';
+import '../../models/models.dart';
+import '../brain/charts_screen.dart';
 import '../food/meal_sheet.dart';
 import '../gym/gym_screen.dart';
 import '../gym/progress_screen.dart';
@@ -34,6 +37,9 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
   int _medicalCount = 0;
   int _pharmacyExpiring = 0;
 
+  /// آخر قراءتين لكل نوع قياس (ضغط/سكر/وزن/حرارة) — للأحدث + اتجاه التغيّر.
+  final Map<String, List<Measurement>> _vitals = {};
+
   @override
   void initState() {
     super.initState();
@@ -48,6 +54,11 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
     final meals = await MealsRepo().forDay(today);
     final medical = await MedicalRepo().all();
     final pharmacy = await PharmacyRepo().all();
+
+    final vitals = <String, List<Measurement>>{};
+    for (final t in kMeasurementTypes) {
+      vitals[t] = await MeasurementsRepo().recent(limit: 2, type: t);
+    }
 
     // أدوية قربت تنتهي (خلال ٣٠ يوم) أو خلصت.
     final soon = DateTime.now().add(const Duration(days: 30));
@@ -67,6 +78,9 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
       _mealsCount = meals.length;
       _medicalCount = medical.length;
       _pharmacyExpiring = expiring;
+      _vitals
+        ..clear()
+        ..addAll(vitals);
       _loading = false;
     });
   }
@@ -104,7 +118,8 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
                     childAspectRatio: 0.82,
                     children: [
                       _metric('💧', tr('مياه', 'Water'),
-                          tr('${arNum(_water)} كوب', '${arNum(_water)} cups')),
+                          tr('${arNum(_water)} كوب', '${arNum(_water)} cups'),
+                          onTap: _addWaterCup),
                       _metric(
                           '😴',
                           tr('نوم', 'Sleep'),
@@ -120,6 +135,24 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
                           _eatenCalories == 0 ? '—' : arNum(_eatenCalories)),
                     ],
                   ),
+                  const SizedBox(height: 20),
+                  // ---- آخر القياسات ----
+                  Row(
+                    children: [
+                      Text(tr('آخر القياسات', 'Latest vitals'),
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700)),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => _open(const ChartsScreen()),
+                        child: Text(tr('الرسوم', 'Charts')),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  _vitalsStrip(),
                   const SizedBox(height: 20),
                   // ---- مداخل الصحة ----
                   Text(tr('كل حاجة صحية', 'All things health'),
@@ -180,30 +213,209 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
     );
   }
 
-  Widget _metric(String emoji, String label, String value) {
+  Widget _metric(String emoji, String label, String value,
+      {VoidCallback? onTap}) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
+    final inner = Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(emoji, style: const TextStyle(fontSize: 20)),
+        const SizedBox(height: 2),
+        Text(value,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis),
+        Text(label,
+            style: TextStyle(fontSize: 11, color: scheme.outline),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis),
+      ],
+    );
+    return Material(
+      color: scheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(padding: const EdgeInsets.all(6), child: inner),
       ),
-      padding: const EdgeInsets.all(6),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    );
+  }
+
+  Future<void> _addWaterCup() async {
+    HapticFeedback.selectionClick();
+    await HealthRepo().addWater(dayKey(DateTime.now()), 1);
+    if (mounted) await _load();
+  }
+
+  /// اتجاه التغيّر بين آخر قراءتين — سهم + لون (الأقل أخضر للضغط/السكر/الوزن).
+  Widget _vitalsStrip() {
+    final scheme = Theme.of(context).colorScheme;
+    const emoji = {'ضغط': '🩸', 'سكر': '🍬', 'وزن': '⚖️', 'حرارة': '🌡'};
+    return SizedBox(
+      height: 96,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 20)),
-          const SizedBox(height: 2),
-          Text(value,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis),
-          Text(label,
-              style: TextStyle(fontSize: 11, color: scheme.outline),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis),
+          for (final t in kMeasurementTypes)
+            _vitalCard(t, emoji[t] ?? '📊', scheme),
         ],
       ),
     );
+  }
+
+  Widget _vitalCard(String type, String emoji, ColorScheme scheme) {
+    final list = _vitals[type] ?? const [];
+    final latest = list.isNotEmpty ? list.first : null;
+    final prev = list.length > 1 ? list[1] : null;
+
+    Widget trend = const SizedBox.shrink();
+    if (latest != null && prev != null && latest.value != prev.value) {
+      final up = latest.value > prev.value;
+      // للضغط/السكر/الوزن: النزول أحسن (أخضر). الحرارة نحايد.
+      final good = type == 'حرارة' ? null : !up;
+      final color = good == null
+          ? scheme.outline
+          : (good ? Colors.green : scheme.error);
+      trend = Icon(up ? Icons.arrow_upward : Icons.arrow_downward,
+          size: 14, color: color);
+    }
+
+    return GestureDetector(
+      onTap: () => _openMeasurementSheet(type),
+      child: Container(
+        width: 104,
+        margin: const EdgeInsetsDirectional.only(end: 8),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Text(emoji, style: const TextStyle(fontSize: 16)),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(type,
+                    style: TextStyle(fontSize: 12, color: scheme.outline),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              ),
+            ]),
+            const Spacer(),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Flexible(
+                  child: Text(latest == null ? '—' : latest.display(),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w800, fontSize: 17),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                ),
+                const SizedBox(width: 2),
+                trend,
+              ],
+            ),
+            Text(
+                latest == null
+                    ? tr('اضغط للتسجيل', 'Tap to log')
+                    : arShortDate(DateTime.parse(latest.day)),
+                style: TextStyle(fontSize: 10, color: scheme.outline)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// شباك تسجيل قياس سريع لنوع محدّد — يعيد التحميل بعد الحفظ.
+  Future<void> _openMeasurementSheet(String type) async {
+    final v1 = TextEditingController();
+    final v2 = TextEditingController();
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        return Padding(
+          padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 4,
+              bottom: 20 +
+                  MediaQuery.of(ctx).viewInsets.bottom +
+                  MediaQuery.of(ctx).viewPadding.bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Icon(Icons.monitor_heart_outlined, color: scheme.primary),
+                const SizedBox(width: 8),
+                Text(tr('تسجيل $type', 'Log $type'),
+                    style: Theme.of(ctx).textTheme.titleMedium),
+              ]),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: v1,
+                      autofocus: true,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                          labelText: type == 'ضغط'
+                              ? tr('الانقباضي', 'Systolic')
+                              : tr('القيمة', 'Value')),
+                    ),
+                  ),
+                  if (type == 'ضغط') ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: v2,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                            labelText: tr('الانبساطي', 'Diastolic')),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: Text(tr('حفظ', 'Save'))),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (ok == true) {
+      final a = parseNumber(v1.text);
+      if (a != null) {
+        await MeasurementsRepo().add(Measurement(
+          day: dayKey(DateTime.now()),
+          type: type,
+          value: a,
+          value2: type == 'ضغط' ? parseNumber(v2.text) : null,
+        ));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(tr('اتسجّل القياس 📏', 'Measurement saved 📏'))));
+          await _load();
+        }
+      }
+    }
+    v1.dispose();
+    v2.dispose();
   }
 
   Widget _navCard({

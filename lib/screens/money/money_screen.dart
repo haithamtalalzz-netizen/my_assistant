@@ -65,6 +65,12 @@ class _MoneyScreenState extends State<MoneyScreen> {
     final total = await _repo.totalForMonth(_month.year, _month.month);
     final budget = await _settings.monthlyBudget();
     final bills = await BillsRepo().all();
+    final now = DateTime.now();
+    bills.sort((a, b) {
+      final ad = a.isDue(now), bd = b.isDue(now);
+      if (ad != bd) return ad ? -1 : 1; // المستحقة الأول
+      return a.dayOfMonth.compareTo(b.dayOfMonth);
+    });
     final (owedToMe, iOwe) = await DebtsRepo().totals();
     final incomeRepo = IncomeRepo();
     final income = await incomeRepo.forMonth(_month.year, _month.month);
@@ -701,6 +707,20 @@ class _MoneyScreenState extends State<MoneyScreen> {
                         color: over ? scheme.error : null,
                         fontWeight: over ? FontWeight.w600 : null),
                   ),
+                  if (_isCurrentMonth && !over) ...[
+                    const SizedBox(height: 4),
+                    Builder(builder: (_) {
+                      final now = DateTime.now();
+                      final daysLeft =
+                          DateTime(now.year, now.month + 1, 0).day - now.day + 1;
+                      final perDay = (_budget - _total) / daysLeft;
+                      return Text(
+                        tr('متاح ليك ${egp(perDay)} يوميًا للـ ${arNum(daysLeft)} يوم الباقيين',
+                            '${egp(perDay)}/day left for the remaining ${arNum(daysLeft)} days'),
+                        style: TextStyle(fontSize: 12, color: scheme.primary),
+                      );
+                    }),
+                  ],
                 ],
               ),
       ),
@@ -724,8 +744,14 @@ class _MoneyScreenState extends State<MoneyScreen> {
                   children: [
                     Row(
                       children: [
-                        Expanded(child: Text(e.key)),
-                        Text(egp(e.value),
+                        Icon(expenseCategoryIcon(e.key),
+                            size: 16, color: expenseCategoryColor(e.key)),
+                        const SizedBox(width: 6),
+                        Expanded(child: Text(expenseCategoryLabel(e.key))),
+                        Text(
+                            _total > 0
+                                ? '${egp(e.value)} • ٪${arNum((e.value * 100 / _total).round())}'
+                                : egp(e.value),
                             style:
                                 const TextStyle(fontWeight: FontWeight.w600)),
                       ],
@@ -735,6 +761,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
                       value: maxValue == 0 ? 0 : e.value / maxValue,
                       minHeight: 4,
                       borderRadius: BorderRadius.circular(2),
+                      color: expenseCategoryColor(e.key),
                     ),
                   ],
                 ),
@@ -953,6 +980,12 @@ class _MoneyScreenState extends State<MoneyScreen> {
       margin: const EdgeInsets.symmetric(vertical: 3),
       child: ListTile(
         dense: true,
+        leading: CircleAvatar(
+          radius: 18,
+          backgroundColor: expenseCategoryColor(e.category).withValues(alpha: .15),
+          child: Icon(expenseCategoryIcon(e.category),
+              size: 18, color: expenseCategoryColor(e.category)),
+        ),
         title: Text(e.note.isEmpty ? expenseCategoryLabel(e.category) : e.note),
         subtitle: Text(
             '${expenseCategoryLabel(e.category)} • ${arShortDate(DateTime.parse(e.day))}'),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
@@ -60,6 +61,9 @@ class _OccasionsTabState extends State<_OccasionsTab> {
 
   Future<void> _load() async {
     final occasions = await _repo.all();
+    final now = DateTime.now();
+    occasions.sort(
+        (a, b) => a.nextOccurrence(now).compareTo(b.nextOccurrence(now)));
     if (!mounted) return;
     setState(() {
       _occasions = occasions;
@@ -243,13 +247,13 @@ class _AppointmentsTabState extends State<_AppointmentsTab> {
       child: Opacity(
         opacity: faded ? 0.6 : 1,
         child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor:
-                a.done ? scheme.surfaceContainerHighest : scheme.secondaryContainer,
-            child: Icon(a.done ? Icons.check : Icons.event,
-                color: a.done
-                    ? scheme.outline
-                    : scheme.onSecondaryContainer),
+          leading: Checkbox(
+            value: a.done,
+            onChanged: (_) async {
+              HapticFeedback.selectionClick();
+              await _repo.setDone(a.id!, !a.done);
+              if (mounted) await _load();
+            },
           ),
           title: Row(
             children: [
@@ -269,9 +273,6 @@ class _AppointmentsTabState extends State<_AppointmentsTab> {
           trailing: PopupMenuButton<String>(
             onSelected: (v) async {
               switch (v) {
-                case 'done':
-                  await _repo.setDone(a.id!, !a.done);
-                  if (mounted) await _load();
                 case 'edit':
                   await _openForm(a);
                 case 'delete':
@@ -279,11 +280,6 @@ class _AppointmentsTabState extends State<_AppointmentsTab> {
               }
             },
             itemBuilder: (_) => [
-              PopupMenuItem(
-                  value: 'done',
-                  child: Text(a.done
-                      ? tr('إرجاع لقائمة القادمة', 'Back to upcoming')
-                      : tr('تم', 'Done'))),
               PopupMenuItem(value: 'edit', child: Text(tr('تعديل', 'Edit'))),
               PopupMenuItem(
                   value: 'delete', child: Text(tr('حذف', 'Delete'))),
@@ -344,6 +340,7 @@ class _MedsTabState extends State<_MedsTab> {
   final _repo = MedsRepo();
   bool _loading = true;
   List<Medication> _meds = [];
+  Set<String> _taken = {};
 
   @override
   void initState() {
@@ -353,9 +350,11 @@ class _MedsTabState extends State<_MedsTab> {
 
   Future<void> _load() async {
     final meds = await _repo.all();
+    final taken = await _repo.takenOn(dayKey(DateTime.now()));
     if (!mounted) return;
     setState(() {
       _meds = meds;
+      _taken = taken;
       _loading = false;
     });
   }
@@ -396,49 +395,83 @@ class _MedsTabState extends State<_MedsTab> {
                         for (final m in _meds)
                           Card(
                             margin: const EdgeInsets.symmetric(vertical: 3),
-                            child: ListTile(
-                              leading: Switch(
-                                value: m.active,
-                                onChanged: (v) async {
-                                  await _repo.setActive(m.id!, v);
-                                  if (mounted) await _load();
-                                },
-                              ),
-                              title: Text(m.name),
-                              subtitle: Text([
-                                if (m.form.isNotEmpty || m.unit.isNotEmpty)
-                                  [m.form, m.unit]
-                                      .where((s) => s.isNotEmpty)
-                                      .join(' — '),
-                                if (m.dosage.isNotEmpty) m.dosage,
-                                m.times.map(arTimeOfSlot).join(' • '),
-                                if (m.daysLeft(DateTime.now()) != null)
-                                  m.daysLeft(DateTime.now())! > 0
-                                      ? tr('كورس — باقي ${arNum(m.daysLeft(DateTime.now())!)} أيام',
-                                          'Course — ${arNum(m.daysLeft(DateTime.now())!)} days left')
-                                      : tr('الكورس خلص', 'Course ended'),
-                                if (m.notes.isNotEmpty) m.notes,
-                              ].join('\n')),
-                              isThreeLine: m.dosage.isNotEmpty ||
-                                  m.notes.isNotEmpty,
-                              trailing: PopupMenuButton<String>(
-                                onSelected: (v) async {
-                                  switch (v) {
-                                    case 'edit':
-                                      await _openForm(m);
-                                    case 'delete':
-                                      await _delete(m);
-                                  }
-                                },
-                                itemBuilder: (_) => [
-                                  PopupMenuItem(
-                                      value: 'edit',
-                                      child: Text(tr('تعديل', 'Edit'))),
-                                  PopupMenuItem(
-                                      value: 'delete',
-                                      child: Text(tr('حذف', 'Delete'))),
-                                ],
-                              ),
+                            child: Column(
+                              children: [
+                                ListTile(
+                                  leading: Switch(
+                                    value: m.active,
+                                    onChanged: (v) async {
+                                      await _repo.setActive(m.id!, v);
+                                      if (mounted) await _load();
+                                    },
+                                  ),
+                                  title: Text(m.name),
+                                  subtitle: Text([
+                                    if (m.form.isNotEmpty || m.unit.isNotEmpty)
+                                      [m.form, m.unit]
+                                          .where((s) => s.isNotEmpty)
+                                          .join(' — '),
+                                    if (m.dosage.isNotEmpty) m.dosage,
+                                    if (!m.active)
+                                      m.times.map(arTimeOfSlot).join(' • '),
+                                    if (m.daysLeft(DateTime.now()) != null)
+                                      m.daysLeft(DateTime.now())! > 0
+                                          ? tr('كورس — باقي ${arNum(m.daysLeft(DateTime.now())!)} أيام',
+                                              'Course — ${arNum(m.daysLeft(DateTime.now())!)} days left')
+                                          : tr('الكورس خلص', 'Course ended'),
+                                    if (m.notes.isNotEmpty) m.notes,
+                                  ].where((s) => s.isNotEmpty).join('\n')),
+                                  isThreeLine: m.dosage.isNotEmpty ||
+                                      m.notes.isNotEmpty,
+                                  trailing: PopupMenuButton<String>(
+                                    onSelected: (v) async {
+                                      switch (v) {
+                                        case 'edit':
+                                          await _openForm(m);
+                                        case 'delete':
+                                          await _delete(m);
+                                      }
+                                    },
+                                    itemBuilder: (_) => [
+                                      PopupMenuItem(
+                                          value: 'edit',
+                                          child: Text(tr('تعديل', 'Edit'))),
+                                      PopupMenuItem(
+                                          value: 'delete',
+                                          child: Text(tr('حذف', 'Delete'))),
+                                    ],
+                                  ),
+                                ),
+                                // جرعات النهاردة — تعلّم منها المتاخد.
+                                if (m.active && m.times.isNotEmpty)
+                                  Padding(
+                                    padding:
+                                        const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                                    child: Align(
+                                      alignment: AlignmentDirectional.centerStart,
+                                      child: Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        children: [
+                                          for (final s in m.times)
+                                            FilterChip(
+                                              label: Text(arTimeOfSlot(s)),
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                              selected:
+                                                  _taken.contains('${m.id}|$s'),
+                                              onSelected: (v) async {
+                                                HapticFeedback.selectionClick();
+                                                await _repo.setTaken(m.id!,
+                                                    dayKey(DateTime.now()), s, v);
+                                                if (mounted) await _load();
+                                              },
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
                       ],

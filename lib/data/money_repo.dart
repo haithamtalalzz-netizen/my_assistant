@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 import '../core/db.dart';
 import '../core/l10n.dart';
 import '../models/models.dart';
@@ -22,6 +24,28 @@ String expenseCategoryLabel(String c) => switch (c) {
       'ترفيه' => tr('ترفيه', 'Fun'),
       'أخرى' => tr('أخرى', 'Other'),
       _ => c,
+    };
+
+/// أيقونة الفئة — تسهّل القراءة السريعة في قوائم المصاريف.
+IconData expenseCategoryIcon(String c) => switch (c) {
+      'أكل' => Icons.restaurant_outlined,
+      'مواصلات' => Icons.directions_bus_outlined,
+      'فواتير' => Icons.receipt_long_outlined,
+      'صحة' => Icons.medical_services_outlined,
+      'تسوق' => Icons.shopping_bag_outlined,
+      'ترفيه' => Icons.celebration_outlined,
+      _ => Icons.payments_outlined,
+    };
+
+/// لون الفئة — نفس اللون في الأيقونة وشريط التوزيع.
+Color expenseCategoryColor(String c) => switch (c) {
+      'أكل' => Colors.orange,
+      'مواصلات' => Colors.blue,
+      'فواتير' => Colors.deepOrange,
+      'صحة' => Colors.red,
+      'تسوق' => Colors.purple,
+      'ترفيه' => Colors.pink,
+      _ => Colors.blueGrey,
     };
 
 class MoneyRepo {
