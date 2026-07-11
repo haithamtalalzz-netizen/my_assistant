@@ -25,7 +25,9 @@ Future<bool?> showVoiceSheet(BuildContext context) {
     context: context,
     isScrollControlled: true,
     builder: (ctx) => Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+      padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom +
+              MediaQuery.of(ctx).viewPadding.bottom),
       child: const _VoiceSheet(),
     ),
   );

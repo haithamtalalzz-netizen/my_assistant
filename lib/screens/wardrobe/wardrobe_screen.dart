@@ -58,7 +58,13 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 16,
+              bottom: 20 +
+                  MediaQuery.of(ctx).viewInsets.bottom +
+                  MediaQuery.of(ctx).viewPadding.bottom),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

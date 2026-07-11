@@ -812,7 +812,9 @@ class _TodayScreenState extends State<TodayScreen> {
                 left: 24,
                 right: 24,
                 top: 4,
-                bottom: 28 + MediaQuery.of(ctx).viewInsets.bottom),
+                bottom: 20 +
+                  MediaQuery.of(ctx).viewInsets.bottom +
+                  MediaQuery.of(ctx).viewPadding.bottom),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -913,7 +915,13 @@ class _TodayScreenState extends State<TodayScreen> {
       builder: (ctx) {
         final scheme = Theme.of(ctx).colorScheme;
         return Padding(
-          padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+          padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 4,
+              bottom: 20 +
+                  MediaQuery.of(ctx).viewInsets.bottom +
+                  MediaQuery.of(ctx).viewPadding.bottom),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -989,7 +997,9 @@ class _TodayScreenState extends State<TodayScreen> {
               left: 24,
               right: 24,
               top: 4,
-              bottom: 28 + MediaQuery.of(ctx).viewInsets.bottom),
+              bottom: 20 +
+                  MediaQuery.of(ctx).viewInsets.bottom +
+                  MediaQuery.of(ctx).viewPadding.bottom),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1061,7 +1071,13 @@ class _TodayScreenState extends State<TodayScreen> {
         builder: (ctx, setSheet) {
           final scheme = Theme.of(ctx).colorScheme;
           return Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 4,
+              bottom: 20 +
+                  MediaQuery.of(ctx).viewInsets.bottom +
+                  MediaQuery.of(ctx).viewPadding.bottom),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1131,7 +1147,13 @@ class _TodayScreenState extends State<TodayScreen> {
         builder: (ctx, setSheet) {
           final scheme = Theme.of(ctx).colorScheme;
           return Padding(
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 20),
+            padding: EdgeInsets.only(
+                left: 8,
+                right: 8,
+                top: 4,
+                bottom: 16 +
+                    MediaQuery.of(ctx).viewInsets.bottom +
+                    MediaQuery.of(ctx).viewPadding.bottom),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1314,7 +1336,13 @@ class _TodayScreenState extends State<TodayScreen> {
           final scheme = Theme.of(ctx).colorScheme;
           final frac = _waterGoal > 0 ? _water / _waterGoal : 0.0;
           return Padding(
-            padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 4,
+              bottom: 20 +
+                  MediaQuery.of(ctx).viewInsets.bottom +
+                  MediaQuery.of(ctx).viewPadding.bottom),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1374,7 +1402,13 @@ class _TodayScreenState extends State<TodayScreen> {
       builder: (ctx) {
         final scheme = Theme.of(ctx).colorScheme;
         return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+          padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 4,
+              bottom: 20 +
+                  MediaQuery.of(ctx).viewInsets.bottom +
+                  MediaQuery.of(ctx).viewPadding.bottom),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1422,7 +1456,13 @@ class _TodayScreenState extends State<TodayScreen> {
         builder: (ctx, setSheet) {
           final scheme = Theme.of(ctx).colorScheme;
           return Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+            padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 4,
+                bottom: 20 +
+                    MediaQuery.of(ctx).viewInsets.bottom +
+                    MediaQuery.of(ctx).viewPadding.bottom),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,

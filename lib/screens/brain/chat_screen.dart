@@ -201,7 +201,10 @@ class _ChatScreenState extends State<ChatScreen> {
       showDragHandle: true,
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 4, right: 4),
+            bottom: MediaQuery.of(ctx).viewInsets.bottom +
+                MediaQuery.of(ctx).viewPadding.bottom,
+            left: 4,
+            right: 4),
         child: _geminiSetup(ctx),
       ),
     );
