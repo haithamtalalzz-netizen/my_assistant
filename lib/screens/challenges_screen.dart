@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/ar.dart';
 import '../core/l10n.dart';
@@ -196,6 +197,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                               child: todayDone
                                   ? OutlinedButton.icon(
                                       onPressed: () async {
+                                        HapticFeedback.selectionClick();
                                         await _repo.setDone(
                                             c.id!, _repo.todayKey(), false);
                                         if (mounted) await _load();
@@ -207,6 +209,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                                     )
                                   : FilledButton.tonal(
                                       onPressed: () async {
+                                        HapticFeedback.selectionClick();
                                         await _repo.setDone(
                                             c.id!, _repo.todayKey(), true);
                                         if (mounted) await _load();

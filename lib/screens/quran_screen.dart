@@ -27,12 +27,42 @@ class _QuranScreenState extends State<QuranScreen> {
 
   Future<void> _load() async {
     final items = await _repo.all();
+    final now = DateTime.now();
+    items.sort((a, b) {
+      final ad = a.isDue(now), bd = b.isDue(now);
+      if (ad != bd) return ad ? -1 : 1; // المستحقة أول
+      return a.nextDue().compareTo(b.nextDue());
+    });
     if (!mounted) return;
     setState(() {
       _items = items;
       _loading = false;
     });
     await _repo.ensureReminder();
+  }
+
+  Widget _dueBanner(BuildContext context) {
+    final now = DateTime.now();
+    final due = _items.where((r) => r.isDue(now)).length;
+    if (due == 0) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 6),
+      color: scheme.tertiary.withValues(alpha: .13),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(children: [
+          Icon(Icons.menu_book_outlined, color: scheme.tertiary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+                tr('${arNum(due)} ورد محتاج مراجعة النهارده',
+                    '${arNum(due)} portion(s) to review today'),
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ]),
+      ),
+    );
   }
 
   Future<void> _add() async {
@@ -85,13 +115,15 @@ class _QuranScreenState extends State<QuranScreen> {
                   onRefresh: _load,
                   child: ListView.builder(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
-                    itemCount: _items.length,
-                    itemBuilder: (context, i) {
-                      final r = _items[i];
+                    itemCount: _items.length + 1,
+                    itemBuilder: (context, idx) {
+                      if (idx == 0) return _dueBanner(context);
+                      final r = _items[idx - 1];
                       final due = r.isDue(now);
                       return Card(
                         margin: const EdgeInsets.symmetric(vertical: 3),
-                        color: due ? scheme.tertiaryContainer : null,
+                        color:
+                            due ? scheme.tertiary.withValues(alpha: .13) : null,
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
                           child: Column(
@@ -101,16 +133,13 @@ class _QuranScreenState extends State<QuranScreen> {
                                 children: [
                                   Icon(Icons.menu_book,
                                       color: due
-                                          ? scheme.onTertiaryContainer
+                                          ? scheme.tertiary
                                           : scheme.primary),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(r.portion,
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            color: due
-                                                ? scheme.onTertiaryContainer
-                                                : null)),
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700)),
                                   ),
                                   IconButton(
                                     icon: const Icon(Icons.close, size: 18),
@@ -134,9 +163,7 @@ class _QuranScreenState extends State<QuranScreen> {
                                           'Next review: ${arShortDate(r.nextDue())}'),
                                   style: TextStyle(
                                       fontSize: 12,
-                                      color: due
-                                          ? scheme.onTertiaryContainer
-                                          : scheme.outline)),
+                                      color: due ? scheme.tertiary : scheme.outline)),
                               if (due) ...[
                                 const SizedBox(height: 6),
                                 Row(

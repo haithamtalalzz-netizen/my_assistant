@@ -84,6 +84,54 @@ class _QuitScreenState extends State<QuitScreen> {
     saving.dispose();
   }
 
+  /// شريط تقدّم نحو أقرب محطة (أسبوع/شهر/٣ شهور/٦/سنة/سنتين).
+  Widget _milestone(BuildContext context, int days) {
+    const marks = [
+      (7, 'أسبوع', '1 week'),
+      (30, 'شهر', '1 month'),
+      (90, '٣ شهور', '3 months'),
+      (180, '٦ شهور', '6 months'),
+      (365, 'سنة', '1 year'),
+      (730, 'سنتين', '2 years'),
+    ];
+    (int, String, String)? next;
+    var prev = 0;
+    for (final m in marks) {
+      if (days < m.$1) {
+        next = m;
+        break;
+      }
+      prev = m.$1;
+    }
+    if (next == null) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    final remaining = next.$1 - days;
+    final progress = (days - prev) / (next.$1 - prev);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress.clamp(0.0, 1.0),
+              minHeight: 6,
+              backgroundColor: scheme.onPrimaryContainer.withValues(alpha: .2),
+              color: scheme.onPrimaryContainer,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+              tr('فاضل ${arNum(remaining)} يوم على ${next.$2}',
+                  '${arNum(remaining)} days to ${next.$3}'),
+              style: TextStyle(
+                  fontSize: 12, color: scheme.onPrimaryContainer)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -161,6 +209,7 @@ class _QuitScreenState extends State<QuitScreen> {
                                       'Saved about ${egp(saved)}'),
                                   style: TextStyle(
                                       color: scheme.onPrimaryContainer)),
+                            _milestone(context, days),
                           ],
                         ),
                       ),

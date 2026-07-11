@@ -41,6 +41,23 @@ class _DiaryScreenState extends State<DiaryScreen> {
     if (saved == true && mounted) await _load();
   }
 
+  Widget _header(BuildContext context) {
+    if (_items.isEmpty) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    final last = DateTime.tryParse(_items.first.day);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 2, 4, 8),
+      child: Row(children: [
+        Icon(Icons.auto_stories_outlined, size: 18, color: scheme.primary),
+        const SizedBox(width: 8),
+        Text(
+            tr('${arNum(_items.length)} يومية${last == null ? '' : ' • آخر كتابة ${arShortDate(last)}'}',
+                '${arNum(_items.length)} entries${last == null ? '' : ' • last ${arShortDate(last)}'}'),
+            style: TextStyle(color: scheme.outline, fontSize: 13)),
+      ]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -58,16 +75,18 @@ class _DiaryScreenState extends State<DiaryScreen> {
                   onRefresh: _load,
                   child: ListView.builder(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
-                    itemCount: _items.length,
-                    itemBuilder: (context, i) {
-                      final d = _items[i];
+                    itemCount: _items.length + 1,
+                    itemBuilder: (context, idx) {
+                      if (idx == 0) return _header(context);
+                      final d = _items[idx - 1];
                       return Card(
                         margin: const EdgeInsets.symmetric(vertical: 3),
                         child: ListTile(
                           title: Text(arFullDate(DateTime.parse(d.day)),
                               style: const TextStyle(
                                   fontWeight: FontWeight.w600, fontSize: 13)),
-                          subtitle: Text(d.text),
+                          subtitle: Text(d.text,
+                              maxLines: 2, overflow: TextOverflow.ellipsis),
                           trailing: IconButton(
                             icon: const Icon(Icons.close, size: 18),
                             onPressed: () async {
