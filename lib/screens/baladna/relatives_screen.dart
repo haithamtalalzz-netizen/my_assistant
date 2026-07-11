@@ -163,7 +163,18 @@ class _RelativesScreenState extends State<RelativesScreen> {
                       if (idx == 0) return _dueSummary(context);
                       final r = _items[idx - 1];
                       final due = r.isDue(now);
-                      return Card(
+                      return SwipeToDelete(
+                        id: r.id!,
+                        undoLabel: tr('اتمسح القريب', 'Relative deleted'),
+                        onDelete: () async {
+                          await _repo.delete(r.id!);
+                          if (mounted) await _load();
+                        },
+                        onUndo: () async {
+                          await _repo.save(r);
+                          if (mounted) await _load();
+                        },
+                        child: Card(
                         margin: const EdgeInsets.symmetric(vertical: 3),
                         color: due
                             ? scheme.tertiary.withValues(alpha: .13)
@@ -222,6 +233,7 @@ class _RelativesScreenState extends State<RelativesScreen> {
                             ],
                           ),
                         ),
+                      ),
                       );
                     },
                   ),

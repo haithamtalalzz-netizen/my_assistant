@@ -233,7 +233,18 @@ class _SocialScreenState extends State<SocialScreen> {
   Widget _tile(BuildContext context, SocialObligation o) {
     final scheme = Theme.of(context).colorScheme;
     final received = o.direction == 'received';
-    return Card(
+    return SwipeToDelete(
+      id: o.id!,
+      undoLabel: tr('اتمسح الواجب', 'Obligation deleted'),
+      onDelete: () async {
+        await _repo.delete(o.id!);
+        if (mounted) await _load();
+      },
+      onUndo: () async {
+        await _repo.save(o);
+        if (mounted) await _load();
+      },
+      child: Card(
       margin: const EdgeInsets.symmetric(vertical: 3),
       child: ListTile(
         leading: Icon(
@@ -283,6 +294,7 @@ class _SocialScreenState extends State<SocialScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

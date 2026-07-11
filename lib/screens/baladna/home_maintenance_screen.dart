@@ -75,7 +75,18 @@ class _HomeMaintenanceScreenState extends State<HomeMaintenanceScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
                       children: [
                         for (final m in _items)
-                          Card(
+                          SwipeToDelete(
+                            id: m.id!,
+                            undoLabel: tr('اتمسحت الصيانة', 'Maintenance deleted'),
+                            onDelete: () async {
+                              await _repo.delete(m.id!);
+                              if (mounted) await _load();
+                            },
+                            onUndo: () async {
+                              await _repo.save(m);
+                              if (mounted) await _load();
+                            },
+                            child: Card(
                             margin: const EdgeInsets.symmetric(vertical: 3),
                             color: m.isDue(DateTime.now())
                                 ? scheme.tertiary.withValues(alpha: .13)
@@ -114,6 +125,7 @@ class _HomeMaintenanceScreenState extends State<HomeMaintenanceScreen> {
                                 ],
                               ),
                             ),
+                          ),
                           ),
                       ],
                     ),

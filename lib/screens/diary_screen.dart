@@ -81,7 +81,18 @@ class _DiaryScreenState extends State<DiaryScreen> {
                     itemBuilder: (context, idx) {
                       if (idx == 0) return _header(context);
                       final d = _items[idx - 1];
-                      return Card(
+                      return SwipeToDelete(
+                        id: d.id!,
+                        undoLabel: tr('اتمسحت اليومية', 'Entry deleted'),
+                        onDelete: () async {
+                          await _repo.delete(d.id!);
+                          if (mounted) await _load();
+                        },
+                        onUndo: () async {
+                          await _repo.add(d);
+                          if (mounted) await _load();
+                        },
+                        child: Card(
                         margin: const EdgeInsets.symmetric(vertical: 3),
                         child: ListTile(
                           title: Text(arFullDate(DateTime.parse(d.day)),
@@ -101,6 +112,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                             },
                           ),
                         ),
+                      ),
                       );
                     },
                   ),

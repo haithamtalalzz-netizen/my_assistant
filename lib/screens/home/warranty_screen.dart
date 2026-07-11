@@ -217,7 +217,18 @@ class _WarrantyScreenState extends State<WarrantyScreen> {
                       final expired = exp.isBefore(now);
                       final daysLeft = exp.difference(now).inDays;
                       final soon = !expired && daysLeft <= 60;
-                      return Card(
+                      return SwipeToDelete(
+                        id: w.id!,
+                        undoLabel: tr('اتمسح الضمان', 'Warranty deleted'),
+                        onDelete: () async {
+                          await _repo.delete(w.id!);
+                          if (mounted) await _load();
+                        },
+                        onUndo: () async {
+                          await _repo.save(w);
+                          if (mounted) await _load();
+                        },
+                        child: Card(
                         margin: const EdgeInsets.symmetric(vertical: 3),
                         child: ListTile(
                           leading: w.photo.isEmpty
@@ -264,6 +275,7 @@ class _WarrantyScreenState extends State<WarrantyScreen> {
                           ),
                           onTap: () => _form(w),
                         ),
+                      ),
                       );
                     },
                   ),

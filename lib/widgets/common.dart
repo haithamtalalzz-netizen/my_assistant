@@ -2,6 +2,63 @@ import 'package:flutter/material.dart';
 
 import '../core/l10n.dart';
 
+/// عنصر قائمة يتشال بالسحب (يمين→شمال في RTL) مع خلفية حمرا وأيقونة سلة،
+/// وبعد الحذف بيطلع سناك-بار «تراجع» (لو `onUndo` متوفّر) بيرجّع العنصر.
+///
+/// الاستخدام: لُفّ الـ`Card` بتاعتك جواه وادّي `id` فريد + `onDelete` (بيحذف
+/// ويعيد التحميل) + `onUndo` اختياري (بيعيد إضافة العنصر ويعيد التحميل).
+class SwipeToDelete extends StatelessWidget {
+  final Object id;
+  final Widget child;
+  final Future<void> Function() onDelete;
+  final Future<void> Function()? onUndo;
+  final String? undoLabel;
+  final EdgeInsetsGeometry margin;
+
+  const SwipeToDelete({
+    super.key,
+    required this.id,
+    required this.child,
+    required this.onDelete,
+    this.onUndo,
+    this.undoLabel,
+    this.margin = const EdgeInsets.symmetric(vertical: 3),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Dismissible(
+      key: ValueKey(id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: AlignmentDirectional.centerEnd,
+        padding: const EdgeInsetsDirectional.only(end: 24),
+        margin: margin,
+        decoration: BoxDecoration(
+          color: scheme.error,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(Icons.delete_outline, color: scheme.onError),
+      ),
+      onDismissed: (_) async {
+        final messenger = ScaffoldMessenger.of(context);
+        await onDelete();
+        if (onUndo != null) {
+          messenger.showSnackBar(SnackBar(
+            content: Text(undoLabel ?? tr('اتمسح', 'Deleted')),
+            action: SnackBarAction(
+              label: tr('تراجع', 'Undo'),
+              onPressed: () => onUndo!(),
+            ),
+          ));
+        }
+      },
+      child: child,
+    );
+  }
+}
+
 class SectionHeader extends StatelessWidget {
   final String title;
   final Widget? trailing;

@@ -206,7 +206,18 @@ class _DebtsScreenState extends State<DebtsScreen> {
   Widget _debtTile(BuildContext context, Debt d) {
     final scheme = Theme.of(context).colorScheme;
     final color = d.theyOweMe ? scheme.primary : scheme.error;
-    return Card(
+    return SwipeToDelete(
+      id: d.id!,
+      undoLabel: tr('اتمسح الدين', 'Debt deleted'),
+      onDelete: () async {
+        await _repo.delete(d.id!);
+        if (mounted) await _load();
+      },
+      onUndo: () async {
+        await _repo.add(d);
+        if (mounted) await _load();
+      },
+      child: Card(
       margin: const EdgeInsets.symmetric(vertical: 3),
       child: ListTile(
         leading: CircleAvatar(
@@ -244,6 +255,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
