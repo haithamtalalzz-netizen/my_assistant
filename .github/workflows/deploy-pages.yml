@@ -1,0 +1,64 @@
+name: Deploy web to GitHub Pages
+
+# بيبني نسخة الويب على سيرفرات GitHub وينشرها على GitHub Pages أوتوماتيك مع كل
+# push على master. مفيش أي أسرار/مفاتيح — بيستخدم صلاحية الـPages المدمجة.
+#
+# مطلوب مرة واحدة: من إعدادات الريبو → Settings → Pages → Source = "GitHub Actions".
+# الـbase-href بيتحسب أوتوماتيك من اسم الريبو (github.io/<repo>/).
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "lib/**"
+      - "web/**"
+      - "pubspec.yaml"
+      - "assets/**"
+      - ".github/workflows/deploy-pages.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # الـbase-href لازم يساوي /<repo-name>/ عشان Pages بيخدم من مسار فرعي.
+      # --pwa-strategy=none: من غير service worker → المتصفح يجيب أحدث نشر على طول.
+      - name: Build web (release)
+        run: |
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          flutter build web --release --pwa-strategy=none --base-href "/$REPO_NAME/"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

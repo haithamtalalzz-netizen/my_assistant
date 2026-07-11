@@ -1,46 +1,37 @@
-# نشر نسخة الويب — زى تطبيق طارة
+# نشر نسخة الويب — GitHub Pages
 
-التطبيق دلوقتي بيتبني ويب ويشتغل في المتصفح (اتّجرب محليًا: قاعدة البيانات
-بتفتح عن طريق IndexedDB، من غير أخطاء). الباقي خطوات في المتصفح لازم تعملها
-إنت لأنها محتاجة حسابك على GitHub و Firebase.
+التطبيق **local-first** (كل البيانات على جهاز المستخدم عبر IndexedDB، مفيش سيرفر).
+نسخة الويب مجرّد ملفات ثابتة، بتتنشر مجانًا على **GitHub Pages** — مفيش Firebase ولا أسرار.
 
 ## اللى جاهز في الكود (اتعمل)
-- `flutter build web` بيعدّي ويشتغل (sqflite على الويب عبر IndexedDB + sqlite3.wasm).
+- `flutter build web --release` بيعدّي ويشتغل (sqflite على الويب عبر IndexedDB + sqlite3.wasm).
 - `web/index.html` + `manifest.json` بالعربي RTL واسم «مساعدي».
-- `firebase.json` — إعداد Hosting (no-cache عشان كل نشر يظهر فورًا).
-- `.github/workflows/deploy-web.yml` — GitHub Action ينشر أوتوماتيك مع كل push على `master`.
-- `.firebaserc` — فيه placeholder لاسم مشروع Firebase (لازم تغيّره — خطوة ٢).
+- `.github/workflows/deploy-pages.yml` — GitHub Action ينشر على Pages أوتوماتيك مع كل push
+  على `master` (الـbase-href بيتحسب لوحده من اسم الريبو).
 
 ## الخطوات اللى عليك (مرة واحدة)
 
-### ١) اعمل ريبو على GitHub
-- افتح github.com ← New repository ← اسمه مثلًا `my-assistant` ← Private أو Public (زى ما تحب).
-- **مش تضيف** README أو .gitignore (الريبو عندنا جاهز).
-- انسخ رابط الريبو (SSH أو HTTPS)، وابعتهولي — وأنا أعمل:
-  `git remote add origin <الرابط>` ثم `git push -u origin master`.
-  (أو تعملها إنت لو أسهل.)
+1. **اعمل GitHub repo** فاضي (Public) — مثلًا `my_assistant`. من غير README/‏.gitignore.
+2. اربط المشروع وادفع الكود:
+   ```bash
+   git remote add origin https://github.com/<USERNAME>/<REPO>.git
+   git push -u origin master
+   ```
+3. من الريبو على GitHub: **Settings → Pages → Source = "GitHub Actions"**.
+4. خلاص. أول push بيشغّل الـworkflow: بيبني الويب وينشره على Pages.
 
-### ٢) اعمل مشروع Firebase + فعّل Hosting
-- افتح console.firebase.google.com ← Add project ← اسمه مثلًا `my-assistant-web`.
-- من القايمة: **Build ← Hosting ← Get started** (كفاية أول خطوة).
-- خُد **Project ID** (تحت اسم المشروع) وحطّه بدل `REPLACE_WITH_YOUR_FIREBASE_PROJECT_ID`
-  في ملف `.firebaserc` — أو ابعتهولى وأنا أحطّه.
-- اللينك بتاع التطبيق هيبقى: `https://<PROJECT_ID>.web.app`
+اللينك بيطلع في **Settings → Pages** (شكله `https://<username>.github.io/<repo>/`)
+وكمان في صفحة الـActions تحت الـdeploy.
 
-### ٣) مفتاح حساب الخدمة (عشان الـ Action ينشر لوحده)
-- في Firebase Console ← ⚙ Project settings ← **Service accounts** ←
-  **Generate new private key** ← هينزّل ملف JSON.
-- في GitHub ← الريبو ← Settings ← Secrets and variables ← Actions ←
-  **New repository secret**:
-  - الاسم: `FIREBASE_SERVICE_ACCOUNT`
-  - القيمة: الصق محتوى ملف الـ JSON كله.
+## بعد كده (تلقائي)
 
-### ٤) خلاص
-- أول ما نعمل push (أو تعدّل أى حاجة في `lib/` وتـpush)، الـ Action هيبني
-  وينشر لوحده، واللينك `https://<PROJECT_ID>.web.app` يشتغل من أى متصفح/موبايل.
+أي `git push` على `master` بيبني وينشر أحدث نسخة أوتوماتيك — مفيش خطوات يدوية.
 
 ## ملاحظات
-- نسخة الويب **للعرض والتجربة**: مفيش إشعارات/ودجت/كاميرا OCR (دول مزايا موبايل).
-  كل الباقى (المواعيد، الأدوية، المحفظة، المستندات، العادات، التقارير...) شغّال.
+
+- **مفيش service worker** (`--pwa-strategy=none`) + المتصفح بيجيب أحدث نسخة → مفيش مشكلة كاش قديم.
+- المستخدم يقدر يعمل **«إضافة للشاشة الرئيسية»** من المتصفح فتشتغل زي تطبيق (PWA) على أندرويد و iOS.
+- **hash URL strategy** (الافتراضي) → مفيش مشاكل refresh على المسارات الفرعية في Pages.
+- نسخة الويب **للعرض والتجربة**: مفيش إشعارات/ودجت/كاميرا OCR (دول مزايا موبايل). كل الباقي شغّال.
 - البيانات على الويب بتتخزن في المتصفح (IndexedDB) — مش بتتزامن مع الموبايل.
-- لو عايز اللينك يبقى على دومين خاص بيك بدل `.web.app` نظبطه بعدين في Hosting.
+- لو عايز دومين خاص بدل `github.io` نظبطه بعدين من Settings → Pages → Custom domain.
