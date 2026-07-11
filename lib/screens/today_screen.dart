@@ -764,39 +764,6 @@ class _TodayScreenState extends State<TodayScreen> {
   /// لوحة تشغيل سريعة — تايلز ملوّنة في كارت واحد (زي الموكاب).
   // ---- إجراءات سريعة فورية ----
 
-  Future<void> _addWaterCup() async {
-    final n = await HealthRepo().addWater(dayKey(DateTime.now()), 1);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(tr('زوّدت كوب مياه 💧 (المجموع ${arNum(n)})',
-            'Added a cup 💧 (total ${arNum(n)})'))));
-    await _load();
-  }
-
-  Future<void> _markNextDose() async {
-    final day = dayKey(DateTime.now());
-    final meds = await MedsRepo().all(activeOnly: true);
-    final taken = await MedsRepo().takenOn(day);
-    for (final m in meds) {
-      for (final s in m.times) {
-        if (!taken.contains('${m.id}|$s')) {
-          await MedsRepo().setTaken(m.id!, day, s, true);
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(tr('سجّلت جرعة «${m.name}» ✅',
-                  'Logged a dose of "${m.name}" ✅'))));
-          await _load();
-          return;
-        }
-      }
-    }
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(meds.isEmpty
-            ? tr('مفيش أدوية مسجلة', 'No meds logged')
-            : tr('خلّصت كل جرعات النهاردة 👏', 'All doses done today 👏'))));
-  }
-
   Future<void> _markWorkoutDone() async {
     final now = DateTime.now();
     final repo = WorkoutRepo();
@@ -926,37 +893,6 @@ class _TodayScreenState extends State<TodayScreen> {
   Future<void> _reloadAfter(Future<void> Function() f) async {
     await f();
     if (mounted) await _load();
-  }
-
-  Future<void> _logSleep() async {
-    final ctrl = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr('نوم امبارح', "Last night's sleep")),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration:
-              InputDecoration(labelText: tr('عدد الساعات', 'Hours'), hintText: '7.5'),
-          onSubmitted: (_) => Navigator.pop(ctx, true),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('إلغاء', 'Cancel'))),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('حفظ', 'Save'))),
-        ],
-      ),
-    );
-    if (ok == true) {
-      final h = parseNumber(ctrl.text);
-      if (h == null || h <= 0) return;
-      await HealthRepo().setSleep(dayKey(DateTime.now()), h);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('اتسجّل النوم 😴', 'Sleep saved 😴'))));
-      await _load();
-    }
   }
 
   Future<void> _logSteps() async {
@@ -1180,18 +1116,190 @@ class _TodayScreenState extends State<TodayScreen> {
     }
   }
 
+  /// شباك المياه — كوباية + أزرار −/+ زي كارت المياه في نص الصفحة.
+  Future<void> _openWaterSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final scheme = Theme.of(ctx).colorScheme;
+          final frac = _waterGoal > 0 ? _water / _waterGoal : 0.0;
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.water_drop_outlined, color: scheme.primary),
+                  const SizedBox(width: 8),
+                  Text(tr('المياه', 'Water'),
+                      style: Theme.of(ctx).textTheme.titleMedium),
+                ]),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${arNum(_water)} / ${arNum(_waterGoal)}',
+                              style: Theme.of(ctx)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 10),
+                          Row(children: [
+                            _roundBtn(Icons.remove, scheme,
+                                _water == 0
+                                    ? null
+                                    : () async {
+                                        await _changeWater(-1);
+                                        setSheet(() {});
+                                      }),
+                            const SizedBox(width: 12),
+                            _roundBtn(Icons.add, scheme, () async {
+                              await _changeWater(1);
+                              setSheet(() {});
+                            }, filled: true),
+                          ]),
+                        ],
+                      ),
+                    ),
+                    WaterGlass(fraction: frac),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// شباك النوم — اختيار عدد الساعات بالشيبس زي كارت النوم.
+  Future<void> _openSleepSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.bedtime_outlined, color: scheme.primary),
+                const SizedBox(width: 8),
+                Text(tr('نمت كام ساعة امبارح؟', 'Hours slept last night?')),
+              ]),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  for (var h = 1; h <= 24; h++)
+                    ChoiceChip(
+                      label: Text(arNum(h)),
+                      selected: _sleep == h.toDouble(),
+                      onSelected: (_) async {
+                        await _setSleep(h.toDouble());
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      },
+                    ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// شباك جرعات الدوا — كل دواء بمواعيده كشيبس تعلّم منها المتاخد.
+  Future<void> _openDoseSheet() async {
+    if (_activeMeds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('مفيش أدوية مسجلة', 'No meds logged'))));
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final scheme = Theme.of(ctx).colorScheme;
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.medication_outlined, color: scheme.primary),
+                  const SizedBox(width: 8),
+                  Text(tr('علّم الجرعات', 'Mark doses'),
+                      style: Theme.of(ctx).textTheme.titleMedium),
+                ]),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final m in _activeMeds) ...[
+                          Text(m.name,
+                              style: const TextStyle(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 6),
+                          if (m.times.isEmpty)
+                            Text(tr('من غير مواعيد', 'No dose times'),
+                                style: TextStyle(color: scheme.outline))
+                          else
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                for (final s in m.times)
+                                  FilterChip(
+                                    label: Text(s),
+                                    selected: _taken.contains('${m.id}|$s'),
+                                    onSelected: (v) async {
+                                      await _toggleMed(m.id!, s, v);
+                                      setSheet(() {});
+                                    },
+                                  ),
+                              ],
+                            ),
+                          const SizedBox(height: 14),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   /// كل الإجراءات السريعة المتاحة (المستخدم بيختار اللي يظهر وترتيبه).
   List<_QuickAct> _allActions(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return [
       _QuickAct('water', Icons.water_drop_outlined, tr('مياه', 'Water'),
-          Colors.lightBlue, _addWaterCup),
+          Colors.lightBlue, _openWaterSheet),
       _QuickAct('dose', Icons.medication_outlined, tr('جرعة دوا', 'Dose'),
-          Colors.pink, _markNextDose),
+          Colors.pink, _openDoseSheet),
       _QuickAct('workout', Icons.fitness_center, tr('تمرين', 'Workout'),
           Colors.green, _markWorkoutDone),
       _QuickAct('sleep', Icons.bedtime_outlined, tr('نوم', 'Sleep'),
-          Colors.indigo, _logSleep),
+          Colors.indigo, _openSleepSheet),
       _QuickAct('steps', Icons.directions_walk, tr('خطوات', 'Steps'),
           Colors.brown, _logSteps),
       _QuickAct('habit', Icons.task_alt, tr('عادة', 'Habit'),
