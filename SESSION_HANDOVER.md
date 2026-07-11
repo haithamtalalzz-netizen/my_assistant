@@ -1,5 +1,24 @@
 # SESSION_HANDOVER — My Assistant
 
+## 2026-07-11 — نشر الويب على GitHub Pages + إصلاح الشاشة البيضا (٤ باجات متراكبة)
+
+الريبو: **github.com/haithamtalalzz-netizen/my_assistant** فرع `main`. النشر عبر
+`.github/workflows/deploy-pages.yml` (Pages، بدون أسرار). الشاشة كانت بيضا صامتة — اتّضح ٤ أسباب:
+1. **DB worker يعلّق**: `db_init_web.dart` بقى `databaseFactoryFfiWebNoWebWorker` (main-thread) بدل
+   `databaseFactoryFfiWeb` (اللي بيعتمد على `sqflite_sw.js` worker ويعلّق على Pages).
+2. **CanvasKit من gstatic**: الـworkflow بيبني بـ`--no-web-resources-cdn` (يحمّل CanvasKit من الموقع).
+3. **السبب الحقيقي — تعارض نسخة sqlite3**: حزمة `sqlite3` Dart كانت **3.3.4** بينما setup الويب بيجيب
+   **wasm 2.4.6** → `WebAssembly.instantiate: Import #25 "env"` وقت التشغيل قبل أي رسم. **الحل: تثبيت
+   `sqlite3: 2.4.6` في pubspec** (الموبايل مش متأثر — SQLite أصلي). **145/145 تمام.**
+4. **أداة التشخيص** (سبب اكتشاف #3): `web/index.html` فيه spinner تحميل + عارض أخطاء مرئي
+   (`window.__bootErr`) + جسر Dart (`showStartupError` عبر dart:js_interop + FlutterError.onError +
+   platformDispatcher.onError + try/catch في main). اتساب في الإنتاج (UX تحميل + شبكة أمان).
+
+**GOTCHA: المتصفح الداخلي (Browser pane) مش بيرسم CanvasKit إطلاقًا (canvas=0 حتى مع WebGL2) —
+لا يصلح للتحقق من *رسم* Flutter-web؛ استخدمه للـDOM/console/network + عارض الأخطاء بس. التحقق النهائي
+لازم على متصفح حقيقي.**
+
+
 ## 2026-07-11 — إثراء أعمق: مراحل ٧ (بيت/طبي) + ٨ (تقويم/رسوم) ✅ (145/145، مثبّت)
 
 - **م٧**: الضمانات (ترتيب صلاحية + بانر + أيقونة كهرمانية)، العدادات (سهم اتجاه الاستهلاك).
