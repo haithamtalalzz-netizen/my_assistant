@@ -13,6 +13,7 @@ import '../core/weather.dart';
 import '../core/widget_bridge.dart';
 import '../data/appointments_repo.dart';
 import '../data/bills_repo.dart';
+import '../data/debts_repo.dart';
 import '../data/docs_repo.dart';
 import '../data/habits_repo.dart';
 import '../data/health_repo.dart';
@@ -25,6 +26,7 @@ import '../data/meds_repo.dart';
 import '../data/money_repo.dart';
 import '../data/occasions_repo.dart';
 import '../data/settings_repo.dart';
+import '../data/wallets_repo.dart';
 import '../data/weekly_repo.dart';
 import '../data/workout_repo.dart';
 import '../models/models.dart';
@@ -35,7 +37,9 @@ import 'brain/day_plan_screen.dart';
 import 'food/meal_sheet.dart';
 import 'food/shopping_list_screen.dart';
 import 'calendar_screen.dart';
+import 'docs/doc_form.dart';
 import 'home/pharmacy_screen.dart';
+import 'quick_actions_settings_screen.dart';
 import 'money/income_sheet.dart';
 import 'money/quick_expense_sheet.dart';
 import '../widgets/search_action.dart';
@@ -67,6 +71,15 @@ class _TodayScreenState extends State<TodayScreen> {
   bool _loading = true;
   bool _editingSleep = false;
   String _name = '';
+
+  /// ترتيب/تفعيل أزرار الإضافة السريعة (قابل للتخصيص).
+  static const List<String> _defaultQuickOrder = [
+    'water', 'dose', 'workout', 'sleep', 'steps', 'habit', 'meal', 'expense',
+    'income', 'transfer', 'bill_paid', 'debt', 'measure', 'reminder', 'shopping',
+    'doc', 'voice', 'manager', 'appointment', 'calendar', 'pharmacy',
+  ];
+  List<String> _quickOrder = _defaultQuickOrder;
+
   int _waterGoal = 8;
   int _water = 0;
   double? _sleep;
@@ -110,6 +123,10 @@ class _TodayScreenState extends State<TodayScreen> {
     final now = DateTime.now();
     final day = dayKey(now);
     final name = await _settings.userName();
+    final savedQuick = await _settings.get('quick_actions');
+    final quickOrder = (savedQuick == null || savedQuick.trim().isEmpty)
+        ? _defaultQuickOrder
+        : savedQuick.split(',').where((e) => e.isNotEmpty).toList();
     final goal = await _settings.waterGoal();
     final water = await _health.waterOn(day);
     var sleep = await _health.sleepOn(day);
@@ -183,6 +200,7 @@ class _TodayScreenState extends State<TodayScreen> {
     if (!mounted) return;
     setState(() {
       _name = name;
+      _quickOrder = quickOrder;
       _waterGoal = goal;
       _water = water;
       _sleep = sleep;
@@ -905,12 +923,343 @@ class _TodayScreenState extends State<TodayScreen> {
     }
   }
 
+  Future<void> _reloadAfter(Future<void> Function() f) async {
+    await f();
+    if (mounted) await _load();
+  }
+
+  Future<void> _logSleep() async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('نوم امبارح', "Last night's sleep")),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration:
+              InputDecoration(labelText: tr('عدد الساعات', 'Hours'), hintText: '7.5'),
+          onSubmitted: (_) => Navigator.pop(ctx, true),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('إلغاء', 'Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('حفظ', 'Save'))),
+        ],
+      ),
+    );
+    if (ok == true) {
+      final h = parseNumber(ctrl.text);
+      if (h == null || h <= 0) return;
+      await HealthRepo().setSleep(dayKey(DateTime.now()), h);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('اتسجّل النوم 😴', 'Sleep saved 😴'))));
+      await _load();
+    }
+  }
+
+  Future<void> _logSteps() async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('خطوات النهاردة', "Today's steps")),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(labelText: tr('عدد الخطوات', 'Steps')),
+          onSubmitted: (_) => Navigator.pop(ctx, true),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('إلغاء', 'Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('حفظ', 'Save'))),
+        ],
+      ),
+    );
+    if (ok == true) {
+      final s = parseNumber(ctrl.text);
+      if (s == null || s <= 0) return;
+      await MeasurementsRepo().upsertSteps(dayKey(DateTime.now()), s.toInt());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('اتسجّلت الخطوات 🚶', 'Steps saved 🚶'))));
+      await _load();
+    }
+  }
+
+  Future<void> _quickHabit() async {
+    final repo = HabitsRepo();
+    final habits = await repo.active();
+    if (habits.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('مفيش عادات مسجلة', 'No habits yet'))));
+      return;
+    }
+    final day = dayKey(DateTime.now());
+    var done = await repo.doneOn(day);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: Text(tr('علّم عاداتك', 'Mark habits')),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final h in habits)
+                  CheckboxListTile(
+                    value: done.contains(h.id),
+                    title: Text(h.name),
+                    onChanged: (_) async {
+                      await repo.toggle(h.id!, day);
+                      done = await repo.doneOn(day);
+                      setD(() {});
+                    },
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('تمام', 'Done'))),
+          ],
+        ),
+      ),
+    );
+    if (mounted) await _load();
+  }
+
+  Future<void> _addShoppingItem() async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('إضافة للتسوق', 'Add to shopping')),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: InputDecoration(hintText: tr('الصنف...', 'Item...')),
+          onSubmitted: (_) => Navigator.pop(ctx, true),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('إلغاء', 'Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('إضافة', 'Add'))),
+        ],
+      ),
+    );
+    if (ok == true && ctrl.text.trim().isNotEmpty) {
+      await MealsRepo().addShoppingItem(ctrl.text.trim());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('اتضاف للتسوق 🛒', 'Added to shopping 🛒'))));
+    }
+  }
+
+  Future<void> _walletTransfer() async {
+    final wallets = await WalletsRepo().all();
+    if (wallets.length < 2) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr('محتاج محفظتين على الأقل', 'Need at least 2 wallets'))));
+      return;
+    }
+    var fromId = wallets.first.id!;
+    var toId = wallets[1].id!;
+    final amt = TextEditingController();
+    if (!mounted) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: Text(tr('تحويل بين المحافظ', 'Transfer')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<int>(
+                initialValue: fromId,
+                decoration: InputDecoration(labelText: tr('من', 'From')),
+                items: [for (final w in wallets) DropdownMenuItem(value: w.id, child: Text(w.name))],
+                onChanged: (v) => setD(() => fromId = v!),
+              ),
+              DropdownButtonFormField<int>(
+                initialValue: toId,
+                decoration: InputDecoration(labelText: tr('إلى', 'To')),
+                items: [for (final w in wallets) DropdownMenuItem(value: w.id, child: Text(w.name))],
+                onChanged: (v) => setD(() => toId = v!),
+              ),
+              TextField(
+                controller: amt,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(labelText: tr('المبلغ', 'Amount')),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('إلغاء', 'Cancel'))),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('تحويل', 'Transfer'))),
+          ],
+        ),
+      ),
+    );
+    if (ok == true) {
+      final a = parseNumber(amt.text);
+      if (a == null || a <= 0 || fromId == toId) return;
+      await WalletsRepo().transfer(fromId, toId, a);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('تمّ التحويل 💳', 'Transferred 💳'))));
+      await _load();
+    }
+  }
+
+  Future<void> _markNextBillPaid() async {
+    final due = await BillsRepo().due(DateTime.now());
+    if (due.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('مفيش فواتير مستحقة', 'No bills due'))));
+      return;
+    }
+    final bill = due.first;
+    await BillsRepo().markPaid(bill.id!);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr('سجّلت «${bill.name}» اتدفعت ✅', 'Marked "${bill.name}" paid ✅'))));
+    await _load();
+  }
+
+  Future<void> _quickDebt() async {
+    final person = TextEditingController();
+    final amt = TextEditingController();
+    var dir = 'لى';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: Text(tr('دَين / سلفة', 'Debt / loan')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: person, decoration: InputDecoration(labelText: tr('الاسم', 'Person'))),
+              TextField(controller: amt, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('المبلغ', 'Amount'))),
+              const SizedBox(height: 10),
+              SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(value: 'لى', label: Text(tr('ليا', 'Owed to me'))),
+                  ButtonSegment(value: 'عليا', label: Text(tr('عليا', 'I owe'))),
+                ],
+                selected: {dir},
+                onSelectionChanged: (s) => setD(() => dir = s.first),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('إلغاء', 'Cancel'))),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('حفظ', 'Save'))),
+          ],
+        ),
+      ),
+    );
+    if (ok == true) {
+      final a = parseNumber(amt.text);
+      if (a == null || a <= 0 || person.text.trim().isEmpty) return;
+      await DebtsRepo().add(Debt(
+        person: person.text.trim(),
+        amount: a,
+        direction: dir,
+        createdAt: DateTime.now().toIso8601String(),
+      ));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('اتسجّل 🤝', 'Saved 🤝'))));
+      await _load();
+    }
+  }
+
+  /// كل الإجراءات السريعة المتاحة (المستخدم بيختار اللي يظهر وترتيبه).
+  List<_QuickAct> _allActions(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return [
+      _QuickAct('water', Icons.water_drop_outlined, tr('مياه', 'Water'),
+          Colors.lightBlue, _addWaterCup),
+      _QuickAct('dose', Icons.medication_outlined, tr('جرعة دوا', 'Dose'),
+          Colors.pink, _markNextDose),
+      _QuickAct('workout', Icons.fitness_center, tr('تمرين', 'Workout'),
+          Colors.green, _markWorkoutDone),
+      _QuickAct('sleep', Icons.bedtime_outlined, tr('نوم', 'Sleep'),
+          Colors.indigo, _logSleep),
+      _QuickAct('steps', Icons.directions_walk, tr('خطوات', 'Steps'),
+          Colors.brown, _logSteps),
+      _QuickAct('habit', Icons.task_alt, tr('عادة', 'Habit'),
+          Colors.lightGreen, _quickHabit),
+      _QuickAct('meal', Icons.restaurant_outlined, tr('وجبة', 'Meal'),
+          Colors.orange, () => _reloadAfter(() => showMealSheet(context))),
+      _QuickAct('expense', Icons.account_balance_wallet_outlined,
+          tr('مصروف', 'Expense'), Colors.redAccent,
+          () => _reloadAfter(() => showQuickExpenseSheet(context))),
+      _QuickAct('income', Icons.south_west, tr('دخل', 'Income'), Colors.teal,
+          () => _reloadAfter(() => showIncomeSheet(context))),
+      _QuickAct('transfer', Icons.swap_horiz, tr('تحويل', 'Transfer'),
+          Colors.blueGrey, _walletTransfer),
+      _QuickAct('bill_paid', Icons.receipt_long_outlined, tr('فاتورة اتدفعت', 'Bill paid'),
+          Colors.deepOrange, _markNextBillPaid),
+      _QuickAct('debt', Icons.handshake_outlined, tr('دَين', 'Debt'),
+          Colors.amber.shade900, _quickDebt),
+      _QuickAct('measure', Icons.monitor_heart_outlined, tr('قياس', 'Measure'),
+          Colors.red, _quickMeasurement),
+      _QuickAct('reminder', Icons.push_pin_outlined, tr('تذكير', 'Reminder'),
+          Colors.amber.shade800, _quickInbox),
+      _QuickAct('shopping', Icons.add_shopping_cart_outlined, tr('مشتريات', 'Shopping'),
+          Colors.lime.shade800, _addShoppingItem),
+      _QuickAct('doc', Icons.photo_camera_outlined, tr('صورة مستند', 'Doc photo'),
+          Colors.blueGrey.shade700,
+          () => _reloadAfter(() => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const DocForm())))),
+      _QuickAct('voice', Icons.mic_none, tr('بصوتك', 'Voice'), scheme.primary,
+          () => _reloadAfter(_openVoice)),
+      _QuickAct('manager', Icons.psychology_outlined, tr('اسأل مديرك', 'Manager'),
+          Colors.deepPurple,
+          () => _reloadAfter(() => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const ChatScreen())))),
+      _QuickAct('appointment', Icons.event_available_outlined, tr('موعد', 'Appointment'),
+          Colors.blue,
+          () => _reloadAfter(() => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const AppointmentForm())))),
+      _QuickAct('calendar', Icons.calendar_month_outlined, tr('التقويم', 'Calendar'),
+          Colors.cyan,
+          () => _reloadAfter(() => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const CalendarScreen())))),
+      _QuickAct('pharmacy', Icons.local_pharmacy_outlined, tr('الصيدلية', 'Pharmacy'),
+          Colors.purple,
+          () => _reloadAfter(() => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const PharmacyScreen())))),
+    ];
+  }
+
+  Future<void> _openQuickCustomize() async {
+    final metas = [
+      for (final a in _allActions(context))
+        (key: a.key, icon: a.icon, label: a.label)
+    ];
+    final result = await Navigator.push<List<String>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuickActionsSettingsScreen(
+            all: metas, enabledOrder: _quickOrder),
+      ),
+    );
+    if (result != null) {
+      await SettingsRepo().set('quick_actions', result.join(','));
+      if (mounted) setState(() => _quickOrder = result);
+    }
+  }
+
   Widget _quickActions(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    Future<void> reloadAfter(Future<void> Function() f) async {
-      await f();
-      if (mounted) await _load();
-    }
 
     Widget tile(IconData icon, String label, Color color, VoidCallback onTap) =>
         InkWell(
@@ -948,48 +1297,23 @@ class _TodayScreenState extends State<TodayScreen> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              tile(Icons.water_drop_outlined, tr('مياه', 'Water'),
-                  Colors.lightBlue, _addWaterCup),
-              tile(Icons.medication_outlined, tr('جرعة دوا', 'Dose'),
-                  Colors.pink, _markNextDose),
-              tile(Icons.fitness_center, tr('تمرين', 'Workout'),
-                  Colors.green, _markWorkoutDone),
-              tile(Icons.restaurant_outlined, tr('وجبة', 'Meal'),
-                  Colors.orange, () => reloadAfter(() => showMealSheet(context))),
-              tile(Icons.account_balance_wallet_outlined,
-                  tr('مصروف', 'Expense'), Colors.redAccent,
-                  () => reloadAfter(() => showQuickExpenseSheet(context))),
-              tile(Icons.south_west, tr('دخل', 'Income'), Colors.teal,
-                  () => reloadAfter(() => showIncomeSheet(context))),
-              tile(Icons.monitor_heart_outlined, tr('قياس', 'Measure'),
-                  Colors.indigo, _quickMeasurement),
-              tile(Icons.push_pin_outlined, tr('تذكير', 'Reminder'),
-                  Colors.amber.shade800, _quickInbox),
-              tile(Icons.mic_none, tr('بصوتك', 'Voice'), scheme.primary,
-                  () => reloadAfter(_openVoice)),
-              tile(Icons.psychology_outlined, tr('اسأل مديرك', 'Manager'),
-                  Colors.deepPurple,
-                  () => reloadAfter(() => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const ChatScreen())))),
-              tile(Icons.event_available_outlined, tr('موعد', 'Appointment'),
-                  Colors.blue,
-                  () => reloadAfter(() => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const AppointmentForm())))),
-              tile(Icons.calendar_month_outlined, tr('التقويم', 'Calendar'),
-                  Colors.cyan,
-                  () => reloadAfter(() => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const CalendarScreen())))),
-              tile(Icons.local_pharmacy_outlined, tr('الصيدلية', 'Pharmacy'),
-                  Colors.purple,
-                  () => reloadAfter(() => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const PharmacyScreen())))),
-            ],
-          ),
-        ),
+        child: Builder(builder: (context) {
+          final all = {for (final a in _allActions(context)) a.key: a};
+          final shown = [
+            for (final k in _quickOrder)
+              if (all.containsKey(k)) all[k]!
+          ];
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final a in shown) tile(a.icon, a.label, a.color, a.onTap),
+                tile(Icons.tune, tr('خصّص', 'Customize'), scheme.outline,
+                    _openQuickCustomize),
+              ],
+            ),
+          );
+        }),
       ),
     );
   }
@@ -1827,4 +2151,15 @@ class _CountdownTextState extends State<_CountdownText> {
     final s = (diff.inSeconds % 60).toString().padLeft(2, '0');
     return Text(arNum('$h:$m:$s'), style: widget.style);
   }
+}
+
+/// إجراء سريع متاح على شاشة اليوم (بيتخزّن اختياره وترتيبه في الإعدادات).
+class _QuickAct {
+  final String key;
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickAct(this.key, this.icon, this.label, this.color, this.onTap);
 }
