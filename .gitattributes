@@ -1,0 +1,17 @@
+# حماية الملفات الثنائية من تحويل نهايات الأسطر (CRLF) على ويندوز.
+*.wasm binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ttf binary
+*.otf binary
+*.ico binary
+*.keystore binary
+*.jks binary
+
+# مصدر الكود بنهايات LF ثابتة (متسق عبر الأنظمة).
+*.dart text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
