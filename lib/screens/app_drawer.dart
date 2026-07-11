@@ -104,7 +104,7 @@ class AppDrawer extends StatelessWidget {
               ],
             ],
           ),
-          trailing: const Icon(Icons.chevron_left, size: 20),
+          trailing: const Icon(Icons.chevron_right, size: 20),
           onTap: () {
             Navigator.pop(context);
             Navigator.push(

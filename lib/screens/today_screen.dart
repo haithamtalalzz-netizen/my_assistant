@@ -422,21 +422,12 @@ class _TodayScreenState extends State<TodayScreen> {
             _weeklyBanner(context),
             const SizedBox(height: 12),
           ],
-          if (_vis('vitals'))
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: _waterCard(context)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _sleepCard(context)),
-                  if (_steps != null) ...[
-                    const SizedBox(width: 12),
-                    Expanded(child: _stepsCard(context)),
-                  ],
-                ],
-              ),
-            ),
+          // كارت المياه ونوم امبارح اتشالوا من نص الرئيسية (بطلب المستخدم)؛
+          // تسجيل المياه لسه متاح من زر الإضافة السريعة 💧. الخطوات بس فضلت.
+          if (_vis('vitals') && _steps != null) ...[
+            _stepsCard(context),
+            const SizedBox(height: 12),
+          ],
           if (_vis('smartwatch') && _hasFitnessData) ...[
             SectionHeader(tr('من ساعتك الذكية', 'From your smartwatch')),
             _fitnessSection(context),
@@ -1937,6 +1928,7 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
+  // ignore: unused_element  (اتشال من الرئيسية بطلب المستخدم — متساب لإعادة الاستخدام)
   Widget _waterCard(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final frac = _waterGoal > 0 ? _water / _waterGoal : 0.0;
@@ -2019,6 +2011,7 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
+  // ignore: unused_element  (اتشال من الرئيسية بطلب المستخدم — متساب لإعادة الاستخدام)
   Widget _sleepCard(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final showChips = _sleep == null || _editingSleep;
