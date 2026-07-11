@@ -119,6 +119,9 @@ class _MetersScreenState extends State<MetersScreen> {
     // الاستهلاك = آخر قراءة − اللي قبلها.
     double? consumption;
     if (list.length >= 2) consumption = list[0].reading - list[1].reading;
+    // مقارنة بالفترة اللي قبلها (استهلكت أكتر ولا أقل؟).
+    double? prevConsumption;
+    if (list.length >= 3) prevConsumption = list[1].reading - list[2].reading;
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: Padding(
@@ -153,10 +156,29 @@ class _MetersScreenState extends State<MetersScreen> {
                       'Last: ${arNum(latest.reading % 1 == 0 ? latest.reading.toInt() : latest.reading)} '
                       '(${arShortDate(DateTime.parse(latest.day))})')),
               if (consumption != null)
-                Text(
-                    tr('الاستهلاك عن اللي قبلها: ${arNum(consumption % 1 == 0 ? consumption.toInt() : consumption.toStringAsFixed(1))}',
-                        'Consumption vs previous: ${arNum(consumption % 1 == 0 ? consumption.toInt() : consumption.toStringAsFixed(1))}'),
-                    style: TextStyle(color: scheme.outline, fontSize: 13)),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                          tr('الاستهلاك: ${arNum(consumption % 1 == 0 ? consumption.toInt() : consumption.toStringAsFixed(1))}',
+                              'Consumption: ${arNum(consumption % 1 == 0 ? consumption.toInt() : consumption.toStringAsFixed(1))}'),
+                          style: TextStyle(color: scheme.outline, fontSize: 13)),
+                    ),
+                    if (prevConsumption != null &&
+                        consumption != prevConsumption) ...[
+                      const SizedBox(width: 6),
+                      Icon(
+                          consumption > prevConsumption
+                              ? Icons.arrow_upward
+                              : Icons.arrow_downward,
+                          size: 14,
+                          // استهلاك أعلى = أحمر، أقل = أخضر.
+                          color: consumption > prevConsumption
+                              ? scheme.error
+                              : Colors.green),
+                    ],
+                  ],
+                ),
               if (list.length > 1)
                 Align(
                   alignment: AlignmentDirectional.centerEnd,

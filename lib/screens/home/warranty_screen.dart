@@ -33,11 +33,45 @@ class _WarrantyScreenState extends State<WarrantyScreen> {
 
   Future<void> _load() async {
     final items = await _repo.all();
+    items.sort((a, b) => a.expiry.compareTo(b.expiry)); // الأقرب انتهاءً أول
     if (!mounted) return;
     setState(() {
       _items = items;
       _loading = false;
     });
+  }
+
+  Widget _statusBanner(BuildContext context) {
+    final now = DateTime.now();
+    var expired = 0, soon = 0;
+    for (final w in _items) {
+      final d = w.expiry.difference(now).inDays;
+      if (d < 0) {
+        expired++;
+      } else if (d <= 60) {
+        soon++;
+      }
+    }
+    if (expired == 0 && soon == 0) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    final parts = [
+      if (soon > 0) tr('${arNum(soon)} قرب يخلص', '${arNum(soon)} ending soon'),
+      if (expired > 0) tr('${arNum(expired)} خلص', '${arNum(expired)} expired'),
+    ];
+    return Card(
+      margin: const EdgeInsets.only(bottom: 6),
+      color: scheme.tertiary.withValues(alpha: .13),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(children: [
+          Icon(Icons.verified_outlined, color: scheme.tertiary),
+          const SizedBox(width: 10),
+          Expanded(
+              child: Text(parts.join(' • '),
+                  style: const TextStyle(fontWeight: FontWeight.w600))),
+        ]),
+      ),
+    );
   }
 
   Future<String?> _pickPhoto() async {
@@ -173,18 +207,24 @@ class _WarrantyScreenState extends State<WarrantyScreen> {
                   onRefresh: _load,
                   child: ListView.builder(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
-                    itemCount: _items.length,
-                    itemBuilder: (context, i) {
-                      final w = _items[i];
+                    itemCount: _items.length + 1,
+                    itemBuilder: (context, idx) {
+                      if (idx == 0) return _statusBanner(context);
+                      final w = _items[idx - 1];
                       final exp = w.expiry;
                       final expired = exp.isBefore(now);
                       final daysLeft = exp.difference(now).inDays;
+                      final soon = !expired && daysLeft <= 60;
                       return Card(
                         margin: const EdgeInsets.symmetric(vertical: 3),
                         child: ListTile(
                           leading: w.photo.isEmpty
                               ? Icon(Icons.verified,
-                                  color: expired ? scheme.error : Colors.green)
+                                  color: expired
+                                      ? scheme.error
+                                      : soon
+                                          ? scheme.tertiary
+                                          : Colors.green)
                               : ClipRRect(
                                   borderRadius: BorderRadius.circular(6),
                                   child: Image.file(File(w.photo),
