@@ -87,8 +87,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   onRefresh: _load,
                   child: ListView.builder(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
-                    itemCount: _entries.length,
-                    itemBuilder: (context, i) => _entryCard(context, i),
+                    itemCount: _entries.length + 1,
+                    itemBuilder: (context, i) =>
+                        i == 0 ? _summaryCard(context) : _entryCard(context, i - 1),
                   ),
                 ),
       floatingActionButton: FloatingActionButton(
@@ -96,6 +97,59 @@ class _ProgressScreenState extends State<ProgressScreen> {
         onPressed: _addEntry,
         tooltip: tr('سجل جديد', 'New entry'),
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  /// كارت علوي: الوزن الحالي + إجمالي التغيّر من أول تسجيل.
+  Widget _summaryCard(BuildContext context) {
+    // الأحدث أول في _entries؛ ناخد أول وزن من فوق وآخر وزن من تحت.
+    double? current;
+    for (final e in _entries) {
+      if (e.weight != null) {
+        current = e.weight;
+        break;
+      }
+    }
+    double? first;
+    for (final e in _entries.reversed) {
+      if (e.weight != null) {
+        first = e.weight;
+        break;
+      }
+    }
+    if (current == null) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    final change = (first != null && current != first) ? current - first : null;
+    String fmt(double v) =>
+        arNum(v % 1 == 0 ? v.toInt() : v.toStringAsFixed(1));
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(Icons.monitor_weight_outlined, color: scheme.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(tr('الوزن الحالي', 'Current weight'),
+                  style: TextStyle(color: scheme.outline)),
+            ),
+            Text('${fmt(current)} ${tr('كجم', 'kg')}',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w800)),
+            if (change != null) ...[
+              const SizedBox(width: 8),
+              Text(
+                  '(${change < 0 ? '−' : '+'}${fmt(change.abs())})',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: change < 0 ? Colors.green : scheme.error)),
+            ],
+          ],
+        ),
       ),
     );
   }

@@ -195,10 +195,36 @@ class _GymScreenState extends State<GymScreen> {
                     ? tr('النهارده راحة', 'Rest day today')
                     : tr('النهارده: $todayFocus', 'Today: $todayFocus'),
                 style: TextStyle(color: scheme.onPrimaryContainer)),
+            const SizedBox(height: 4),
+            Text(_weekStatsText(),
+                style: TextStyle(
+                    color: scheme.onPrimaryContainer, fontSize: 12.5)),
           ],
         ),
       ),
     );
+  }
+
+  /// «N تمارين الأسبوع • آخر تمرين من X يوم» — من آخر الجلسات.
+  String _weekStatsText() {
+    final now = DateTime.now();
+    var week = 0;
+    int? sinceLast;
+    for (final s in _sessions) {
+      final d = DateTime.tryParse(s.day);
+      if (d == null) continue;
+      final diff = now.difference(d).inDays;
+      if (diff < 7) week++;
+      sinceLast = sinceLast == null ? diff : (diff < sinceLast ? diff : sinceLast);
+    }
+    final last = sinceLast == null
+        ? tr('لسه مفيش تمارين', 'no workouts yet')
+        : sinceLast == 0
+            ? tr('آخر تمرين: النهارده', 'last: today')
+            : tr('آخر تمرين من ${arNum(sinceLast)} يوم',
+                'last: ${arNum(sinceLast)}d ago');
+    return tr('${arNum(week)} تمارين الأسبوع • $last',
+        '${arNum(week)} workouts this week • $last');
   }
 
   Widget _prCard(BuildContext context) {

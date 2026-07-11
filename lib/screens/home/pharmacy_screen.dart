@@ -42,11 +42,34 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
 
   Future<void> _load() async {
     final items = await _repo.search(_searchCtrl.text);
+    // الأقرب انتهاءً (والمنتهي) الأول؛ اللي من غير صلاحية في الآخر.
+    items.sort((a, b) {
+      if (a.expiry == null && b.expiry == null) return 0;
+      if (a.expiry == null) return 1;
+      if (b.expiry == null) return -1;
+      return a.expiry!.compareTo(b.expiry!);
+    });
     if (!mounted) return;
     setState(() {
       _items = items;
       _loading = false;
     });
+  }
+
+  /// عدد المنتهي + القريب من الانتهاء (خلال ٦٠ يوم).
+  ({int expired, int soon}) _expiryCounts() {
+    final now = DateTime.now();
+    var expired = 0, soon = 0;
+    for (final it in _items) {
+      final exp = it.expiry == null ? null : DateTime.tryParse(it.expiry!);
+      if (exp == null) continue;
+      if (exp.isBefore(now)) {
+        expired++;
+      } else if (exp.difference(now).inDays <= 60) {
+        soon++;
+      }
+    }
+    return (expired: expired, soon: soon);
   }
 
   Future<void> _form([PharmacyItem? item]) async {
@@ -200,6 +223,40 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
     }
   }
 
+  Widget _expiryBanner(BuildContext context) {
+    final c = _expiryCounts();
+    if (c.expired == 0 && c.soon == 0) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    final parts = [
+      if (c.expired > 0) tr('${arNum(c.expired)} منتهي', '${arNum(c.expired)} expired'),
+      if (c.soon > 0)
+        tr('${arNum(c.soon)} قربت تنتهي', '${arNum(c.soon)} expiring soon'),
+    ];
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: c.expired > 0
+            ? scheme.errorContainer
+            : scheme.tertiary.withValues(alpha: .15),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded,
+              color: c.expired > 0 ? scheme.onErrorContainer : scheme.tertiary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(parts.join(' • '),
+                style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: c.expired > 0 ? scheme.onErrorContainer : null)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -230,6 +287,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
               ),
             ),
           ),
+          if (!_loading && _searchCtrl.text.isEmpty) _expiryBanner(context),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
