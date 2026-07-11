@@ -56,6 +56,8 @@
         errBox.style.display = 'block';
         errBox.textContent += msg + '\n\n';
       }
+      // متاحة للـDart عشان يطبع الخطأ الحقيقي (غير مُصغّر) على الشاشة.
+      window.__bootErr = show;
       window.addEventListener('error', function (e) {
         show('❌ error: ' + (e.message || e) +
              (e.filename ? '\n@ ' + e.filename + ':' + e.lineno : ''));

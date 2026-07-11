@@ -37,6 +37,27 @@ import 'data/occasions_repo.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // على الويب: أي خطأ بدء تشغيل يظهر على شاشة التشخيص بدل شاشة بيضا صامتة.
+  if (kIsWeb) {
+    FlutterError.onError = (details) {
+      FlutterError.presentError(details);
+      showStartupError(
+          'FlutterError:\n${details.exceptionAsString()}\n\n${details.stack}');
+    };
+    WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
+      showStartupError('Uncaught:\n$error\n\n$stack');
+      return true;
+    };
+  }
+  try {
+    await _startup();
+  } catch (e, st) {
+    if (kIsWeb) showStartupError('Startup:\n$e\n\n$st');
+    rethrow;
+  }
+}
+
+Future<void> _startup() async {
   initDbFactory(); // على الويب: sqflite عبر IndexedDB.
   Intl.defaultLocale = 'ar';
   await initializeDateFormatting('ar');
