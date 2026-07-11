@@ -12,6 +12,7 @@ import '../core/backup.dart';
 import '../core/db.dart';
 import '../core/evening.dart';
 import '../core/health_service.dart';
+import '../core/home_sections.dart';
 import '../core/l10n.dart';
 import '../core/notifications.dart';
 import '../core/prayers.dart';
@@ -56,6 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _blood = '';
   String _governorate = 'القاهرة';
   String? _customLoc; // مدينة عالمية مخصّصة (null = محافظة)
+  Set<String> _hiddenHome = {}; // عناصر الرئيسية المخفية
   String _notifMode = 'both';
   bool _loading = true;
   bool _busy = false;
@@ -83,6 +85,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final healthSync = await _settings.healthSyncEnabled();
     final governorate = await _settings.governorateName();
     final customLoc = await _settings.customLocation();
+    final hiddenHome = await _settings.hiddenHomeSections();
     final ramadan = await _settings.ramadanMode();
     final hardDay = await _settings.hardDayMode();
     final travel = await _settings.travelMode();
@@ -107,6 +110,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _healthSync = healthSync;
       _governorate = governorate;
       _customLoc = customLoc?.label;
+      _hiddenHome = hiddenHome;
       _ramadan = ramadan;
       _hardDay = hardDay;
       _travel = travel;
@@ -488,6 +492,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: _prayerNotifs,
                   onChanged: (v) => setState(() => _prayerNotifs = v),
                 ),
+                SectionHeader(tr('عناصر الصفحة الرئيسية', 'Home screen sections')),
+                Text(
+                    tr('اختار اللي يظهر في الرئيسية — كل عنصر يظهر لوحده (كارت الصلاة أساسي، بيتحكم فيه من هنا بس).',
+                        'Pick what shows on Home — each section independently.'),
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.outline)),
+                for (final key in kHomeSectionKeys)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    title: Text(homeSectionLabel(key)),
+                    value: !_hiddenHome.contains(key),
+                    onChanged: (show) async {
+                      await _settings.setHomeSectionHidden(key, !show);
+                      setState(() {
+                        if (show) {
+                          _hiddenHome.remove(key);
+                        } else {
+                          _hiddenHome.add(key);
+                        }
+                      });
+                    },
+                  ),
                 SectionHeader(tr('الإشعارات', 'Notifications')),
                 Row(
                   children: [

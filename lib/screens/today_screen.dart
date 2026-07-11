@@ -101,6 +101,10 @@ class _TodayScreenState extends State<TodayScreen> {
   double? _distanceKm;
   int _calorieGoal = 0;
   bool _hardDay = false;
+  Set<String> _hidden = {}; // عناصر الرئيسية المخفية (من الإعدادات)
+
+  /// عنصر الرئيسية ظاهر؟ (لكل ما هو مش مخفي من الإعدادات).
+  bool _vis(String key) => !_hidden.contains(key);
   List<Meal> _meals = [];
   Map<int, String> _workoutPlan = {};
   bool _workoutDone = false;
@@ -190,6 +194,7 @@ class _TodayScreenState extends State<TodayScreen> {
     final meals = await MealsRepo().forDay(day);
     final calorieGoal = await _settings.calorieGoal();
     final hardDay = await _settings.hardDayMode();
+    final hidden = await _settings.hiddenHomeSections();
     final workoutRepo = WorkoutRepo();
     final workoutPlan = await workoutRepo.plan();
     final workoutDone = await workoutRepo.doneOn(day);
@@ -224,6 +229,7 @@ class _TodayScreenState extends State<TodayScreen> {
       _distanceKm = distanceKm;
       _calorieGoal = calorieGoal;
       _hardDay = hardDay;
+      _hidden = hidden;
       _meals = meals;
       _workoutPlan = workoutPlan;
       _workoutDone = workoutDone;
@@ -402,83 +408,98 @@ class _TodayScreenState extends State<TodayScreen> {
         children: [
           _header(context),
           const SizedBox(height: 12),
-          _quickActions(context),
-          const SizedBox(height: 12),
+          if (_vis('quick_actions')) ...[
+            _quickActions(context),
+            const SizedBox(height: 12),
+          ],
           _heroAndSummary(context),
           const SizedBox(height: 12),
           if (_weeklyDue) ...[
             _weeklyBanner(context),
             const SizedBox(height: 12),
           ],
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(child: _waterCard(context)),
-              const SizedBox(width: 12),
-              Expanded(child: _sleepCard(context)),
-              if (_steps != null) ...[
-                const SizedBox(width: 12),
-                Expanded(child: _stepsCard(context)),
-              ],
-              ],
+          if (_vis('vitals'))
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: _waterCard(context)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _sleepCard(context)),
+                  if (_steps != null) ...[
+                    const SizedBox(width: 12),
+                    Expanded(child: _stepsCard(context)),
+                  ],
+                ],
+              ),
             ),
-          ),
-          if (_hasFitnessData) ...[
+          if (_vis('smartwatch') && _hasFitnessData) ...[
             SectionHeader(tr('من ساعتك الذكية', 'From your smartwatch')),
             _fitnessSection(context),
           ],
-          if (_dueBills.isNotEmpty) ...[
+          if (_vis('bills') && _dueBills.isNotEmpty) ...[
             SectionHeader(tr('فواتير مستحقة', 'Bills due')),
             _dueBillsCard(context),
           ],
-          if (_expiring.isNotEmpty) ...[
+          if (_vis('docs_expiry') && _expiring.isNotEmpty) ...[
             SectionHeader(tr('مستندات محتاجة تجديد', 'Documents to renew')),
             _expiringCard(context),
           ],
-          SectionHeader(tr("مواعيد النهارده", "Today's appointments"),
-              trailing: _seeAll(1)),
-          if (_todayAppts.isEmpty)
-            EmptyHint(
-                icon: Icons.event_available,
-                text: tr('مفيش مواعيد النهارده', 'No appointments today'))
-          else
-            ..._todayAppts.map((a) => _apptTile(context, a)),
-          SectionHeader(tr("أدوية النهارده", "Today's medications")),
-          if (_activeMeds.isEmpty)
-            EmptyHint(
-                icon: Icons.medication_outlined,
-                text: tr('مفيش أدوية متسجلة — ضيفها من تبويب الجدول',
-                    'No medications — add them from the Schedule tab'))
-          else
-            ..._medTiles(context),
-          SectionHeader(tr('التمرين', 'Workout'),
-              trailing: TextButton(
-                  onPressed: _openWorkoutPlan,
-                  child: Text(tr('الخطة', 'Plan')))),
-          _workoutCard(context),
-          SectionHeader(tr("وجبات النهارده", "Today's meals"),
-              trailing: _mealsActions(context)),
-          if (_meals.isEmpty)
-            EmptyHint(
-                icon: Icons.restaurant_outlined,
-                text: tr("لسه ماسجلتش وجبات النهارده",
-                    "No meals logged today yet"))
-          else
-            ..._meals.map((m) => _mealTile(context, m)),
-          if (_showNutrition) _nutritionCard(context),
-          SectionHeader(tr("عادات النهارده", "Today's habits"),
-              trailing: _seeAll(3)),
-          if (_habitList.isEmpty)
-            EmptyHint(
-                icon: Icons.task_alt,
-                text: tr('لسه مفيش عادات — ابدأ بعادة واحدة بسيطة',
-                    'No habits yet — start with one simple habit'))
-          else
-            _habitChips(context),
-          SectionHeader(tr("فلوس النهارده", "Today's money"),
-              trailing: _seeAll(2)),
-          _moneyCard(context),
+          if (_vis('appointments')) ...[
+            SectionHeader(tr("مواعيد النهارده", "Today's appointments"),
+                trailing: _seeAll(1)),
+            if (_todayAppts.isEmpty)
+              EmptyHint(
+                  icon: Icons.event_available,
+                  text: tr('مفيش مواعيد النهارده', 'No appointments today'))
+            else
+              ..._todayAppts.map((a) => _apptTile(context, a)),
+          ],
+          if (_vis('meds')) ...[
+            SectionHeader(tr("أدوية النهارده", "Today's medications")),
+            if (_activeMeds.isEmpty)
+              EmptyHint(
+                  icon: Icons.medication_outlined,
+                  text: tr('مفيش أدوية متسجلة — ضيفها من تبويب الجدول',
+                      'No medications — add them from the Schedule tab'))
+            else
+              ..._medTiles(context),
+          ],
+          if (_vis('workout')) ...[
+            SectionHeader(tr('التمرين', 'Workout'),
+                trailing: TextButton(
+                    onPressed: _openWorkoutPlan,
+                    child: Text(tr('الخطة', 'Plan')))),
+            _workoutCard(context),
+          ],
+          if (_vis('meals')) ...[
+            SectionHeader(tr("وجبات النهارده", "Today's meals"),
+                trailing: _mealsActions(context)),
+            if (_meals.isEmpty)
+              EmptyHint(
+                  icon: Icons.restaurant_outlined,
+                  text: tr("لسه ماسجلتش وجبات النهارده",
+                      "No meals logged today yet"))
+            else
+              ..._meals.map((m) => _mealTile(context, m)),
+            if (_showNutrition) _nutritionCard(context),
+          ],
+          if (_vis('habits')) ...[
+            SectionHeader(tr("عادات النهارده", "Today's habits"),
+                trailing: _seeAll(3)),
+            if (_habitList.isEmpty)
+              EmptyHint(
+                  icon: Icons.task_alt,
+                  text: tr('لسه مفيش عادات — ابدأ بعادة واحدة بسيطة',
+                      'No habits yet — start with one simple habit'))
+            else
+              _habitChips(context),
+          ],
+          if (_vis('money')) ...[
+            SectionHeader(tr("فلوس النهارده", "Today's money"),
+                trailing: _seeAll(2)),
+            _moneyCard(context),
+          ],
         ],
       ),
     );
@@ -517,19 +538,19 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   /// كارت الصلاة + ملخص المدير — جنب بعض على الشاشات العريضة، فوق بعض على الضيقة.
+  /// كارت الصلاة **أساسي** ومابيختفيش مع «وضع يوم صعب» — الإخفاء بس من الإعدادات.
+  /// وضع «يوم صعب» بيحط بانر هادي فوق، من غير ما يشيل الصلاة.
   Widget _heroAndSummary(BuildContext context) {
-    if (_hardDay) {
-      return Column(
-        children: [_hardDayBanner(context), _summaryCard(context)],
-      );
-    }
-    return LayoutBuilder(
-      builder: (ctx, constraints) {
-        if (constraints.maxWidth >= 640) {
-          // نفس الحجم بالظبط: ارتفاع ثابت + stretch.
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: SizedBox(
+    final showPrayer = _vis('prayer');
+    final showSummary = _vis('summary');
+    final banner = _hardDay ? _hardDayBanner(context) : null;
+
+    Widget? core;
+    if (showPrayer && showSummary) {
+      core = LayoutBuilder(
+        builder: (ctx, constraints) {
+          if (constraints.maxWidth >= 640) {
+            return SizedBox(
               height: 250,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -539,16 +560,26 @@ class _TodayScreenState extends State<TodayScreen> {
                   Expanded(child: _summaryCard(context)),
                 ],
               ),
-            ),
+            );
+          }
+          return Column(
+            children: [_prayerHeroCard(context), _summaryCard(context)],
           );
-        }
-        return Column(
-          children: [
-            _prayerHeroCard(context),
-            _summaryCard(context),
-          ],
-        );
-      },
+        },
+      );
+    } else if (showPrayer) {
+      core = _prayerHeroCard(context);
+    } else if (showSummary) {
+      core = _summaryCard(context);
+    }
+
+    if (banner == null && core == null) return const SizedBox.shrink();
+    return Column(
+      children: [
+        ?banner,
+        if (banner != null && core != null) const SizedBox(height: 12),
+        ?core,
+      ],
     );
   }
 

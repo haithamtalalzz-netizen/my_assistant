@@ -75,6 +75,22 @@ class SettingsRepo {
 
   Future<bool> healthSyncEnabled() async => await get('health_sync') == '1';
 
+  /// عناصر الصفحة الرئيسية المخفية (يتحكم فيها المستخدم من الإعدادات).
+  Future<Set<String>> hiddenHomeSections() async {
+    final raw = await get('home_hidden') ?? '';
+    return raw.split(',').where((s) => s.isNotEmpty).toSet();
+  }
+
+  Future<void> setHomeSectionHidden(String key, bool hidden) async {
+    final current = await hiddenHomeSections();
+    if (hidden) {
+      current.add(key);
+    } else {
+      current.remove(key);
+    }
+    await set('home_hidden', current.join(','));
+  }
+
   Future<bool> ramadanMode() async => await get('ramadan_mode') == '1';
 
   /// ملخص بكرة المسائي — شغال افتراضيًا الساعة 21:30.
