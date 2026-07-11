@@ -766,33 +766,49 @@ class _TodayScreenState extends State<TodayScreen> {
 
   Future<void> _quickInbox() async {
     final ctrl = TextEditingController();
-    final ok = await showDialog<bool>(
+    final ok = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr('تذكير سريع', 'Quick reminder')),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: InputDecoration(
-              hintText: tr('اكتب اللي عايز تفتكره...', 'What to remember...')),
-          onSubmitted: (_) => Navigator.pop(ctx, true),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(tr('إلغاء', 'Cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(tr('حفظ', 'Save'))),
-        ],
-      ),
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        return Padding(
+          padding: EdgeInsets.only(
+              left: 20, right: 20, top: 4, bottom: _sheetBottom(ctx)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Icon(Icons.push_pin_outlined, color: scheme.primary),
+                const SizedBox(width: 8),
+                Text(tr('تذكير سريع', 'Quick reminder'),
+                    style: Theme.of(ctx).textTheme.titleMedium),
+              ]),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                autofocus: true,
+                decoration: InputDecoration(
+                    hintText: tr('اكتب اللي عايز تفتكره...', 'What to remember...')),
+                onSubmitted: (_) => Navigator.pop(ctx, true),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: Text(tr('حفظ', 'Save'))),
+              ),
+            ],
+          ),
+        );
+      },
     );
     if (ok == true && ctrl.text.trim().isNotEmpty) {
       await InboxRepo().add(ctrl.text.trim());
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('اتحطّت في الوارد 📝', 'Saved to inbox 📝'))));
-      await _load();
+      _snack(tr('اتحطّت في الوارد 📝', 'Saved to inbox 📝'));
+      if (mounted) await _load();
     }
   }
 
@@ -901,6 +917,12 @@ class _TodayScreenState extends State<TodayScreen> {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(msg)));
   }
+
+  /// مسافة سفلية آمنة للشبابيك (كيبورد + شريط تنقل النظام).
+  double _sheetBottom(BuildContext ctx, [double base = 20]) =>
+      base +
+      MediaQuery.of(ctx).viewInsets.bottom +
+      MediaQuery.of(ctx).viewPadding.bottom;
 
   /// شباك تمرين النهاردة — عنوانه + زر «اتعمل» (أو يوم راحة + تعديل الخطة).
   Future<void> _openWorkoutSheet() async {
@@ -1197,27 +1219,47 @@ class _TodayScreenState extends State<TodayScreen> {
 
   Future<void> _addShoppingItem() async {
     final ctrl = TextEditingController();
-    final ok = await showDialog<bool>(
+    final ok = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr('إضافة للتسوق', 'Add to shopping')),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: InputDecoration(hintText: tr('الصنف...', 'Item...')),
-          onSubmitted: (_) => Navigator.pop(ctx, true),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('إلغاء', 'Cancel'))),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('إضافة', 'Add'))),
-        ],
-      ),
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        return Padding(
+          padding: EdgeInsets.only(
+              left: 20, right: 20, top: 4, bottom: _sheetBottom(ctx)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Icon(Icons.add_shopping_cart_outlined, color: scheme.primary),
+                const SizedBox(width: 8),
+                Text(tr('إضافة للتسوق', 'Add to shopping'),
+                    style: Theme.of(ctx).textTheme.titleMedium),
+              ]),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                autofocus: true,
+                decoration: InputDecoration(hintText: tr('الصنف...', 'Item...')),
+                onSubmitted: (_) => Navigator.pop(ctx, true),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: Text(tr('إضافة', 'Add'))),
+              ),
+            ],
+          ),
+        );
+      },
     );
     if (ok == true && ctrl.text.trim().isNotEmpty) {
       await MealsRepo().addShoppingItem(ctrl.text.trim());
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('اتضاف للتسوق 🛒', 'Added to shopping 🛒'))));
+      _snack(tr('اتضاف للتسوق 🛒', 'Added to shopping 🛒'));
     }
   }
 
@@ -1233,48 +1275,65 @@ class _TodayScreenState extends State<TodayScreen> {
     var toId = wallets[1].id!;
     final amt = TextEditingController();
     if (!mounted) return;
-    final ok = await showDialog<bool>(
+    final ok = await showModalBottomSheet<bool>(
       context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) => AlertDialog(
-          title: Text(tr('تحويل بين المحافظ', 'Transfer')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<int>(
-                initialValue: fromId,
-                decoration: InputDecoration(labelText: tr('من', 'From')),
-                items: [for (final w in wallets) DropdownMenuItem(value: w.id, child: Text(w.name))],
-                onChanged: (v) => setD(() => fromId = v!),
-              ),
-              DropdownButtonFormField<int>(
-                initialValue: toId,
-                decoration: InputDecoration(labelText: tr('إلى', 'To')),
-                items: [for (final w in wallets) DropdownMenuItem(value: w.id, child: Text(w.name))],
-                onChanged: (v) => setD(() => toId = v!),
-              ),
-              TextField(
-                controller: amt,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: tr('المبلغ', 'Amount')),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('إلغاء', 'Cancel'))),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('تحويل', 'Transfer'))),
-          ],
-        ),
+        builder: (ctx, setSheet) {
+          final scheme = Theme.of(ctx).colorScheme;
+          return Padding(
+            padding: EdgeInsets.only(
+                left: 20, right: 20, top: 4, bottom: _sheetBottom(ctx)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.swap_horiz, color: scheme.primary),
+                  const SizedBox(width: 8),
+                  Text(tr('تحويل بين المحافظ', 'Transfer'),
+                      style: Theme.of(ctx).textTheme.titleMedium),
+                ]),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int>(
+                  initialValue: fromId,
+                  decoration: InputDecoration(labelText: tr('من', 'From')),
+                  items: [for (final w in wallets) DropdownMenuItem(value: w.id, child: Text(w.name))],
+                  onChanged: (v) => setSheet(() => fromId = v!),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<int>(
+                  initialValue: toId,
+                  decoration: InputDecoration(labelText: tr('إلى', 'To')),
+                  items: [for (final w in wallets) DropdownMenuItem(value: w.id, child: Text(w.name))],
+                  onChanged: (v) => setSheet(() => toId = v!),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: amt,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(labelText: tr('المبلغ', 'Amount')),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: Text(tr('تحويل', 'Transfer'))),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
     if (ok == true) {
       final a = parseNumber(amt.text);
       if (a == null || a <= 0 || fromId == toId) return;
       await WalletsRepo().transfer(fromId, toId, a);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('تمّ التحويل 💳', 'Transferred 💳'))));
-      await _load();
+      _snack(tr('تمّ التحويل 💳', 'Transferred 💳'));
+      if (mounted) await _load();
     }
   }
 
@@ -1282,32 +1341,50 @@ class _TodayScreenState extends State<TodayScreen> {
     final person = TextEditingController();
     final amt = TextEditingController();
     var dir = 'لى';
-    final ok = await showDialog<bool>(
+    final ok = await showModalBottomSheet<bool>(
       context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) => AlertDialog(
-          title: Text(tr('دَين / سلفة', 'Debt / loan')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: person, decoration: InputDecoration(labelText: tr('الاسم', 'Person'))),
-              TextField(controller: amt, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('المبلغ', 'Amount'))),
-              const SizedBox(height: 10),
-              SegmentedButton<String>(
-                segments: [
-                  ButtonSegment(value: 'لى', label: Text(tr('ليا', 'Owed to me'))),
-                  ButtonSegment(value: 'عليا', label: Text(tr('عليا', 'I owe'))),
-                ],
-                selected: {dir},
-                onSelectionChanged: (s) => setD(() => dir = s.first),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('إلغاء', 'Cancel'))),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('حفظ', 'Save'))),
-          ],
-        ),
+        builder: (ctx, setSheet) {
+          final scheme = Theme.of(ctx).colorScheme;
+          return Padding(
+            padding: EdgeInsets.only(
+                left: 20, right: 20, top: 4, bottom: _sheetBottom(ctx)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.handshake_outlined, color: scheme.primary),
+                  const SizedBox(width: 8),
+                  Text(tr('دَين / سلفة', 'Debt / loan'),
+                      style: Theme.of(ctx).textTheme.titleMedium),
+                ]),
+                const SizedBox(height: 12),
+                TextField(controller: person, decoration: InputDecoration(labelText: tr('الاسم', 'Person'))),
+                const SizedBox(height: 8),
+                TextField(controller: amt, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('المبلغ', 'Amount'))),
+                const SizedBox(height: 12),
+                SegmentedButton<String>(
+                  segments: [
+                    ButtonSegment(value: 'لى', label: Text(tr('ليا', 'Owed to me'))),
+                    ButtonSegment(value: 'عليا', label: Text(tr('عليا', 'I owe'))),
+                  ],
+                  selected: {dir},
+                  onSelectionChanged: (s) => setSheet(() => dir = s.first),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: Text(tr('حفظ', 'Save'))),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
     if (ok == true) {
