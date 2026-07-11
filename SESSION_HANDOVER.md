@@ -1,5 +1,23 @@
 # SESSION_HANDOVER — My Assistant
 
+## 2026-07-11 — أيقونة تطبيق جديدة (وش مساعد أزرق) ✅ (مثبّت)
+
+المستخدم بعت صورة أيقونة (وش أزرق بسمّاعة على خلفية بيضا) وطلب يخليها أيقونة التطبيق.
+- ضفت **`flutter_launcher_icons`** (dev dep) + إعداد في `pubspec.yaml` (android، adaptive،
+  خلفية بيضا) + `image` dev dep.
+- الصورة اتحفظت JPEG (`assets/icon/appicon.png.jpeg`) → **`tool/make_icon.dart`** يحوّلها لـ
+  PNG نظيف 1024 (`app_icon.png`) + نسخة foreground بهامش آمن (`app_icon_fg.png`، الرسمة ~86%
+  عشان القص الدائري في أندرويد ما يقصّش السمّاعة). التشغيل: `dart run tool/make_icon.dart`
+  ثم `dart run flutter_launcher_icons`.
+- **تعارض اتحل**: الأيقونة القديمة (هلال أخضر vector) كانت بنفس اسم ملفات الأيقونة الجديدة →
+  نقلت الهلال لـ `drawable/splash_logo.xml` (لشاشة الإطلاق بس)، وجّهت `launch_background.xml`
+  (النسختين) ليه، ومسحت `drawable/ic_launcher_foreground.xml` + `ic_launcher_background.xml`.
+- `ic_launcher.xml`/`ic_launcher_round.xml` بيشاوروا على الـforeground مباشرة **بدون `inset`**
+  (الهامش الآمن معمول جوه الـPNG أصلًا)؛ الخلفية من `@color/ic_launcher_background` (أبيض).
+- **GOTCHA**: `dart run flutter_launcher_icons` بيرجّع يحط `inset 16%` في `ic_launcher.xml` كل مرة
+  → لازم تشيله بعد كل تشغيل عشان الوش ما يتصغّرش (double-inset). كبّر الوش = زوّد `inner` في
+  `make_icon.dart`.
+
 ## 2026-07-11 — دفعة ٤٠: إصلاح الكروت التنبيهية البنية في الرئيسية ✅ (145/145، مثبّت)
 
 المستخدم (سكرين‌شوت): كارت «فواتير مستحقة» طالع بخلفية بنية وحشة والأزرار صعب تتقرا.
