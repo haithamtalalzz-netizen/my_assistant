@@ -28,6 +28,13 @@ class _RelativesScreenState extends State<RelativesScreen> {
 
   Future<void> _load() async {
     final items = await _repo.all();
+    final now = DateTime.now();
+    // المستحقين أول (اللي مااتصلتش بيهم خالص ثم الأقرب موعدًا).
+    items.sort((a, b) {
+      final ad = a.isDue(now), bd = b.isDue(now);
+      if (ad != bd) return ad ? -1 : 1;
+      return a.nextDue().compareTo(b.nextDue());
+    });
     if (!mounted) return;
     setState(() {
       _items = items;
@@ -103,6 +110,33 @@ class _RelativesScreenState extends State<RelativesScreen> {
     phone.dispose();
   }
 
+  Widget _dueSummary(BuildContext context) {
+    final now = DateTime.now();
+    final due = _items.where((r) => r.isDue(now)).length;
+    if (due == 0) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.fromLTRB(0, 4, 0, 8),
+      color: scheme.tertiary.withValues(alpha: .13),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Icon(Icons.diversity_1_outlined, color: scheme.tertiary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                tr('محتاج تطمن على ${arNum(due)} من أهلك',
+                    '${arNum(due)} relative(s) to check on'),
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -122,23 +156,22 @@ class _RelativesScreenState extends State<RelativesScreen> {
                   onRefresh: _load,
                   child: ListView.builder(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
-                    itemCount: _items.length,
-                    itemBuilder: (context, i) {
-                      final r = _items[i];
+                    itemCount: _items.length + 1,
+                    itemBuilder: (context, idx) {
+                      if (idx == 0) return _dueSummary(context);
+                      final r = _items[idx - 1];
                       final due = r.isDue(now);
                       return Card(
                         margin: const EdgeInsets.symmetric(vertical: 3),
-                        color: due ? scheme.tertiaryContainer : null,
+                        color: due
+                            ? scheme.tertiary.withValues(alpha: .13)
+                            : null,
                         child: ListTile(
                           leading: Icon(Icons.person,
-                              color: due
-                                  ? scheme.onTertiaryContainer
-                                  : scheme.primary),
+                              color: due ? scheme.tertiary : scheme.primary),
                           title: Text(r.name,
                               style: due
-                                  ? TextStyle(
-                                      color: scheme.onTertiaryContainer,
-                                      fontWeight: FontWeight.w600)
+                                  ? const TextStyle(fontWeight: FontWeight.w600)
                                   : null),
                           subtitle: Text(
                               r.lastContacted == null
@@ -146,10 +179,7 @@ class _RelativesScreenState extends State<RelativesScreen> {
                                   : due
                                       ? tr('محتاج تطمن عليه', 'Time to check in')
                                       : tr('المكالمة الجاية: ${arShortDate(r.nextDue())}',
-                                          'Next call: ${arShortDate(r.nextDue())}'),
-                              style: due
-                                  ? TextStyle(color: scheme.onTertiaryContainer)
-                                  : null),
+                                          'Next call: ${arShortDate(r.nextDue())}')),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [

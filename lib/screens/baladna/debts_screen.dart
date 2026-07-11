@@ -29,6 +29,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
 
   Future<void> _load() async {
     final debts = await _repo.all();
+    debts.sort((a, b) => b.amount.compareTo(a.amount)); // الأكبر أول
     final (owedToMe, iOwe) = await _repo.totals();
     if (!mounted) return;
     setState(() {

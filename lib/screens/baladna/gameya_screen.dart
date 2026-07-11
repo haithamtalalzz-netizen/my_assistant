@@ -69,7 +69,10 @@ class _GameyaScreenState extends State<GameyaScreen> {
                     ])
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
-                      children: [for (final g in _list) _card(context, g)],
+                      children: [
+                        _summary(context),
+                        for (final g in _sorted()) _card(context, g),
+                      ],
                     ),
             ),
       floatingActionButton: FloatingActionButton.extended(
@@ -77,6 +80,69 @@ class _GameyaScreenState extends State<GameyaScreen> {
         onPressed: () => _form(),
         icon: const Icon(Icons.add),
         label: Text(tr('جمعية جديدة', "New gam'iya")),
+      ),
+    );
+  }
+
+  /// النشطة الأول، وجواها اللي دورها الشهر ده أو لسه ماادفعتش القسط يطلع فوق.
+  List<Gameya> _sorted() {
+    final now = DateTime.now();
+    int rank(Gameya g) {
+      if (!g.isActive(now)) return 3;
+      final turn = g.monthsUntilMyTurn(now);
+      final unpaid = !(_paid[g.id!] ?? const {}).contains(_thisMonthKey());
+      if (turn == 0) return 0; // دورك الشهر ده
+      if (unpaid) return 1; // مستحق قسط
+      return 2;
+    }
+
+    final list = List.of(_list);
+    list.sort((a, b) => rank(a).compareTo(rank(b)));
+    return list;
+  }
+
+  /// كارت علوي: كام جمعية مستحق قسطها الشهر ده + تنبيه دورك.
+  Widget _summary(BuildContext context) {
+    final now = DateTime.now();
+    final active = _list.where((g) => g.isActive(now)).toList();
+    if (active.isEmpty) return const SizedBox.shrink();
+    final unpaid = active
+        .where((g) => !(_paid[g.id!] ?? const {}).contains(_thisMonthKey()))
+        .length;
+    final myTurn = active.where((g) => g.monthsUntilMyTurn(now) == 0).toList();
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(Icons.groups_outlined, color: scheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  unpaid == 0
+                      ? tr('كل أقساط الشهر اتدفعت ✓',
+                          'All installments paid this month ✓')
+                      : tr('${arNum(unpaid)} جمعية مستحق قسطها الشهر ده',
+                          '${arNum(unpaid)} installment(s) due this month'),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: unpaid == 0 ? Colors.green : scheme.error),
+                ),
+              ),
+            ]),
+            if (myTurn.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                  tr('🎉 دورك الشهر ده في: ${myTurn.map((g) => g.name).join('، ')}',
+                      '🎉 Your turn this month: ${myTurn.map((g) => g.name).join(', ')}'),
+                  style: TextStyle(color: scheme.primary)),
+            ],
+          ],
+        ),
       ),
     );
   }

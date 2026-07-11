@@ -156,7 +156,10 @@ class _SavingsScreenState extends State<SavingsScreen> {
                   onRefresh: _load,
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-                    children: _goals.map((g) => _goalCard(context, g)).toList(),
+                    children: [
+                      _totalCard(context),
+                      ..._goals.map((g) => _goalCard(context, g)),
+                    ],
                   ),
                 ),
       floatingActionButton: FloatingActionButton(
@@ -164,6 +167,52 @@ class _SavingsScreenState extends State<SavingsScreen> {
         onPressed: () => _goalForm(),
         tooltip: tr('هدف جديد', 'New goal'),
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  /// كارت علوي: إجمالي المدّخر عبر كل الأهداف + نسبة الوصول الكلية.
+  Widget _totalCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final saved = _goals.fold<double>(0, (s, g) => s + g.saved);
+    final target = _goals.fold<double>(0, (s, g) => s + g.target);
+    final pct = target > 0 ? (saved / target * 100).round() : 0;
+    final reached = _goals.where((g) => g.remaining <= 0).length;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(Icons.savings_outlined, color: scheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(tr('إجمالي مدّخرك', 'Total saved'),
+                    style: TextStyle(color: scheme.outline)),
+              ),
+              Text(egp(saved),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800, color: scheme.primary)),
+            ]),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: target > 0 ? (saved / target).clamp(0.0, 1.0) : 0,
+                minHeight: 8,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+                tr('${arNum(pct)}٪ من إجمالي أهدافك (${egp(target)})${reached > 0 ? ' • وصلت ${arNum(reached)}' : ''}',
+                    '${arNum(pct)}% of your goals (${egp(target)})${reached > 0 ? ' • ${arNum(reached)} reached' : ''}'),
+                style: TextStyle(color: scheme.outline, fontSize: 13)),
+          ],
+        ),
       ),
     );
   }

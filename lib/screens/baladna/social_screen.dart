@@ -203,20 +203,23 @@ class _SocialScreenState extends State<SocialScreen> {
     if (owe.isEmpty) return const SizedBox.shrink();
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      color: scheme.tertiaryContainer,
+      color: scheme.tertiary.withValues(alpha: .13),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(tr('مطلوب منك ترد لـ:', 'You should reciprocate:'),
-                style: TextStyle(
-                    color: scheme.onTertiaryContainer,
-                    fontWeight: FontWeight.w700)),
+            Row(children: [
+              Icon(Icons.volunteer_activism_outlined,
+                  size: 18, color: scheme.tertiary),
+              const SizedBox(width: 6),
+              Text(
+                  tr('مطلوب منك ترد لـ ${arNum(owe.length)}:',
+                      'You should reciprocate ${arNum(owe.length)}:'),
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+            ]),
             const SizedBox(height: 4),
-            ...owe.take(5).map((b) => Text(
-                '• ${b.person}: ${egp(b.net)}',
-                style: TextStyle(color: scheme.onTertiaryContainer))),
+            ...owe.take(5).map((b) => Text('• ${b.person}: ${egp(b.net)}')),
           ],
         ),
       ),

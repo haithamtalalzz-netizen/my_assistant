@@ -27,6 +27,9 @@ class _HomeMaintenanceScreenState extends State<HomeMaintenanceScreen> {
 
   Future<void> _load() async {
     final items = await _repo.all();
+    final now = DateTime.now();
+    items.sort((a, b) =>
+        a.daysUntilDue(now).compareTo(b.daysUntilDue(now))); // المستحق أول
     if (!mounted) return;
     setState(() {
       _items = items;
@@ -73,12 +76,12 @@ class _HomeMaintenanceScreenState extends State<HomeMaintenanceScreen> {
                           Card(
                             margin: const EdgeInsets.symmetric(vertical: 3),
                             color: m.isDue(DateTime.now())
-                                ? scheme.tertiaryContainer
+                                ? scheme.tertiary.withValues(alpha: .13)
                                 : null,
                             child: ListTile(
                               leading: Icon(Icons.build_outlined,
                                   color: m.isDue(DateTime.now())
-                                      ? scheme.onTertiaryContainer
+                                      ? scheme.tertiary
                                       : scheme.primary),
                               title: Text(m.name),
                               subtitle: Text(
