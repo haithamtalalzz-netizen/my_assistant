@@ -6,6 +6,8 @@ import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/food_db.dart';
 import 'package:my_assistant/core/exercise_library.dart';
 import 'package:my_assistant/core/diet_plans.dart';
+import 'package:my_assistant/core/location_tracker.dart';
+import 'package:my_assistant/data/activity_repo.dart';
 import 'package:my_assistant/core/day_planner.dart';
 import 'package:my_assistant/core/insights.dart';
 import 'package:my_assistant/core/local_brain.dart';
@@ -1295,6 +1297,70 @@ void main() {
       expect(rows.length, 1);
       expect((rows.first['quantity'] as num).toInt(), 3);
       await v26.close();
+    });
+  });
+
+  group('ترقية قاعدة البيانات v28 ← v29', () {
+    test('جدول جلسات النشاط بيتعمل', () async {
+      final v28 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v28, 28, 29);
+      await v28.insert('activity_sessions', {
+        'day': '2026-07-12',
+        'type': 'run',
+        'distance_km': 5.0,
+        'duration_sec': 1800,
+        'calories': 350,
+        'steps': 6900,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      final rows = await v28.query('activity_sessions');
+      expect(rows.length, 1);
+      expect(rows.first['type'], 'run');
+      expect((rows.first['distance_km'] as num).toDouble(), 5.0);
+      await v28.close();
+    });
+  });
+
+  group('نشاط الـGPS (مشي/جري)', () {
+    test('حفظ جلسة وحساب إجمالي اليوم', () async {
+      final repo = ActivityRepo();
+      final day = dayKey(DateTime.now());
+      await repo.add(ActivitySession(
+        day: day,
+        type: 'walk',
+        distanceKm: 2.0,
+        durationSec: 1500,
+        calories: 90,
+        steps: 2800,
+        createdAt: DateTime.now().toIso8601String(),
+      ));
+      await repo.add(ActivitySession(
+        day: day,
+        type: 'run',
+        distanceKm: 3.0,
+        durationSec: 1200,
+        calories: 210,
+        steps: 4100,
+        createdAt: DateTime.now().toIso8601String(),
+      ));
+      final totals = await repo.todayTotals(day);
+      expect(totals.distanceKm, 5.0);
+      expect(totals.calories, 300);
+      expect((await repo.forDay(day)).length, 2);
+    });
+
+    test('تقدير السعرات: الجري أعلى من المشي لنفس المسافة', () {
+      final walk = estimateCalories(distanceKm: 5, weightKg: 80, running: false);
+      final run = estimateCalories(distanceKm: 5, weightKg: 80, running: true);
+      expect(run > walk, true);
+      expect(walk > 0, true);
+    });
+
+    test('تقدير الخطوات من المسافة', () {
+      // 720 متر / 0.72 = 1000 خطوة
+      expect(estimateSteps(720), 1000);
+      expect(estimateSteps(0), 0);
     });
   });
 

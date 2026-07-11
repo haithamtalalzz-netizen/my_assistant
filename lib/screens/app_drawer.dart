@@ -27,6 +27,7 @@ import 'group_hub_screen.dart';
 import 'gym/exercise_library_screen.dart';
 import 'gym/gym_screen.dart';
 import 'gym/progress_screen.dart';
+import 'gym/walk_tracker_screen.dart';
 import 'gym/workout_programs_screen.dart';
 import 'health/health_hub_screen.dart';
 import 'home/meters_screen.dart';
@@ -193,6 +194,9 @@ class AppDrawer extends StatelessWidget {
                       tabIndex: 3),
                   GroupHubItem(Icons.fitness_center, tr('الجيم', 'Gym'),
                       screen: const GymScreen()),
+                  GroupHubItem(Icons.directions_run,
+                      tr('تتبّع المشي/الجري', 'Walk / run'),
+                      screen: const WalkTrackerScreen()),
                   GroupHubItem(Icons.menu_book_outlined,
                       tr('مكتبة التمارين', 'Exercise library'),
                       screen: const ExerciseLibraryScreen()),

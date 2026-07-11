@@ -1481,6 +1481,50 @@ class Meal {
       };
 }
 
+/// جلسة نشاط بالـGPS (مشي/جري) — مسافة ومدة وسعرات.
+class ActivitySession {
+  final int? id;
+  final String day;
+  final String type; // 'walk' / 'run'
+  final double distanceKm;
+  final int durationSec;
+  final int calories;
+  final int steps;
+  final String createdAt;
+
+  const ActivitySession({
+    this.id,
+    required this.day,
+    required this.type,
+    required this.distanceKm,
+    required this.durationSec,
+    required this.calories,
+    this.steps = 0,
+    required this.createdAt,
+  });
+
+  factory ActivitySession.fromMap(Map<String, Object?> m) => ActivitySession(
+        id: m['id'] as int?,
+        day: m['day'] as String,
+        type: m['type'] as String? ?? 'walk',
+        distanceKm: (m['distance_km'] as num?)?.toDouble() ?? 0,
+        durationSec: (m['duration_sec'] as num?)?.toInt() ?? 0,
+        calories: (m['calories'] as num?)?.toInt() ?? 0,
+        steps: (m['steps'] as num?)?.toInt() ?? 0,
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'day': day,
+        'type': type,
+        'distance_km': distanceKm,
+        'duration_sec': durationSec,
+        'calories': calories,
+        'steps': steps,
+        'created_at': createdAt,
+      };
+}
+
 class ShoppingItem {
   final int? id;
   final String name;

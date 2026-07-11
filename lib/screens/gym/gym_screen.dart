@@ -10,6 +10,7 @@ import '../../widgets/search_action.dart';
 import 'exercise_library_screen.dart';
 import 'gym_session_form.dart';
 import 'progress_screen.dart';
+import 'walk_tracker_screen.dart';
 import 'workout_programs_screen.dart';
 
 class GymScreen extends StatefulWidget {
@@ -110,6 +111,12 @@ class _GymScreenState extends State<GymScreen> {
       appBar: AppBar(
         title: Text(tr('الجيم', 'Gym')),
         actions: [
+          IconButton(
+            tooltip: tr('تتبّع المشي/الجري', 'Walk / run tracker'),
+            icon: const Icon(Icons.directions_run),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const WalkTrackerScreen())),
+          ),
           IconButton(
             tooltip: tr('مكتبة التمارين', 'Exercise library'),
             icon: const Icon(Icons.menu_book_outlined),

@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 28,
+      version: 29,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -197,7 +197,28 @@ class AppDb {
       await _safeAddColumn(db, 'meals', 'fat', 'REAL');
       await _safeAddColumn(db, 'meals', 'grams', 'REAL');
     }
+    if (oldV < 29 && newV >= 29) {
+      for (final ddl in _v29Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// جلسات نشاط بالـGPS (مشي/جري) — مسافة ومدة وسعرات.
+  static const List<String> _v29Tables = [
+    '''
+      CREATE TABLE activity_sessions(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        day TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'walk',
+        distance_km REAL NOT NULL DEFAULT 0,
+        duration_sec INTEGER NOT NULL DEFAULT 0,
+        calories INTEGER NOT NULL DEFAULT 0,
+        steps INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      )''',
+    'CREATE INDEX idx_activity_day ON activity_sessions(day)',
+  ];
 
   /// يضيف عمود لجدول موجود فقط لو مش موجود (آمن ضد التكرار في الترقيات).
   static Future<void> _safeAddColumn(
@@ -784,6 +805,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v27Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v29Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);
