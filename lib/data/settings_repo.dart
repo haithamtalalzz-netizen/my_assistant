@@ -25,6 +25,27 @@ class SettingsRepo {
   Future<int> calorieGoal() async =>
       int.tryParse(await get('calorie_goal') ?? '') ?? 0;
 
+  Future<void> setCalorieGoal(int kcal) async =>
+      set('calorie_goal', kcal <= 0 ? '' : '$kcal');
+
+  /// النظام الغذائي المُفعّل حاليًا (فاضي = مفيش).
+  Future<String> activeDietPlan() async => await get('diet_plan') ?? '';
+  Future<void> setActiveDietPlan(String id) async => set('diet_plan', id);
+
+  /// أهداف الماكروز بالجرام (0 = مش محدد).
+  Future<int> proteinTarget() async =>
+      int.tryParse(await get('diet_protein_g') ?? '') ?? 0;
+  Future<int> carbsTarget() async =>
+      int.tryParse(await get('diet_carbs_g') ?? '') ?? 0;
+  Future<int> fatTarget() async =>
+      int.tryParse(await get('diet_fat_g') ?? '') ?? 0;
+
+  Future<void> setMacroTargets(int protein, int carbs, int fat) async {
+    await set('diet_protein_g', protein <= 0 ? '' : '$protein');
+    await set('diet_carbs_g', carbs <= 0 ? '' : '$carbs');
+    await set('diet_fat_g', fat <= 0 ? '' : '$fat');
+  }
+
   /// وضع «يوم صعب» — يهدّي التطبيق ويخفي الضغط.
   Future<bool> hardDayMode() async => await get('hard_day_mode') == '1';
 

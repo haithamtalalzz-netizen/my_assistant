@@ -5,6 +5,7 @@ import 'package:my_assistant/core/backup.dart';
 import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/food_db.dart';
 import 'package:my_assistant/core/exercise_library.dart';
+import 'package:my_assistant/core/diet_plans.dart';
 import 'package:my_assistant/core/day_planner.dart';
 import 'package:my_assistant/core/insights.dart';
 import 'package:my_assistant/core/local_brain.dart';
@@ -1375,6 +1376,36 @@ void main() {
       final dumbbell = filterExercises(equipment: eDumbbell);
       expect(dumbbell.isNotEmpty, true);
       expect(dumbbell.every((e) => e.equipment == eDumbbell), true);
+    });
+  });
+
+  group('الأنظمة الغذائية', () {
+    test('التنشيف عجز والتضخيم فائض عن الحفاظ', () {
+      final cut = dietPlanById('cutting')!;
+      final bulk = dietPlanById('bulking')!;
+      const weight = 80.0; // حفاظ ≈ 2400
+      expect(cut.targetCalories(weight) < cut.maintenanceCalories(weight), true);
+      expect(bulk.targetCalories(weight) > bulk.maintenanceCalories(weight), true);
+    });
+
+    test('توزيع الماكروز بيجمع 100% وجراماته بتطلع بالسعرات', () {
+      for (final p in kDietPlans) {
+        expect(p.proteinPct + p.carbsPct + p.fatPct, 100,
+            reason: 'نظام ${p.id} لازم مجموع نسبه 100');
+      }
+      final plan = dietPlanById('balanced')!;
+      final macros = plan.targetMacros(2000);
+      // 30% بروتين من 2000 = 600 سعرة / 4 = 150 جم
+      expect(macros.protein.round(), 150);
+      // 40% كارب = 800 / 4 = 200 جم
+      expect(macros.carbs.round(), 200);
+      // 30% دهون = 600 / 9 ≈ 67 جم
+      expect(macros.fat.round(), 67);
+    });
+
+    test('السعرات مش بتنزل تحت 1200', () {
+      final cut = dietPlanById('cutting')!;
+      expect(cut.targetCalories(30) >= 1200, true); // وزن صغير جدًا
     });
   });
 

@@ -37,6 +37,7 @@ import '../widgets/common.dart';
 import '../widgets/decorations.dart';
 import 'brain/chat_screen.dart';
 import 'brain/day_plan_screen.dart';
+import 'food/diet_plans_screen.dart';
 import 'food/meal_sheet.dart';
 import 'food/shopping_list_screen.dart';
 import 'calendar_screen.dart';
@@ -101,6 +102,9 @@ class _TodayScreenState extends State<TodayScreen> {
   int? _restingHr;
   double? _distanceKm;
   int _calorieGoal = 0;
+  int _proteinTarget = 0;
+  int _carbsTarget = 0;
+  int _fatTarget = 0;
   bool _hardDay = false;
   Set<String> _hidden = {}; // عناصر الرئيسية المخفية (من الإعدادات)
 
@@ -196,6 +200,9 @@ class _TodayScreenState extends State<TodayScreen> {
     final chronic = await _appts.chronicallyPostponed();
     final meals = await MealsRepo().forDay(day);
     final calorieGoal = await _settings.calorieGoal();
+    final proteinTarget = await _settings.proteinTarget();
+    final carbsTarget = await _settings.carbsTarget();
+    final fatTarget = await _settings.fatTarget();
     final hardDay = await _settings.hardDayMode();
     final hidden = await _settings.hiddenHomeSections();
     final workoutRepo = WorkoutRepo();
@@ -232,6 +239,9 @@ class _TodayScreenState extends State<TodayScreen> {
       _restingHr = restingHr;
       _distanceKm = distanceKm;
       _calorieGoal = calorieGoal;
+      _proteinTarget = proteinTarget;
+      _carbsTarget = carbsTarget;
+      _fatTarget = fatTarget;
       _hardDay = hardDay;
       _hidden = hidden;
       _meals = meals;
@@ -2225,6 +2235,18 @@ class _TodayScreenState extends State<TodayScreen> {
                           .labelLarge
                           ?.copyWith(fontWeight: FontWeight.w600)),
                 ),
+                IconButton(
+                  tooltip: tr('الأنظمة الغذائية', 'Diet plans'),
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.restaurant_menu, size: 18),
+                  onPressed: () async {
+                    await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const DietPlansScreen()));
+                    if (mounted) await _load();
+                  },
+                ),
                 TextButton(
                     onPressed: _editCalorieGoal,
                     child: Text(_calorieGoal > 0
@@ -2254,13 +2276,16 @@ class _TodayScreenState extends State<TodayScreen> {
                       fontSize: 12,
                       color: remaining >= 0 ? Colors.green : scheme.error)),
             ],
-            if (_hasMacros) ...[
+            if (_hasMacros || _proteinTarget > 0) ...[
               const Divider(height: 18),
               Row(
                 children: [
-                  _macroTotal(tr('بروتين', 'Protein'), _eatenProtein, Colors.red),
-                  _macroTotal(tr('كارب', 'Carbs'), _eatenCarbs, Colors.orange),
-                  _macroTotal(tr('دهون', 'Fat'), _eatenFat, Colors.blue),
+                  _macroTotal(tr('بروتين', 'Protein'), _eatenProtein,
+                      _proteinTarget, Colors.red),
+                  _macroTotal(tr('كارب', 'Carbs'), _eatenCarbs, _carbsTarget,
+                      Colors.orange),
+                  _macroTotal(
+                      tr('دهون', 'Fat'), _eatenFat, _fatTarget, Colors.blue),
                 ],
               ),
             ],
@@ -2270,10 +2295,14 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
-  Widget _macroTotal(String label, int grams, Color color) => Expanded(
+  Widget _macroTotal(String label, int grams, int target, Color color) =>
+      Expanded(
         child: Column(
           children: [
-            Text('${arNum(grams)}${tr('جم', 'g')}',
+            Text(
+                target > 0
+                    ? '${arNum(grams)}/${arNum(target)}${tr('جم', 'g')}'
+                    : '${arNum(grams)}${tr('جم', 'g')}',
                 style: TextStyle(fontWeight: FontWeight.w700, color: color)),
             Text(label,
                 style: TextStyle(

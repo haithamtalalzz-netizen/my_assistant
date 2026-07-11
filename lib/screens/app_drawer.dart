@@ -17,6 +17,7 @@ import 'calendar_screen.dart';
 import 'capsule_screen.dart';
 import 'challenges_screen.dart';
 import 'diary_screen.dart';
+import 'food/diet_plans_screen.dart';
 import 'recipes_screen.dart';
 import 'brain/charts_screen.dart';
 import 'brain/chat_screen.dart';
@@ -185,6 +186,9 @@ class AppDrawer extends StatelessWidget {
                   GroupHubItem(Icons.dashboard_outlined,
                       tr('لوحة الصحة', 'Health hub'),
                       screen: const HealthHubScreen()),
+                  GroupHubItem(Icons.restaurant_menu,
+                      tr('الأنظمة الغذائية', 'Diet plans'),
+                      screen: const DietPlansScreen()),
                   GroupHubItem(Icons.task_alt, tr('العادات', 'Habits'),
                       tabIndex: 3),
                   GroupHubItem(Icons.fitness_center, tr('الجيم', 'Gym'),
