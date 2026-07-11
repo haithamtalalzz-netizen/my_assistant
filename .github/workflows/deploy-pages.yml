@@ -42,10 +42,12 @@ jobs:
 
       # الـbase-href لازم يساوي /<repo-name>/ عشان Pages بيخدم من مسار فرعي.
       # --pwa-strategy=none: من غير service worker → المتصفح يجيب أحدث نشر على طول.
+      # --no-web-resources-cdn: يحمّل CanvasKit (محرّك الرسم) من نفس الموقع بدل
+      # gstatic CDN — عشان الشاشة ما تفضلش بيضا لو الـCDN بطيء/محجوب على شبكة المستخدم.
       - name: Build web (release)
         run: |
           REPO_NAME="${GITHUB_REPOSITORY#*/}"
-          flutter build web --release --pwa-strategy=none --base-href "/$REPO_NAME/"
+          flutter build web --release --pwa-strategy=none --no-web-resources-cdn --base-href "/$REPO_NAME/"
 
       - uses: actions/configure-pages@v5
 
