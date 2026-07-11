@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as dev;
 
 import 'package:flutter/material.dart';
@@ -17,6 +18,7 @@ import '../core/prayers.dart';
 import '../core/seed_demo.dart';
 import '../core/theme.dart';
 import '../data/settings_repo.dart';
+import '../widgets/city_search_sheet.dart';
 import '../widgets/common.dart';
 import 'quick_actions_settings_screen.dart';
 
@@ -53,6 +55,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   TimeOfDay _eveningTime = const TimeOfDay(hour: 21, minute: 30);
   String _blood = '';
   String _governorate = 'القاهرة';
+  String? _customLoc; // مدينة عالمية مخصّصة (null = محافظة)
   String _notifMode = 'both';
   bool _loading = true;
   bool _busy = false;
@@ -63,6 +66,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _load();
   }
 
+  Future<void> _pickWorldCity() async {
+    final place = await pickCity(context);
+    if (place == null || !mounted) return;
+    await _settings.setCustomLocation(place.lat, place.lng, place.label);
+    setState(() => _customLoc = place.label);
+    unawaited(PrayerScheduler.ensureScheduled());
+  }
+
   Future<void> _load() async {
     final name = await _settings.userName();
     final goal = await _settings.waterGoal();
@@ -71,6 +82,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prayerNotifs = await _settings.prayerNotificationsEnabled();
     final healthSync = await _settings.healthSyncEnabled();
     final governorate = await _settings.governorateName();
+    final customLoc = await _settings.customLocation();
     final ramadan = await _settings.ramadanMode();
     final hardDay = await _settings.hardDayMode();
     final travel = await _settings.travelMode();
@@ -94,6 +106,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _prayerNotifs = prayerNotifs;
       _healthSync = healthSync;
       _governorate = governorate;
+      _customLoc = customLoc?.label;
       _ramadan = ramadan;
       _hardDay = hardDay;
       _travel = travel;
@@ -424,21 +437,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       labelText: tr('ميزانية الشهر (ج.م) — سيبها فاضية لو مش عايز',
                           'Monthly budget (EGP) — leave empty to skip')),
                 ),
-                SectionHeader(tr('الصلاة', 'Prayer')),
-                DropdownButtonFormField<String>(
-                  initialValue: kGovernorates
-                          .any((g) => g.name == _governorate)
-                      ? _governorate
-                      : kGovernorates.first.name,
-                  decoration:
-                      InputDecoration(labelText: tr('المحافظة', 'Governorate')),
-                  items: [
-                    for (final g in kGovernorates)
-                      DropdownMenuItem(value: g.name, child: Text(g.name)),
-                  ],
-                  onChanged: (v) =>
-                      setState(() => _governorate = v ?? _governorate),
-                ),
+                SectionHeader(tr('الموقع والصلاة', 'Location & prayer')),
+                if (_customLoc == null) ...[
+                  DropdownButtonFormField<String>(
+                    initialValue: kGovernorates
+                            .any((g) => g.name == _governorate)
+                        ? _governorate
+                        : kGovernorates.first.name,
+                    decoration: InputDecoration(
+                        labelText: tr('المحافظة', 'Governorate')),
+                    items: [
+                      for (final g in kGovernorates)
+                        DropdownMenuItem(value: g.name, child: Text(g.name)),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => _governorate = v ?? _governorate),
+                  ),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TextButton.icon(
+                      onPressed: _pickWorldCity,
+                      icon: const Icon(Icons.public, size: 18),
+                      label: Text(tr('مدينة تانية في العالم؟ دوّر عليها',
+                          'Another city worldwide? Search it')),
+                    ),
+                  ),
+                ] else
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.public,
+                        color: Theme.of(context).colorScheme.primary),
+                    title: Text(_customLoc!),
+                    subtitle: Text(tr('مدينتك الحالية', 'Your current city')),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.close),
+                      tooltip: tr('رجوع للمحافظات', 'Back to governorates'),
+                      onPressed: () async {
+                        await _settings.clearCustomLocation();
+                        if (mounted) setState(() => _customLoc = null);
+                        unawaited(PrayerScheduler.ensureScheduled());
+                      },
+                    ),
+                    onTap: _pickWorldCity,
+                  ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(tr('إشعارات الأذان', 'Adhan notifications')),

@@ -62,6 +62,16 @@ const List<Governorate> kGovernorates = [
 Governorate governorateByName(String name) => kGovernorates
     .firstWhere((g) => g.name == name, orElse: () => kGovernorates.first);
 
+/// الموقع المستخدم في الحسابات: مدينة عالمية مخصّصة (لو المستخدم اختارها من
+/// البحث الجغرافي) وإلا محافظة مصر. بيوحّد المصدر للصلاة والطقس.
+Future<Governorate> resolvePlace(SettingsRepo settings) async {
+  final loc = await settings.customLocation();
+  if (loc != null) {
+    return Governorate(loc.label.isEmpty ? 'موقعك' : loc.label, loc.lat, loc.lng);
+  }
+  return governorateByName(await settings.governorateName());
+}
+
 class PrayerDay {
   final DateTime fajr;
   final DateTime dhuhr;
@@ -119,7 +129,7 @@ class PrayerScheduler {
     }
     final settings = SettingsRepo();
     if (!await settings.prayerNotificationsEnabled()) return;
-    final gov = governorateByName(await settings.governorateName());
+    final gov = await resolvePlace(settings);
     final today = dateOnly(DateTime.now());
     for (var d = 0; d < daysAhead; d++) {
       final day = today.add(Duration(days: d));

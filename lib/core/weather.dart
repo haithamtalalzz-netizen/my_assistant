@@ -74,7 +74,7 @@ class WeatherService {
   static Future<WeatherToday?> _fetch(
       SettingsRepo settings, String todayKey) async {
     try {
-      final gov = governorateByName(await settings.governorateName());
+      final gov = await resolvePlace(settings);
       final uri = Uri.parse('https://api.open-meteo.com/v1/forecast'
           '?latitude=${gov.lat}&longitude=${gov.lng}'
           '&daily=temperature_2m_max,temperature_2m_min,weather_code'

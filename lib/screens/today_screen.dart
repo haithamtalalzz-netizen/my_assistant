@@ -179,7 +179,7 @@ class _TodayScreenState extends State<TodayScreen> {
     final spend = await _money.totalForDay(day);
     final expiring = await _docs.expiringSoon();
     final prayers =
-        prayerTimesFor(now, governorateByName(await _settings.governorateName()));
+        prayerTimesFor(now, await resolvePlace(_settings));
     // بانر التخطيط الأسبوعي يظهر من الجمعة للأحد لو أسبوع ده لسه مااتخططش.
     final weekendDay = now.weekday == DateTime.friday ||
         now.weekday == DateTime.saturday ||

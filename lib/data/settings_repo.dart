@@ -43,6 +43,36 @@ class SettingsRepo {
   Future<String> governorateName() async =>
       await get('governorate') ?? 'القاهرة';
 
+  /// موقع مخصّص (أي مدينة في العالم) — إحداثيات محفوظة من البحث الجغرافي.
+  /// null = مفيش موقع مخصّص، استخدم المحافظة.
+  Future<({double lat, double lng, String label})?> customLocation() async {
+    final lat = double.tryParse(await get('loc_lat') ?? '');
+    final lng = double.tryParse(await get('loc_lng') ?? '');
+    if (lat == null || lng == null) return null;
+    return (lat: lat, lng: lng, label: await get('loc_label') ?? '');
+  }
+
+  Future<void> setCustomLocation(double lat, double lng, String label) async {
+    await set('loc_lat', '$lat');
+    await set('loc_lng', '$lng');
+    await set('loc_label', label);
+  }
+
+  /// الرجوع لمحافظة مصرية (يمسح الموقع العالمي المخصّص).
+  Future<void> clearCustomLocation() async {
+    final db = await AppDb.instance;
+    await db.delete('settings',
+        where: 'key IN (?, ?, ?)',
+        whereArgs: ['loc_lat', 'loc_lng', 'loc_label']);
+  }
+
+  /// اسم الموقع المعروض: المدينة العالمية لو متحددة، وإلا المحافظة.
+  Future<String> locationLabel() async {
+    final loc = await customLocation();
+    if (loc != null && loc.label.isNotEmpty) return loc.label;
+    return governorateName();
+  }
+
   Future<bool> healthSyncEnabled() async => await get('health_sync') == '1';
 
   Future<bool> ramadanMode() async => await get('ramadan_mode') == '1';

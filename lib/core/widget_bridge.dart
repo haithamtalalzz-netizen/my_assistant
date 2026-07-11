@@ -22,7 +22,7 @@ class WidgetBridge {
       final day = dayKey(now);
       final settings = SettingsRepo();
 
-      final gov = governorateByName(await settings.governorateName());
+      final gov = await resolvePlace(settings);
       final prayers = prayerTimesFor(now, gov);
       final next = prayers.nextIndex(now);
       final prayerLine = next == null
