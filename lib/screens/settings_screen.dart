@@ -18,6 +18,7 @@ import '../core/seed_demo.dart';
 import '../core/theme.dart';
 import '../data/settings_repo.dart';
 import '../widgets/common.dart';
+import 'quick_actions_settings_screen.dart';
 
 const List<String> kBloodTypes = [
   '', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'
@@ -300,6 +301,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _openQuickActionsSettings() async {
+    final saved = await SettingsRepo().get('quick_actions');
+    final order = (saved == null || saved.trim().isEmpty)
+        ? kDefaultQuickActions
+        : saved.split(',').where((e) => e.isNotEmpty).toList();
+    if (!mounted) return;
+    final result = await Navigator.push<List<String>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuickActionsSettingsScreen(
+          all: [
+            for (final e in quickActionCatalog())
+              (key: e.key, icon: e.icon, label: e.label)
+          ],
+          enabledOrder: order,
+        ),
+      ),
+    );
+    if (result != null) {
+      await SettingsRepo().set('quick_actions', result.join(','));
+    }
+  }
+
   Widget _accentControl(BuildContext context) {
     return ValueListenableBuilder<String>(
       valueListenable: AppState.accentKey,
@@ -358,6 +382,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _themeControl(context),
                 const SizedBox(height: 12),
                 _accentControl(context),
+                const SizedBox(height: 4),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.tune),
+                  title: Text(tr('خصّص الأزرار السريعة', 'Customize quick actions')),
+                  subtitle: Text(tr('اختار اللي يظهر في الرئيسية وترتيبه',
+                      'Pick what shows on Today & its order')),
+                  trailing: const Icon(Icons.chevron_left),
+                  onTap: _openQuickActionsSettings,
+                ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _name,

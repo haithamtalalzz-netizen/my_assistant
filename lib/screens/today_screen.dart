@@ -1,12 +1,15 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hijri/hijri_calendar.dart';
 
 import '../core/app_state.dart';
 import '../core/ar.dart';
 import '../core/health_service.dart';
 import '../core/l10n.dart';
+import '../core/notifications.dart';
 import '../core/prayers.dart';
 import '../core/water_guard.dart';
 import '../core/weather.dart';
@@ -73,12 +76,10 @@ class _TodayScreenState extends State<TodayScreen> {
   String _name = '';
 
   /// ترتيب/تفعيل أزرار الإضافة السريعة (قابل للتخصيص).
-  static const List<String> _defaultQuickOrder = [
-    'water', 'dose', 'workout', 'sleep', 'steps', 'habit', 'meal', 'expense',
-    'income', 'transfer', 'bill_paid', 'debt', 'measure', 'reminder', 'shopping',
-    'doc', 'voice', 'manager', 'appointment', 'calendar', 'pharmacy',
-  ];
-  List<String> _quickOrder = _defaultQuickOrder;
+  List<String> _quickOrder = kDefaultQuickActions;
+
+  /// مزامنة الخطوات التلقائية شغّالة؟ (عشان نخفي زرار الخطوات اليدوي).
+  bool _stepsAuto = false;
 
   int _waterGoal = 8;
   int _water = 0;
@@ -125,8 +126,9 @@ class _TodayScreenState extends State<TodayScreen> {
     final name = await _settings.userName();
     final savedQuick = await _settings.get('quick_actions');
     final quickOrder = (savedQuick == null || savedQuick.trim().isEmpty)
-        ? _defaultQuickOrder
+        ? kDefaultQuickActions
         : savedQuick.split(',').where((e) => e.isNotEmpty).toList();
+    final stepsAuto = await _settings.healthSyncEnabled();
     final goal = await _settings.waterGoal();
     final water = await _health.waterOn(day);
     var sleep = await _health.sleepOn(day);
@@ -201,6 +203,7 @@ class _TodayScreenState extends State<TodayScreen> {
     setState(() {
       _name = name;
       _quickOrder = quickOrder;
+      _stepsAuto = stepsAuto;
       _waterGoal = goal;
       _water = water;
       _sleep = sleep;
@@ -316,6 +319,7 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Future<void> _changeWater(int delta) async {
+    HapticFeedback.selectionClick();
     final next = await _health.addWater(_today, delta);
     if (mounted) setState(() => _water = next);
     unawaited(WidgetBridge.push());
@@ -338,6 +342,7 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Future<void> _toggleMed(int medId, String slot, bool taken) async {
+    HapticFeedback.selectionClick();
     await _meds.setTaken(medId, _today, slot, taken);
     if (!mounted) return;
     setState(() {
@@ -347,6 +352,7 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Future<void> _toggleHabit(Habit h) async {
+    HapticFeedback.selectionClick();
     final done = await _habits.toggle(h.id!, _today);
     final streak = computeStreak(await _habits.daysFor(h.id!), DateTime.now());
     if (!mounted) return;
@@ -766,48 +772,84 @@ class _TodayScreenState extends State<TodayScreen> {
 
   Future<void> _quickInbox() async {
     final ctrl = TextEditingController();
+    final now = DateTime.now();
+    final times = <({String label, DateTime? at})>[
+      (label: tr('بدون', 'None'), at: null),
+      (label: tr('بعد ساعة', 'in 1h'), at: now.add(const Duration(hours: 1))),
+      (label: tr('بعد ساعتين', 'in 2h'), at: now.add(const Duration(hours: 2))),
+      (label: tr('بكرة ٩ص', 'Tmrw 9am'), at: DateTime(now.year, now.month, now.day + 1, 9)),
+      (label: tr('الليلة ٩م', 'Tonight 9pm'), at: DateTime(now.year, now.month, now.day, 21)),
+    ];
+    var sel = 0;
     final ok = await showModalBottomSheet<bool>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (ctx) {
-        final scheme = Theme.of(ctx).colorScheme;
-        return Padding(
-          padding: EdgeInsets.only(
-              left: 20, right: 20, top: 4, bottom: _sheetBottom(ctx)),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Icon(Icons.push_pin_outlined, color: scheme.primary),
-                const SizedBox(width: 8),
-                Text(tr('تذكير سريع', 'Quick reminder'),
-                    style: Theme.of(ctx).textTheme.titleMedium),
-              ]),
-              const SizedBox(height: 12),
-              TextField(
-                controller: ctrl,
-                autofocus: true,
-                decoration: InputDecoration(
-                    hintText: tr('اكتب اللي عايز تفتكره...', 'What to remember...')),
-                onSubmitted: (_) => Navigator.pop(ctx, true),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: Text(tr('حفظ', 'Save'))),
-              ),
-            ],
-          ),
-        );
-      },
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final scheme = Theme.of(ctx).colorScheme;
+          return Padding(
+            padding: EdgeInsets.only(
+                left: 20, right: 20, top: 4, bottom: _sheetBottom(ctx)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.push_pin_outlined, color: scheme.primary),
+                  const SizedBox(width: 8),
+                  Text(tr('تذكير سريع', 'Quick reminder'),
+                      style: Theme.of(ctx).textTheme.titleMedium),
+                ]),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: ctrl,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                      hintText: tr('اكتب اللي عايز تفتكره...', 'What to remember...')),
+                ),
+                const SizedBox(height: 12),
+                Text(tr('نبّهني:', 'Remind me:'), style: TextStyle(color: scheme.outline)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (var i = 0; i < times.length; i++)
+                      ChoiceChip(
+                          label: Text(times[i].label),
+                          selected: sel == i,
+                          onSelected: (_) => setSheet(() => sel = i)),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: Text(tr('حفظ', 'Save'))),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
     if (ok == true && ctrl.text.trim().isNotEmpty) {
-      await InboxRepo().add(ctrl.text.trim());
-      _snack(tr('اتحطّت في الوارد 📝', 'Saved to inbox 📝'));
+      final text = ctrl.text.trim();
+      final id = await InboxRepo().add(text);
+      final when = times[sel].at;
+      if (when != null && when.isAfter(DateTime.now()) && !kIsWeb) {
+        await Notifications.scheduleOnce(
+          id: 1100000 + (id % 100000),
+          title: tr('تذكير', 'Reminder'),
+          body: text,
+          when: when,
+        );
+        _snack(tr('هفكّرك ${arTime(when)} 📌', "I'll remind you at ${arTime(when)} 📌"));
+      } else {
+        _snack(tr('اتحطّت في الوارد 📝', 'Saved to inbox 📝'));
+      }
       if (mounted) await _load();
     }
   }
@@ -983,6 +1025,7 @@ class _TodayScreenState extends State<TodayScreen> {
                 else
                   FilledButton.icon(
                     onPressed: () async {
+                      HapticFeedback.lightImpact();
                       await repo.setDone(dayKey(now), true, title: title);
                       if (mounted) await _load();
                       if (ctx.mounted) Navigator.pop(ctx);
@@ -1199,6 +1242,7 @@ class _TodayScreenState extends State<TodayScreen> {
                             value: done.contains(h.id),
                             title: Text(h.name),
                             onChanged: (_) async {
+                              HapticFeedback.selectionClick();
                               await repo.toggle(h.id!, day);
                               done = await repo.doneOn(day);
                               if (mounted) await _load();
@@ -1264,15 +1308,13 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Future<void> _walletTransfer() async {
-    final wallets = await WalletsRepo().all();
-    if (wallets.length < 2) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(tr('محتاج محفظتين على الأقل', 'Need at least 2 wallets'))));
+    final list = await WalletsRepo().allWithBalances();
+    if (list.length < 2) {
+      _snack(tr('محتاج محفظتين على الأقل', 'Need at least 2 wallets'));
       return;
     }
-    var fromId = wallets.first.id!;
-    var toId = wallets[1].id!;
+    var fromId = list.first.wallet.id!;
+    var toId = list[1].wallet.id!;
     final amt = TextEditingController();
     if (!mounted) return;
     final ok = await showModalBottomSheet<bool>(
@@ -1298,15 +1340,35 @@ class _TodayScreenState extends State<TodayScreen> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<int>(
                   initialValue: fromId,
+                  isExpanded: true,
                   decoration: InputDecoration(labelText: tr('من', 'From')),
-                  items: [for (final w in wallets) DropdownMenuItem(value: w.id, child: Text(w.name))],
-                  onChanged: (v) => setSheet(() => fromId = v!),
+                  items: [
+                    for (final e in list)
+                      DropdownMenuItem(
+                          value: e.wallet.id,
+                          child: Text('${e.wallet.name} — ${egp(e.balance)}',
+                              overflow: TextOverflow.ellipsis))
+                  ],
+                  onChanged: (v) => setSheet(() {
+                    fromId = v!;
+                    if (toId == fromId) {
+                      toId = list.firstWhere((e) => e.wallet.id != fromId).wallet.id!;
+                    }
+                  }),
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<int>(
                   initialValue: toId,
+                  isExpanded: true,
                   decoration: InputDecoration(labelText: tr('إلى', 'To')),
-                  items: [for (final w in wallets) DropdownMenuItem(value: w.id, child: Text(w.name))],
+                  items: [
+                    for (final e in list)
+                      DropdownMenuItem(
+                          value: e.wallet.id,
+                          enabled: e.wallet.id != fromId,
+                          child: Text('${e.wallet.name} — ${egp(e.balance)}',
+                              overflow: TextOverflow.ellipsis))
+                  ],
                   onChanged: (v) => setSheet(() => toId = v!),
                 ),
                 const SizedBox(height: 8),
@@ -1319,7 +1381,8 @@ class _TodayScreenState extends State<TodayScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                      onPressed: () => Navigator.pop(ctx, true),
+                      onPressed:
+                          fromId == toId ? null : () => Navigator.pop(ctx, true),
                       child: Text(tr('تحويل', 'Transfer'))),
                 ),
               ],
@@ -1595,68 +1658,44 @@ class _TodayScreenState extends State<TodayScreen> {
 
   /// كل الإجراءات السريعة المتاحة (المستخدم بيختار اللي يظهر وترتيبه).
   List<_QuickAct> _allActions(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final handlers = <String, VoidCallback>{
+      'water': _openWaterSheet,
+      'dose': _openDoseSheet,
+      'workout': _openWorkoutSheet,
+      'sleep': _openSleepSheet,
+      'steps': _openStepsSheet,
+      'habit': _quickHabit,
+      'meal': () => _reloadAfter(() => showMealSheet(context)),
+      'expense': () => _reloadAfter(() => showQuickExpenseSheet(context)),
+      'income': () => _reloadAfter(() => showIncomeSheet(context)),
+      'transfer': _walletTransfer,
+      'bill_paid': _openBillsSheet,
+      'debt': _quickDebt,
+      'measure': _quickMeasurement,
+      'reminder': _quickInbox,
+      'shopping': _addShoppingItem,
+      'doc': () => _reloadAfter(() => Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const DocForm()))),
+      'voice': () => _reloadAfter(_openVoice),
+      'manager': () => _reloadAfter(() => Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const ChatScreen()))),
+      'appointment': () => _reloadAfter(() => Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const AppointmentForm()))),
+      'calendar': () => _reloadAfter(() => Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const CalendarScreen()))),
+      'pharmacy': () => _reloadAfter(() => Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const PharmacyScreen()))),
+    };
     return [
-      _QuickAct('water', Icons.water_drop_outlined, tr('مياه', 'Water'),
-          Colors.lightBlue, _openWaterSheet),
-      _QuickAct('dose', Icons.medication_outlined, tr('جرعة دوا', 'Dose'),
-          Colors.pink, _openDoseSheet),
-      _QuickAct('workout', Icons.fitness_center, tr('تمرين', 'Workout'),
-          Colors.green, _openWorkoutSheet),
-      _QuickAct('sleep', Icons.bedtime_outlined, tr('نوم', 'Sleep'),
-          Colors.indigo, _openSleepSheet),
-      _QuickAct('steps', Icons.directions_walk, tr('خطوات', 'Steps'),
-          Colors.brown, _openStepsSheet),
-      _QuickAct('habit', Icons.task_alt, tr('عادة', 'Habit'),
-          Colors.lightGreen, _quickHabit),
-      _QuickAct('meal', Icons.restaurant_outlined, tr('وجبة', 'Meal'),
-          Colors.orange, () => _reloadAfter(() => showMealSheet(context))),
-      _QuickAct('expense', Icons.account_balance_wallet_outlined,
-          tr('مصروف', 'Expense'), Colors.redAccent,
-          () => _reloadAfter(() => showQuickExpenseSheet(context))),
-      _QuickAct('income', Icons.south_west, tr('دخل', 'Income'), Colors.teal,
-          () => _reloadAfter(() => showIncomeSheet(context))),
-      _QuickAct('transfer', Icons.swap_horiz, tr('تحويل', 'Transfer'),
-          Colors.blueGrey, _walletTransfer),
-      _QuickAct('bill_paid', Icons.receipt_long_outlined, tr('فاتورة اتدفعت', 'Bill paid'),
-          Colors.deepOrange, _openBillsSheet),
-      _QuickAct('debt', Icons.handshake_outlined, tr('دَين', 'Debt'),
-          Colors.amber.shade900, _quickDebt),
-      _QuickAct('measure', Icons.monitor_heart_outlined, tr('قياس', 'Measure'),
-          Colors.red, _quickMeasurement),
-      _QuickAct('reminder', Icons.push_pin_outlined, tr('تذكير', 'Reminder'),
-          Colors.amber.shade800, _quickInbox),
-      _QuickAct('shopping', Icons.add_shopping_cart_outlined, tr('مشتريات', 'Shopping'),
-          Colors.lime.shade800, _addShoppingItem),
-      _QuickAct('doc', Icons.photo_camera_outlined, tr('صورة مستند', 'Doc photo'),
-          Colors.blueGrey.shade700,
-          () => _reloadAfter(() => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const DocForm())))),
-      _QuickAct('voice', Icons.mic_none, tr('بصوتك', 'Voice'), scheme.primary,
-          () => _reloadAfter(_openVoice)),
-      _QuickAct('manager', Icons.psychology_outlined, tr('اسأل مديرك', 'Manager'),
-          Colors.deepPurple,
-          () => _reloadAfter(() => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const ChatScreen())))),
-      _QuickAct('appointment', Icons.event_available_outlined, tr('موعد', 'Appointment'),
-          Colors.blue,
-          () => _reloadAfter(() => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const AppointmentForm())))),
-      _QuickAct('calendar', Icons.calendar_month_outlined, tr('التقويم', 'Calendar'),
-          Colors.cyan,
-          () => _reloadAfter(() => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const CalendarScreen())))),
-      _QuickAct('pharmacy', Icons.local_pharmacy_outlined, tr('الصيدلية', 'Pharmacy'),
-          Colors.purple,
-          () => _reloadAfter(() => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const PharmacyScreen())))),
+      for (final e in quickActionCatalog())
+        _QuickAct(e.key, e.icon, e.label, e.color, handlers[e.key] ?? () {}),
     ];
   }
 
   Future<void> _openQuickCustomize() async {
     final metas = [
-      for (final a in _allActions(context))
-        (key: a.key, icon: a.icon, label: a.label)
+      for (final e in quickActionCatalog())
+        (key: e.key, icon: e.icon, label: e.label)
     ];
     final result = await Navigator.push<List<String>>(
       context,
@@ -1714,7 +1753,8 @@ class _TodayScreenState extends State<TodayScreen> {
           final all = {for (final a in _allActions(context)) a.key: a};
           final shown = [
             for (final k in _quickOrder)
-              if (all.containsKey(k)) all[k]!
+              // نخفي الخطوات اليدوي لما المزامنة التلقائية شغّالة (مش هيتمسح).
+              if (all.containsKey(k) && !(k == 'steps' && _stepsAuto)) all[k]!
           ];
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
