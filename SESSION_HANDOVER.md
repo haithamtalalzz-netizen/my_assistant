@@ -1,5 +1,52 @@
 # SESSION_HANDOVER — My Assistant
 
+## 2026-07-12 — دفعة الصحة واللياقة والتغذية + إصلاح الويب + منظومة الموقع (دولة/مدينة/GPS)
+
+**الحالة:** `flutter analyze` نظيف · **161/161 اختبار** · **DB v29** · إضافة جديدة `geolocator ^13`.
+كله مبنِي ومتثبّت على `RFCW70PZYSZ` ومدفوع + نسخة الويب اتنشرت على GitHub Pages.
+الرابط: **https://haithamtalalzz-netizen.github.io/my_assistant/**
+
+### أ) اللي اتعمل (قرارات منفّذة) — بالترتيب + الـcommits
+
+1. **إصلاحان UI سريعان** (`91455a5`): سهم مجموعات السايدبار `chevron_left→chevron_right`؛ **شيل كارت المياه ونوم امبارح** من نص الرئيسية (صف `vitals` بقى الخطوات بس؛ `_waterCard`/`_sleepCard` متسابين بـ`// ignore: unused_element`؛ المياه لسه بتتسجّل من زر الإضافة السريعة). مفتاح `vitals` في `home_sections` اتسمّى «الخطوات».
+
+2. **ميزة أ — قاعدة أكل بالسعرات والماكروز** (`c7600d2`): `core/food_db.dart` (+100 صنف مصري/عربي بـ kcal/بروتين/كارب/دهون لكل 100جم/مل، مجمّعة؛ `searchFoods` تطبيع عربي + `searchOpenFoodFacts` أونلاين مجاني بدون مفتاح؛ `FoodItem.forQty` + `Nutrients`). **DB v28**: أعمدة `protein/carbs/fat/grams` على `meals` (+ helper `_safeAddColumn` بـPRAGMA). `food_picker_sheet.dart` (بحث أوفلاين+أونلاين → اختيار الكمية بمعاينة ماكروز لحظية) موصّل في `meal_sheet.dart`. كارت التغذية في الرئيسية بيوري إجمالي الماكروز اليومي.
+
+3. **ميزة ب — مكتبة تمارين** (`6dca2c0`): `core/exercise_library.dart` (+45 تمرين × 8 عضلات × معدّات وزن-الجسم/دمبل/بار/جهاز/أستك، طريقة أداء ثنائية اللغة + تكرارات؛ `filterExercises`). `gym/exercise_library_screen.dart` (فلتر عضلة+معدّات → شيت طريقة الأداء). موصّل في شريط الجيم + هَب الصحة. `kWorkoutPrograms` القديمة زي ما هي.
+
+4. **ميزة ج — أنظمة غذائية للاختيار** (`94e12d0`): `core/diet_plans.dart` (6 أنظمة: متوازن/تنشيف/تضخيم/عالي-بروتين/قليل-كارب/صيام-متقطع؛ TDEE≈الوزن×30 + دلتا مقصوصة 1200-4000؛ توزيع الماكروز→جرامات). `food/diet_plans_screen.dart` (اختيار → سعرات مستهدفة من آخر وزن + جرامات ماكروز + يوم نموذجي → تفعيل يظبط `calorie_goal` + أهداف الماكروز). `SettingsRepo`: `activeDietPlan/setCalorieGoal/macro targets`. كارت التغذية في الرئيسية يوري «مأكول/الهدف» لما نظام مفعّل + زر اختصار.
+
+5. **ميزة د — تتبّع مشي/جري بالـGPS + الربط بالموبايل** (`d03b89e`): Health Connect بيزامن الخطوات/السعرات/المسافة/النوم أصلًا من زر «مزامنة الساعة الذكية». الجديد: `geolocator ^13` + إذنَي `ACCESS_FINE/COARSE_LOCATION`؛ `core/location_tracker.dart` (`WalkTracker` بيجمّع المسافة من تدفّق المواقع + فلترة قفزات >60م + pause/resume؛ `estimateCalories`/`estimateSteps`؛ `kIsWeb`-guard). **DB v29** `activity_sessions` + `ActivitySession` + `activity_repo.dart`. `gym/walk_tracker_screen.dart` (مشي/جري + مسافة/وقت/سرعة/سعرات/خطوات لحظية + بدء/إيقاف-مؤقت/إنهاء + السجل؛ عند الإنهاء يحفظ الجلسة + لو مفيش ساعة يضيف مسافة/سعرات اليوم لـ`fitness_logs` من غير ما يمسح بيانات Health).
+
+6. **إصلاح كراش الويب** (`658b130`): مستخدم على Pages شاف `MissingPluginException … receive_sharing_intent/events-media`. الإضافات النيتيف مالهاش تنفيذ ويب → `shell.dart` `_initSharing()` + `_initQuickActions()` بقوا `return` على `kIsWeb`. **قاعدة: أي إضافة نيتيف تتنادى من widget (مش بس البداية) لازم `kIsWeb`-guard.**
+
+7. **منظومة الموقع دولة/مدينة/GPS** (`450128a` ثم `add26fe`): استبدلنا dropdown-المحافظات-المصرية بمنتقي عالمي في شاشة البداية والإعدادات. `core/countries.dart` (ISO-3166 كامل، +160 دولة ar/en، مصر ضمنها، `countryByCode`). `geocoding.dart`: `searchCities(countryCode:)` فلتر + `reverseGeocode(lat,lng)` (BigDataCloud مجاني). `location_tracker.currentPosition()` GPS لقطة واحدة. `city_search_sheet.dart`: `pickCountry()` (قائمة دول بأعلام + بحث) + `pickCity(countryCode:)`. `widgets/location_fields.dart` = بند «الدولة» ← بند «المدينة» (المدن حسب الدولة) + زر «حدد موقعي تلقائيًا (GPS)». أي اختيار → `setCustomLocation(lat,lng,label)`؛ الإعدادات بتحفظ فورًا + `PrayerScheduler.ensureScheduled()` (يلغي ويعيد الجدولة من الإحداثيات الجديدة) + `WidgetBridge.push()`. `resolvePlace()` بيقود الصلاة/الطقس/الودجت.
+
+### ب) قرارات ثابتة (Locked-in)
+- **الأكل**: قاعدة مدمجة أوفلاين (سريعة + عربي) + Open Food Facts أونلاين للطويل الذيل. مش هننزّل قاعدة أكل ضخمة كاملة على الجهاز.
+- **الموقع**: الوحدة على `customLocation` (lat/lng/label). المحافظات القديمة فضلت fallback في `resolvePlace` للمستخدمين اللي مااختاروش. الـGPS **موبايل بس** (الويب = اختيار يدوي دولة/مدينة).
+- **الويب**: للعرض/التجربة — مفيش إشعارات/مشاركة/GPS/مزامنة ساعة. أي نيتيف = `kIsWeb`-guard.
+- **الـAPI مجانية بدون مفتاح**: Open-Meteo (طقس+جغرافيا) · Open Food Facts (أكل) · BigDataCloud (عكس إحداثيات).
+
+### ج) الجاري / محتاج تأكيد على الجهاز (Ongoing)
+- **اختبار ميداني على الجهاز**: تتبّع الـGPS (مسافة/سعرات فعليّة في مشوار حقيقي)؛ إذن الموقع؛ مزامنة Health Connect (خطوات/سعرات)؛ بحث الأكل الأونلاين على شبكة الموبايل؛ تفعيل نظام غذائي وظهور «مأكول/الهدف».
+- **تأكيد المستخدم إن كراش الويب اتحل** (يفتح الرابط Private/`?v=2`).
+
+### د) المستقبلي للاستكمال (Future / Next candidates)
+- **تغذية**: توسيع قاعدة الأكل (أصناف أكتر)؛ باركود سكانر للمنتجات (camera → Open Food Facts)؛ شريط تقدّم بصري للماكروز مقابل الهدف؛ «وجباتي المتكررة»/مفضلات؛ ماء ضمن أهداف النظام.
+- **تمارين**: صور/GIF توضيحية للتمرين (محتاج أصول)؛ ربط تمارين المكتبة بجلسة الجيم (اختيار من المكتبة بدل كتابة يدوي)؛ مؤقّت راحة بين المجموعات.
+- **أنظمة**: توليد خطة أسبوعية فعلية من النظام الغذائي (وجبات مقترحة يومية)؛ ربط النظام الرياضي المختار بجدول التمرين تلقائيًا.
+- **GPS/موقع**: خريطة مسار المشي (OSM بدون Google Maps — راجع قرار طارة)؛ wakelock أثناء التتبع (الشاشة بتنام حاليًا)؛ سماح GPS على الويب (geolocator_web) لو اتقرر.
+- **iOS**: مؤجّل (محتاج Mac/Codemagic + Apple Developer $99). نفس كود Dart بيشتغل.
+- **عام**: تقرير طبّي/تغذية PDF؛ Google Calendar (محتاج OAuth من المستخدم)؛ Gemini chat (محتاج مفتاح المستخدم المجاني).
+
+### هـ) ملاحظات فنية مهمة (Gotchas)
+- ملفات `core/` الجديدة اللي بتستخدم `tr`/`AppState.isEnglish` لازم `import 'core/app_state.dart'` (مش بس `l10n.dart`).
+- `upsertFitness` بيستبدل قيم اليوم (مش بيجمّع) → نشاط الـGPS في جدوله الخاص `activity_sessions` عشان مايمسحش بيانات Health.
+- تحقّق الويب: `flutter build web --release --pwa-strategy=none --no-web-resources-cdn` قبل الدفع (الـAction بينشر Pages تلقائيًا). المتصفح الداخلي مش بيرسم CanvasKit — التحقق النهائي على متصفح حقيقي/الموبايل.
+
+---
+
 ## 2026-07-11 — نشر الويب على GitHub Pages + إصلاح الشاشة البيضا (٤ باجات متراكبة)
 
 الريبو: **github.com/haithamtalalzz-netizen/my_assistant** فرع `main`. النشر عبر
