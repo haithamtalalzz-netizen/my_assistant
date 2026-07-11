@@ -33,14 +33,60 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <!-- شاشة تحميل + عارض أخطاء مرئي — عشان الشاشة ماتبقاش بيضا صامتة لو حصل
+       أي مشكلة في التشغيل؛ بيختفي تلقائيًا لما التطبيق يرسم أول إطار. -->
+  <div id="boot"
+       style="position:fixed;inset:0;display:flex;flex-direction:column;
+              align-items:center;justify-content:center;gap:14px;
+              background:#0B0F17;color:#8aa0c0;font-family:sans-serif;
+              text-align:center;padding:24px">
+    <div style="width:40px;height:40px;border:4px solid #223;border-top-color:#2FDE9B;
+                border-radius:50%;animation:sp 1s linear infinite"></div>
+    <div>جاري تحميل «مساعدي»…<br><small style="color:#5a6b85">أول فتح بياخد لحظات</small></div>
+  </div>
+  <style>@keyframes sp{to{transform:rotate(360deg)}}</style>
+  <pre id="booterr"
+       style="display:none;position:fixed;inset:0;margin:0;overflow:auto;
+              background:#2a0f12;color:#ffb4b4;font:12px/1.5 monospace;
+              padding:16px;white-space:pre-wrap;z-index:99999;direction:ltr"></pre>
+  <script>
+    (function () {
+      var errBox = document.getElementById('booterr');
+      function show(msg) {
+        errBox.style.display = 'block';
+        errBox.textContent += msg + '\n\n';
+      }
+      window.addEventListener('error', function (e) {
+        show('❌ error: ' + (e.message || e) +
+             (e.filename ? '\n@ ' + e.filename + ':' + e.lineno : ''));
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        var r = e.reason;
+        show('❌ promise: ' + (r && (r.message || r.toString()) || r));
+      });
+      // نشيل شاشة التحميل أول ما نلاقي canvas اترسم (نفتش جوّه shadow DOM كمان).
+      function anyCanvas(root) {
+        var els = root.querySelectorAll('*');
+        for (var i = 0; i < els.length; i++) {
+          if (els[i].tagName === 'CANVAS') return true;
+          if (els[i].shadowRoot && anyCanvas(els[i].shadowRoot)) return true;
+        }
+        return false;
+      }
+      var tries = 0;
+      var poll = setInterval(function () {
+        tries++;
+        if (anyCanvas(document)) {
+          var boot = document.getElementById('boot');
+          if (boot) boot.remove();
+          clearInterval(poll);
+        } else if (tries >= 40) { // 40 × 0.5s = 20 ثانية
+          clearInterval(poll);
+          show('⏳ التطبيق مرسمش أول إطار خلال 20 ثانية — غالبًا محرّك الرسم (CanvasKit) مش بيبدأ على المتصفح ده.');
+        }
+      }, 500);
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
