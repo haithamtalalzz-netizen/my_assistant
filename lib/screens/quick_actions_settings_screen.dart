@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../core/l10n.dart';
 
-/// الترتيب/التفعيل الافتراضي لأزرار الإضافة السريعة (مصدر واحد يستخدمه كل حاجة).
+/// الترتيب/التفعيل الافتراضي لأزرار الإضافة السريعة — الأكتر استخدامًا يوميًا؛
+/// الباقي متاح في «خصّص الأزرار السريعة». (مصدر واحد يستخدمه كل حاجة.)
 const List<String> kDefaultQuickActions = [
-  'water', 'dose', 'workout', 'sleep', 'steps', 'habit', 'meal', 'expense',
-  'income', 'transfer', 'bill_paid', 'debt', 'measure', 'reminder', 'shopping',
-  'doc', 'voice', 'manager', 'appointment', 'calendar', 'pharmacy',
+  'water', 'dose', 'workout', 'sleep', 'habit', 'meal', 'expense', 'income',
+  'measure', 'reminder', 'voice', 'manager',
 ];
 
 /// كتالوج كل الأزرار المتاحة (مفتاح + أيقونة + اسم + لون) — بلا معالجات؛
