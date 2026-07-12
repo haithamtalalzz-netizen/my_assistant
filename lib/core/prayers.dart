@@ -129,8 +129,19 @@ class PrayerScheduler {
     }
     final settings = SettingsRepo();
     if (!await settings.prayerNotificationsEnabled()) return;
-    final adhan = await settings.adhanSoundEnabled();
-    final adhanRaw = adhan ? await settings.adhanVoice() : null;
+    final adhanOn = await settings.adhanSoundEnabled();
+    String? adhanRaw;
+    String? adhanUri;
+    String? adhanChannel;
+    if (adhanOn) {
+      final voice = await settings.adhanVoice();
+      if (voice == 'custom') {
+        adhanUri = await settings.adhanCustomUri();
+        adhanChannel = await settings.adhanCustomChannel();
+      } else {
+        adhanRaw = voice;
+      }
+    }
     final gov = await resolvePlace(settings);
     final today = dateOnly(DateTime.now());
     for (var d = 0; d < daysAhead; d++) {
@@ -144,6 +155,8 @@ class PrayerScheduler {
           body: 'وقت صلاة ${kPrayerNames[p]} — ${arTime(times[p])}',
           when: times[p],
           adhanRaw: adhanRaw,
+          adhanUri: adhanUri,
+          adhanChannel: adhanChannel,
         );
       }
     }

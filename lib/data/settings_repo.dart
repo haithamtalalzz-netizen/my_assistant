@@ -69,9 +69,21 @@ class SettingsRepo {
   Future<void> setAdhanSound(bool on) async =>
       set('adhan_sound', on ? '1' : '0');
 
-  /// الصوت المختار للأذان (اسم ملف res/raw) — الافتراضى 'adhan'.
+  /// الصوت المختار للأذان (اسم ملف res/raw، أو 'custom' لملف من الجهاز).
   Future<String> adhanVoice() async => await get('adhan_voice') ?? 'adhan';
   Future<void> setAdhanVoice(String raw) async => set('adhan_voice', raw);
+
+  /// صوت أذان مخصّص اختاره المستخدم من جهازه (content:// URI + قناة + اسم للعرض).
+  Future<String?> adhanCustomUri() async => await get('adhan_custom_uri');
+  Future<String?> adhanCustomChannel() async => await get('adhan_custom_channel');
+  Future<String> adhanCustomLabel() async => await get('adhan_custom_label') ?? '';
+  Future<void> setAdhanCustom(
+      {required String uri, required String label, required String channel}) async {
+    await set('adhan_custom_uri', uri);
+    await set('adhan_custom_label', label);
+    await set('adhan_custom_channel', channel);
+    await set('adhan_voice', 'custom');
+  }
 
   /// تذكير الجمعة (سورة الكهف + الصلاة على النبى) — شغّال افتراضيًا.
   Future<bool> fridayReminderEnabled() async =>

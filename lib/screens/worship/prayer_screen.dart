@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hijri/hijri_calendar.dart';
 
+import '../../core/adhan_custom.dart';
 import '../../core/app_state.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
@@ -38,6 +39,9 @@ class _PrayerScreenState extends State<PrayerScreen> {
   int _streak = 0;
   bool _adhan = false;
   String _adhanVoice = 'adhan';
+  String _customLabel = '';
+  String? _customUri;
+  String? _customChannel;
   bool _friday = true;
   Timer? _tick;
 
@@ -58,6 +62,9 @@ class _PrayerScreenState extends State<PrayerScreen> {
     final streak = await _repo.fullDaysStreak();
     final adhan = await _settings.adhanSoundEnabled();
     final voice = await _settings.adhanVoice();
+    final customLabel = await _settings.adhanCustomLabel();
+    final customUri = await _settings.adhanCustomUri();
+    final customChannel = await _settings.adhanCustomChannel();
     final friday = await _settings.fridayReminderEnabled();
     if (!mounted) return;
     setState(() {
@@ -69,8 +76,40 @@ class _PrayerScreenState extends State<PrayerScreen> {
       _streak = streak;
       _adhan = adhan;
       _adhanVoice = voice;
+      _customLabel = customLabel;
+      _customUri = customUri;
+      _customChannel = customChannel;
       _friday = friday;
     });
+  }
+
+  Future<void> _selectVoice(String raw) async {
+    setState(() => _adhanVoice = raw);
+    await _settings.setAdhanVoice(raw);
+    await PrayerScheduler.ensureScheduled();
+    await Notifications.showAdhanTest(raw: raw);
+  }
+
+  Future<void> _previewSelected() async {
+    if (_adhanVoice == 'custom') {
+      await Notifications.showAdhanTest(uri: _customUri, channel: _customChannel);
+    } else {
+      await Notifications.showAdhanTest(raw: _adhanVoice);
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr('جارٍ تشغيل الأذان…', 'Playing the adhan…'))));
+  }
+
+  Future<void> _pickCustom() async {
+    final label = await AdhanCustom.pickAndInstall();
+    if (label == null) return;
+    await PrayerScheduler.ensureScheduled();
+    await _load();
+    await Notifications.showAdhanTest(uri: _customUri, channel: _customChannel);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr('تم اختيار: $label', 'Selected: $label'))));
   }
 
   Future<void> _toggleSunnah(String name) async {
@@ -421,34 +460,50 @@ class _PrayerScreenState extends State<PrayerScreen> {
                         ChoiceChip(
                           label: Text(v.reciter),
                           selected: _adhanVoice == v.raw,
+                          onSelected: (_) => _selectVoice(v.raw),
+                        ),
+                      if (_customLabel.isNotEmpty)
+                        ChoiceChip(
+                          avatar: const Icon(Icons.smartphone, size: 16),
+                          label: Text(_customLabel,
+                              overflow: TextOverflow.ellipsis),
+                          selected: _adhanVoice == 'custom',
                           onSelected: (_) async {
-                            setState(() => _adhanVoice = v.raw);
-                            await _settings.setAdhanVoice(v.raw);
+                            setState(() => _adhanVoice = 'custom');
+                            await _settings.setAdhanVoice('custom');
                             await PrayerScheduler.ensureScheduled();
-                            await Notifications.showAdhanTest(v.raw);
+                            await Notifications.showAdhanTest(
+                                uri: _customUri, channel: _customChannel);
                           },
                         ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        await Notifications.showAdhanTest(_adhanVoice);
-                        if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(tr('جارٍ تشغيل الأذان…',
-                                'Playing the adhan…'))));
-                      },
-                      icon: const Icon(Icons.play_arrow, size: 18),
-                      label: Text(tr('جرّب الصوت المختار', 'Test selected voice')),
-                    ),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _pickCustom,
+                        icon: const Icon(Icons.folder_open, size: 18),
+                        label: Text(_customLabel.isEmpty
+                            ? tr('اختر أذان من جهازى', 'Pick adhan from device')
+                            : tr('غيّر الملف', 'Change file')),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _previewSelected,
+                        icon: const Icon(Icons.play_arrow, size: 18),
+                        label:
+                            Text(tr('جرّب الصوت المختار', 'Test selected voice')),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    tr('المصدر: ${adhanVoiceByRaw(_adhanVoice).reciter} — ${adhanVoiceByRaw(_adhanVoice).license}',
-                        'Source: ${adhanVoiceByRaw(_adhanVoice).reciter} — ${adhanVoiceByRaw(_adhanVoice).license}'),
+                    _adhanVoice == 'custom'
+                        ? tr('صوت مخصّص من جهازك — إنت المسؤول عن استخدامه',
+                            'Custom sound from your device — used at your discretion')
+                        : tr('المصدر: ${adhanVoiceByRaw(_adhanVoice).reciter} — ${adhanVoiceByRaw(_adhanVoice).license}',
+                            'Source: ${adhanVoiceByRaw(_adhanVoice).reciter} — ${adhanVoiceByRaw(_adhanVoice).license}'),
                     style: TextStyle(
                         fontSize: 10.5,
                         color: Theme.of(context).colorScheme.onSurfaceVariant),

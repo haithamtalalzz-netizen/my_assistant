@@ -50,23 +50,41 @@ class Notifications {
   static const int fridayNotifId = 1100001; // تذكير الجمعة (الكهف + الصلاة على النبى)
   static const int adhanTestNotifId = 1100002; // تجربة صوت الأذان
 
-  /// تفاصيل إشعار الأذان بصوت مُعيّن — الملف res/raw/[raw].* (كلها بترخيص حر).
-  /// لكل صوت قناة منفصلة (`prayer_adhan_<raw>`) لأن صوت القناة مابيتغيّرش بعد إنشائها.
-  static NotificationDetails _adhanDetailsFor(String raw) => NotificationDetails(
+  /// تفاصيل إشعار الأذان — صوت من res/raw أو ملف مخصّص (content:// URI).
+  /// لكل صوت قناة منفصلة لأن صوت القناة مابيتغيّرش بعد إنشائها.
+  static NotificationDetails _adhanDetailsFor(
+      {required String channelId, required AndroidNotificationSound sound}) =>
+      NotificationDetails(
         android: AndroidNotificationDetails(
-          'prayer_adhan_$raw',
+          channelId,
           'أذان الصلاة',
           channelDescription: 'أذان صوتى عند دخول وقت الصلاة',
           importance: Importance.max,
           priority: Priority.high,
           category: AndroidNotificationCategory.alarm,
           audioAttributesUsage: AudioAttributesUsage.alarm,
-          sound: RawResourceAndroidNotificationSound(raw),
+          sound: sound,
         ),
         iOS: const DarwinNotificationDetails(
           interruptionLevel: InterruptionLevel.timeSensitive,
         ),
       );
+
+  /// يبنى تفاصيل الأذان من إعداد الصوت (raw من الحزمة أو uri مخصّص).
+  static NotificationDetails? _adhanDetails(
+      {String? raw, String? uri, String? channel}) {
+    if (uri != null && uri.isNotEmpty) {
+      return _adhanDetailsFor(
+          channelId: channel ?? 'prayer_adhan_custom',
+          sound: UriAndroidNotificationSound(uri));
+    }
+    if (raw != null && raw.isNotEmpty) {
+      return _adhanDetailsFor(
+          channelId: 'prayer_adhan_$raw',
+          sound: RawResourceAndroidNotificationSound(raw));
+    }
+    return null;
+  }
 
   static const NotificationDetails _details = NotificationDetails(
     android: AndroidNotificationDetails(
@@ -135,12 +153,15 @@ class Notifications {
     String? payload,
     List<AndroidNotificationAction>? actions,
     String? adhanRaw,
+    String? adhanUri,
+    String? adhanChannel,
   }) async {
     if (!_ready) return;
     if (when.isBefore(DateTime.now())) return;
     final at = tz.TZDateTime.from(when, tz.local);
     final details =
-        adhanRaw != null ? _adhanDetailsFor(adhanRaw) : _detailsWith(actions);
+        _adhanDetails(raw: adhanRaw, uri: adhanUri, channel: adhanChannel) ??
+            _detailsWith(actions);
     try {
       await _plugin.zonedSchedule(id, title, body, at, details,
           payload: payload,
@@ -241,11 +262,14 @@ class Notifications {
     }
   }
 
-  /// تجربة صوت أذان مُعيّن فورًا (عشان المستخدم يتأكد إنه شغّال).
-  static Future<void> showAdhanTest(String raw) async {
+  /// تجربة صوت أذان فورًا (raw من الحزمة أو uri مخصّص).
+  static Future<void> showAdhanTest(
+      {String? raw, String? uri, String? channel}) async {
     if (!_ready) return;
-    await _plugin.show(adhanTestNotifId, 'أذان (تجربة)',
-        'صوت الأذان شغّال ✓', _adhanDetailsFor(raw));
+    final details = _adhanDetails(raw: raw, uri: uri, channel: channel);
+    if (details == null) return;
+    await _plugin.show(
+        adhanTestNotifId, 'أذان (تجربة)', 'صوت الأذان شغّال ✓', details);
   }
 
   /// إشعار فوري (مش مجدول).
