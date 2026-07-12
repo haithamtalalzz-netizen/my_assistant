@@ -50,24 +50,23 @@ class Notifications {
   static const int fridayNotifId = 1100001; // تذكير الجمعة (الكهف + الصلاة على النبى)
   static const int adhanTestNotifId = 1100002; // تجربة صوت الأذان
 
-  /// قناة الأذان — صوت أذان حقيقى بخصائص المنبّه عند دخول وقت الصلاة.
-  /// الملف res/raw/adhan.mp3 (بصوت Aaqib Azeez، ترخيص CC BY-SA 4.0 — ويكيميديا).
-  /// معرّف القناة برقم عشان تتعمل من جديد بالصوت (القنوات القديمة مابتتغيّرش).
-  static const NotificationDetails _adhanDetails = NotificationDetails(
-    android: AndroidNotificationDetails(
-      'prayer_adhan1',
-      'أذان الصلاة',
-      channelDescription: 'أذان صوتى عند دخول وقت الصلاة',
-      importance: Importance.max,
-      priority: Priority.high,
-      category: AndroidNotificationCategory.alarm,
-      audioAttributesUsage: AudioAttributesUsage.alarm,
-      sound: RawResourceAndroidNotificationSound('adhan'),
-    ),
-    iOS: DarwinNotificationDetails(
-      interruptionLevel: InterruptionLevel.timeSensitive,
-    ),
-  );
+  /// تفاصيل إشعار الأذان بصوت مُعيّن — الملف res/raw/[raw].* (كلها بترخيص حر).
+  /// لكل صوت قناة منفصلة (`prayer_adhan_<raw>`) لأن صوت القناة مابيتغيّرش بعد إنشائها.
+  static NotificationDetails _adhanDetailsFor(String raw) => NotificationDetails(
+        android: AndroidNotificationDetails(
+          'prayer_adhan_$raw',
+          'أذان الصلاة',
+          channelDescription: 'أذان صوتى عند دخول وقت الصلاة',
+          importance: Importance.max,
+          priority: Priority.high,
+          category: AndroidNotificationCategory.alarm,
+          audioAttributesUsage: AudioAttributesUsage.alarm,
+          sound: RawResourceAndroidNotificationSound(raw),
+        ),
+        iOS: const DarwinNotificationDetails(
+          interruptionLevel: InterruptionLevel.timeSensitive,
+        ),
+      );
 
   static const NotificationDetails _details = NotificationDetails(
     android: AndroidNotificationDetails(
@@ -135,12 +134,13 @@ class Notifications {
     required DateTime when,
     String? payload,
     List<AndroidNotificationAction>? actions,
-    bool adhan = false,
+    String? adhanRaw,
   }) async {
     if (!_ready) return;
     if (when.isBefore(DateTime.now())) return;
     final at = tz.TZDateTime.from(when, tz.local);
-    final details = adhan ? _adhanDetails : _detailsWith(actions);
+    final details =
+        adhanRaw != null ? _adhanDetailsFor(adhanRaw) : _detailsWith(actions);
     try {
       await _plugin.zonedSchedule(id, title, body, at, details,
           payload: payload,
@@ -241,11 +241,11 @@ class Notifications {
     }
   }
 
-  /// تجربة صوت الأذان فورًا (عشان المستخدم يتأكد إنه شغّال).
-  static Future<void> showAdhanTest() async {
+  /// تجربة صوت أذان مُعيّن فورًا (عشان المستخدم يتأكد إنه شغّال).
+  static Future<void> showAdhanTest(String raw) async {
     if (!_ready) return;
     await _plugin.show(adhanTestNotifId, 'أذان (تجربة)',
-        'صوت الأذان شغّال ✓', _adhanDetails);
+        'صوت الأذان شغّال ✓', _adhanDetailsFor(raw));
   }
 
   /// إشعار فوري (مش مجدول).

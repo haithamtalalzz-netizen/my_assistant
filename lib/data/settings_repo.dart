@@ -69,6 +69,10 @@ class SettingsRepo {
   Future<void> setAdhanSound(bool on) async =>
       set('adhan_sound', on ? '1' : '0');
 
+  /// الصوت المختار للأذان (اسم ملف res/raw) — الافتراضى 'adhan'.
+  Future<String> adhanVoice() async => await get('adhan_voice') ?? 'adhan';
+  Future<void> setAdhanVoice(String raw) async => set('adhan_voice', raw);
+
   /// تذكير الجمعة (سورة الكهف + الصلاة على النبى) — شغّال افتراضيًا.
   Future<bool> fridayReminderEnabled() async =>
       await get('friday_reminder') != '0';

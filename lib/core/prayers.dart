@@ -130,6 +130,7 @@ class PrayerScheduler {
     final settings = SettingsRepo();
     if (!await settings.prayerNotificationsEnabled()) return;
     final adhan = await settings.adhanSoundEnabled();
+    final adhanRaw = adhan ? await settings.adhanVoice() : null;
     final gov = await resolvePlace(settings);
     final today = dateOnly(DateTime.now());
     for (var d = 0; d < daysAhead; d++) {
@@ -142,7 +143,7 @@ class PrayerScheduler {
           title: 'أذان ${kPrayerNames[p]}',
           body: 'وقت صلاة ${kPrayerNames[p]} — ${arTime(times[p])}',
           when: times[p],
-          adhan: adhan,
+          adhanRaw: adhanRaw,
         );
       }
     }

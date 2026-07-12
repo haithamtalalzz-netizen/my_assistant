@@ -37,6 +37,7 @@ class _PrayerScreenState extends State<PrayerScreen> {
   Set<String> _sunnahDone = {};
   int _streak = 0;
   bool _adhan = false;
+  String _adhanVoice = 'adhan';
   bool _friday = true;
   Timer? _tick;
 
@@ -56,6 +57,7 @@ class _PrayerScreenState extends State<PrayerScreen> {
     final sunnah = await _repo.sunnahDoneOn(now);
     final streak = await _repo.fullDaysStreak();
     final adhan = await _settings.adhanSoundEnabled();
+    final voice = await _settings.adhanVoice();
     final friday = await _settings.fridayReminderEnabled();
     if (!mounted) return;
     setState(() {
@@ -66,6 +68,7 @@ class _PrayerScreenState extends State<PrayerScreen> {
       _sunnahDone = sunnah;
       _streak = streak;
       _adhan = adhan;
+      _adhanVoice = voice;
       _friday = friday;
     });
   }
@@ -406,24 +409,46 @@ class _PrayerScreenState extends State<PrayerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(tr('اختر صوت الأذان', 'Choose the adhan voice'),
+                      style: const TextStyle(
+                          fontSize: 12.5, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final v in kAdhanVoices)
+                        ChoiceChip(
+                          label: Text(v.reciter),
+                          selected: _adhanVoice == v.raw,
+                          onSelected: (_) async {
+                            setState(() => _adhanVoice = v.raw);
+                            await _settings.setAdhanVoice(v.raw);
+                            await PrayerScheduler.ensureScheduled();
+                            await Notifications.showAdhanTest(v.raw);
+                          },
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: OutlinedButton.icon(
                       onPressed: () async {
-                        await Notifications.showAdhanTest();
+                        await Notifications.showAdhanTest(_adhanVoice);
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                             content: Text(tr('جارٍ تشغيل الأذان…',
                                 'Playing the adhan…'))));
                       },
                       icon: const Icon(Icons.play_arrow, size: 18),
-                      label: Text(tr('جرّب صوت الأذان', 'Test adhan sound')),
+                      label: Text(tr('جرّب الصوت المختار', 'Test selected voice')),
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    tr('صوت الأذان: القارئ Aaqib Azeez — ترخيص CC BY-SA 4.0 (ويكيميديا كومنز)',
-                        'Adhan audio: reciter Aaqib Azeez — CC BY-SA 4.0 (Wikimedia Commons)'),
+                    tr('المصدر: ${adhanVoiceByRaw(_adhanVoice).reciter} — ${adhanVoiceByRaw(_adhanVoice).license}',
+                        'Source: ${adhanVoiceByRaw(_adhanVoice).reciter} — ${adhanVoiceByRaw(_adhanVoice).license}'),
                     style: TextStyle(
                         fontSize: 10.5,
                         color: Theme.of(context).colorScheme.onSurfaceVariant),
