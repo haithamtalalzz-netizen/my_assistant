@@ -62,6 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _notifMode = 'both';
   bool _loading = true;
   bool _busy = false;
+  String? _openCat; // الفئة المفتوحة حاليًا (null = القائمة الرئيسية)
 
   @override
   void initState() {
@@ -142,7 +143,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  Future<void> _save() async {
+  /// يحفظ الحقول المجمّعة — بيتنادى عند الرجوع من أي صفحة فئة.
+  Future<void> _persist() async {
     await _settings.set('user_name', _name.text.trim());
     await _settings.set('water_goal', '$_waterGoal');
     final budget = parseNumber(_budget.text);
@@ -165,8 +167,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _settings.set('gemini_send_health', _geminiSendHealth ? '1' : '0');
     await PrayerScheduler.ensureScheduled();
     await EveningScheduler.ensureScheduled();
-    if (!mounted) return;
-    Navigator.pop(context, true);
   }
 
   Future<void> _toggleHealthSync(bool enable) async {
@@ -472,16 +472,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // فئات الإعدادات (بالترتيب) — كل واحدة تفتح صفحتها.
+  List<({String key, String title, IconData icon, String? sub})>
+      _categories() => [
+            (key: 'appearance', title: tr('المظهر واللغة', 'Appearance & language'), icon: Icons.palette_outlined, sub: tr('اللغة والثيم والألوان', 'Language, theme & colors')),
+            (key: 'general', title: tr('عام', 'General'), icon: Icons.tune, sub: tr('المياه والميزانية', 'Water & budget')),
+            (key: 'location', title: tr('الموقع والصلاة', 'Location & prayer'), icon: Icons.place_outlined, sub: tr('مدينتك وإشعارات الأذان', 'City & adhan alerts')),
+            (key: 'home', title: tr('الصفحة الرئيسية', 'Home screen'), icon: Icons.dashboard_customize_outlined, sub: tr('إظهار وإخفاء العناصر', 'Show / hide sections')),
+            (key: 'notifications', title: tr('الإشعارات', 'Notifications'), icon: Icons.notifications_active_outlined, sub: tr('صوت واهتزاز', 'Sound & vibration')),
+            (key: 'health', title: tr('الصحة', 'Health'), icon: Icons.favorite_outline, sub: tr('مزامنة الساعة الذكية', 'Smartwatch sync')),
+            (key: 'modes', title: tr('الأوضاع', 'Modes'), icon: Icons.toggle_on_outlined, sub: tr('رمضان / يوم صعب / سفر', 'Ramadan / hard-day / travel')),
+            (key: 'emergency', title: tr('كارت الطوارئ', 'Emergency card'), icon: Icons.medical_services_outlined, sub: tr('بيانات طبية للطوارئ', 'Emergency medical info')),
+            (key: 'chat', title: tr('محادثة المدير', 'Manager chat'), icon: Icons.psychology_outlined, sub: tr('Gemini — مجاني', 'Gemini — free')),
+            (key: 'security', title: tr('الأمان', 'Security'), icon: Icons.lock_outline, sub: tr('قفل بالبصمة', 'Biometric lock')),
+            (key: 'backup', title: tr('النسخ الاحتياطي', 'Backup'), icon: Icons.backup_outlined, sub: tr('تصدير واستعادة', 'Export & restore')),
+            (key: 'developer', title: tr('للمطوّرين', 'Developer'), icon: Icons.code, sub: tr('بيانات تجريبية ومسح', 'Demo data & reset')),
+          ];
+
+  String _catTitle(String key) =>
+      _categories().firstWhere((c) => c.key == key).title;
+
+  Future<void> _backToHub() async {
+    await _persist();
+    if (mounted) setState(() => _openCat = null);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(tr('الإعدادات', 'Settings'))),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                SectionHeader(tr('المظهر واللغة', 'Appearance & language')),
+    final inCat = _openCat != null;
+    return PopScope(
+      canPop: !inCat,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (!didPop && inCat) await _backToHub();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(inCat ? _catTitle(_openCat!) : tr('الإعدادات', 'Settings')),
+          leading: inCat
+              ? IconButton(
+                  icon: const BackButtonIcon(), onPressed: _backToHub)
+              : null,
+        ),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                padding: EdgeInsets.all(inCat ? 16 : 4),
+                children: [
+                if (_openCat == null)
+                  for (final c in _categories())
+                    ListTile(
+                      leading: Icon(c.icon),
+                      title: Text(c.title),
+                      subtitle: c.sub == null
+                          ? null
+                          : Text(c.sub!, style: const TextStyle(fontSize: 12)),
+                      trailing: const Icon(Icons.chevron_left),
+                      onTap: () => setState(() => _openCat = c.key),
+                    ),
+                if (_openCat == 'appearance') ...[
+                  SectionHeader(tr('المظهر واللغة', 'Appearance & language')),
                 _languageControl(context),
                 const SizedBox(height: 12),
                 _themeControl(context),
@@ -497,6 +546,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   trailing: const Icon(Icons.chevron_left),
                   onTap: _openQuickActionsSettings,
                 ),
+                ],
+                if (_openCat == 'general') ...[
                 SectionHeader(tr('عام', 'General')),
                 // الاسم اتنقل لصفحة «حسابي» في السايدبار (من فوق).
                 Row(
@@ -524,6 +575,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       labelText: tr('ميزانية الشهر (ج.م) — سيبها فاضية لو مش عايز',
                           'Monthly budget (EGP) — leave empty to skip')),
                 ),
+                ],
+                if (_openCat == 'location') ...[
                 SectionHeader(tr('الموقع والصلاة', 'Location & prayer')),
                 if (_customLoc != null)
                   Padding(
@@ -561,6 +614,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: _prayerNotifs,
                   onChanged: (v) => setState(() => _prayerNotifs = v),
                 ),
+                ],
+                if (_openCat == 'home') ...[
                 SectionHeader(tr('الصفحة الرئيسية', 'Home screen')),
                 Card(
                   margin: EdgeInsets.zero,
@@ -597,6 +652,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 ),
+                ],
+                if (_openCat == 'notifications') ...[
                 SectionHeader(tr('الإشعارات', 'Notifications')),
                 Row(
                   children: [
@@ -631,6 +688,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ],
                 ),
+                ],
+                if (_openCat == 'health') ...[
                 SectionHeader(tr('الصحة', 'Health')),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -642,6 +701,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: _healthSync,
                   onChanged: _toggleHealthSync,
                 ),
+                ],
+                if (_openCat == 'modes') ...[
                 SectionHeader(tr('الأوضاع', 'Modes')),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -694,6 +755,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           _eveningTime.hour, _eveningTime.minute))),
                     ),
                   ),
+                ],
+                if (_openCat == 'emergency') ...[
                 SectionHeader(tr('كارت الطوارئ', 'Emergency card')),
                 DropdownButtonFormField<String>(
                   initialValue: _blood,
@@ -743,6 +806,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ],
                 ),
+                ],
+                if (_openCat == 'chat') ...[
                 SectionHeader(
                     tr('محادثة المدير (Gemini — مجاني)', 'Chat (Gemini — free)')),
                 TextField(
@@ -762,6 +827,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: _geminiSendHealth,
                   onChanged: (v) => setState(() => _geminiSendHealth = v),
                 ),
+                ],
+                if (_openCat == 'security') ...[
                 SectionHeader(tr('الأمان', 'Security')),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -772,6 +839,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: _appLock,
                   onChanged: _toggleAppLock,
                 ),
+                ],
+                if (_openCat == 'backup') ...[
                 SectionHeader(tr('النسخ الاحتياطي', 'Backup')),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -810,6 +879,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               text: 'My Assistant backup');
                         },
                 ),
+                ],
+                if (_openCat == 'developer') ...[
                 SectionHeader(tr('للمطوّرين', 'Developer')),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -842,12 +913,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'Deletes everything incl. name & settings — fresh start')),
                   onTap: _busy ? null : () => _wipe(keepAccount: false),
                 ),
-                const SizedBox(height: 24),
-                FilledButton(
-                    onPressed: _busy ? null : _save,
-                    child: Text(tr('حفظ', 'Save'))),
+                ],
               ],
             ),
+      ),
     );
   }
 
