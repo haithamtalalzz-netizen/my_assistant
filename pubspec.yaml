@@ -53,6 +53,9 @@ dependencies:
   scrollable_positioned_list: ^0.3.8
   # تشغيل تلاوة القرآن (بث من everyayah — قرّاء معتمدون).
   audioplayers: ^6.1.0
+  # عرض صفحات المصحف كصور (بث + تخزين تلقائى على القرص).
+  cached_network_image: ^3.4.1
+  flutter_cache_manager: ^3.4.0
 
 dev_dependencies:
   flutter_test:

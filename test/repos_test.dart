@@ -604,6 +604,17 @@ void main() {
       expect(surahs.first.verses.first.text.startsWith('بِسۡمِ'), isTrue);
     });
 
+    test('صفحات المصحف: 114 بداية سورة، متزايدة، 1..604', () {
+      expect(kSurahStartPage.length, 114);
+      expect(kSurahStartPage.first, 1);
+      expect(kSurahStartPage.last, 604);
+      for (var i = 0; i < 113; i++) {
+        expect(kSurahStartPage[i] <= kSurahStartPage[i + 1], isTrue);
+      }
+      expect(surahStartPage(2), 2);
+      expect(mushafPageUrl(1).endsWith('page001.png'), isTrue);
+    });
+
     test('سلسلة الأذكار وعدّ الصيام', () async {
       final repo = WorshipRepo();
       final today = DateTime.now();

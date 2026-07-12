@@ -171,6 +171,15 @@ class SettingsRepo {
       await get('quran_reciter') ?? 'Alafasy_128kbps';
   Future<void> setQuranReciter(String id) async => set('quran_reciter', id);
 
+  /// طريقة عرض المصحف: 'page' (صور الصفحات) أو 'text' (نص + تفسير + صوت).
+  Future<String> quranViewMode() async => await get('quran_view') ?? 'page';
+  Future<void> setQuranViewMode(String m) async => set('quran_view', m);
+
+  /// آخر صفحة مصحف (عرض الصور) — الافتراضى 1.
+  Future<int> quranLastPage() async =>
+      int.tryParse(await get('quran_last_page') ?? '') ?? 1;
+  Future<void> setQuranLastPage(int p) async => set('quran_last_page', '$p');
+
   Future<bool> ramadanMode() async => await get('ramadan_mode') == '1';
 
   /// ملخص بكرة المسائي — شغال افتراضيًا الساعة 21:30.
