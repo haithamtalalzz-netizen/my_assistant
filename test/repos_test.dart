@@ -9,6 +9,7 @@ import 'package:my_assistant/core/countries.dart';
 import 'package:my_assistant/core/diet_plans.dart';
 import 'package:my_assistant/core/location_tracker.dart';
 import 'package:my_assistant/data/activity_repo.dart';
+import 'package:my_assistant/data/cycle_repo.dart';
 import 'package:my_assistant/core/day_planner.dart';
 import 'package:my_assistant/core/insights.dart';
 import 'package:my_assistant/core/local_brain.dart';
@@ -1336,6 +1337,46 @@ void main() {
       expect(codes.toSet().length, codes.length, reason: 'مفيش كود متكرر');
       expect(kCountries.every((c) => c.code.length == 2), true);
       expect(kCountries.length > 100, true);
+    });
+  });
+
+  group('ترقية قاعدة البيانات v29 ← v30', () {
+    test('جدول الدورة الشهرية بيتعمل', () async {
+      final v29 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v29, 29, 30);
+      await v29.insert('cycle_logs', {
+        'start_day': '2026-06-01',
+        'period_days': 5,
+        'notes': '',
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      final rows = await v29.query('cycle_logs');
+      expect(rows.length, 1);
+      expect(rows.first['start_day'], '2026-06-01');
+      await v29.close();
+    });
+  });
+
+  group('الدورة الشهرية', () {
+    test('حساب متوسط الدورة والدورة الجاية والتبويض', () async {
+      final repo = CycleRepo();
+      final now = DateTime.now().toIso8601String();
+      await repo.add(CycleLog(startDay: '2026-05-01', createdAt: now));
+      await repo.add(CycleLog(startDay: '2026-05-29', createdAt: now)); // +28
+      await repo.add(CycleLog(startDay: '2026-06-26', createdAt: now)); // +28
+      final p = await repo.predict();
+      expect(p.avgCycleLength, 28);
+      expect(p.lastStart, DateTime(2026, 6, 26));
+      expect(p.nextStart, DateTime(2026, 7, 24)); // +28
+      expect(p.ovulation, DateTime(2026, 7, 10)); // الدورة الجاية − 14
+      expect(p.loggedCount, 3);
+    });
+
+    test('من غير تسجيل مفيش توقّعات', () async {
+      final p = await CycleRepo().predict();
+      expect(p.hasData, false);
+      expect(p.avgCycleLength, 28);
     });
   });
 

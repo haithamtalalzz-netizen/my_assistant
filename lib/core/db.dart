@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 29,
+      version: 30,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -202,7 +202,25 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 30 && newV >= 30) {
+      for (final ddl in _v30Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// الدورة الشهرية للسيدات — تواريخ بداية كل دورة.
+  static const List<String> _v30Tables = [
+    '''
+      CREATE TABLE cycle_logs(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        start_day TEXT NOT NULL,
+        period_days INTEGER NOT NULL DEFAULT 5,
+        notes TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+    'CREATE INDEX idx_cycle_start ON cycle_logs(start_day)',
+  ];
 
   /// جلسات نشاط بالـGPS (مشي/جري) — مسافة ومدة وسعرات.
   static const List<String> _v29Tables = [
@@ -808,6 +826,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v29Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v30Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);

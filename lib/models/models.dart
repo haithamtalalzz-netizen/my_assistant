@@ -1525,6 +1525,38 @@ class ActivitySession {
       };
 }
 
+/// بداية دورة شهرية مسجّلة (للسيدات).
+class CycleLog {
+  final int? id;
+  final String startDay; // YYYY-MM-DD
+  final int periodDays; // مدة نزول الدم التقريبية
+  final String notes;
+  final String createdAt;
+
+  const CycleLog({
+    this.id,
+    required this.startDay,
+    this.periodDays = 5,
+    this.notes = '',
+    required this.createdAt,
+  });
+
+  factory CycleLog.fromMap(Map<String, Object?> m) => CycleLog(
+        id: m['id'] as int?,
+        startDay: m['start_day'] as String,
+        periodDays: (m['period_days'] as num?)?.toInt() ?? 5,
+        notes: m['notes'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'start_day': startDay,
+        'period_days': periodDays,
+        'notes': notes,
+        'created_at': createdAt,
+      };
+}
+
 class ShoppingItem {
   final int? id;
   final String name;

@@ -15,6 +15,8 @@ class AppState {
   static final ValueNotifier<String> bgKey = ValueNotifier('midnight');
   // مفتاح لون الخلفية للوضع الفاتح — الافتراضي أبيض ورقي.
   static final ValueNotifier<String> bgLightKey = ValueNotifier('paper');
+  // النوع: '' غير محدد / 'male' راجل / 'female' سيدة (يظهر بند الدورة الشهرية).
+  static final ValueNotifier<String> gender = ValueNotifier('');
 
   static Future<void> load() async {
     final s = SettingsRepo();
@@ -24,6 +26,12 @@ class AppState {
     accentKey.value = await s.get('ui_accent') ?? 'mint';
     bgKey.value = await s.get('ui_bg') ?? 'midnight';
     bgLightKey.value = await s.get('ui_bg_light') ?? 'paper';
+    gender.value = await s.get('gender') ?? '';
+  }
+
+  static Future<void> setGender(String g) async {
+    gender.value = g;
+    await SettingsRepo().set('gender', g);
   }
 
   static Future<void> setAccent(String key) async {

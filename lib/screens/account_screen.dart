@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/app_state.dart';
 import '../core/l10n.dart';
 import '../data/settings_repo.dart';
 import 'lock_gate.dart';
@@ -19,6 +20,7 @@ class _AccountScreenState extends State<AccountScreen> {
   final _settings = SettingsRepo();
   final _name = TextEditingController();
   final _email = TextEditingController();
+  String _gender = ''; // 'male' / 'female'
   bool _loading = true;
 
   @override
@@ -30,10 +32,12 @@ class _AccountScreenState extends State<AccountScreen> {
   Future<void> _load() async {
     final name = await _settings.userName();
     final email = await _settings.get('user_email') ?? '';
+    final gender = await _settings.get('gender') ?? '';
     if (!mounted) return;
     setState(() {
       _name.text = name;
       _email.text = email;
+      _gender = gender;
       _loading = false;
     });
   }
@@ -48,6 +52,7 @@ class _AccountScreenState extends State<AccountScreen> {
   Future<void> _save() async {
     await _settings.set('user_name', _name.text.trim());
     await _settings.set('user_email', _email.text.trim());
+    await AppState.setGender(_gender);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(tr('اتحفظ ✓', 'Saved ✓'))));
@@ -127,6 +132,37 @@ class _AccountScreenState extends State<AccountScreen> {
                     border: const OutlineInputBorder(),
                   ),
                 ),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(tr('النوع', 'Gender'),
+                      style: TextStyle(
+                          fontSize: 13, color: scheme.outline)),
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<String>(
+                  segments: [
+                    ButtonSegment(
+                        value: 'male',
+                        icon: const Text('👨'),
+                        label: Text(tr('راجل', 'Man'))),
+                    ButtonSegment(
+                        value: 'female',
+                        icon: const Text('👩'),
+                        label: Text(tr('سيدة', 'Woman'))),
+                  ],
+                  selected: _gender.isEmpty ? {} : {_gender},
+                  emptySelectionAllowed: true,
+                  onSelectionChanged: (s) =>
+                      setState(() => _gender = s.isEmpty ? '' : s.first),
+                ),
+                if (_gender == 'female') ...[
+                  const SizedBox(height: 6),
+                  Text(
+                      tr('هيظهر بند «الدورة الشهرية» في مجموعة الصحة واللياقة',
+                          'A "Menstrual cycle" item appears in Health & fitness'),
+                      style: TextStyle(fontSize: 12, color: scheme.primary)),
+                ],
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,

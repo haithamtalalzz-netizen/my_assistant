@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/app_state.dart';
 import '../core/geocoding.dart';
 import '../core/l10n.dart';
 import '../core/prayers.dart';
@@ -21,6 +22,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _name = TextEditingController();
   final String _governorate = kGovernorates.first.name; // احتياطي لو مااختارش
   GeoPlace? _worldCity; // مكان مختار (دولة+مدينة أو GPS)
+  String _gender = ''; // 'male' / 'female'
   bool _saving = false;
 
   @override
@@ -32,6 +34,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _start() async {
     setState(() => _saving = true);
     await _settings.set('user_name', _name.text.trim());
+    if (_gender.isNotEmpty) await AppState.setGender(_gender);
     if (_worldCity != null) {
       // مدينة عالمية مختارة → إحداثيات مخصّصة.
       await _settings.setCustomLocation(
@@ -77,6 +80,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   prefixIcon: const Icon(Icons.person_outline),
                   border: const OutlineInputBorder(),
                 ),
+              ),
+              const SizedBox(height: 16),
+              // النوع (راجل / سيدة) — بيفعّل بند الدورة الشهرية للسيدات.
+              SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(
+                      value: 'male',
+                      icon: const Text('👨'),
+                      label: Text(tr('راجل', 'Man'))),
+                  ButtonSegment(
+                      value: 'female',
+                      icon: const Text('👩'),
+                      label: Text(tr('سيدة', 'Woman'))),
+                ],
+                selected: _gender.isEmpty ? {} : {_gender},
+                emptySelectionAllowed: true,
+                onSelectionChanged: (s) =>
+                    setState(() => _gender = s.isEmpty ? '' : s.first),
               ),
               const SizedBox(height: 16),
               // اختيار الموقع (لمواعيد الصلاة والطقس): الدولة ← المدينة أو GPS.

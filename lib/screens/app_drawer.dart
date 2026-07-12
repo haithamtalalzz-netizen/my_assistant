@@ -32,6 +32,7 @@ import 'gym/gym_screen.dart';
 import 'gym/progress_screen.dart';
 import 'gym/walk_tracker_screen.dart';
 import 'gym/workout_programs_screen.dart';
+import 'health/cycle_screen.dart';
 import 'health/health_hub_screen.dart';
 import 'home/meters_screen.dart';
 import 'home/pharmacy_screen.dart';
@@ -217,6 +218,10 @@ class AppDrawer extends StatelessWidget {
                   GroupHubItem(Icons.dashboard_outlined,
                       tr('لوحة الصحة', 'Health hub'),
                       screen: const HealthHubScreen()),
+                  if (AppState.gender.value == 'female')
+                    GroupHubItem(Icons.favorite,
+                        tr('الدورة الشهرية', 'Menstrual cycle'),
+                        screen: const CycleScreen(), color: Colors.pink),
                   GroupHubItem(Icons.restaurant_menu,
                       tr('الأنظمة الغذائية', 'Diet plans'),
                       screen: const DietPlansScreen()),
