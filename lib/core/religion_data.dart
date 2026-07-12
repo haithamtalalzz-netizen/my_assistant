@@ -242,21 +242,3 @@ String _pickOfDay(List<String> list, DateTime now) {
   return list[dayOfYear % list.length];
 }
 
-/// صوت أذان: [raw] = اسم الملف فى android res/raw بدون امتداد (يبقى برضه معرّف القناة).
-class AdhanVoice {
-  final String raw;
-  final String reciter; // اسم للعرض
-  final String license; // إشارة الترخيص/المصدر
-  const AdhanVoice(this.raw, this.reciter, this.license);
-}
-
-/// أصوات الأذان المتاحة (كلها بترخيص حر — ملفاتها فى res/raw).
-const List<AdhanVoice> kAdhanVoices = [
-  AdhanVoice('adhan', 'Aaqib Azeez', 'CC BY-SA 4.0 — ويكيميديا كومنز'),
-  AdhanVoice('adhan_fakhri', 'صباح فخري', 'ملكية عامة — ويكيميديا كومنز'),
-  AdhanVoice('adhan_beautiful', 'أذان هادئ', 'CC0 (ملكية عامة) — ويكيميديا كومنز'),
-];
-
-AdhanVoice adhanVoiceByRaw(String raw) => kAdhanVoices.firstWhere(
-    (v) => v.raw == raw,
-    orElse: () => kAdhanVoices.first);

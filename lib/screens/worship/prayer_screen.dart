@@ -38,7 +38,6 @@ class _PrayerScreenState extends State<PrayerScreen> {
   Set<String> _sunnahDone = {};
   int _streak = 0;
   bool _adhan = false;
-  String _adhanVoice = 'adhan';
   String _customLabel = '';
   String? _customUri;
   String? _customChannel;
@@ -61,7 +60,6 @@ class _PrayerScreenState extends State<PrayerScreen> {
     final sunnah = await _repo.sunnahDoneOn(now);
     final streak = await _repo.fullDaysStreak();
     final adhan = await _settings.adhanSoundEnabled();
-    final voice = await _settings.adhanVoice();
     final customLabel = await _settings.adhanCustomLabel();
     final customUri = await _settings.adhanCustomUri();
     final customChannel = await _settings.adhanCustomChannel();
@@ -75,7 +73,6 @@ class _PrayerScreenState extends State<PrayerScreen> {
       _sunnahDone = sunnah;
       _streak = streak;
       _adhan = adhan;
-      _adhanVoice = voice;
       _customLabel = customLabel;
       _customUri = customUri;
       _customChannel = customChannel;
@@ -83,19 +80,8 @@ class _PrayerScreenState extends State<PrayerScreen> {
     });
   }
 
-  Future<void> _selectVoice(String raw) async {
-    setState(() => _adhanVoice = raw);
-    await _settings.setAdhanVoice(raw);
-    await PrayerScheduler.ensureScheduled();
-    await Notifications.showAdhanTest(raw: raw);
-  }
-
   Future<void> _previewSelected() async {
-    if (_adhanVoice == 'custom') {
-      await Notifications.showAdhanTest(uri: _customUri, channel: _customChannel);
-    } else {
-      await Notifications.showAdhanTest(raw: _adhanVoice);
-    }
+    await Notifications.showAdhanTest(uri: _customUri, channel: _customChannel);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(tr('جارٍ تشغيل الأذان…', 'Playing the adhan…'))));
@@ -431,8 +417,8 @@ class _PrayerScreenState extends State<PrayerScreen> {
             secondary: const Icon(Icons.volume_up),
             title: Text(tr('صوت الأذان مع التنبيه', 'Adhan sound with alerts')),
             subtitle: Text(
-                tr('أذان صوتى عند دخول وقت كل صلاة',
-                    'A real adhan at each prayer time'),
+                tr('تنبيه صوتى قوى — اختر ملف أذان من جهازك ليصير أذانًا',
+                    'A loud alert — pick your own adhan file to make it a real adhan'),
                 style: const TextStyle(fontSize: 12)),
             value: _adhan,
             onChanged: (v) async {
@@ -448,36 +434,32 @@ class _PrayerScreenState extends State<PrayerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(tr('اختر صوت الأذان', 'Choose the adhan voice'),
-                      style: const TextStyle(
-                          fontSize: 12.5, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final v in kAdhanVoices)
-                        ChoiceChip(
-                          label: Text(v.reciter),
-                          selected: _adhanVoice == v.raw,
-                          onSelected: (_) => _selectVoice(v.raw),
+                  if (_customLabel.isNotEmpty)
+                    Row(
+                      children: [
+                        Icon(Icons.smartphone,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            tr('صوت الأذان: $_customLabel',
+                                'Adhan sound: $_customLabel'),
+                            style: const TextStyle(
+                                fontSize: 12.5, fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      if (_customLabel.isNotEmpty)
-                        ChoiceChip(
-                          avatar: const Icon(Icons.smartphone, size: 16),
-                          label: Text(_customLabel,
-                              overflow: TextOverflow.ellipsis),
-                          selected: _adhanVoice == 'custom',
-                          onSelected: (_) async {
-                            setState(() => _adhanVoice = 'custom');
-                            await _settings.setAdhanVoice('custom');
-                            await PrayerScheduler.ensureScheduled();
-                            await Notifications.showAdhanTest(
-                                uri: _customUri, channel: _customChannel);
-                          },
-                        ),
-                    ],
-                  ),
+                      ],
+                    )
+                  else
+                    Text(
+                      tr('لم تختر ملف أذان بعد — هيشتغل تنبيه صوتى قوى. اختر ملف أذان من جهازك ليصير أذانًا كاملًا.',
+                          'No adhan file chosen yet — a loud alert plays. Pick an adhan file from your device to use a full adhan.'),
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -492,21 +474,9 @@ class _PrayerScreenState extends State<PrayerScreen> {
                       OutlinedButton.icon(
                         onPressed: _previewSelected,
                         icon: const Icon(Icons.play_arrow, size: 18),
-                        label:
-                            Text(tr('جرّب الصوت المختار', 'Test selected voice')),
+                        label: Text(tr('جرّب الصوت', 'Test sound')),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _adhanVoice == 'custom'
-                        ? tr('صوت مخصّص من جهازك — إنت المسؤول عن استخدامه',
-                            'Custom sound from your device — used at your discretion')
-                        : tr('المصدر: ${adhanVoiceByRaw(_adhanVoice).reciter} — ${adhanVoiceByRaw(_adhanVoice).license}',
-                            'Source: ${adhanVoiceByRaw(_adhanVoice).reciter} — ${adhanVoiceByRaw(_adhanVoice).license}'),
-                    style: TextStyle(
-                        fontSize: 10.5,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),

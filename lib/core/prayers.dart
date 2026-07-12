@@ -130,18 +130,8 @@ class PrayerScheduler {
     final settings = SettingsRepo();
     if (!await settings.prayerNotificationsEnabled()) return;
     final adhanOn = await settings.adhanSoundEnabled();
-    String? adhanRaw;
-    String? adhanUri;
-    String? adhanChannel;
-    if (adhanOn) {
-      final voice = await settings.adhanVoice();
-      if (voice == 'custom') {
-        adhanUri = await settings.adhanCustomUri();
-        adhanChannel = await settings.adhanCustomChannel();
-      } else {
-        adhanRaw = voice;
-      }
-    }
+    final adhanUri = adhanOn ? await settings.adhanCustomUri() : null;
+    final adhanChannel = adhanOn ? await settings.adhanCustomChannel() : null;
     final gov = await resolvePlace(settings);
     final today = dateOnly(DateTime.now());
     for (var d = 0; d < daysAhead; d++) {
@@ -154,7 +144,7 @@ class PrayerScheduler {
           title: 'أذان ${kPrayerNames[p]}',
           body: 'وقت صلاة ${kPrayerNames[p]} — ${arTime(times[p])}',
           when: times[p],
-          adhanRaw: adhanRaw,
+          adhan: adhanOn,
           adhanUri: adhanUri,
           adhanChannel: adhanChannel,
         );

@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- adhan.mp3 يُشار إليه بالاسم وقت التشغيل فقط (صوت إشعار الأذان) —
-     نمنع مُحسِّن/مُقلِّص الموارد من حذفه لأنه يبدو «غير مستخدَم». -->
-<resources xmlns:tools="http://schemas.android.com/tools"
-    tools:keep="@raw/adhan,@raw/adhan_fakhri,@raw/adhan_beautiful" />
