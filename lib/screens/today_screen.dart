@@ -23,6 +23,7 @@ import '../data/health_repo.dart';
 import '../data/home_maintenance_repo.dart';
 import '../data/inbox_repo.dart';
 import '../data/plants_repo.dart';
+import '../data/cycle_repo.dart';
 import '../data/meals_repo.dart';
 import '../data/measurements_repo.dart';
 import '../data/meds_repo.dart';
@@ -38,6 +39,7 @@ import '../widgets/decorations.dart';
 import 'brain/chat_screen.dart';
 import 'brain/day_plan_screen.dart';
 import 'food/diet_plans_screen.dart';
+import 'health/cycle_screen.dart';
 import 'food/meal_sheet.dart';
 import 'food/shopping_list_screen.dart';
 import 'calendar_screen.dart';
@@ -105,6 +107,7 @@ class _TodayScreenState extends State<TodayScreen> {
   int _proteinTarget = 0;
   int _carbsTarget = 0;
   int _fatTarget = 0;
+  CyclePrediction? _cyclePred; // للسيدات فقط
   bool _hardDay = false;
   Set<String> _hidden = {}; // عناصر الرئيسية المخفية (من الإعدادات)
 
@@ -203,6 +206,9 @@ class _TodayScreenState extends State<TodayScreen> {
     final proteinTarget = await _settings.proteinTarget();
     final carbsTarget = await _settings.carbsTarget();
     final fatTarget = await _settings.fatTarget();
+    final cyclePred = AppState.gender.value == 'female'
+        ? await CycleRepo().predict()
+        : null;
     final hardDay = await _settings.hardDayMode();
     final hidden = await _settings.hiddenHomeSections();
     final workoutRepo = WorkoutRepo();
@@ -242,6 +248,7 @@ class _TodayScreenState extends State<TodayScreen> {
       _proteinTarget = proteinTarget;
       _carbsTarget = carbsTarget;
       _fatTarget = fatTarget;
+      _cyclePred = cyclePred;
       _hardDay = hardDay;
       _hidden = hidden;
       _meals = meals;
@@ -428,6 +435,10 @@ class _TodayScreenState extends State<TodayScreen> {
           ],
           _heroAndSummary(context),
           const SizedBox(height: 12),
+          if (_vis('cycle') && _showCycleCard) ...[
+            _cycleCard(context),
+            const SizedBox(height: 12),
+          ],
           if (_weeklyDue) ...[
             _weeklyBanner(context),
             const SizedBox(height: 12),
@@ -585,6 +596,87 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   /// بطاقة «دلوقتي» — أقرب حاجة جاية (موعد/صلاة) + العد التنازلي.
+  bool get _showCycleCard {
+    final p = _cyclePred;
+    if (p == null || !p.hasData) return false;
+    final until = p.daysUntilNext ?? 999;
+    final day = p.currentDay ?? 0;
+    if (day >= 1 && day <= 5) return true; // فترة الدورة
+    if (until >= 0 && until <= 4) return true; // قربت
+    final today = dateOnly(DateTime.now());
+    if (p.fertileStart != null &&
+        p.fertileEnd != null &&
+        !today.isBefore(p.fertileStart!) &&
+        !today.isAfter(p.fertileEnd!)) {
+      return true; // أيام الخصوبة
+    }
+    return false;
+  }
+
+  /// كارت الدورة الشهرية في الرئيسية (يظهر للسيدات لما الدورة تقرب/نازلة/خصوبة).
+  Widget _cycleCard(BuildContext context) {
+    final p = _cyclePred!;
+    final scheme = Theme.of(context).colorScheme;
+    final until = p.daysUntilNext ?? 0;
+    final day = p.currentDay ?? 0;
+    final today = dateOnly(DateTime.now());
+    String emoji, title, sub;
+    if (day >= 1 && day <= 5) {
+      emoji = '🩸';
+      title = tr('فترة الدورة — يوم ${arNum(day)}', 'Period — day ${arNum(day)}');
+      sub = tr('اهتمي بنفسك النهاردة 🌸', 'Take care of yourself today 🌸');
+    } else if (until <= 0) {
+      emoji = '🌸';
+      title = tr('الدورة متوقّعة النهاردة', 'Period expected today');
+      sub = tr('سجّلي بدايتها أول ما تنزل', 'Log its start when it comes');
+    } else if (until <= 4) {
+      emoji = '🌸';
+      title = tr('دورتك قربت — باقي ${arNum(until)} يوم',
+          'Period in ${arNum(until)} days');
+      sub = tr('جهّزي نفسك', 'Get ready');
+    } else {
+      emoji = '🌱';
+      title = tr('أيام الخصوبة', 'Fertile days');
+      sub = today.isAtSameMomentAs(p.ovulation ?? today) && p.ovulation != null
+          ? tr('اليوم المتوقّع للتبويض', 'Predicted ovulation day')
+          : tr('فترة الخصوبة المتوقّعة', 'Your predicted fertile window');
+    }
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () async {
+          await Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const CycleScreen()));
+          if (mounted) await _load();
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Text(emoji, style: const TextStyle(fontSize: 28)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 15)),
+                    const SizedBox(height: 2),
+                    Text(sub,
+                        style:
+                            TextStyle(fontSize: 12.5, color: scheme.outline)),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_left, color: scheme.outline),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// كارت الصلاة الرئيسي (البطل) — خلفية ليلية متدرجة + هلال + عدّاد تنازلي حي.
   Widget _prayerHeroCard(BuildContext context, {bool fill = false}) {
     final now = DateTime.now();
