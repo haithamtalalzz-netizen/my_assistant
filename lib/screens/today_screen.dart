@@ -52,6 +52,7 @@ import '../widgets/search_action.dart';
 import 'schedule/appointment_form.dart';
 import 'voice/voice_sheet.dart';
 import 'weekly/weekly_planning_screen.dart';
+import 'worship/prayer_screen.dart';
 import 'workout/workout_plan_screen.dart';
 
 /// شاشة اليوم — كل حاجة النهارده في مكان واحد + ملخص "المدير".
@@ -557,40 +558,18 @@ class _TodayScreenState extends State<TodayScreen> {
     final showSummary = _vis('summary');
     final banner = _hardDay ? _hardDayBanner(context) : null;
 
-    Widget? core;
-    if (showPrayer && showSummary) {
-      core = LayoutBuilder(
-        builder: (ctx, constraints) {
-          if (constraints.maxWidth >= 640) {
-            return SizedBox(
-              height: 250,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: _prayerHeroCard(context, fill: true)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _summaryCard(context)),
-                ],
-              ),
-            );
-          }
-          return Column(
-            children: [_prayerHeroCard(context), _summaryCard(context)],
-          );
-        },
-      );
-    } else if (showPrayer) {
-      core = _prayerHeroCard(context);
-    } else if (showSummary) {
-      core = _summaryCard(context);
-    }
-
-    if (banner == null && core == null) return const SizedBox.shrink();
+    final parts = <Widget>[
+      ?banner,
+      if (showPrayer) _prayerCompactCard(context),
+      if (showSummary) _summaryCard(context),
+    ];
+    if (parts.isEmpty) return const SizedBox.shrink();
     return Column(
       children: [
-        ?banner,
-        if (banner != null && core != null) const SizedBox(height: 12),
-        ?core,
+        for (var i = 0; i < parts.length; i++) ...[
+          if (i > 0) const SizedBox(height: 12),
+          parts[i],
+        ],
       ],
     );
   }
@@ -677,145 +656,104 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
-  /// كارت الصلاة الرئيسي (البطل) — خلفية ليلية متدرجة + هلال + عدّاد تنازلي حي.
-  Widget _prayerHeroCard(BuildContext context, {bool fill = false}) {
+  /// كارت الصلاة المصغّر — بيوري الصلاة الجاية + عدّاد حي، وبيفتح صفحة الصلاة.
+  Widget _prayerCompactCard(BuildContext context) {
     final now = DateTime.now();
     var p = _prayers;
     var idx = p?.nextIndex(now);
     var isTomorrow = false;
-    // كل صلوات النهارده فاتت (أو لسه ماتحسبتش) → نوري فجر بكرة. الكارت أساسي
-    // ومابيرجعش لـ nowCard — يفضل يوري مواعيد الصلاة دايمًا.
     if (p == null || idx == null) {
       p = _prayersTomorrow ?? p;
       idx = 0;
       isTomorrow = true;
     }
-    if (p == null) return _nowCard(context); // نظري: لو لسه مفيش بيانات خالص
+    if (p == null) return _nowCard(context);
     final when = p.times[idx];
     final name = prayerNameLabel(idx);
-    // نسبة التقدّم بين الصلاة اللي فاتت والجاية (للشريط).
-    final prevT =
-        idx > 0 ? p.times[idx - 1] : when.subtract(const Duration(hours: 6));
-    final total = when.difference(prevT).inSeconds;
-    final elapsed = now.difference(prevT).inSeconds;
-    final frac = total > 0 ? (elapsed / total).clamp(0.0, 1.0) : 0.0;
-    return Padding(
-      padding: EdgeInsets.only(bottom: fill ? 0 : 12),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          height: fill ? double.infinity : 250,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF2C4677), Color(0xFF1A2942), Color(0xFF0C1423)],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const PrayerScreen())),
+          child: Ink(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerRight,
+                end: Alignment.centerLeft,
+                colors: [Color(0xFF2C4677), Color(0xFF15233c)],
+              ),
             ),
-          ),
-          child: Stack(
-            children: [
-              // الهلال على جهة «النهاية» (عكس بداية النص) عشان مايركبش على الكلام
-              // في العربي (يمين البداية) ولا الإنجليزي (شمال البداية).
-              const PositionedDirectional(
-                top: 18,
-                end: 22,
-                child: Icon(Icons.nightlight_round,
-                    color: Color(0xFFF3D06E), size: 34),
-              ),
-              Positioned(
-                bottom: -10,
-                left: -8,
-                child: Icon(Icons.mosque,
-                    size: 104, color: Colors.white.withValues(alpha: 0.06)),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(tr('المتبقي على', 'Time until'),
-                            style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.65),
-                                fontSize: 13)),
-                        Text(
-                            isTomorrow
-                                ? tr('صلاة $name (بكرة)', '$name prayer (tomorrow)')
-                                : tr('صلاة $name', '$name prayer'),
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800)),
-                        const SizedBox(height: 6),
-                        _CountdownText(
-                          target: when,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 34,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.5),
-                        ),
-                        const SizedBox(height: 12),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(999),
-                          child: Container(
-                            height: 5,
-                            width: 210,
-                            color: Colors.white.withValues(alpha: 0.18),
-                            child: FractionallySizedBox(
-                              alignment: AlignmentDirectional.centerStart,
-                              widthFactor: frac,
-                              child: const ColoredBox(
-                                  color: Color(0xFF2FDE9B)),
-                            ),
-                          ),
-                        ),
-                      ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
                     ),
-                    // مواعيد الصلاة جوّه الكارت (أسفله) — الصلاة الجاية مميّزة.
-                    Row(
-                      children: [
-                        for (var i = 0; i < kPrayerNames.length; i++)
-                          Expanded(
-                            child: Column(
-                              children: [
-                                Text(prayerNameLabel(i),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        color: i == idx
-                                            ? const Color(0xFF2FDE9B)
-                                            : Colors.white
-                                                .withValues(alpha: 0.65),
-                                        fontSize: 10.5,
-                                        fontWeight: i == idx
-                                            ? FontWeight.w700
-                                            : FontWeight.w400)),
-                                const SizedBox(height: 2),
-                                Text(arTime(p.times[i]),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        color: i == idx
-                                            ? Colors.white
-                                            : Colors.white
-                                                .withValues(alpha: 0.7),
-                                        fontSize: 11,
-                                        fontWeight: i == idx
-                                            ? FontWeight.w700
-                                            : FontWeight.w500)),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
+                    child: const Icon(Icons.mosque,
+                        color: Color(0xFFF3D06E), size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        isTomorrow
+                            ? tr('صلاة $name (بكرة)', '$name (tomorrow)')
+                            : tr('صلاة $name', '$name prayer'),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        tr('الأذان ${arTime(when)}', 'Adhan ${arTime(when)}'),
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.65),
+                            fontSize: 12.5),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _CountdownText(
+                        target: when,
+                        style: const TextStyle(
+                            color: Color(0xFF2FDE9B),
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(tr('كل المواعيد', 'All times'),
+                              style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.6),
+                                  fontSize: 11)),
+                          Icon(Icons.chevron_left,
+                              size: 16,
+                              color: Colors.white.withValues(alpha: 0.6)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

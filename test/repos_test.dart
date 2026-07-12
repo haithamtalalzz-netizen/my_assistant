@@ -38,6 +38,7 @@ import 'package:my_assistant/data/meals_repo.dart';
 import 'package:my_assistant/data/measurements_repo.dart';
 import 'package:my_assistant/data/occasions_repo.dart';
 import 'package:my_assistant/data/plants_repo.dart';
+import 'package:my_assistant/data/worship_repo.dart';
 import 'package:my_assistant/data/search_repo.dart';
 import 'package:my_assistant/data/settings_repo.dart';
 import 'package:my_assistant/data/weekly_repo.dart';
@@ -520,6 +521,38 @@ void main() {
 
     test('محافظة غير معروفة ترجع القاهرة', () {
       expect(governorateByName('مش موجودة').name, 'القاهرة');
+    });
+  });
+
+  group('العبادات — قبلة وتتبّع صلاة ومسبحة', () {
+    test('اتجاه القبلة من القاهرة جنوب شرق', () {
+      final b = qiblaBearing(30.0444, 31.2357);
+      expect(b, greaterThan(110));
+      expect(b, lessThan(160));
+    });
+
+    test('تتبّع الصلوات: تسجيل وإلغاء وعدّ', () async {
+      final repo = WorshipRepo();
+      final today = DateTime.now();
+      for (var i = 0; i < 5; i++) {
+        await repo.togglePrayer(today, i, true);
+      }
+      expect((await repo.prayedToday()).length, 5);
+      expect(await repo.fullDaysStreak(), 1);
+      // إلغاء صلاة واحدة يكسر السلسلة الكاملة.
+      await repo.togglePrayer(today, 2, false);
+      expect((await repo.prayedToday()).length, 4);
+      expect(await repo.fullDaysStreak(), 0);
+    });
+
+    test('المسبحة بتجمّع الإجمالى', () async {
+      final repo = WorshipRepo();
+      expect(await repo.tasbihTotal(), 0);
+      await repo.addTasbih(33);
+      await repo.addTasbih(1);
+      expect(await repo.tasbihTotal(), 34);
+      await repo.resetTasbih();
+      expect(await repo.tasbihTotal(), 0);
     });
   });
 

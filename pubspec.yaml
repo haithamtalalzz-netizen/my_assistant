@@ -47,6 +47,8 @@ dependencies:
   flutter_contacts: ^1.1.9
   geolocator: ^13.0.1
   add_2_calendar: ^3.0.1
+  # بوصلة القبلة — يقرأ مستشعر البوصلة (الموبايل فقط، محمي بـ kIsWeb).
+  flutter_compass: ^0.8.0
 
 dev_dependencies:
   flutter_test:

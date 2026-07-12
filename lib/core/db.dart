@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 33,
+      version: 34,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -221,7 +221,22 @@ class AppDb {
       // تسجيل العلاقة (لوضع محاولة الحمل) في التسجيل اليومي.
       await _safeAddColumn(db, 'cycle_days', 'intimacy', 'INTEGER NOT NULL DEFAULT 0');
     }
+    if (oldV < 34 && newV >= 34) {
+      for (final ddl in _v34Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// تتبّع الصلوات الخمس — صف لكل صلاة اتصلّت في يوم.
+  static const List<String> _v34Tables = [
+    '''
+      CREATE TABLE prayer_log(
+        day TEXT NOT NULL,
+        prayer INTEGER NOT NULL,
+        PRIMARY KEY(day, prayer)
+      )''',
+  ];
 
   /// تتبّع حبوب منع الحمل — يوم أُخذت فيه الحبة.
   static const List<String> _v32Tables = [
@@ -872,6 +887,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v32Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v34Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);
