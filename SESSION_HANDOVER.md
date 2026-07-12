@@ -1,5 +1,17 @@
 # SESSION_HANDOVER — My Assistant
 
+## 2026-07-12 (تكملة) — مدن حسب الدولة + ألوان أكتر (هوية+خلفية) + ربط تقويم الموبايل
+
+**الحالة:** analyze نضيف · 161/161 · مبني ومتثبّت (pid 29447) + ويب منشور. commits `fb82c54` (الميزات الـ3) + `de0e2f3` (تنظيف gitignore).
+
+1. **المدن بتظهر ليست فورًا بعد اختيار الدولة**: `core/city_data.dart` = مدن مدمجة بإحداثيات لكل الدول العربية + عواصم/كبرى دول تانية؛ `city_search_sheet` بيعرض مدن الدولة على طول (من غير كتابة) + لسه بيدمج بحث Open-Meteo لأي مدينة تانية، والعنوان بيوري اسم الدولة. `searchCities` بياخد `countryCode` فلتر.
+
+2. **ألوان الهوية والخلفية**: `theme.dart` `kAccentPresets` بقى **15 لون** (منهم **بينك**) + جديد `kBgPresets` (7 خلفيات غامقة: midnight/black/charcoal/navy/espresso/forest/plum). `AppState.bgKey`+`setBg` (`ui_bg`)؛ `app.dart` `ListenableBuilder(merge[accentKey,bgKey])`. الإعدادات بتوري السواتش كـ`Wrap` (كلها تظهر) + قسم خلفية.
+
+3. **ربط بتقويم الموبايل (أندرويد+آبل)**: **قرار مهم** — `device_calendar` 4.x بيتعارض مع `timezone 0.10` (المستخدم في الإشعارات)، و3.9.0 بيكسر AGP 8 (مفيش namespace/Kotlin 1.3) → استخدمنا **`add_2_calendar ^3.1.1`** بدلها. `core/calendar_sync.dart` `addEvent(...)` بيفتح شاشة «إضافة حدث» في تطبيق التقويم بالبيانات جاهزة (per-event، مش مزامنة صامتة؛ web-guarded). زر «أضف لتقويم الموبايل» في **فورم الموعد** + **فورم المناسبة** (المناسبة = allDay + بتتنقل للسنة الجاية لو فاتت). أذونات أندرويد READ/WRITE_CALENDAR + مفاتيح iOS plist (NSCalendars*/NSLocationWhenInUse). **مؤجّل**: مزامنة تلقائية صامتة ثنائية الاتجاه (محتاجة device_calendar 4.x = ترقية/تنازل timezone بحذر، أو انتظار نسخة تدعم timezone 0.10).
+
+---
+
 ## 2026-07-12 — دفعة الصحة واللياقة والتغذية + إصلاح الويب + منظومة الموقع (دولة/مدينة/GPS)
 
 **الحالة:** `flutter analyze` نظيف · **161/161 اختبار** · **DB v29** · إضافة جديدة `geolocator ^13`.
