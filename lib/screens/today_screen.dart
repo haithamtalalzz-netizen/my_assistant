@@ -622,9 +622,11 @@ class _TodayScreenState extends State<TodayScreen> {
           ),
           child: Stack(
             children: [
-              const Positioned(
+              // الهلال على جهة «النهاية» (عكس بداية النص) عشان مايركبش على الكلام
+              // في العربي (يمين البداية) ولا الإنجليزي (شمال البداية).
+              const PositionedDirectional(
                 top: 18,
-                left: 22,
+                end: 22,
                 child: Icon(Icons.nightlight_round,
                     color: Color(0xFFF3D06E), size: 34),
               ),
