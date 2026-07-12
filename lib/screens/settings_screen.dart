@@ -497,13 +497,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   trailing: const Icon(Icons.chevron_left),
                   onTap: _openQuickActionsSettings,
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _name,
-                  decoration:
-                      InputDecoration(labelText: tr('اسمك', 'Your name')),
-                ),
-                const SizedBox(height: 16),
+                SectionHeader(tr('عام', 'General')),
+                // الاسم اتنقل لصفحة «حسابي» في السايدبار (من فوق).
                 Row(
                   children: [
                     Expanded(
