@@ -87,6 +87,18 @@ class SettingsRepo {
   Future<void> setFridayReminder(bool on) async =>
       set('friday_reminder', on ? '1' : '0');
 
+  /// تذكير السنن الرواتب بعد كل فرض — مقفول افتراضيًا.
+  Future<bool> rawatibRemindersEnabled() async =>
+      await get('rawatib_reminders') == '1';
+  Future<void> setRawatibReminders(bool on) async =>
+      set('rawatib_reminders', on ? '1' : '0');
+
+  /// تذكير السحور والإفطار (لأيام الصيام/رمضان) — مقفول افتراضيًا.
+  Future<bool> fastingRemindersEnabled() async =>
+      await get('fasting_reminders') == '1';
+  Future<void> setFastingReminders(bool on) async =>
+      set('fasting_reminders', on ? '1' : '0');
+
   /// موقع مخصّص (أي مدينة في العالم) — إحداثيات محفوظة من البحث الجغرافي.
   /// null = مفيش موقع مخصّص، استخدم المحافظة.
   Future<({double lat, double lng, String label})?> customLocation() async {
@@ -153,6 +165,11 @@ class SettingsRepo {
     await set('quran_last_surah', '$surah');
     await set('quran_last_ayah', '$ayah');
   }
+
+  /// القارئ المختار للتلاوة (مجلد everyayah) — الافتراضى العفاسي.
+  Future<String> quranReciter() async =>
+      await get('quran_reciter') ?? 'Alafasy_128kbps';
+  Future<void> setQuranReciter(String id) async => set('quran_reciter', id);
 
   Future<bool> ramadanMode() async => await get('ramadan_mode') == '1';
 

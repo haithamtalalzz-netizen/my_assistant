@@ -121,14 +121,25 @@ PrayerDay prayerTimesFor(DateTime day, Governorate gov) {
 class PrayerScheduler {
   static const int daysAhead = 7;
 
+  /// الصلوات اللى ليها سنة راتبة مؤكّدة (الفجر/الظهر/المغرب/العشاء — مش العصر).
+  static const List<int> _rawatibPrayers = [0, 1, 3, 4];
+
   static Future<void> ensureScheduled() async {
+    // إلغاء كل الجدولات القديمة (صلاة + رواتب + سحور/إفطار).
     for (var d = 0; d < daysAhead; d++) {
       for (var p = 0; p < kPrayerNames.length; p++) {
         await Notifications.cancel(Notifications.prayerNotifId(d, p));
+        await Notifications.cancel(Notifications.rawatibNotifId(d, p));
       }
+      await Notifications.cancel(Notifications.suhoorNotifId(d));
+      await Notifications.cancel(Notifications.iftarNotifId(d));
     }
     final settings = SettingsRepo();
-    if (!await settings.prayerNotificationsEnabled()) return;
+    final prayerOn = await settings.prayerNotificationsEnabled();
+    final rawatibOn = await settings.rawatibRemindersEnabled();
+    final fastingOn = await settings.fastingRemindersEnabled();
+    if (!prayerOn && !rawatibOn && !fastingOn) return;
+
     final adhanOn = await settings.adhanSoundEnabled();
     final adhanUri = adhanOn ? await settings.adhanCustomUri() : null;
     final adhanChannel = adhanOn ? await settings.adhanCustomChannel() : null;
@@ -139,14 +150,39 @@ class PrayerScheduler {
       final prayers = prayerTimesFor(day, gov);
       final times = prayers.times;
       for (var p = 0; p < times.length; p++) {
+        if (prayerOn) {
+          await Notifications.scheduleOnce(
+            id: Notifications.prayerNotifId(d, p),
+            title: 'أذان ${kPrayerNames[p]}',
+            body: 'وقت صلاة ${kPrayerNames[p]} — ${arTime(times[p])}',
+            when: times[p],
+            adhan: adhanOn,
+            adhanUri: adhanUri,
+            adhanChannel: adhanChannel,
+          );
+        }
+        if (rawatibOn && _rawatibPrayers.contains(p)) {
+          await Notifications.scheduleOnce(
+            id: Notifications.rawatibNotifId(d, p),
+            title: 'سنة ${kPrayerNames[p]} الراتبة',
+            body: 'صلِّ ركعتَي السنة الراتبة 🤲',
+            when: times[p].add(const Duration(minutes: 8)),
+          );
+        }
+      }
+      if (fastingOn) {
+        // السحور قبل الفجر بـ 40 دقيقة، الإفطار عند المغرب.
         await Notifications.scheduleOnce(
-          id: Notifications.prayerNotifId(d, p),
-          title: 'أذان ${kPrayerNames[p]}',
-          body: 'وقت صلاة ${kPrayerNames[p]} — ${arTime(times[p])}',
-          when: times[p],
-          adhan: adhanOn,
-          adhanUri: adhanUri,
-          adhanChannel: adhanChannel,
+          id: Notifications.suhoorNotifId(d),
+          title: 'وقت السحور 🌙',
+          body: 'اقترب الفجر — لا تنسَ السحور فإن فيه بركة',
+          when: prayers.fajr.subtract(const Duration(minutes: 40)),
+        );
+        await Notifications.scheduleOnce(
+          id: Notifications.iftarNotifId(d),
+          title: 'وقت الإفطار 🌇',
+          body: 'حان وقت المغرب — أفطر وتقبّل الله صيامك',
+          when: prayers.maghrib,
         );
       }
     }

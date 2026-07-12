@@ -17,6 +17,7 @@ import 'package:my_assistant/core/ocr.dart';
 import 'package:my_assistant/core/prayers.dart';
 import 'package:my_assistant/core/religion_data.dart';
 import 'package:my_assistant/core/quran_data.dart';
+import 'package:my_assistant/core/mawarith.dart';
 import 'package:my_assistant/core/seed_demo.dart';
 import 'package:my_assistant/data/wallets_repo.dart';
 import 'package:my_assistant/core/voice_parser.dart';
@@ -601,6 +602,43 @@ void main() {
       expect(surahs.first.verses.length, 7); // الفاتحة
       expect(surahs.last.verses.length, 6); // الناس
       expect(surahs.first.verses.first.text.startsWith('بِسۡمِ'), isTrue);
+    });
+
+    test('سلسلة الأذكار وعدّ الصيام', () async {
+      final repo = WorshipRepo();
+      final today = DateTime.now();
+      await repo.markDhikrDone(today, 'morning');
+      await repo.markDhikrDone(today, 'evening');
+      expect((await repo.dhikrDoneOn(today)).length, 2);
+      expect(await repo.dhikrStreak(), 1);
+      await repo.setFasted(today, true);
+      expect(await repo.fastedOn(today), isTrue);
+      expect(await repo.fastCountLast(30), 1);
+      await repo.setFasted(today, false);
+      expect(await repo.fastedOn(today), isFalse);
+    });
+  });
+
+  group('حاسبة المواريث', () {
+    test('زوج + ابن: الزوج 1/4 والابن 3/4', () {
+      final r = computeMawarith(
+          const MawarithInput(estate: 1200, spouse: 'husband', sons: 1));
+      final h = r.shares.firstWhere((s) => s.name == 'الزوج');
+      final son = r.shares.firstWhere((s) => s.name == 'الأبناء');
+      expect(h.fraction, closeTo(0.25, 1e-6));
+      expect(son.fraction, closeTo(0.75, 1e-6));
+      expect(h.amount, closeTo(300, 1e-6));
+    });
+
+    test('المسألة العُمرية: زوجة + أب + أم', () {
+      final r = computeMawarith(
+          const MawarithInput(estate: 2400, spouse: 'wife', father: true, mother: true));
+      final w = r.shares.firstWhere((s) => s.name == 'الزوجة');
+      final m = r.shares.firstWhere((s) => s.name == 'الأم');
+      final f = r.shares.firstWhere((s) => s.name == 'الأب');
+      expect(w.fraction, closeTo(0.25, 1e-6));
+      expect(m.fraction, closeTo(0.25, 1e-6)); // ثلث الباقى
+      expect(f.fraction, closeTo(0.5, 1e-6));
     });
   });
 

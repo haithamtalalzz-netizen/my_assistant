@@ -153,6 +153,117 @@ class WorshipRepo {
     await db.delete('quran_khatma');
     await db.delete('khatma_reads');
   }
+
+  // ---- تتبّع الأذكار (سلسلة) ----
+
+  Future<Set<String>> dhikrDoneOn(DateTime day) async {
+    final db = await AppDb.instance;
+    final rows =
+        await db.query('dhikr_log', where: 'day = ?', whereArgs: [dayKey(day)]);
+    return rows.map((r) => r['kind'] as String).toSet();
+  }
+
+  /// [kind] = 'morning' / 'evening'.
+  Future<void> markDhikrDone(DateTime day, String kind) async {
+    final db = await AppDb.instance;
+    await db.insert('dhikr_log', {'day': dayKey(day), 'kind': kind},
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  /// عدد الأيام المتتالية اللى فيها ذِكر (بينتهى عند اليوم).
+  Future<int> dhikrStreak() async {
+    final db = await AppDb.instance;
+    final rows = await db.rawQuery('SELECT DISTINCT day FROM dhikr_log');
+    final days = rows.map((r) => r['day'] as String).toSet();
+    var streak = 0;
+    var d = dateOnly(DateTime.now());
+    if (!days.contains(dayKey(d))) d = d.subtract(const Duration(days: 1));
+    while (days.contains(dayKey(d))) {
+      streak++;
+      d = d.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
+
+  // ---- تتبّع الصيام ----
+
+  Future<bool> fastedOn(DateTime day) async {
+    final db = await AppDb.instance;
+    final rows =
+        await db.query('fasting_log', where: 'day = ?', whereArgs: [dayKey(day)]);
+    return rows.isNotEmpty;
+  }
+
+  Future<void> setFasted(DateTime day, bool fasted) async {
+    final db = await AppDb.instance;
+    if (fasted) {
+      await db.insert('fasting_log', {'day': dayKey(day)},
+          conflictAlgorithm: ConflictAlgorithm.replace);
+    } else {
+      await db.delete('fasting_log', where: 'day = ?', whereArgs: [dayKey(day)]);
+    }
+  }
+
+  /// عدد أيام الصيام خلال آخر [days] يوم.
+  Future<int> fastCountLast(int days) async {
+    final db = await AppDb.instance;
+    final from = dayKey(dateOnly(DateTime.now()).subtract(Duration(days: days - 1)));
+    final rows = await db
+        .rawQuery('SELECT COUNT(*) c FROM fasting_log WHERE day >= ?', [from]);
+    return (rows.first['c'] as int?) ?? 0;
+  }
+
+  // ---- إحصائية روحية أسبوعية (آخر 7 أيام) ----
+
+  Future<SpiritualWeek> weeklyStats() async {
+    final db = await AppDb.instance;
+    final today = dateOnly(DateTime.now());
+    final fromKey = dayKey(today.subtract(const Duration(days: 6)));
+
+    final prayerRows = await db.rawQuery(
+        'SELECT day, COUNT(*) c FROM prayer_log WHERE day >= ? GROUP BY day',
+        [fromKey]);
+    var prayers = 0, fullDays = 0;
+    for (final r in prayerRows) {
+      final c = r['c'] as int;
+      prayers += c;
+      if (c >= 5) fullDays++;
+    }
+    final dhikrRows = await db.rawQuery(
+        'SELECT COUNT(DISTINCT day) c FROM dhikr_log WHERE day >= ?', [fromKey]);
+    final sunnahRows = await db.rawQuery(
+        'SELECT COUNT(*) c FROM sunnah_log WHERE day >= ?', [fromKey]);
+    final fastRows = await db.rawQuery(
+        'SELECT COUNT(*) c FROM fasting_log WHERE day >= ?', [fromKey]);
+    final khatma = await activeKhatma();
+
+    return SpiritualWeek(
+      prayers: prayers,
+      fullPrayerDays: fullDays,
+      dhikrDays: (dhikrRows.first['c'] as int?) ?? 0,
+      sunnahCount: (sunnahRows.first['c'] as int?) ?? 0,
+      fastingDays: (fastRows.first['c'] as int?) ?? 0,
+      khatmaPercent: khatma == null ? null : (khatma.progress * 100).round(),
+    );
+  }
+}
+
+/// ملخّص أسبوعى روحى.
+class SpiritualWeek {
+  final int prayers; // من أصل 35
+  final int fullPrayerDays; // من أصل 7
+  final int dhikrDays;
+  final int sunnahCount;
+  final int fastingDays;
+  final int? khatmaPercent;
+  const SpiritualWeek({
+    required this.prayers,
+    required this.fullPrayerDays,
+    required this.dhikrDays,
+    required this.sunnahCount,
+    required this.fastingDays,
+    required this.khatmaPercent,
+  });
 }
 
 /// ختمة قرآن نشطة.

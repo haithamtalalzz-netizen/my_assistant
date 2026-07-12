@@ -51,6 +51,8 @@ dependencies:
   flutter_compass: ^0.8.0
   # قائمة بمواضع معروفة — للقفز لآية معيّنة وحفظ آخر موضع فى المصحف (Dart خالص).
   scrollable_positioned_list: ^0.3.8
+  # تشغيل تلاوة القرآن (بث من everyayah — قرّاء معتمدون).
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:

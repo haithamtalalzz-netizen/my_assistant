@@ -23,6 +23,10 @@ class Notifications {
   static int docNotifId(int id) => 300000 + id;
   static int prayerNotifId(int dayIndex, int prayerIndex) =>
       400000 + dayIndex * 10 + prayerIndex;
+  static int rawatibNotifId(int dayIndex, int prayerIndex) =>
+      410000 + dayIndex * 10 + prayerIndex;
+  static int suhoorNotifId(int dayIndex) => 413000 + dayIndex;
+  static int iftarNotifId(int dayIndex) => 414000 + dayIndex;
   static int workoutNotifId(int weekday) => 500000 + weekday;
   static int occasionNotifId(int id) => 600000 + id;
   static const int eveningNotifId = 700001;

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/religion_data.dart';
+import '../../data/worship_repo.dart';
 
 /// قارئ الأذكار (الصباح/المساء) — كل ذِكر معاه عدّاد، دوس عليه ينقص لحد ما يخلص.
 class AdhkarScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class AdhkarScreen extends StatefulWidget {
 class _AdhkarScreenState extends State<AdhkarScreen> {
   late final List<Dhikr> _items = widget.morning ? kMorningAdhkar : kEveningAdhkar;
   late final List<int> _remaining = _items.map((d) => d.count).toList();
+  bool _marked = false;
 
   int get _doneCount => _remaining.where((r) => r == 0).length;
 
@@ -27,6 +29,15 @@ class _AdhkarScreenState extends State<AdhkarScreen> {
       _remaining[i]--;
       if (_remaining[i] == 0) HapticFeedback.mediumImpact();
     });
+    if (!_marked && _doneCount == _items.length) {
+      _marked = true;
+      WorshipRepo()
+          .markDhikrDone(DateTime.now(), widget.morning ? 'morning' : 'evening');
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr('أتممت الورد — سُجّل في سلسلتك ✓',
+              'Adhkar complete — added to your streak ✓'))));
+    }
   }
 
   @override

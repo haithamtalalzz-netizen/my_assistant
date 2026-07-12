@@ -14,12 +14,18 @@ import '../../data/settings_repo.dart';
 import '../../data/worship_repo.dart';
 import 'adhkar_screen.dart';
 import 'duas_screen.dart';
+import 'fasting_screen.dart';
+import 'islamic_occasions_screen.dart';
 import 'khatma_screen.dart';
+import 'mawarith_screen.dart';
 import 'monthly_times_screen.dart';
 import 'names_screen.dart';
+import 'post_prayer_dhikr_screen.dart';
 import 'quran_screen.dart';
 import 'qibla_screen.dart';
+import 'spiritual_stats_screen.dart';
 import 'tasbih_screen.dart';
+import 'zakat_screen.dart';
 
 /// صفحة الصلاة والأذكار — مواعيد الصلاة + تتبّعها + بوصلة القبلة + أدوات دينية.
 class PrayerScreen extends StatefulWidget {
@@ -43,6 +49,7 @@ class _PrayerScreenState extends State<PrayerScreen> {
   String? _customUri;
   String? _customChannel;
   bool _friday = true;
+  bool _rawatib = false;
   Timer? _tick;
 
   @override
@@ -65,8 +72,10 @@ class _PrayerScreenState extends State<PrayerScreen> {
     final customUri = await _settings.adhanCustomUri();
     final customChannel = await _settings.adhanCustomChannel();
     final friday = await _settings.fridayReminderEnabled();
+    final rawatib = await _settings.rawatibRemindersEnabled();
     if (!mounted) return;
     setState(() {
+      _rawatib = rawatib;
       _place = gov.name;
       _prayers = prayerTimesFor(now, gov);
       _tomorrow = prayerTimesFor(now.add(const Duration(days: 1)), gov);
@@ -497,6 +506,21 @@ class _PrayerScreenState extends State<PrayerScreen> {
               await FridayReminder.ensureScheduled();
             },
           ),
+          const Divider(height: 1),
+          SwitchListTile(
+            secondary: const Icon(Icons.access_time),
+            title: Text(tr('تذكير السنن الرواتب', 'Sunnah rawatib reminders')),
+            subtitle: Text(
+                tr('تذكير بركعتَى السنة بعد كل فرض',
+                    'Reminder to pray the sunnah after each fard'),
+                style: const TextStyle(fontSize: 12)),
+            value: _rawatib,
+            onChanged: (v) async {
+              setState(() => _rawatib = v);
+              await _settings.setRawatibReminders(v);
+              await PrayerScheduler.ensureScheduled();
+            },
+          ),
         ],
       ),
     );
@@ -522,6 +546,18 @@ class _PrayerScreenState extends State<PrayerScreen> {
           const Color(0xFF1E7A5A), () => const KhatmaScreen()),
       _Tool(Icons.calendar_month, tr('مواقيت الشهر', 'Monthly times'),
           const Color(0xFF4A6FB5), () => const MonthlyTimesScreen()),
+      _Tool(Icons.self_improvement, tr('أذكار بعد الصلاة', 'Post-prayer adhkar'),
+          const Color(0xFF6A4C93), () => const PostPrayerDhikrScreen()),
+      _Tool(Icons.wb_twilight, tr('الصيام', 'Fasting'),
+          const Color(0xFFCC8A2E), () => const FastingScreen()),
+      _Tool(Icons.insights, tr('إحصائيتك الروحية', 'Spiritual week'),
+          const Color(0xFF3C5A99), () => const SpiritualStatsScreen()),
+      _Tool(Icons.calculate, tr('حاسبة الزكاة', 'Zakat'),
+          const Color(0xFF2E7D6B), () => const ZakatScreen()),
+      _Tool(Icons.account_tree, tr('حاسبة المواريث', 'Inheritance'),
+          const Color(0xFFB5654A), () => const MawarithScreen()),
+      _Tool(Icons.event, tr('المناسبات الإسلامية', 'Islamic occasions'),
+          const Color(0xFF1E7A5A), () => const IslamicOccasionsScreen()),
     ];
     return GridView.builder(
       shrinkWrap: true,
