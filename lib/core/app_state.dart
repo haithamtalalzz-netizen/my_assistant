@@ -15,7 +15,7 @@ class AppState {
   static final ValueNotifier<String> bgKey = ValueNotifier('midnight');
   // مفتاح لون الخلفية للوضع الفاتح — الافتراضي أبيض ورقي.
   static final ValueNotifier<String> bgLightKey = ValueNotifier('paper');
-  // النوع: '' غير محدد / 'male' راجل / 'female' سيدة (يظهر بند الدورة الشهرية).
+  // النوع: '' غير محدد / 'male' ذكر / 'female' أنثى (يظهر بند الدورة الشهرية).
   static final ValueNotifier<String> gender = ValueNotifier('');
 
   static Future<void> load() async {

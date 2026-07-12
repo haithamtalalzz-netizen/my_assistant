@@ -145,11 +145,11 @@ class _AccountScreenState extends State<AccountScreen> {
                     ButtonSegment(
                         value: 'male',
                         icon: const Text('👨'),
-                        label: Text(tr('راجل', 'Man'))),
+                        label: Text(tr('ذكر', 'Male'))),
                     ButtonSegment(
                         value: 'female',
                         icon: const Text('👩'),
-                        label: Text(tr('سيدة', 'Woman'))),
+                        label: Text(tr('أنثى', 'Female'))),
                   ],
                   selected: _gender.isEmpty ? {} : {_gender},
                   emptySelectionAllowed: true,
