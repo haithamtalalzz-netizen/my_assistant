@@ -48,17 +48,21 @@ class Notifications {
   static const int cycleCareNotifId = 1080004; // عناية أثناء الدورة
   static const int pillNotifId = 1090001; // حبوب منع الحمل اليومية
   static const int fridayNotifId = 1100001; // تذكير الجمعة (الكهف + الصلاة على النبى)
+  static const int adhanTestNotifId = 1100002; // تجربة صوت الأذان
 
-  /// قناة الأذان — صوت قوى بخصائص المنبّه عند دخول وقت الصلاة.
+  /// قناة الأذان — صوت أذان حقيقى بخصائص المنبّه عند دخول وقت الصلاة.
+  /// الملف res/raw/adhan.mp3 (بصوت Aaqib Azeez، ترخيص CC BY-SA 4.0 — ويكيميديا).
+  /// معرّف القناة برقم عشان تتعمل من جديد بالصوت (القنوات القديمة مابتتغيّرش).
   static const NotificationDetails _adhanDetails = NotificationDetails(
     android: AndroidNotificationDetails(
-      'prayer_adhan',
+      'prayer_adhan1',
       'أذان الصلاة',
-      channelDescription: 'تنبيه صوتى قوى عند دخول وقت الصلاة',
+      channelDescription: 'أذان صوتى عند دخول وقت الصلاة',
       importance: Importance.max,
       priority: Priority.high,
       category: AndroidNotificationCategory.alarm,
       audioAttributesUsage: AudioAttributesUsage.alarm,
+      sound: RawResourceAndroidNotificationSound('adhan'),
     ),
     iOS: DarwinNotificationDetails(
       interruptionLevel: InterruptionLevel.timeSensitive,
@@ -235,6 +239,13 @@ class Notifications {
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime);
     }
+  }
+
+  /// تجربة صوت الأذان فورًا (عشان المستخدم يتأكد إنه شغّال).
+  static Future<void> showAdhanTest() async {
+    if (!_ready) return;
+    await _plugin.show(adhanTestNotifId, 'أذان (تجربة)',
+        'صوت الأذان شغّال ✓', _adhanDetails);
   }
 
   /// إشعار فوري (مش مجدول).

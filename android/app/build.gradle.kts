@@ -40,6 +40,13 @@ android {
             )
         }
     }
+
+    // lintVital بيقفل ملفات الـ cache على ويندوز (تعارض مع مضاد الفيروسات) —
+    // بنوقفه لأنه تحليل فقط ومابيأثرش على ناتج البناء.
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
 }
 
 kotlin {

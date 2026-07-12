@@ -6,6 +6,7 @@ import 'package:hijri/hijri_calendar.dart';
 import '../../core/app_state.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../core/notifications.dart';
 import '../../core/prayers.dart';
 import '../../core/religion_data.dart';
 import '../../data/settings_repo.dart';
@@ -388,8 +389,8 @@ class _PrayerScreenState extends State<PrayerScreen> {
             secondary: const Icon(Icons.volume_up),
             title: Text(tr('صوت الأذان مع التنبيه', 'Adhan sound with alerts')),
             subtitle: Text(
-                tr('تنبيه صوتى قوى عند دخول وقت كل صلاة',
-                    'A loud alert at each prayer time'),
+                tr('أذان صوتى عند دخول وقت كل صلاة',
+                    'A real adhan at each prayer time'),
                 style: const TextStyle(fontSize: 12)),
             value: _adhan,
             onChanged: (v) async {
@@ -398,6 +399,38 @@ class _PrayerScreenState extends State<PrayerScreen> {
               await PrayerScheduler.ensureScheduled();
             },
           ),
+          if (_adhan)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(
+                  start: 16, end: 16, bottom: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        await Notifications.showAdhanTest();
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(tr('جارٍ تشغيل الأذان…',
+                                'Playing the adhan…'))));
+                      },
+                      icon: const Icon(Icons.play_arrow, size: 18),
+                      label: Text(tr('جرّب صوت الأذان', 'Test adhan sound')),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    tr('صوت الأذان: القارئ Aaqib Azeez — ترخيص CC BY-SA 4.0 (ويكيميديا كومنز)',
+                        'Adhan audio: reciter Aaqib Azeez — CC BY-SA 4.0 (Wikimedia Commons)'),
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
           const Divider(height: 1),
           SwitchListTile(
             secondary: const Icon(Icons.mosque),
