@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../data/cycle_repo.dart';
+import '../../data/settings_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 
@@ -16,7 +17,10 @@ class CycleScreen extends StatefulWidget {
 
 class _CycleScreenState extends State<CycleScreen> {
   final _repo = CycleRepo();
+  final _settings = SettingsRepo();
   bool _loading = true;
+  bool _remindersOn = true;
+  int _calOffset = 0; // شهر التقويم (0 = الحالي)
   CyclePrediction _pred = const CyclePrediction();
   List<CycleLog> _logs = [];
   CycleDay? _today;
@@ -33,14 +37,29 @@ class _CycleScreenState extends State<CycleScreen> {
     final pred = await _repo.predict();
     final today = await _repo.dayLog(dayKey(DateTime.now()));
     final recentDays = await _repo.recentDays(limit: 14);
+    final remindersOn = await _settings.get('cycle_reminders') != '0';
     if (!mounted) return;
     setState(() {
       _logs = logs;
       _pred = pred;
       _today = today;
       _recentDays = recentDays;
+      _remindersOn = remindersOn;
       _loading = false;
     });
+  }
+
+  Future<void> _toggleReminders() async {
+    final on = !_remindersOn;
+    await _settings.set('cycle_reminders', on ? '1' : '0');
+    setState(() => _remindersOn = on);
+    await _repo.ensureReminders();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(on
+              ? tr('تذكيرات الدورة اتفعّلت', 'Cycle reminders on')
+              : tr('تذكيرات الدورة اتوقفت', 'Cycle reminders off'))));
+    }
   }
 
   Future<void> _logStart({DateTime? initial}) async {
@@ -58,12 +77,26 @@ class _CycleScreenState extends State<CycleScreen> {
       createdAt: DateTime.now().toIso8601String(),
     ));
     await _load();
+    await _repo.ensureReminders();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('الدورة الشهرية', 'Menstrual cycle'))),
+      appBar: AppBar(
+        title: Text(tr('الدورة الشهرية', 'Menstrual cycle')),
+        actions: [
+          IconButton(
+            tooltip: _remindersOn
+                ? tr('تذكيرات الدورة: شغّالة', 'Cycle reminders: on')
+                : tr('تذكيرات الدورة: موقوفة', 'Cycle reminders: off'),
+            icon: Icon(_remindersOn
+                ? Icons.notifications_active_outlined
+                : Icons.notifications_off_outlined),
+            onPressed: _toggleReminders,
+          ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -74,6 +107,8 @@ class _CycleScreenState extends State<CycleScreen> {
                   _statusCard(context),
                   const SizedBox(height: 12),
                   if (_pred.hasData) _predictionsCard(context),
+                  const SizedBox(height: 12),
+                  _calendarCard(context),
                   const SizedBox(height: 4),
                   _todayLogCard(context),
                   if (_recentDays.isNotEmpty) ...[
@@ -410,6 +445,159 @@ class _CycleScreenState extends State<CycleScreen> {
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(text,
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+      );
+
+  // ---- تقويم ملوّن ----
+  static const _cPeriod = Color(0xFFE0567A); // دورة فعلية
+  static const _cPredicted = Color(0xFFF3AEC0); // دورة متوقّعة
+  static const _cOvulation = Color(0xFF8B5CF6); // تبويض
+  static const _cFertile = Color(0xFF2DD4BF); // خصوبة
+  static const _cPms = Color(0xFFF59E0B); // ما قبل الطمث
+
+  Set<String> _actualPeriodDays() {
+    final s = <String>{};
+    for (final l in _logs) {
+      final start = DateTime.tryParse(l.startDay);
+      if (start == null) continue;
+      for (var i = 0; i < l.periodDays; i++) {
+        s.add(dayKey(start.add(Duration(days: i))));
+      }
+    }
+    return s;
+  }
+
+  Color? _phaseColor(DateTime date, Set<String> actual) {
+    final d = dateOnly(date);
+    if (actual.contains(dayKey(d))) return _cPeriod;
+    final p = _pred;
+    bool between(DateTime? a, DateTime? b) =>
+        a != null && b != null && !d.isBefore(a) && !d.isAfter(b);
+    // دورة متوقّعة (nextStart .. +5)
+    if (p.nextStart != null &&
+        between(p.nextStart, p.nextStart!.add(const Duration(days: 4)))) {
+      return _cPredicted;
+    }
+    if (p.ovulation != null && dayKey(p.ovulation!) == dayKey(d)) {
+      return _cOvulation;
+    }
+    if (between(p.fertileStart, p.fertileEnd)) return _cFertile;
+    // ما قبل الطمث: 5 أيام قبل الدورة الجاية
+    if (p.nextStart != null &&
+        between(p.nextStart!.subtract(const Duration(days: 5)),
+            p.nextStart!.subtract(const Duration(days: 1)))) {
+      return _cPms;
+    }
+    return null;
+  }
+
+  Widget _calendarCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final now = DateTime.now();
+    final month = DateTime(now.year, now.month + _calOffset, 1);
+    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+    final firstCol = (month.weekday - 6 + 7) % 7;
+    final actual = _actualPeriodDays();
+    const dayLetters = ['س', 'ح', 'ن', 'ث', 'ر', 'خ', 'ج'];
+
+    final cells = <Widget>[];
+    for (var i = 0; i < firstCol; i++) {
+      cells.add(const SizedBox());
+    }
+    for (var day = 1; day <= daysInMonth; day++) {
+      final date = DateTime(month.year, month.month, day);
+      final color = _phaseColor(date, actual);
+      final isToday = dayKey(date) == dayKey(now);
+      cells.add(Center(
+        child: Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: isToday
+                ? Border.all(color: scheme.primary, width: 2)
+                : null,
+          ),
+          child: Text('$day',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
+                  color: color != null ? Colors.white : scheme.onSurface)),
+        ),
+      ));
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: () => setState(() => _calOffset--)),
+                Expanded(
+                  child: Text(arMonth(month),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                ),
+                IconButton(
+                    icon: const Icon(Icons.chevron_left),
+                    onPressed: () => setState(() => _calOffset++)),
+              ],
+            ),
+            Row(
+              children: [
+                for (final l in dayLetters)
+                  Expanded(
+                    child: Center(
+                      child: Text(l,
+                          style: TextStyle(
+                              fontSize: 11, color: scheme.outline)),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            GridView.count(
+              crossAxisCount: 7,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 4,
+              children: cells,
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 12,
+              runSpacing: 6,
+              alignment: WrapAlignment.center,
+              children: [
+                _legend(_cPeriod, tr('الدورة', 'Period')),
+                _legend(_cPredicted, tr('متوقّعة', 'Predicted')),
+                _legend(_cFertile, tr('خصوبة', 'Fertile')),
+                _legend(_cOvulation, tr('تبويض', 'Ovulation')),
+                _legend(_cPms, tr('ما قبل الطمث', 'PMS')),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _legend(Color color, String label) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+              width: 12,
+              height: 12,
+              decoration:
+                  BoxDecoration(color: color, shape: BoxShape.circle)),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 11)),
+        ],
       );
 
   String _phaseLabel() {

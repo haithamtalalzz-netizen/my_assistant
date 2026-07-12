@@ -24,6 +24,7 @@ import 'data/bills_repo.dart';
 import 'data/gameya_repo.dart';
 import 'data/income_repo.dart';
 import 'data/capsule_repo.dart';
+import 'data/cycle_repo.dart';
 import 'data/meters_repo.dart';
 import 'data/pharmacy_repo.dart';
 import 'data/plants_repo.dart';
@@ -104,4 +105,5 @@ Future<void> _startup() async {
   unawaited(RelativesRepo().rescheduleAll());
   unawaited(CapsuleRepo().rescheduleAll());
   unawaited(PlantsRepo().rescheduleAll());
+  unawaited(CycleRepo().ensureReminders());
 }

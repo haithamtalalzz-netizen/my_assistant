@@ -3,7 +3,9 @@ import 'package:sqflite/sqflite.dart';
 import '../core/ar.dart';
 import '../core/db.dart';
 import '../core/l10n.dart';
+import '../core/notifications.dart';
 import '../models/models.dart';
+import 'settings_repo.dart';
 
 // ---- خيارات التسجيل اليومي (مفاتيح ثابتة + عرض ثنائي اللغة) ----
 const List<String> kMoods = [
@@ -135,6 +137,38 @@ class CycleRepo {
     final rows =
         await db.query('cycle_days', orderBy: 'day DESC', limit: limit);
     return rows.map(CycleDay.fromMap).toList();
+  }
+
+  /// يجدول تذكير قبل الدورة بيومين + بداية أيام الخصوبة (للسيدات فقط).
+  Future<void> ensureReminders() async {
+    await Notifications.cancel(Notifications.cyclePeriodNotifId);
+    await Notifications.cancel(Notifications.cycleFertileNotifId);
+    final settings = SettingsRepo();
+    if (await settings.get('gender') != 'female') return;
+    if (await settings.get('cycle_reminders') == '0') return;
+    final p = await predict();
+    if (!p.hasData || p.nextStart == null) return;
+
+    final ns = p.nextStart!;
+    final before =
+        DateTime(ns.year, ns.month, ns.day, 9).subtract(const Duration(days: 2));
+    await Notifications.scheduleOnce(
+      id: Notifications.cyclePeriodNotifId,
+      title: tr('الدورة قربت 🌸', 'Period is near 🌸'),
+      body: tr('دورتك متوقّعة خلال يومين — جهّزي نفسك.',
+          'Your period is expected in ~2 days.'),
+      when: before,
+    );
+    final fs = p.fertileStart;
+    if (fs != null) {
+      await Notifications.scheduleOnce(
+        id: Notifications.cycleFertileNotifId,
+        title: tr('أيام الخصوبة بدأت', 'Fertile window started'),
+        body: tr('فترة الخصوبة المتوقّعة بدأت النهاردة.',
+            'Your predicted fertile window starts today.'),
+        when: DateTime(fs.year, fs.month, fs.day, 9),
+      );
+    }
   }
 
   /// يحسب التوقّعات من التواريخ المسجّلة.
