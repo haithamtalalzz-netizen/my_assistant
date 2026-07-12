@@ -219,6 +219,8 @@ class _CycleScreenState extends State<CycleScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
                 children: [
                   _modeSelector(context),
+                  const SizedBox(height: 8),
+                  _modeHint(context),
                   const SizedBox(height: 12),
                   if (_mode == 'pregnant')
                     _pregnancyCard(context)
@@ -228,7 +230,7 @@ class _CycleScreenState extends State<CycleScreen> {
                       const SizedBox(height: 8),
                       _lateCard(context),
                     ],
-                    if (_mode == 'ttc' && _pred.hasData) ...[
+                    if (_mode == 'ttc') ...[
                       const SizedBox(height: 8),
                       _ttcBanner(context),
                     ],
@@ -481,6 +483,43 @@ class _CycleScreenState extends State<CycleScreen> {
                 tr('كجم', 'kg')),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _modeHint(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final (emoji, text) = switch (_mode) {
+      'ttc' => (
+          '🌱',
+          tr('بنركّز على أيام الخصوبة والتبويض، ونسجّل «العلاقة» في اليوميات لتتبّع أنسب توقيت للحمل.',
+              'Focus on fertile & ovulation days + log intimacy to track conception timing.')
+        ),
+      'pregnant' => (
+          '👶',
+          tr('بنتبّع أسبوع الحمل وموعد الولادة بدل توقّعات الدورة.',
+              'Track pregnancy weeks & due date instead of period predictions.')
+        ),
+      _ => (
+          '🌸',
+          tr('تتبّع دورتك وتوقّعاتها: الدورة الجاية والخصوبة والتبويض.',
+              'Track your cycle & its predictions: next period, fertile & ovulation.')
+        ),
+    };
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 18)),
+          const SizedBox(width: 8),
+          Expanded(
+              child: Text(text,
+                  style: TextStyle(fontSize: 12.5, color: scheme.outline))),
+        ],
       ),
     );
   }
