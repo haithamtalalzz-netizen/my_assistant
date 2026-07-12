@@ -1,6 +1,65 @@
+import 'package:sqflite/sqflite.dart';
+
 import '../core/ar.dart';
 import '../core/db.dart';
+import '../core/l10n.dart';
 import '../models/models.dart';
+
+// ---- خيارات التسجيل اليومي (مفاتيح ثابتة + عرض ثنائي اللغة) ----
+const List<String> kMoods = [
+  'happy', 'calm', 'sad', 'irritable', 'anxious', 'upset', 'energetic', 'tired'
+];
+
+String moodEmoji(String k) => switch (k) {
+      'happy' => '😊',
+      'calm' => '😌',
+      'sad' => '😢',
+      'irritable' => '😠',
+      'anxious' => '😟',
+      'upset' => '😞',
+      'energetic' => '⚡',
+      'tired' => '😴',
+      _ => '🙂',
+    };
+
+String moodLabel(String k) => switch (k) {
+      'happy' => tr('سعيدة', 'Happy'),
+      'calm' => tr('هادئة', 'Calm'),
+      'sad' => tr('حزينة', 'Sad'),
+      'irritable' => tr('عصبية', 'Irritable'),
+      'anxious' => tr('قلقانة', 'Anxious'),
+      'upset' => tr('متضايقة', 'Upset'),
+      'energetic' => tr('نشيطة', 'Energetic'),
+      'tired' => tr('مرهقة', 'Tired'),
+      _ => k,
+    };
+
+const List<String> kSymptoms = [
+  'cramps', 'headache', 'bloating', 'backache', 'fatigue',
+  'acne', 'breast', 'nausea', 'cravings'
+];
+
+String symptomLabel(String k) => switch (k) {
+      'cramps' => tr('مغص', 'Cramps'),
+      'headache' => tr('صداع', 'Headache'),
+      'bloating' => tr('انتفاخ', 'Bloating'),
+      'backache' => tr('ألم ظهر', 'Backache'),
+      'fatigue' => tr('إرهاق', 'Fatigue'),
+      'acne' => tr('حبوب', 'Acne'),
+      'breast' => tr('ألم صدر', 'Breast pain'),
+      'nausea' => tr('غثيان', 'Nausea'),
+      'cravings' => tr('نهم أكل', 'Cravings'),
+      _ => k,
+    };
+
+const List<String> kFlows = ['light', 'medium', 'heavy'];
+
+String flowLabel(String k) => switch (k) {
+      'light' => tr('خفيف', 'Light'),
+      'medium' => tr('متوسط', 'Medium'),
+      'heavy' => tr('غزير', 'Heavy'),
+      _ => k,
+    };
 
 /// توقّعات الدورة الشهرية المحسوبة من التواريخ المسجّلة.
 class CyclePrediction {
@@ -45,6 +104,37 @@ class CycleRepo {
     final db = await AppDb.instance;
     final rows = await db.query('cycle_logs', orderBy: 'start_day DESC');
     return rows.map(CycleLog.fromMap).toList();
+  }
+
+  // ---- التسجيل اليومي (مزاج/أعراض/شدة نزيف/وزن) ----
+
+  Future<CycleDay?> dayLog(String day) async {
+    final db = await AppDb.instance;
+    final rows =
+        await db.query('cycle_days', where: 'day = ?', whereArgs: [day]);
+    return rows.isEmpty ? null : CycleDay.fromMap(rows.first);
+  }
+
+  Future<void> saveDay(CycleDay d) async {
+    final db = await AppDb.instance;
+    // لو كل الحقول فاضية، امسح السجل بدل ما نخزّن سطر فاضي.
+    if (d.mood.isEmpty &&
+        d.symptoms.isEmpty &&
+        d.flow.isEmpty &&
+        d.weight == null &&
+        d.note.isEmpty) {
+      await db.delete('cycle_days', where: 'day = ?', whereArgs: [d.day]);
+      return;
+    }
+    await db.insert('cycle_days', d.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<CycleDay>> recentDays({int limit = 30}) async {
+    final db = await AppDb.instance;
+    final rows =
+        await db.query('cycle_days', orderBy: 'day DESC', limit: limit);
+    return rows.map(CycleDay.fromMap).toList();
   }
 
   /// يحسب التوقّعات من التواريخ المسجّلة.

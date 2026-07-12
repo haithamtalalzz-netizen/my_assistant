@@ -19,6 +19,8 @@ class _CycleScreenState extends State<CycleScreen> {
   bool _loading = true;
   CyclePrediction _pred = const CyclePrediction();
   List<CycleLog> _logs = [];
+  CycleDay? _today;
+  List<CycleDay> _recentDays = [];
 
   @override
   void initState() {
@@ -29,10 +31,14 @@ class _CycleScreenState extends State<CycleScreen> {
   Future<void> _load() async {
     final logs = await _repo.all();
     final pred = await _repo.predict();
+    final today = await _repo.dayLog(dayKey(DateTime.now()));
+    final recentDays = await _repo.recentDays(limit: 14);
     if (!mounted) return;
     setState(() {
       _logs = logs;
       _pred = pred;
+      _today = today;
+      _recentDays = recentDays;
       _loading = false;
     });
   }
@@ -68,6 +74,12 @@ class _CycleScreenState extends State<CycleScreen> {
                   _statusCard(context),
                   const SizedBox(height: 12),
                   if (_pred.hasData) _predictionsCard(context),
+                  const SizedBox(height: 4),
+                  _todayLogCard(context),
+                  if (_recentDays.isNotEmpty) ...[
+                    SectionHeader(tr('تسجيلاتك اليومية', 'Your daily logs')),
+                    ..._recentDays.map(_dayTile),
+                  ],
                   SectionHeader(tr('الدورات المسجّلة', 'Logged periods')),
                   if (_logs.isEmpty)
                     EmptyHint(
@@ -234,6 +246,171 @@ class _CycleScreenState extends State<CycleScreen> {
       ),
     );
   }
+
+  Widget _todayLogCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final t = _today;
+    final has = t != null &&
+        (t.mood.isNotEmpty ||
+            t.symptoms.isNotEmpty ||
+            t.flow.isNotEmpty ||
+            t.weight != null ||
+            t.note.isNotEmpty);
+    return Card(
+      child: ListTile(
+        leading: Text(has && t.mood.isNotEmpty ? moodEmoji(t.mood) : '📝',
+            style: const TextStyle(fontSize: 24)),
+        title: Text(tr('تسجيل اليوم', "Today's log")),
+        subtitle: Text(has
+            ? [
+                if (t.mood.isNotEmpty) moodLabel(t.mood),
+                if (t.flow.isNotEmpty) flowLabel(t.flow),
+                if (t.symptomList.isNotEmpty)
+                  '${t.symptomList.length} ${tr('عرض', 'symptoms')}',
+                if (t.weight != null) '${t.weight} ${tr('كجم', 'kg')}',
+              ].join(' · ')
+            : tr('سجّلي مزاجك وأعراضك ووزنك النهاردة',
+                'Log your mood, symptoms & weight today')),
+        trailing: Icon(Icons.edit_outlined, color: scheme.primary),
+        onTap: () => _editDay(_today, dayKey(DateTime.now())),
+      ),
+    );
+  }
+
+  Widget _dayTile(CycleDay d) {
+    final date = DateTime.tryParse(d.day);
+    final parts = [
+      if (d.flow.isNotEmpty) flowLabel(d.flow),
+      for (final s in d.symptomList) symptomLabel(s),
+      if (d.weight != null) '${d.weight} ${tr('كجم', 'kg')}',
+    ];
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      child: ListTile(
+        dense: true,
+        leading: Text(d.mood.isNotEmpty ? moodEmoji(d.mood) : '📝',
+            style: const TextStyle(fontSize: 20)),
+        title: Text(date != null ? arShortDate(date) : d.day),
+        subtitle: parts.isEmpty
+            ? (d.mood.isNotEmpty ? Text(moodLabel(d.mood)) : null)
+            : Text(parts.join(' · '),
+                maxLines: 2, overflow: TextOverflow.ellipsis),
+        onTap: () => _editDay(d, d.day),
+      ),
+    );
+  }
+
+  Future<void> _editDay(CycleDay? existing, String day) async {
+    var mood = existing?.mood ?? '';
+    final symptoms = {...?existing?.symptomList};
+    var flow = existing?.flow ?? '';
+    final weightCtrl = TextEditingController(
+        text: existing?.weight != null ? '${existing!.weight}' : '');
+    final noteCtrl = TextEditingController(text: existing?.note ?? '');
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: StatefulBuilder(
+          builder: (ctx, setSheet) => SizedBox(
+            height: MediaQuery.of(ctx).size.height * 0.82,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              children: [
+                Text(tr('تسجيل اليوم', "Today's log"),
+                    style: Theme.of(ctx)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 12),
+                _sheetLabel(tr('المزاج / الحالة النفسية', 'Mood')),
+                Wrap(spacing: 6, children: [
+                  for (final m in kMoods)
+                    ChoiceChip(
+                      label: Text('${moodEmoji(m)} ${moodLabel(m)}'),
+                      selected: mood == m,
+                      onSelected: (_) =>
+                          setSheet(() => mood = mood == m ? '' : m),
+                    ),
+                ]),
+                const SizedBox(height: 14),
+                _sheetLabel(tr('الأعراض', 'Symptoms')),
+                Wrap(spacing: 6, children: [
+                  for (final s in kSymptoms)
+                    FilterChip(
+                      label: Text(symptomLabel(s)),
+                      selected: symptoms.contains(s),
+                      onSelected: (on) => setSheet(() =>
+                          on ? symptoms.add(s) : symptoms.remove(s)),
+                    ),
+                ]),
+                const SizedBox(height: 14),
+                _sheetLabel(tr('شدة النزيف', 'Flow')),
+                Wrap(spacing: 6, children: [
+                  for (final f in kFlows)
+                    ChoiceChip(
+                      label: Text(flowLabel(f)),
+                      selected: flow == f,
+                      onSelected: (_) =>
+                          setSheet(() => flow = flow == f ? '' : f),
+                    ),
+                ]),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: weightCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: tr('الوزن (كجم)', 'Weight (kg)'),
+                    prefixIcon: const Icon(Icons.monitor_weight_outlined),
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteCtrl,
+                  decoration: InputDecoration(
+                    labelText: tr('ملاحظة', 'Note'),
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: () async {
+                    await _repo.saveDay(CycleDay(
+                      day: day,
+                      mood: mood,
+                      symptoms: symptoms.join(','),
+                      flow: flow,
+                      weight: parseNumber(weightCtrl.text),
+                      note: noteCtrl.text.trim(),
+                    ));
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  },
+                  icon: const Icon(Icons.check),
+                  label: Text(tr('حفظ', 'Save')),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    weightCtrl.dispose();
+    noteCtrl.dispose();
+    await _load();
+  }
+
+  Widget _sheetLabel(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Text(text,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+      );
 
   String _phaseLabel() {
     final day = _pred.currentDay;

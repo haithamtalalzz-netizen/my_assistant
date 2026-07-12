@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 30,
+      version: 31,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -207,7 +207,25 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 31 && newV >= 31) {
+      for (final ddl in _v31Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// تسجيل يومي للدورة (مزاج/أعراض/شدة نزيف/وزن/ملاحظة).
+  static const List<String> _v31Tables = [
+    '''
+      CREATE TABLE cycle_days(
+        day TEXT PRIMARY KEY,
+        mood TEXT NOT NULL DEFAULT '',
+        symptoms TEXT NOT NULL DEFAULT '',
+        flow TEXT NOT NULL DEFAULT '',
+        weight REAL,
+        note TEXT NOT NULL DEFAULT ''
+      )''',
+  ];
 
   /// الدورة الشهرية للسيدات — تواريخ بداية كل دورة.
   static const List<String> _v30Tables = [
@@ -829,6 +847,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v30Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v31Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);

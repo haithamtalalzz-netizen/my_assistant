@@ -1358,6 +1358,26 @@ void main() {
     });
   });
 
+  group('ترقية قاعدة البيانات v30 ← v31', () {
+    test('جدول التسجيل اليومي للدورة بيتعمل', () async {
+      final v30 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v30, 30, 31);
+      await v30.insert('cycle_days', {
+        'day': '2026-06-05',
+        'mood': 'calm',
+        'symptoms': 'cramps',
+        'flow': 'light',
+        'weight': 60.0,
+        'note': '',
+      });
+      final rows = await v30.query('cycle_days');
+      expect(rows.length, 1);
+      expect(rows.first['mood'], 'calm');
+      await v30.close();
+    });
+  });
+
   group('الدورة الشهرية', () {
     test('حساب متوسط الدورة والدورة الجاية والتبويض', () async {
       final repo = CycleRepo();
@@ -1377,6 +1397,26 @@ void main() {
       final p = await CycleRepo().predict();
       expect(p.hasData, false);
       expect(p.avgCycleLength, 28);
+    });
+
+    test('التسجيل اليومي: مزاج/أعراض/وزن round-trip + مسح لو فاضي', () async {
+      final repo = CycleRepo();
+      await repo.saveDay(const CycleDay(
+        day: '2026-06-10',
+        mood: 'tired',
+        symptoms: 'cramps,headache',
+        flow: 'medium',
+        weight: 62.5,
+        note: 'تعب',
+      ));
+      final d = await repo.dayLog('2026-06-10');
+      expect(d, isNotNull);
+      expect(d!.mood, 'tired');
+      expect(d.symptomList, ['cramps', 'headache']);
+      expect(d.weight, 62.5);
+      // حفظ يوم فاضي بيمسحه.
+      await repo.saveDay(const CycleDay(day: '2026-06-10'));
+      expect(await repo.dayLog('2026-06-10'), isNull);
     });
   });
 

@@ -1557,6 +1557,46 @@ class CycleLog {
       };
 }
 
+/// تسجيل يومي للدورة (مزاج/أعراض/شدة نزيف/وزن/ملاحظة).
+class CycleDay {
+  final String day; // YYYY-MM-DD
+  final String mood;
+  final String symptoms; // مفاتيح مفصولة بفاصلة
+  final String flow;
+  final double? weight;
+  final String note;
+
+  const CycleDay({
+    required this.day,
+    this.mood = '',
+    this.symptoms = '',
+    this.flow = '',
+    this.weight,
+    this.note = '',
+  });
+
+  List<String> get symptomList =>
+      symptoms.split(',').where((e) => e.isNotEmpty).toList();
+
+  factory CycleDay.fromMap(Map<String, Object?> m) => CycleDay(
+        day: m['day'] as String,
+        mood: m['mood'] as String? ?? '',
+        symptoms: m['symptoms'] as String? ?? '',
+        flow: m['flow'] as String? ?? '',
+        weight: (m['weight'] as num?)?.toDouble(),
+        note: m['note'] as String? ?? '',
+      );
+
+  Map<String, Object?> toMap() => {
+        'day': day,
+        'mood': mood,
+        'symptoms': symptoms,
+        'flow': flow,
+        'weight': weight,
+        'note': note,
+      };
+}
+
 class ShoppingItem {
   final int? id;
   final String name;
