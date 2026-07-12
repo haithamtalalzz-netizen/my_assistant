@@ -11,6 +11,9 @@ import '../../core/religion_data.dart';
 import '../../data/settings_repo.dart';
 import '../../data/worship_repo.dart';
 import 'adhkar_screen.dart';
+import 'duas_screen.dart';
+import 'khatma_screen.dart';
+import 'monthly_times_screen.dart';
 import 'names_screen.dart';
 import 'qibla_screen.dart';
 import 'tasbih_screen.dart';
@@ -25,11 +28,15 @@ class PrayerScreen extends StatefulWidget {
 
 class _PrayerScreenState extends State<PrayerScreen> {
   final _repo = WorshipRepo();
+  final _settings = SettingsRepo();
   PrayerDay? _prayers;
   PrayerDay? _tomorrow;
   String _place = '';
   Set<int> _prayed = {};
+  Set<String> _sunnahDone = {};
   int _streak = 0;
+  bool _adhan = false;
+  bool _friday = true;
   Timer? _tick;
 
   @override
@@ -42,18 +49,31 @@ class _PrayerScreenState extends State<PrayerScreen> {
   }
 
   Future<void> _load() async {
-    final gov = await resolvePlace(SettingsRepo());
+    final gov = await resolvePlace(_settings);
     final now = DateTime.now();
     final prayed = await _repo.prayedToday();
+    final sunnah = await _repo.sunnahDoneOn(now);
     final streak = await _repo.fullDaysStreak();
+    final adhan = await _settings.adhanSoundEnabled();
+    final friday = await _settings.fridayReminderEnabled();
     if (!mounted) return;
     setState(() {
       _place = gov.name;
       _prayers = prayerTimesFor(now, gov);
       _tomorrow = prayerTimesFor(now.add(const Duration(days: 1)), gov);
       _prayed = prayed;
+      _sunnahDone = sunnah;
       _streak = streak;
+      _adhan = adhan;
+      _friday = friday;
     });
+  }
+
+  Future<void> _toggleSunnah(String name) async {
+    final has = _sunnahDone.contains(name);
+    await _repo.toggleSunnah(DateTime.now(), name, !has);
+    if (!mounted) return;
+    setState(() => has ? _sunnahDone.remove(name) : _sunnahDone.add(name));
   }
 
   @override
@@ -103,11 +123,17 @@ class _PrayerScreenState extends State<PrayerScreen> {
                 _timesCard(now),
                 const SizedBox(height: 16),
                 _duaCard(now),
+                const SizedBox(height: 12),
+                _ayahHadithCard(now),
+                const SizedBox(height: 16),
+                _sunanCard(),
                 const SizedBox(height: 16),
                 Text(tr('أدوات دينية', 'Islamic tools'),
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 12),
                 _toolsGrid(),
+                const SizedBox(height: 16),
+                _reminderSettingsCard(),
               ],
             ),
     );
@@ -265,6 +291,133 @@ class _PrayerScreenState extends State<PrayerScreen> {
     );
   }
 
+  Widget _ayahHadithCard(DateTime now) {
+    final scheme = Theme.of(context).colorScheme;
+    Widget block(IconData icon, String title, String body) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(icon, size: 17, color: scheme.primary),
+              const SizedBox(width: 6),
+              Text(title,
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: scheme.primary,
+                      fontSize: 13.5)),
+            ]),
+            const SizedBox(height: 6),
+            Text(body, style: const TextStyle(fontSize: 16.5, height: 1.9)),
+          ],
+        );
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          block(Icons.book, tr('آية اليوم', 'Verse of the day'), ayahOfDay(now)),
+          const Divider(height: 24),
+          block(Icons.format_quote, tr('حديث اليوم', 'Hadith of the day'),
+              hadithOfDay(now)),
+        ],
+      ),
+    );
+  }
+
+  Widget _sunanCard() {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.spa, size: 18, color: scheme.primary),
+              const SizedBox(width: 6),
+              Text(tr('سنن ونوافل اليوم', "Today's sunnah & nafl"),
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w800)),
+              const Spacer(),
+              Text(
+                '${arNum(_sunnahDone.length)}/${arNum(kSunanItems.length)}',
+                style: TextStyle(color: scheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final s in kSunanItems)
+                FilterChip(
+                  label: Text(s.name),
+                  selected: _sunnahDone.contains(s.name),
+                  showCheckmark: true,
+                  tooltip: s.note.isEmpty ? null : s.note,
+                  onSelected: (_) => _toggleSunnah(s.name),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _reminderSettingsCard() {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        children: [
+          SwitchListTile(
+            secondary: const Icon(Icons.volume_up),
+            title: Text(tr('صوت الأذان مع التنبيه', 'Adhan sound with alerts')),
+            subtitle: Text(
+                tr('تنبيه صوتى قوى عند دخول وقت كل صلاة',
+                    'A loud alert at each prayer time'),
+                style: const TextStyle(fontSize: 12)),
+            value: _adhan,
+            onChanged: (v) async {
+              setState(() => _adhan = v);
+              await _settings.setAdhanSound(v);
+              await PrayerScheduler.ensureScheduled();
+            },
+          ),
+          const Divider(height: 1),
+          SwitchListTile(
+            secondary: const Icon(Icons.mosque),
+            title: Text(tr('تذكير الجمعة', 'Friday reminder')),
+            subtitle: Text(
+                tr('سورة الكهف + الصلاة على النبى ﷺ',
+                    'Al-Kahf + salawat on the Prophet ﷺ'),
+                style: const TextStyle(fontSize: 12)),
+            value: _friday,
+            onChanged: (v) async {
+              setState(() => _friday = v);
+              await _settings.setFridayReminder(v);
+              await FridayReminder.ensureScheduled();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _toolsGrid() {
     final tools = [
       _Tool(Icons.explore, tr('بوصلة القبلة', 'Qibla'), const Color(0xFF2E7D6B),
@@ -277,6 +430,12 @@ class _PrayerScreenState extends State<PrayerScreen> {
           const Color(0xFF3C5A99), () => const AdhkarScreen(morning: false)),
       _Tool(Icons.star, tr('أسماء الله الحسنى', 'Names of Allah'),
           const Color(0xFF2FA36B), () => const NamesScreen()),
+      _Tool(Icons.volunteer_activism, tr('أدعية مأثورة', 'Supplications'),
+          const Color(0xFFB5654A), () => const DuasScreen()),
+      _Tool(Icons.menu_book, tr('ختمة القرآن', 'Quran khatma'),
+          const Color(0xFF1E7A5A), () => const KhatmaScreen()),
+      _Tool(Icons.calendar_month, tr('مواقيت الشهر', 'Monthly times'),
+          const Color(0xFF4A6FB5), () => const MonthlyTimesScreen()),
     ];
     return GridView.builder(
       shrinkWrap: true,

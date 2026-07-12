@@ -15,6 +15,7 @@ import 'package:my_assistant/core/insights.dart';
 import 'package:my_assistant/core/local_brain.dart';
 import 'package:my_assistant/core/ocr.dart';
 import 'package:my_assistant/core/prayers.dart';
+import 'package:my_assistant/core/religion_data.dart';
 import 'package:my_assistant/core/seed_demo.dart';
 import 'package:my_assistant/data/wallets_repo.dart';
 import 'package:my_assistant/core/voice_parser.dart';
@@ -553,6 +554,41 @@ void main() {
       expect(await repo.tasbihTotal(), 34);
       await repo.resetTasbih();
       expect(await repo.tasbihTotal(), 0);
+    });
+
+    test('تتبّع السنن: تسجيل وإلغاء', () async {
+      final repo = WorshipRepo();
+      final today = DateTime.now();
+      await repo.toggleSunnah(today, 'صلاة الوتر', true);
+      await repo.toggleSunnah(today, 'صلاة الضحى', true);
+      expect((await repo.sunnahDoneOn(today)).length, 2);
+      await repo.toggleSunnah(today, 'صلاة الوتر', false);
+      expect((await repo.sunnahDoneOn(today)).contains('صلاة الوتر'), isFalse);
+      expect((await repo.sunnahDoneOn(today)).length, 1);
+    });
+
+    test('ختمة القرآن: بداية وتقدّم ومتوسّط ومتبقّى', () async {
+      final repo = WorshipRepo();
+      expect(await repo.activeKhatma(), isNull);
+      await repo.startKhatma(dailyTarget: 4);
+      await repo.logKhatmaRead(4);
+      await repo.logKhatmaRead(6);
+      final k = await repo.activeKhatma();
+      expect(k, isNotNull);
+      expect(k!.currentPage, 10);
+      expect(k.remainingPages, 594);
+      expect(await repo.khatmaAvgPerDay(), 10); // كله فى نفس اليوم = 10 صفحة
+      expect(k.daysToFinish(10), 60); // 594/10 = 59.4 → 60
+      await repo.resetKhatma();
+      expect(await repo.activeKhatma(), isNull);
+    });
+
+    test('آية/حديث/دعاء اليوم ثابتة خلال اليوم', () {
+      final now = DateTime(2026, 7, 12);
+      expect(ayahOfDay(now), ayahOfDay(now));
+      expect(hadithOfDay(now), hadithOfDay(now));
+      expect(duaOfDay(now), isNotEmpty);
+      expect(kNames99.length, 99);
     });
   });
 

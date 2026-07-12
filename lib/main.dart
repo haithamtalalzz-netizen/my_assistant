@@ -77,6 +77,7 @@ Future<void> _startup() async {
   // جدولات بتتجدد مع كل فتحة: صلاة + مناسبات + ملخص الليلة + فواتير
   // + حماية السلاسل + النسخة التلقائية الأسبوعية.
   unawaited(PrayerScheduler.ensureScheduled());
+  unawaited(FridayReminder.ensureScheduled());
   unawaited(WidgetBridge.push());
   unawaited(OccasionsRepo().rescheduleAll());
   unawaited(EveningScheduler.ensureScheduled());

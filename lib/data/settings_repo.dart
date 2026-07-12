@@ -64,6 +64,17 @@ class SettingsRepo {
   Future<String> governorateName() async =>
       await get('governorate') ?? 'القاهرة';
 
+  /// تشغيل صوت أذان (تنبيه صوتى قوى) مع إشعار الصلاة — مقفول افتراضيًا.
+  Future<bool> adhanSoundEnabled() async => await get('adhan_sound') == '1';
+  Future<void> setAdhanSound(bool on) async =>
+      set('adhan_sound', on ? '1' : '0');
+
+  /// تذكير الجمعة (سورة الكهف + الصلاة على النبى) — شغّال افتراضيًا.
+  Future<bool> fridayReminderEnabled() async =>
+      await get('friday_reminder') != '0';
+  Future<void> setFridayReminder(bool on) async =>
+      set('friday_reminder', on ? '1' : '0');
+
   /// موقع مخصّص (أي مدينة في العالم) — إحداثيات محفوظة من البحث الجغرافي.
   /// null = مفيش موقع مخصّص، استخدم المحافظة.
   Future<({double lat, double lng, String label})?> customLocation() async {

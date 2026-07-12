@@ -129,6 +129,7 @@ class PrayerScheduler {
     }
     final settings = SettingsRepo();
     if (!await settings.prayerNotificationsEnabled()) return;
+    final adhan = await settings.adhanSoundEnabled();
     final gov = await resolvePlace(settings);
     final today = dateOnly(DateTime.now());
     for (var d = 0; d < daysAhead; d++) {
@@ -141,8 +142,26 @@ class PrayerScheduler {
           title: 'أذان ${kPrayerNames[p]}',
           body: 'وقت صلاة ${kPrayerNames[p]} — ${arTime(times[p])}',
           when: times[p],
+          adhan: adhan,
         );
       }
     }
+  }
+}
+
+/// تذكير أسبوعى يوم الجمعة: سورة الكهف + الإكثار من الصلاة على النبى ﷺ.
+class FridayReminder {
+  static Future<void> ensureScheduled() async {
+    await Notifications.cancel(Notifications.fridayNotifId);
+    final settings = SettingsRepo();
+    if (!await settings.fridayReminderEnabled()) return;
+    await Notifications.scheduleWeekly(
+      id: Notifications.fridayNotifId,
+      title: 'يوم الجمعة 🕌',
+      body: 'لا تنسَ قراءة سورة الكهف والإكثار من الصلاة على النبى ﷺ',
+      weekday: DateTime.friday,
+      hour: 9,
+      minute: 0,
+    );
   }
 }

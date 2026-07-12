@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 34,
+      version: 35,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -226,6 +226,11 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 35 && newV >= 35) {
+      for (final ddl in _v35Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
 
   /// تتبّع الصلوات الخمس — صف لكل صلاة اتصلّت في يوم.
@@ -235,6 +240,32 @@ class AppDb {
         day TEXT NOT NULL,
         prayer INTEGER NOT NULL,
         PRIMARY KEY(day, prayer)
+      )''',
+  ];
+
+  /// تتبّع السنن/النوافل + ختمة القرآن.
+  static const List<String> _v35Tables = [
+    '''
+      CREATE TABLE sunnah_log(
+        day TEXT NOT NULL,
+        name TEXT NOT NULL,
+        PRIMARY KEY(day, name)
+      )''',
+    '''
+      CREATE TABLE quran_khatma(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        start_day TEXT NOT NULL,
+        total_pages INTEGER NOT NULL DEFAULT 604,
+        current_page INTEGER NOT NULL DEFAULT 0,
+        daily_target INTEGER NOT NULL DEFAULT 4,
+        created_at TEXT NOT NULL
+      )''',
+    '''
+      CREATE TABLE khatma_reads(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        day TEXT NOT NULL,
+        pages INTEGER NOT NULL,
+        created_at TEXT NOT NULL
       )''',
   ];
 
@@ -890,6 +921,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v34Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v35Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);

@@ -47,6 +47,23 @@ class Notifications {
   static const int cycleLateNotifId = 1080003; // تأخّر الدورة
   static const int cycleCareNotifId = 1080004; // عناية أثناء الدورة
   static const int pillNotifId = 1090001; // حبوب منع الحمل اليومية
+  static const int fridayNotifId = 1100001; // تذكير الجمعة (الكهف + الصلاة على النبى)
+
+  /// قناة الأذان — صوت قوى بخصائص المنبّه عند دخول وقت الصلاة.
+  static const NotificationDetails _adhanDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'prayer_adhan',
+      'أذان الصلاة',
+      channelDescription: 'تنبيه صوتى قوى عند دخول وقت الصلاة',
+      importance: Importance.max,
+      priority: Priority.high,
+      category: AndroidNotificationCategory.alarm,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+    ),
+    iOS: DarwinNotificationDetails(
+      interruptionLevel: InterruptionLevel.timeSensitive,
+    ),
+  );
 
   static const NotificationDetails _details = NotificationDetails(
     android: AndroidNotificationDetails(
@@ -114,11 +131,12 @@ class Notifications {
     required DateTime when,
     String? payload,
     List<AndroidNotificationAction>? actions,
+    bool adhan = false,
   }) async {
     if (!_ready) return;
     if (when.isBefore(DateTime.now())) return;
     final at = tz.TZDateTime.from(when, tz.local);
-    final details = _detailsWith(actions);
+    final details = adhan ? _adhanDetails : _detailsWith(actions);
     try {
       await _plugin.zonedSchedule(id, title, body, at, details,
           payload: payload,
