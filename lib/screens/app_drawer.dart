@@ -47,6 +47,7 @@ import 'settings_screen.dart';
 import 'wardrobe/wardrobe_screen.dart';
 import 'weekly/weekly_planning_screen.dart';
 import 'worship/prayer_screen.dart';
+import 'worship/quran_screen.dart';
 
 /// الدرج الجانبي (زي طارة): بنود التطبيق الرئيسية بتبدّل الشاشة،
 /// وباقي الأدوات بتتفتح كصفحات ليها سهم رجوع.
@@ -183,6 +184,8 @@ class AppDrawer extends StatelessWidget {
                 const ChatScreen()),
             push(Icons.mosque_outlined, tr('الصلاة والأذكار', 'Prayer & Adhkar'),
                 const PrayerScreen()),
+            push(Icons.import_contacts_outlined, tr('المصحف', 'Quran'),
+                const MushafScreen()),
             top(1, Icons.event_note_outlined, tr('الجدول', 'Schedule')),
             const Divider(),
             // مجموعات بحسب مجال الحياة.

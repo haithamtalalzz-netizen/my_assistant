@@ -17,6 +17,7 @@ import 'duas_screen.dart';
 import 'khatma_screen.dart';
 import 'monthly_times_screen.dart';
 import 'names_screen.dart';
+import 'quran_screen.dart';
 import 'qibla_screen.dart';
 import 'tasbih_screen.dart';
 
@@ -503,6 +504,8 @@ class _PrayerScreenState extends State<PrayerScreen> {
 
   Widget _toolsGrid() {
     final tools = [
+      _Tool(Icons.import_contacts, tr('المصحف', 'Quran'),
+          const Color(0xFF1E7A5A), () => const MushafScreen()),
       _Tool(Icons.explore, tr('بوصلة القبلة', 'Qibla'), const Color(0xFF2E7D6B),
           () => const QiblaScreen()),
       _Tool(Icons.radio_button_checked, tr('المسبحة', 'Tasbih'),

@@ -16,6 +16,7 @@ import 'package:my_assistant/core/local_brain.dart';
 import 'package:my_assistant/core/ocr.dart';
 import 'package:my_assistant/core/prayers.dart';
 import 'package:my_assistant/core/religion_data.dart';
+import 'package:my_assistant/core/quran_data.dart';
 import 'package:my_assistant/core/seed_demo.dart';
 import 'package:my_assistant/data/wallets_repo.dart';
 import 'package:my_assistant/core/voice_parser.dart';
@@ -589,6 +590,17 @@ void main() {
       expect(hadithOfDay(now), hadithOfDay(now));
       expect(duaOfDay(now), isNotEmpty);
       expect(kNames99.length, 99);
+    });
+
+    test('المصحف: 114 سورة و6236 آية والفاتحة صحيحة', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final surahs = await QuranData.surahs();
+      expect(surahs.length, 114);
+      expect(surahs.map((s) => s.id).toList(), List.generate(114, (i) => i + 1));
+      expect(surahs.fold<int>(0, (a, s) => a + s.verses.length), 6236);
+      expect(surahs.first.verses.length, 7); // الفاتحة
+      expect(surahs.last.verses.length, 6); // الناس
+      expect(surahs.first.verses.first.text.startsWith('بِسۡمِ'), isTrue);
     });
   });
 

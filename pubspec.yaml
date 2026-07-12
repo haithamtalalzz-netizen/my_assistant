@@ -49,6 +49,8 @@ dependencies:
   add_2_calendar: ^3.0.1
   # بوصلة القبلة — يقرأ مستشعر البوصلة (الموبايل فقط، محمي بـ kIsWeb).
   flutter_compass: ^0.8.0
+  # قائمة بمواضع معروفة — للقفز لآية معيّنة وحفظ آخر موضع فى المصحف (Dart خالص).
+  scrollable_positioned_list: ^0.3.8
 
 dev_dependencies:
   flutter_test:
@@ -72,6 +74,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/fonts/
+    - assets/quran/
   fonts:
     - family: Cairo
       fonts:

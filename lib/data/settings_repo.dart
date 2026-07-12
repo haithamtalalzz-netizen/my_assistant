@@ -135,6 +135,25 @@ class SettingsRepo {
     await set('home_hidden', current.join(','));
   }
 
+  /// حجم خط المصحف (نقطة) — الافتراضى 26.
+  Future<double> quranFontSize() async =>
+      double.tryParse(await get('quran_font') ?? '') ?? 26;
+  Future<void> setQuranFontSize(double v) async =>
+      set('quran_font', v.toStringAsFixed(0));
+
+  /// آخر موضع قراءة: (رقم السورة، رقم الآية) — null لو مفيش.
+  Future<({int surah, int ayah})?> quranBookmark() async {
+    final s = int.tryParse(await get('quran_last_surah') ?? '');
+    final a = int.tryParse(await get('quran_last_ayah') ?? '');
+    if (s == null || a == null) return null;
+    return (surah: s, ayah: a);
+  }
+
+  Future<void> setQuranBookmark(int surah, int ayah) async {
+    await set('quran_last_surah', '$surah');
+    await set('quran_last_ayah', '$ayah');
+  }
+
   Future<bool> ramadanMode() async => await get('ramadan_mode') == '1';
 
   /// ملخص بكرة المسائي — شغال افتراضيًا الساعة 21:30.
