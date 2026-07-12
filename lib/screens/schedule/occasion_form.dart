@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/ar.dart';
+import '../../core/calendar_sync.dart';
 import '../../core/l10n.dart';
 import '../../data/occasions_repo.dart';
 import '../../models/models.dart';
@@ -69,6 +70,26 @@ class _OccasionFormState extends State<OccasionForm> {
     }
   }
 
+  Future<void> _addToPhoneCalendar() async {
+    final title = _title.text.trim();
+    if (title.isEmpty || _month == null || _day == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr('اكتب العنوان واختر التاريخ الأول',
+              'Enter title and pick a date first'))));
+      return;
+    }
+    // مناسبة سنوية → تاريخها السنة دي (ولو فاتت خدها السنة الجاية).
+    final now = DateTime.now();
+    var date = DateTime(now.year, _month!, _day!);
+    if (date.isBefore(DateTime(now.year, now.month, now.day))) {
+      date = DateTime(now.year + 1, _month!, _day!);
+    }
+    final t = _person.text.trim().isEmpty
+        ? title
+        : '$title — ${_person.text.trim()}';
+    await CalendarSync.addEvent(title: t, start: date, allDay: true);
+  }
+
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_month == null || _day == null) {
@@ -96,7 +117,14 @@ class _OccasionFormState extends State<OccasionForm> {
       appBar: AppBar(
           title: Text(isNew
               ? tr('مناسبة جديدة', 'New occasion')
-              : tr('تعديل مناسبة', 'Edit occasion'))),
+              : tr('تعديل مناسبة', 'Edit occasion')),
+          actions: [
+            IconButton(
+              tooltip: tr('أضف لتقويم الموبايل', 'Add to phone calendar'),
+              icon: const Icon(Icons.event_available_outlined),
+              onPressed: _addToPhoneCalendar,
+            ),
+          ]),
       body: Form(
         key: _formKey,
         child: ListView(

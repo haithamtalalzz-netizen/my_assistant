@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../core/app_state.dart';
+import '../core/city_data.dart';
 import '../core/countries.dart';
 import '../core/geocoding.dart';
 import '../core/l10n.dart';
@@ -129,8 +131,27 @@ class _CitySearchSheet extends StatefulWidget {
 class _CitySearchSheetState extends State<_CitySearchSheet> {
   final _ctrl = TextEditingController();
   Timer? _debounce;
+  List<GeoPlace> _bundled = []; // مدن الدولة المدمجة (تظهر فورًا)
   List<GeoPlace> _results = [];
   bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // لو اتحددت دولة، اعرض مدنها المدمجة فورًا كليست جاهزة.
+    _bundled = [
+      for (final c in citiesForCountry(widget.countryCode))
+        GeoPlace(
+          name: AppState.isEnglish ? c.en : c.ar,
+          country: widget.countryName ?? '',
+          admin1: '',
+          countryCode: widget.countryCode ?? '',
+          lat: c.lat,
+          lng: c.lng,
+        ),
+    ];
+    _results = _bundled;
+  }
 
   @override
   void dispose() {
@@ -140,20 +161,31 @@ class _CitySearchSheetState extends State<_CitySearchSheet> {
   }
 
   void _onChanged(String q) {
+    final query = q.trim();
+    // فلترة فورية على المدن المدمجة (من غير انتظار الشبكة).
+    final local = query.isEmpty
+        ? _bundled
+        : _bundled
+            .where((p) => p.name.toLowerCase().contains(query.toLowerCase()))
+            .toList();
+    setState(() => _results = local);
+
     _debounce?.cancel();
+    if (query.length < 2) return;
     _debounce = Timer(const Duration(milliseconds: 400), () async {
-      if (q.trim().length < 2) {
-        setState(() => _results = []);
-        return;
-      }
       setState(() => _loading = true);
-      final r = await searchCities(q, countryCode: widget.countryCode);
-      if (mounted) {
-        setState(() {
-          _results = r;
-          _loading = false;
-        });
+      final online = await searchCities(q, countryCode: widget.countryCode);
+      if (!mounted) return;
+      // ادمج المدمج المفلتر + نتائج النت (بدون تكرار الاسم).
+      final seen = local.map((p) => p.name.toLowerCase()).toSet();
+      final merged = [...local];
+      for (final p in online) {
+        if (seen.add(p.name.toLowerCase())) merged.add(p);
       }
+      setState(() {
+        _results = merged;
+        _loading = false;
+      });
     });
   }
 
@@ -167,20 +199,25 @@ class _CitySearchSheetState extends State<_CitySearchSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(tr('دوّر على مدينتك', 'Find your city'),
+            Text(
+                widget.countryName != null
+                    ? tr('مدن ${widget.countryName}', 'Cities in ${widget.countryName}')
+                    : tr('دوّر على مدينتك', 'Find your city'),
                 style: Theme.of(context)
                     .textTheme
                     .titleMedium
                     ?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             Text(
-                tr('أي مدينة في العالم — للمواعيد الصلاة والطقس',
-                    'Any city worldwide — for prayer times & weather'),
+                _bundled.isNotEmpty
+                    ? tr('اختر من القائمة أو ابحث عن مدينة تانية',
+                        'Pick from the list or search another city')
+                    : tr('اكتب اسم المدينة', 'Type the city name'),
                 style: TextStyle(color: scheme.outline, fontSize: 12)),
             const SizedBox(height: 12),
             TextField(
               controller: _ctrl,
-              autofocus: true,
+              autofocus: _bundled.isEmpty,
               onChanged: _onChanged,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search),

@@ -335,44 +335,100 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _accentControl(BuildContext context) {
-    return ValueListenableBuilder<String>(
-      valueListenable: AppState.accentKey,
-      builder: (context, current, _) => Row(
-        children: [
-          Icon(Icons.palette_outlined,
-              color: Theme.of(context).colorScheme.primary),
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ---- لون الهوية ----
+        Row(children: [
+          Icon(Icons.palette_outlined, color: scheme.primary),
           const SizedBox(width: 12),
-          Expanded(child: Text(tr('لون الهوية', 'Accent color'))),
-          for (final entry in kAccentPresets.entries)
-            Padding(
-              padding: const EdgeInsetsDirectional.only(start: 8),
-              child: Tooltip(
-                message: entry.value.label,
-                child: InkWell(
+          Text(tr('لون الهوية', 'Accent color'),
+              style: const TextStyle(fontWeight: FontWeight.w600)),
+        ]),
+        const SizedBox(height: 10),
+        ValueListenableBuilder<String>(
+          valueListenable: AppState.accentKey,
+          builder: (context, current, _) => Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (final entry in kAccentPresets.entries)
+                _colorSwatch(
+                  color: entry.value.primary,
+                  label: entry.value.label,
+                  selected: current == entry.key,
                   onTap: () => AppState.setAccent(entry.key),
-                  customBorder: const CircleBorder(),
-                  child: Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      color: entry.value.primary,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: current == entry.key
-                            ? Theme.of(context).colorScheme.onSurface
-                            : Colors.transparent,
-                        width: 2.5,
-                      ),
-                    ),
-                    child: current == entry.key
-                        ? const Icon(Icons.check,
-                            size: 16, color: Colors.black87)
-                        : null,
-                  ),
                 ),
-              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        // ---- لون الخلفية (الوضع الغامق) ----
+        Row(children: [
+          Icon(Icons.format_paint_outlined, color: scheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(tr('لون الخلفية (الوضع الغامق)', 'Background (dark mode)'),
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        ValueListenableBuilder<String>(
+          valueListenable: AppState.bgKey,
+          builder: (context, current, _) => Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (final entry in kBgPresets.entries)
+                _colorSwatch(
+                  color: entry.value.bg,
+                  label: entry.value.label,
+                  selected: current == entry.key,
+                  onTap: () => AppState.setBg(entry.key),
+                  ring: true,
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _colorSwatch({
+    required Color color,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+    bool ring = false,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: label,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: selected
+                  ? scheme.primary
+                  : (ring ? scheme.outlineVariant : Colors.transparent),
+              width: selected ? 3 : 1.5,
             ),
-        ],
+          ),
+          child: selected
+              ? Icon(Icons.check,
+                  size: 17,
+                  color: color.computeLuminance() > 0.5
+                      ? Colors.black87
+                      : Colors.white)
+              : null,
+        ),
       ),
     );
   }

@@ -22,26 +22,71 @@ class AccentPreset {
 const Map<String, AccentPreset> kAccentPresets = {
   'mint': AccentPreset(
       'نعناعي', Color(0xFF2FDE9B), Color(0xFF10362A), Color(0xFFA9F5D4)),
+  'pink': AccentPreset(
+      'وردي', Color(0xFFFF6EC7), Color(0xFF3A1830), Color(0xFFFFD1EC)),
   'blue': AccentPreset(
       'أزرق', Color(0xFF4AA8FF), Color(0xFF14344F), Color(0xFFBFE1FF)),
   'purple': AccentPreset(
       'بنفسجي', Color(0xFFB794F6), Color(0xFF2E2247), Color(0xFFE4D3FF)),
+  'red': AccentPreset(
+      'أحمر', Color(0xFFFF6B6B), Color(0xFF3A1414), Color(0xFFFFC9C9)),
+  'orange': AccentPreset(
+      'برتقالي', Color(0xFFFFA94D), Color(0xFF3A2712), Color(0xFFFFE0B2)),
+  'amber': AccentPreset(
+      'كهرماني', Color(0xFFFFCA28), Color(0xFF3A2E0A), Color(0xFFFFECB3)),
   'gold': AccentPreset(
       'ذهبي (رمضان)', Color(0xFFE9C46A), Color(0xFF3A2E12), Color(0xFFFBE9C0)),
+  'green': AccentPreset(
+      'أخضر', Color(0xFF66BB6A), Color(0xFF15321A), Color(0xFFC8E6C9)),
+  'teal': AccentPreset(
+      'تركوازي', Color(0xFF2DD4BF), Color(0xFF0F332F), Color(0xFFA7F3E8)),
+  'cyan': AccentPreset(
+      'سماوي', Color(0xFF4DD0E1), Color(0xFF0E323A), Color(0xFFB2EBF2)),
+  'indigo': AccentPreset(
+      'نيلي', Color(0xFF8C9EFF), Color(0xFF1E2547), Color(0xFFC5CAE9)),
+  'coral': AccentPreset(
+      'مرجاني', Color(0xFFFF8A65), Color(0xFF3A1E14), Color(0xFFFFCCBC)),
+  'lavender': AccentPreset(
+      'خزامي', Color(0xFFCE93D8), Color(0xFF2E1A33), Color(0xFFF3D9F7)),
 };
 
 AccentPreset _accent() =>
     kAccentPresets[AppState.accentKey.value] ?? kAccentPresets['mint']!;
 
-// ---- ألوان الوضع الغامق (مطابقة للموكاب) ----
-const Color _dBg = Color(0xFF0B0F17); // خلفية الشاشة
-const Color _dCard = Color(0xFF141B27); // سطح الكروت
-const Color _dCardHigh = Color(0xFF1B2431);
-const Color _dBorder = Color(0xFF232E40); // حدود ناعمة حوالين الكروت
+// ---- ألوان الخلفية للوضع الغامق (منتقي في الإعدادات) ----
+class BgPreset {
+  final String label;
+  final Color bg;
+  final Color card;
+  final Color cardHigh;
+  final Color border;
+  const BgPreset(this.label, this.bg, this.card, this.cardHigh, this.border);
+}
+
+const Map<String, BgPreset> kBgPresets = {
+  'midnight': BgPreset('كحلي داكن', Color(0xFF0B0F17), Color(0xFF141B27),
+      Color(0xFF1B2431), Color(0xFF232E40)),
+  'black': BgPreset('أسود', Color(0xFF000000), Color(0xFF0E0E0E),
+      Color(0xFF1A1A1A), Color(0xFF262626)),
+  'charcoal': BgPreset('فحمي', Color(0xFF14161A), Color(0xFF1E2126),
+      Color(0xFF262A30), Color(0xFF33383F)),
+  'navy': BgPreset('أزرق بحري', Color(0xFF0A1428), Color(0xFF13203B),
+      Color(0xFF1A2A4A), Color(0xFF26385C)),
+  'espresso': BgPreset('بني قهوة', Color(0xFF16110E), Color(0xFF241C17),
+      Color(0xFF2E241D), Color(0xFF3A2E24)),
+  'forest': BgPreset('أخضر غابة', Color(0xFF0A1512), Color(0xFF12251F),
+      Color(0xFF183028), Color(0xFF234037)),
+  'plum': BgPreset('برقوقي', Color(0xFF140F1A), Color(0xFF201828),
+      Color(0xFF2A2035), Color(0xFF382A45)),
+};
+
+BgPreset _bg() => kBgPresets[AppState.bgKey.value] ?? kBgPresets['midnight']!;
+
 const Color _dText = Color(0xFFE9EDF4);
 const Color _dMuted = Color(0xFF8A94A6);
 
 ThemeData _buildDark(AccentPreset a) {
+  final b = _bg();
   final scheme = ColorScheme.dark(
     primary: a.primary,
     onPrimary: const Color(0xFF04271B),
@@ -54,20 +99,20 @@ ThemeData _buildDark(AccentPreset a) {
     tertiary: Color(0xFFFFB74D),
     tertiaryContainer: Color(0xFF3A2A12),
     onTertiaryContainer: Color(0xFFFFE0B2),
-    surface: _dBg,
+    surface: b.bg,
     onSurface: _dText,
-    surfaceContainerLowest: Color(0xFF0D131C),
-    surfaceContainerLow: _dCard,
-    surfaceContainer: _dCard,
-    surfaceContainerHigh: _dCardHigh,
-    surfaceContainerHighest: Color(0xFF212C3D),
+    surfaceContainerLowest: b.bg,
+    surfaceContainerLow: b.card,
+    surfaceContainer: b.card,
+    surfaceContainerHigh: b.cardHigh,
+    surfaceContainerHighest: b.cardHigh,
     onSurfaceVariant: _dMuted,
     outline: _dMuted,
-    outlineVariant: _dBorder,
+    outlineVariant: b.border,
     error: Color(0xFFFF6B6B),
     onError: Color(0xFF3A0A0A),
   );
-  return _common(scheme, cardColor: _dCard, borderColor: _dBorder);
+  return _common(scheme, cardColor: b.card, borderColor: b.border);
 }
 
 ThemeData _buildLight(AccentPreset a) {

@@ -70,5 +70,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCalendarsUsageDescription</key>
+	<string>To add your appointments and occasions to your phone calendar.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>To add your appointments and occasions to your phone calendar.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>To set your city for prayer times and weather, and to measure walk/run distance.</string>
 </dict>
 </plist>

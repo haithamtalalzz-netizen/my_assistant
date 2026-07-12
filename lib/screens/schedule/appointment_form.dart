@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
+import '../../core/calendar_sync.dart';
 import '../../core/l10n.dart';
 import '../../data/appointments_repo.dart';
 import '../../models/models.dart';
@@ -121,6 +122,23 @@ class _AppointmentFormState extends State<AppointmentForm> {
     });
   }
 
+  Future<void> _addToPhoneCalendar() async {
+    final title = _title.text.trim();
+    if (title.isEmpty || _date == null || _time == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr('اكتب العنوان والتاريخ والوقت الأول',
+              'Enter title, date and time first'))));
+      return;
+    }
+    final start = DateTime(
+        _date!.year, _date!.month, _date!.day, _time!.hour, _time!.minute);
+    await CalendarSync.addEvent(
+      title: title,
+      description: _notes.text.trim(),
+      start: start,
+    );
+  }
+
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
@@ -177,7 +195,14 @@ class _AppointmentFormState extends State<AppointmentForm> {
       appBar: AppBar(
           title: Text(isNew
               ? tr('موعد جديد', 'New appointment')
-              : tr('تعديل موعد', 'Edit appointment'))),
+              : tr('تعديل موعد', 'Edit appointment')),
+          actions: [
+            IconButton(
+              tooltip: tr('أضف لتقويم الموبايل', 'Add to phone calendar'),
+              icon: const Icon(Icons.event_available_outlined),
+              onPressed: _addToPhoneCalendar,
+            ),
+          ]),
       body: Form(
         key: _formKey,
         child: ListView(
