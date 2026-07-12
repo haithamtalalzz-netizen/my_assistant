@@ -64,6 +64,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _busy = false;
   String? _openCat; // الفئة المفتوحة حاليًا (null = القائمة الرئيسية)
   String _catQuery = ''; // بحث في قائمة الإعدادات
+  List<String> _catOrder = []; // ترتيب فئات الإعدادات (بالسحب)
 
   @override
   void initState() {
@@ -94,9 +95,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final geminiKey = await _settings.get('gemini_key') ?? '';
     final geminiSendHealth = await _settings.get('gemini_send_health') != '0';
     final notifMode = await _settings.get('notif_mode') ?? 'both';
+    final catOrder = await _settings.get('settings_order') ?? '';
     if (!mounted) return;
     setState(() {
       _notifMode = notifMode;
+      _catOrder =
+          catOrder.split(',').where((e) => e.isNotEmpty).toList();
       _name.text = name;
       _waterGoal = goal;
       _budget.text = budget > 0 ? budget.toStringAsFixed(0) : '';
@@ -511,6 +515,122 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() => _openCat = null);
   }
 
+  /// الفئات بالترتيب المحفوظ (السحب) — أي فئة جديدة تروح الآخر.
+  List<({String key, String title, IconData icon, String? sub, String kw})>
+      _orderedCategories() {
+    final all = _categories();
+    final byKey = {for (final c in all) c.key: c};
+    final result =
+        <({String key, String title, IconData icon, String? sub, String kw})>[];
+    for (final k in _catOrder) {
+      final c = byKey[k];
+      if (c != null) result.add(c);
+    }
+    for (final c in all) {
+      if (!_catOrder.contains(c.key)) result.add(c);
+    }
+    return result;
+  }
+
+  // onReorderItem: newIndex بيكون مضبوط بالفعل (من غير طرح 1).
+  void _reorderCats(int oldIndex, int newIndex) {
+    final keys = _orderedCategories().map((c) => c.key).toList();
+    final k = keys.removeAt(oldIndex);
+    keys.insert(newIndex, k);
+    setState(() => _catOrder = keys);
+    _settings.set('settings_order', keys.join(','));
+  }
+
+  Widget _catTile(
+      ({String key, String title, IconData icon, String? sub, String kw}) c,
+      {int? index}) {
+    return ListTile(
+      key: ValueKey(c.key),
+      leading: Icon(c.icon),
+      title: Text(c.title),
+      subtitle: c.sub == null
+          ? null
+          : Text(c.sub!, style: const TextStyle(fontSize: 12)),
+      trailing: index != null
+          ? ReorderableDragStartListener(
+              index: index, child: const Icon(Icons.drag_handle))
+          : const Icon(Icons.chevron_left),
+      onTap: () => setState(() => _openCat = c.key),
+    );
+  }
+
+  Widget _hubBody() {
+    final scheme = Theme.of(context).colorScheme;
+    final searching = _catQuery.trim().isNotEmpty;
+    final filtered = _filteredCategories();
+    final ordered = _orderedCategories();
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+          child: TextField(
+            onChanged: (v) => setState(() => _catQuery = v),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search),
+              hintText: tr('ابحث في الإعدادات', 'Search settings'),
+              border: const OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+        ),
+        Expanded(
+          child: searching
+              ? (filtered.isEmpty
+                  ? Center(
+                      child: Text(tr('مفيش نتيجة', 'No match'),
+                          style: TextStyle(color: scheme.outline)))
+                  : ListView(children: [for (final c in filtered) _catTile(c)]))
+              : ReorderableListView(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  onReorderItem: _reorderCats,
+                  children: [
+                    for (var i = 0; i < ordered.length; i++)
+                      _catTile(ordered[i], index: i),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _resetSettings() async {
+    final sure = await confirmAction(
+      context,
+      title: tr('إعادة ضبط الإعدادات', 'Reset settings'),
+      message: tr(
+          'هترجع كل الإعدادات (الثيم والألوان والإشعارات والأوضاع وترتيب الفئات...) للافتراضي. بياناتك (المواعيد/الفلوس/إلخ) مش هتتمس.',
+          'All settings (theme, colors, notifications, modes, order...) return to default. Your data is kept.'),
+      confirmLabel: tr('إعادة ضبط', 'Reset'),
+    );
+    if (!sure) return;
+    await AppState.setThemeMode(ThemeMode.dark);
+    await AppState.setAccent('mint');
+    await AppState.setBg('midnight');
+    await AppState.setBgLight('paper');
+    await _settings.set('home_hidden', '');
+    await _settings.set('settings_order', '');
+    await _settings.set('ramadan_mode', '0');
+    await _settings.set('hard_day_mode', '0');
+    await _settings.set('travel_mode', '0');
+    await _settings.set('notif_mode', 'both');
+    await _settings.set('prayer_notifications', '1');
+    await _settings.set('evening_summary', '1');
+    await Notifications.applyChannelMode('both');
+    await _load();
+    if (mounted) {
+      setState(() {
+        _openCat = null;
+        _catQuery = '';
+      });
+    }
+    _toast(tr('اترجعت الإعدادات للافتراضي ✓', 'Settings reset to default ✓'));
+  }
+
   @override
   Widget build(BuildContext context) {
     final inCat = _openCat != null;
@@ -529,42 +649,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                padding: EdgeInsets.all(inCat ? 16 : 4),
+            : _openCat == null
+                ? _hubBody()
+                : ListView(
+                padding: const EdgeInsets.all(16),
                 children: [
-                if (_openCat == null) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
-                    child: TextField(
-                      onChanged: (v) => setState(() => _catQuery = v),
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.search),
-                        hintText: tr('ابحث في الإعدادات', 'Search settings'),
-                        border: const OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-                  for (final c in _filteredCategories())
-                    ListTile(
-                      leading: Icon(c.icon),
-                      title: Text(c.title),
-                      subtitle: c.sub == null
-                          ? null
-                          : Text(c.sub!, style: const TextStyle(fontSize: 12)),
-                      trailing: const Icon(Icons.chevron_left),
-                      onTap: () => setState(() => _openCat = c.key),
-                    ),
-                  if (_filteredCategories().isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Center(
-                        child: Text(tr('مفيش نتيجة', 'No match'),
-                            style: TextStyle(
-                                color: Theme.of(context).colorScheme.outline)),
-                      ),
-                    ),
-                ],
                 if (_openCat == 'appearance') ...[
                 _languageControl(context),
                 const SizedBox(height: 12),
@@ -905,6 +994,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 ],
                 if (_openCat == 'developer') ...[
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.restart_alt),
+                  title: Text(
+                      tr('إعادة ضبط الإعدادات للافتراضي', 'Reset settings to default')),
+                  subtitle: Text(tr(
+                      'الثيم والألوان والإشعارات والأوضاع والترتيب — من غير مسح بياناتك',
+                      'Theme, colors, notifications, modes & order — your data is kept')),
+                  onTap: _busy ? null : _resetSettings,
+                ),
+                const Divider(),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.science_outlined),
