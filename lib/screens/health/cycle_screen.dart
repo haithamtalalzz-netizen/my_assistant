@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
+import '../../core/cycle_report.dart';
 import '../../core/l10n.dart';
 import '../../data/cycle_repo.dart';
 import '../../data/settings_repo.dart';
@@ -20,11 +21,13 @@ class _CycleScreenState extends State<CycleScreen> {
   final _settings = SettingsRepo();
   bool _loading = true;
   bool _remindersOn = true;
+  String _mode = 'normal'; // normal / ttc / pregnant
   int _calOffset = 0; // شهر التقويم (0 = الحالي)
   CyclePrediction _pred = const CyclePrediction();
   List<CycleLog> _logs = [];
   CycleDay? _today;
   List<CycleDay> _recentDays = [];
+  List<PhaseInsight> _insights = [];
 
   @override
   void initState() {
@@ -38,6 +41,8 @@ class _CycleScreenState extends State<CycleScreen> {
     final today = await _repo.dayLog(dayKey(DateTime.now()));
     final recentDays = await _repo.recentDays(limit: 14);
     final remindersOn = await _settings.get('cycle_reminders') != '0';
+    final mode = await _settings.get('cycle_mode') ?? 'normal';
+    final insights = await _repo.phaseInsights();
     if (!mounted) return;
     setState(() {
       _logs = logs;
@@ -45,8 +50,23 @@ class _CycleScreenState extends State<CycleScreen> {
       _today = today;
       _recentDays = recentDays;
       _remindersOn = remindersOn;
+      _mode = mode;
+      _insights = insights;
       _loading = false;
     });
+  }
+
+  Future<void> _setMode(String m) async {
+    await _settings.set('cycle_mode', m);
+    setState(() => _mode = m);
+  }
+
+  int? _pregnancyWeek() {
+    final lmp = _pred.lastStart;
+    if (lmp == null) return null;
+    final days = dateOnly(DateTime.now()).difference(lmp).inDays;
+    if (days < 0 || days > 320) return null;
+    return (days ~/ 7) + 1;
   }
 
   Future<void> _toggleReminders() async {
@@ -87,6 +107,13 @@ class _CycleScreenState extends State<CycleScreen> {
         title: Text(tr('الدورة الشهرية', 'Menstrual cycle')),
         actions: [
           IconButton(
+            tooltip: tr('تقرير PDF للطبيبة', 'PDF report for doctor'),
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            onPressed: () async {
+              await CycleReport.generateAndShare();
+            },
+          ),
+          IconButton(
             tooltip: _remindersOn
                 ? tr('تذكيرات الدورة: شغّالة', 'Cycle reminders: on')
                 : tr('تذكيرات الدورة: موقوفة', 'Cycle reminders: off'),
@@ -104,13 +131,28 @@ class _CycleScreenState extends State<CycleScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
                 children: [
-                  _statusCard(context),
+                  _modeSelector(context),
                   const SizedBox(height: 12),
-                  if (_pred.hasData) _predictionsCard(context),
-                  const SizedBox(height: 12),
-                  _calendarCard(context),
+                  if (_mode == 'pregnant')
+                    _pregnancyCard(context)
+                  else ...[
+                    _statusCard(context),
+                    if (_mode == 'ttc' && _pred.hasData) ...[
+                      const SizedBox(height: 8),
+                      _ttcBanner(context),
+                    ],
+                    const SizedBox(height: 12),
+                    if (_pred.hasData) _predictionsCard(context),
+                    const SizedBox(height: 12),
+                    _calendarCard(context),
+                  ],
                   const SizedBox(height: 4),
                   _todayLogCard(context),
+                  if (_insights.isNotEmpty) ...[
+                    SectionHeader(
+                        tr('أنماط الأعراض والمزاج', 'Symptom & mood patterns')),
+                    _patternsCard(context),
+                  ],
                   if (_recentDays.isNotEmpty) ...[
                     SectionHeader(tr('تسجيلاتك اليومية', 'Your daily logs')),
                     ..._recentDays.map(_dayTile),
@@ -133,6 +175,136 @@ class _CycleScreenState extends State<CycleScreen> {
         onPressed: () => _logStart(),
         icon: const Icon(Icons.add),
         label: Text(tr('سجّلي بداية الدورة', 'Log period start')),
+      ),
+    );
+  }
+
+  Widget _modeSelector(BuildContext context) => Center(
+        child: SegmentedButton<String>(
+          segments: [
+            ButtonSegment(
+                value: 'normal',
+                icon: const Text('🌸'),
+                label: Text(tr('متابعة', 'Track'))),
+            ButtonSegment(
+                value: 'ttc',
+                icon: const Text('🌱'),
+                label: Text(tr('محاولة حمل', 'TTC'))),
+            ButtonSegment(
+                value: 'pregnant',
+                icon: const Text('👶'),
+                label: Text(tr('حمل', 'Pregnancy'))),
+          ],
+          selected: {_mode},
+          showSelectedIcon: false,
+          onSelectionChanged: (s) => _setMode(s.first),
+        ),
+      );
+
+  Widget _ttcBanner(BuildContext context) {
+    final p = _pred;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2DD4BF).withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2DD4BF).withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Text('🌱', style: TextStyle(fontSize: 22)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              p.fertileStart != null && p.ovulation != null
+                  ? tr('أعلى فرص الحمل: ${arShortDate(p.fertileStart!)} – ${arShortDate(p.fertileEnd!)} · التبويض ${arShortDate(p.ovulation!)}',
+                      'Best chances: ${arShortDate(p.fertileStart!)} – ${arShortDate(p.fertileEnd!)} · ovulation ${arShortDate(p.ovulation!)}')
+                  : tr('سجّلي دوراتك عشان نحسب أيام الخصوبة',
+                      'Log your periods to compute fertile days'),
+              style: const TextStyle(fontSize: 12.5),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pregnancyCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final week = _pregnancyWeek();
+    final lmp = _pred.lastStart;
+    if (week == null || lmp == null) {
+      return Card(
+        child: ListTile(
+          leading: const Text('👶', style: TextStyle(fontSize: 26)),
+          title: Text(tr('وضع الحمل', 'Pregnancy mode')),
+          subtitle: Text(tr(
+              'سجّلي أول يوم في آخر دورة عشان نحسب أسبوع الحمل وموعد الولادة',
+              'Log your last period start to compute weeks & due date')),
+          trailing: const Icon(Icons.add),
+          onTap: () => _logStart(),
+        ),
+      );
+    }
+    final due = lmp.add(const Duration(days: 280));
+    final left = due.difference(dateOnly(DateTime.now())).inDays;
+    final trimester = week <= 13
+        ? tr('الأول', 'First')
+        : week <= 27
+            ? tr('الثاني', 'Second')
+            : tr('الثالث', 'Third');
+    return Card(
+      color: scheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Text('👶', style: TextStyle(fontSize: 26)),
+              const SizedBox(width: 10),
+              Text(tr('الأسبوع ${arNum(week)} من الحمل', 'Week ${arNum(week)}'),
+                  style: TextStyle(
+                      color: scheme.onPrimaryContainer,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800)),
+            ]),
+            const SizedBox(height: 8),
+            Text(tr('الثلث $trimester من الحمل', '$trimester trimester'),
+                style: TextStyle(color: scheme.onPrimaryContainer)),
+            const SizedBox(height: 2),
+            Text(
+                tr('موعد الولادة المتوقّع: ${arShortDate(due)}',
+                    'Due date: ${arShortDate(due)}'),
+                style: TextStyle(color: scheme.onPrimaryContainer)),
+            if (left >= 0)
+              Text(tr('باقي ${arNum(left)} يوم تقريبًا', '~${arNum(left)} days left'),
+                  style: TextStyle(
+                      color: scheme.onPrimaryContainer.withValues(alpha: 0.75),
+                      fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _patternsCard(BuildContext context) {
+    return Card(
+      child: Column(
+        children: [
+          for (final ins in _insights)
+            ListTile(
+              dense: true,
+              title: Text(
+                  '${phaseName(ins.phase)}  (${arNum(ins.days)} ${tr('يوم', 'days')})',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text([
+                if (ins.topMood != null)
+                  '${moodEmoji(ins.topMood!)} ${moodLabel(ins.topMood!)}',
+                for (final s in ins.topSymptoms) symptomLabel(s.key),
+              ].join(' · ')),
+            ),
+        ],
       ),
     );
   }

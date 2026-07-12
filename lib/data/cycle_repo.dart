@@ -63,6 +63,26 @@ String flowLabel(String k) => switch (k) {
       _ => k,
     };
 
+// ---- مراحل الدورة (لتحليل الأنماط) ----
+const List<String> kPhases = ['period', 'follicular', 'ovulation', 'luteal'];
+
+String phaseName(String k) => switch (k) {
+      'period' => tr('الدورة', 'Period'),
+      'follicular' => tr('قبل التبويض', 'Follicular'),
+      'ovulation' => tr('التبويض', 'Ovulation'),
+      'luteal' => tr('ما قبل الطمث', 'Luteal (PMS)'),
+      _ => k,
+    };
+
+/// أنماط الأعراض والمزاج في مرحلة معيّنة.
+class PhaseInsight {
+  final String phase;
+  final int days;
+  final List<MapEntry<String, int>> topSymptoms;
+  final String? topMood;
+  const PhaseInsight(this.phase, this.days, this.topSymptoms, this.topMood);
+}
+
 /// توقّعات الدورة الشهرية المحسوبة من التواريخ المسجّلة.
 class CyclePrediction {
   final int loggedCount;
@@ -137,6 +157,81 @@ class CycleRepo {
     final rows =
         await db.query('cycle_days', orderBy: 'day DESC', limit: limit);
     return rows.map(CycleDay.fromMap).toList();
+  }
+
+  /// تحليل الأعراض والمزاج حسب مرحلة الدورة (من التسجيلات اليومية).
+  Future<List<PhaseInsight>> phaseInsights() async {
+    final days = await recentDays(limit: 400);
+    final logs = await all();
+    final starts = logs
+        .map((l) => DateTime.tryParse(l.startDay))
+        .whereType<DateTime>()
+        .map(dateOnly)
+        .toList()
+      ..sort();
+    if (starts.isEmpty || days.isEmpty) return [];
+
+    var avg = 28;
+    if (starts.length >= 2) {
+      var sum = 0, n = 0;
+      for (var i = 1; i < starts.length; i++) {
+        final diff = starts[i].difference(starts[i - 1]).inDays;
+        if (diff >= 15 && diff <= 60) {
+          sum += diff;
+          n++;
+        }
+      }
+      if (n > 0) avg = (sum / n).round().clamp(21, 40);
+    }
+    final ov = avg - 14;
+
+    final symptomCounts = {for (final p in kPhases) p: <String, int>{}};
+    final moodCounts = {for (final p in kPhases) p: <String, int>{}};
+    final phaseDays = {for (final p in kPhases) p: 0};
+
+    for (final d in days) {
+      final date = DateTime.tryParse(d.day);
+      if (date == null) continue;
+      final dd = dateOnly(date);
+      DateTime? ref;
+      for (final s in starts) {
+        if (!s.isAfter(dd)) ref = s;
+      }
+      if (ref == null) continue;
+      final cd = dd.difference(ref).inDays + 1;
+      final phase = cd <= 5
+          ? 'period'
+          : cd < ov
+              ? 'follicular'
+              : cd <= ov + 1
+                  ? 'ovulation'
+                  : 'luteal';
+      phaseDays[phase] = phaseDays[phase]! + 1;
+      if (d.mood.isNotEmpty) {
+        moodCounts[phase]![d.mood] = (moodCounts[phase]![d.mood] ?? 0) + 1;
+      }
+      for (final sy in d.symptomList) {
+        symptomCounts[phase]![sy] = (symptomCounts[phase]![sy] ?? 0) + 1;
+      }
+    }
+
+    final out = <PhaseInsight>[];
+    for (final phase in kPhases) {
+      if (phaseDays[phase] == 0) continue;
+      final syms = symptomCounts[phase]!.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      String? topMood;
+      var maxMood = 0;
+      moodCounts[phase]!.forEach((k, v) {
+        if (v > maxMood) {
+          maxMood = v;
+          topMood = k;
+        }
+      });
+      out.add(PhaseInsight(
+          phase, phaseDays[phase]!, syms.take(3).toList(), topMood));
+    }
+    return out;
   }
 
   /// يجدول تذكير قبل الدورة بيومين + بداية أيام الخصوبة (للسيدات فقط).

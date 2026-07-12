@@ -1418,6 +1418,19 @@ void main() {
       await repo.saveDay(const CycleDay(day: '2026-06-10'));
       expect(await repo.dayLog('2026-06-10'), isNull);
     });
+
+    test('أنماط المراحل بتجمّع الأعراض والمزاج حسب المرحلة', () async {
+      final repo = CycleRepo();
+      final now = DateTime.now().toIso8601String();
+      await repo.add(CycleLog(startDay: '2026-06-01', createdAt: now));
+      // يوم 2 = فترة الدورة
+      await repo.saveDay(
+          const CycleDay(day: '2026-06-02', mood: 'tired', symptoms: 'cramps'));
+      final ins = await repo.phaseInsights();
+      final period = ins.firstWhere((i) => i.phase == 'period');
+      expect(period.topMood, 'tired');
+      expect(period.topSymptoms.first.key, 'cramps');
+    });
   });
 
   group('نشاط الـGPS (مشي/جري)', () {
