@@ -1557,14 +1557,18 @@ class CycleLog {
       };
 }
 
-/// تسجيل يومي للدورة (مزاج/أعراض/شدة نزيف/وزن/ملاحظة).
+/// تسجيل يومي للدورة (مزاج/أعراض/شدة نزيف/وزن/ملاحظة/علاقة).
 class CycleDay {
   final String day; // YYYY-MM-DD
   final String mood;
-  final String symptoms; // مفاتيح مفصولة بفاصلة
+
+  /// أعراض بصيغة `key:severity` مفصولة بفاصلة (severity 1/2/3).
+  /// الصيغة القديمة `key` (بدون شدة) تُقرأ كشدة متوسطة (2).
+  final String symptoms;
   final String flow;
   final double? weight;
   final String note;
+  final bool intimacy;
 
   const CycleDay({
     required this.day,
@@ -1573,10 +1577,28 @@ class CycleDay {
     this.flow = '',
     this.weight,
     this.note = '',
+    this.intimacy = false,
   });
 
-  List<String> get symptomList =>
-      symptoms.split(',').where((e) => e.isNotEmpty).toList();
+  /// مفاتيح الأعراض فقط (بدون الشدة) — للتوافق مع التحليل والتقارير.
+  List<String> get symptomList => symptomMap.keys.toList();
+
+  /// خريطة العرض → الشدة (1 خفيف / 2 متوسط / 3 شديد).
+  Map<String, int> get symptomMap {
+    final out = <String, int>{};
+    for (final part in symptoms.split(',')) {
+      final p = part.trim();
+      if (p.isEmpty) continue;
+      final bits = p.split(':');
+      final key = bits[0];
+      final sev = bits.length > 1 ? int.tryParse(bits[1]) ?? 2 : 2;
+      out[key] = sev.clamp(1, 3);
+    }
+    return out;
+  }
+
+  static String encodeSymptoms(Map<String, int> m) =>
+      m.entries.map((e) => '${e.key}:${e.value}').join(',');
 
   factory CycleDay.fromMap(Map<String, Object?> m) => CycleDay(
         day: m['day'] as String,
@@ -1585,6 +1607,7 @@ class CycleDay {
         flow: m['flow'] as String? ?? '',
         weight: (m['weight'] as num?)?.toDouble(),
         note: m['note'] as String? ?? '',
+        intimacy: (m['intimacy'] as num?)?.toInt() == 1,
       );
 
   Map<String, Object?> toMap() => {
@@ -1594,6 +1617,7 @@ class CycleDay {
         'flow': flow,
         'weight': weight,
         'note': note,
+        'intimacy': intimacy ? 1 : 0,
       };
 }
 

@@ -106,6 +106,7 @@ class CycleHealthLink {
 class CyclePrediction {
   final int loggedCount;
   final int avgCycleLength; // متوسط طول الدورة
+  final int avgPeriodLength; // متوسط مدة نزول الدم
   final DateTime? lastStart;
   final DateTime? nextStart;
   final int? currentDay; // اليوم الحالي في الدورة
@@ -117,6 +118,7 @@ class CyclePrediction {
   const CyclePrediction({
     this.loggedCount = 0,
     this.avgCycleLength = 28,
+    this.avgPeriodLength = 5,
     this.lastStart,
     this.nextStart,
     this.currentDay,
@@ -163,7 +165,8 @@ class CycleRepo {
         d.symptoms.isEmpty &&
         d.flow.isEmpty &&
         d.weight == null &&
-        d.note.isEmpty) {
+        d.note.isEmpty &&
+        !d.intimacy) {
       await db.delete('cycle_days', where: 'day = ?', whereArgs: [d.day]);
       return;
     }
@@ -477,6 +480,14 @@ class CycleRepo {
       if (n > 0) avg = (sum / n).round().clamp(21, 40);
     }
 
+    // متوسط مدة نزول الدم من الأيام المسجّلة لكل دورة.
+    final periodLens = logs.map((l) => l.periodDays).toList();
+    final avgPeriod = periodLens.isEmpty
+        ? 5
+        : (periodLens.reduce((a, b) => a + b) / periodLens.length)
+            .round()
+            .clamp(2, 10);
+
     final last = starts.last;
     final today = dateOnly(DateTime.now());
     final next = last.add(Duration(days: avg));
@@ -486,6 +497,7 @@ class CycleRepo {
     return CyclePrediction(
       loggedCount: starts.length,
       avgCycleLength: avg,
+      avgPeriodLength: avgPeriod,
       lastStart: last,
       nextStart: next,
       currentDay: currentDay >= 1 ? currentDay : null,

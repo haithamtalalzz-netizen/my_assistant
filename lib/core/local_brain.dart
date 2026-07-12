@@ -7,6 +7,7 @@ import '../data/appointments_repo.dart';
 import '../data/assets_repo.dart';
 import '../data/bills_repo.dart';
 import '../data/challenges_repo.dart';
+import '../data/cycle_repo.dart';
 import '../data/debts_repo.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
@@ -82,6 +83,14 @@ class LocalBrain {
     if (_has(t, ['شكرا', 'متشكر', 'ربنا يخليك', 'thanks', 'thank you'])) {
       return (text: tr('العفو! أنا في خدمتك 🙌', "You're welcome! Happy to help 🙌"), handled: true);
     }
+    // الدورة الشهرية.
+    if (_has(t, [
+      'دورتي', 'الدوره الشهريه', 'الدوره الجايه', 'الدوره جايه', 'امتى دورتي',
+      'الحيض', 'الطمث', 'التبويض', 'الاباضه', 'ايام الخصوبه', 'period', 'ovulation'
+    ])) {
+      return (text: await _cycle(), handled: true);
+    }
+
     if (_has(t, ['مين انت', 'انت مين', 'اسمك ايه', 'انت ايه'])) {
       return (
         text: tr(
@@ -833,6 +842,37 @@ class LocalBrain {
       b.writeln('• ${d.title}$exp');
     }
     return b.toString().trim();
+  }
+
+  static Future<String> _cycle() async {
+    final p = await CycleRepo().predict();
+    if (!p.hasData) {
+      return tr('لسه مفيش دورات مسجّلة — سجّلي أول دورة من بند «الدورة الشهرية».',
+          'No periods logged yet — add one from the Menstrual cycle section.');
+    }
+    final lines = <String>[];
+    if (p.nextStart != null) {
+      final u = p.daysUntilNext ?? 0;
+      final when = u > 0
+          ? tr(' (باقي ${arNum(u)} يوم)', ' (${arNum(u)} days)')
+          : u == 0
+              ? tr(' (متوقّعة النهاردة)', ' (today)')
+              : tr(' (متأخرة ${arNum(-u)} يوم)', ' (${arNum(-u)} days late)');
+      lines.add(tr('🌸 الدورة الجاية: ${arShortDate(p.nextStart!)}$when',
+          '🌸 Next period: ${arShortDate(p.nextStart!)}$when'));
+    }
+    if (p.ovulation != null) {
+      lines.add(tr('🟣 التبويض المتوقّع: ${arShortDate(p.ovulation!)}',
+          '🟣 Ovulation: ${arShortDate(p.ovulation!)}'));
+    }
+    if (p.fertileStart != null && p.fertileEnd != null) {
+      lines.add(tr(
+          '🌱 أيام الخصوبة: ${arShortDate(p.fertileStart!)} – ${arShortDate(p.fertileEnd!)}',
+          '🌱 Fertile: ${arShortDate(p.fertileStart!)} – ${arShortDate(p.fertileEnd!)}'));
+    }
+    lines.add(tr('متوسط طول الدورة: ${arNum(p.avgCycleLength)} يوم',
+        'Avg cycle: ${arNum(p.avgCycleLength)} days'));
+    return lines.join('\n');
   }
 
   static Future<String> _monthSummary() async {

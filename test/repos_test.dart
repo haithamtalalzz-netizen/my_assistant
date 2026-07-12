@@ -1392,6 +1392,24 @@ void main() {
     });
   });
 
+  group('ترقية قاعدة البيانات v32 ← v33', () {
+    test('عمود العلاقة بيضاف لـcycle_days (آمن ضد التكرار)', () async {
+      final v32 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await v32.execute('''
+        CREATE TABLE cycle_days(
+          day TEXT PRIMARY KEY, mood TEXT NOT NULL DEFAULT '',
+          symptoms TEXT NOT NULL DEFAULT '', flow TEXT NOT NULL DEFAULT '',
+          weight REAL, note TEXT NOT NULL DEFAULT '')''');
+      await AppDb.upgradeSchema(v32, 32, 33);
+      await v32.insert('cycle_days', {'day': '2026-06-01', 'intimacy': 1});
+      final row = (await v32.query('cycle_days')).first;
+      expect((row['intimacy'] as num).toInt(), 1);
+      await AppDb.upgradeSchema(v32, 32, 33); // تكرار مايكسرش
+      await v32.close();
+    });
+  });
+
   group('الدورة الشهرية', () {
     test('حساب متوسط الدورة والدورة الجاية والتبويض', () async {
       final repo = CycleRepo();
@@ -1470,6 +1488,26 @@ void main() {
       expect(await repo.pillStreak(), 2);
       await repo.setPillTaken(today, false);
       expect(await repo.pillStreak(), 0); // النهاردة اتشال → السلسلة اتقطعت
+    });
+
+    test('شدة الأعراض + التوافق مع الصيغة القديمة', () {
+      const d = CycleDay(day: 'x', symptoms: 'cramps:3,headache:1');
+      expect(d.symptomMap, {'cramps': 3, 'headache': 1});
+      expect(d.symptomList, ['cramps', 'headache']);
+      const old = CycleDay(day: 'x', symptoms: 'cramps,headache');
+      expect(old.symptomMap['cramps'], 2); // بدون شدة = متوسط
+      expect(CycleDay.encodeSymptoms({'cramps': 3}), 'cramps:3');
+    });
+
+    test('متوسط مدة النزول من period_days', () async {
+      final repo = CycleRepo();
+      final now = DateTime.now().toIso8601String();
+      await repo.add(
+          CycleLog(startDay: '2026-05-01', periodDays: 4, createdAt: now));
+      await repo.add(
+          CycleLog(startDay: '2026-05-29', periodDays: 6, createdAt: now));
+      final p = await repo.predict();
+      expect(p.avgPeriodLength, 5); // (4+6)/2
     });
   });
 

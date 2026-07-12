@@ -687,8 +687,8 @@ class _CycleScreenState extends State<CycleScreen> {
                     color: scheme.onPrimaryContainer, fontSize: 14)),
             const SizedBox(height: 2),
             Text(
-                tr('متوسط طول الدورة: ${arNum(_pred.avgCycleLength)} يوم',
-                    'Average cycle: ${arNum(_pred.avgCycleLength)} days'),
+                tr('متوسط طول الدورة ${arNum(_pred.avgCycleLength)} يوم · مدة النزول ${arNum(_pred.avgPeriodLength)} أيام',
+                    'Avg cycle ${arNum(_pred.avgCycleLength)}d · period ${arNum(_pred.avgPeriodLength)}d'),
                 style: TextStyle(
                     color: scheme.onPrimaryContainer.withValues(alpha: 0.7),
                     fontSize: 12)),
@@ -818,8 +818,9 @@ class _CycleScreenState extends State<CycleScreen> {
 
   Future<void> _editDay(CycleDay? existing, String day) async {
     var mood = existing?.mood ?? '';
-    final symptoms = {...?existing?.symptomList};
+    final symptomSev = {...?existing?.symptomMap}; // key -> شدة 1/2/3
     var flow = existing?.flow ?? '';
+    var intimacy = existing?.intimacy ?? false;
     final weightCtrl = TextEditingController(
         text: existing?.weight != null ? '${existing!.weight}' : '');
     final noteCtrl = TextEditingController(text: existing?.note ?? '');
@@ -853,14 +854,24 @@ class _CycleScreenState extends State<CycleScreen> {
                     ),
                 ]),
                 const SizedBox(height: 14),
-                _sheetLabel(tr('الأعراض', 'Symptoms')),
+                _sheetLabel(tr('الأعراض (اضغطي للشدة: خفيف/متوسط/شديد)',
+                    'Symptoms (tap for severity)')),
                 Wrap(spacing: 6, children: [
                   for (final s in kSymptoms)
-                    FilterChip(
-                      label: Text(symptomLabel(s)),
-                      selected: symptoms.contains(s),
-                      onSelected: (on) => setSheet(() =>
-                          on ? symptoms.add(s) : symptoms.remove(s)),
+                    ChoiceChip(
+                      label: Text(symptomSev.containsKey(s)
+                          ? '${symptomLabel(s)} ${'•' * symptomSev[s]!}'
+                          : symptomLabel(s)),
+                      selected: symptomSev.containsKey(s),
+                      onSelected: (_) => setSheet(() {
+                        final cur = symptomSev[s] ?? 0;
+                        final next = (cur + 1) % 4; // 0→1→2→3→0
+                        if (next == 0) {
+                          symptomSev.remove(s);
+                        } else {
+                          symptomSev[s] = next;
+                        }
+                      }),
                     ),
                 ]),
                 const SizedBox(height: 14),
@@ -895,16 +906,29 @@ class _CycleScreenState extends State<CycleScreen> {
                     isDense: true,
                   ),
                 ),
+                if (_mode == 'ttc') ...[
+                  const SizedBox(height: 6),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const Text('❤️', style: TextStyle(fontSize: 20)),
+                    title: Text(tr('علاقة اليوم', 'Intimacy today')),
+                    subtitle: Text(tr('لتتبّع أنسب توقيت للحمل',
+                        'To track conception timing')),
+                    value: intimacy,
+                    onChanged: (v) => setSheet(() => intimacy = v),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 FilledButton.icon(
                   onPressed: () async {
                     await _repo.saveDay(CycleDay(
                       day: day,
                       mood: mood,
-                      symptoms: symptoms.join(','),
+                      symptoms: CycleDay.encodeSymptoms(symptomSev),
                       flow: flow,
                       weight: parseNumber(weightCtrl.text),
                       note: noteCtrl.text.trim(),
+                      intimacy: intimacy,
                     ));
                     if (ctx.mounted) Navigator.pop(ctx);
                   },
@@ -951,22 +975,25 @@ class _CycleScreenState extends State<CycleScreen> {
     final d = dateOnly(date);
     if (actual.contains(dayKey(d))) return _cPeriod;
     final p = _pred;
-    bool between(DateTime? a, DateTime? b) =>
-        a != null && b != null && !d.isBefore(a) && !d.isAfter(b);
-    // دورة متوقّعة (nextStart .. +5)
-    if (p.nextStart != null &&
-        between(p.nextStart, p.nextStart!.add(const Duration(days: 4)))) {
-      return _cPredicted;
-    }
-    if (p.ovulation != null && dayKey(p.ovulation!) == dayKey(d)) {
-      return _cOvulation;
-    }
-    if (between(p.fertileStart, p.fertileEnd)) return _cFertile;
-    // ما قبل الطمث: 5 أيام قبل الدورة الجاية
-    if (p.nextStart != null &&
-        between(p.nextStart!.subtract(const Duration(days: 5)),
-            p.nextStart!.subtract(const Duration(days: 1)))) {
-      return _cPms;
+    if (p.lastStart == null) return null;
+    final avg = p.avgCycleLength;
+    final plen = p.avgPeriodLength;
+    // نتوقّع عدة دورات قدام (لتلوين شهور مستقبلية).
+    for (var k = 1; k <= 6; k++) {
+      final start = p.lastStart!.add(Duration(days: avg * k));
+      if (!d.isBefore(start) && d.isBefore(start.add(Duration(days: plen)))) {
+        return _cPredicted;
+      }
+      final ov = start.subtract(const Duration(days: 14));
+      if (dayKey(d) == dayKey(ov)) return _cOvulation;
+      if (!d.isBefore(ov.subtract(const Duration(days: 5))) &&
+          !d.isAfter(ov.add(const Duration(days: 1)))) {
+        return _cFertile;
+      }
+      if (!d.isBefore(start.subtract(const Duration(days: 5))) &&
+          d.isBefore(start)) {
+        return _cPms;
+      }
     }
     return null;
   }

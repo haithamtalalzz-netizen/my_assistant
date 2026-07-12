@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 32,
+      version: 33,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -217,6 +217,10 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 33 && newV >= 33) {
+      // تسجيل العلاقة (لوضع محاولة الحمل) في التسجيل اليومي.
+      await _safeAddColumn(db, 'cycle_days', 'intimacy', 'INTEGER NOT NULL DEFAULT 0');
+    }
   }
 
   /// تتبّع حبوب منع الحمل — يوم أُخذت فيه الحبة.
@@ -237,7 +241,8 @@ class AppDb {
         symptoms TEXT NOT NULL DEFAULT '',
         flow TEXT NOT NULL DEFAULT '',
         weight REAL,
-        note TEXT NOT NULL DEFAULT ''
+        note TEXT NOT NULL DEFAULT '',
+        intimacy INTEGER NOT NULL DEFAULT 0
       )''',
   ];
 
