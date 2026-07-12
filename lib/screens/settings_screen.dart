@@ -391,6 +391,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
         ),
+        const SizedBox(height: 18),
+        // ---- لون الخلفية (الوضع الفاتح) ----
+        Row(children: [
+          Icon(Icons.wb_sunny_outlined, color: scheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(tr('لون الخلفية (الوضع الفاتح)', 'Background (light mode)'),
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        ValueListenableBuilder<String>(
+          valueListenable: AppState.bgLightKey,
+          builder: (context, current, _) => Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (final entry in kLightBgPresets.entries)
+                _colorSwatch(
+                  color: entry.value.bg,
+                  label: entry.value.label,
+                  selected: current == entry.key,
+                  onTap: () => AppState.setBgLight(entry.key),
+                  ring: true,
+                ),
+            ],
+          ),
+        ),
       ],
     );
   }

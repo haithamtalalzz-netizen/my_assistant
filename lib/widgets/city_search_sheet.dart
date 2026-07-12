@@ -9,16 +9,20 @@ import '../core/geocoding.dart';
 import '../core/l10n.dart';
 
 /// شيت البحث عن مدينة — يرجّع [GeoPlace] المختار أو null.
-/// لو اتحدد [countryCode] بيفلتر على الدولة دي بس.
+/// لو اتحدد [countryCode] بيفلتر على الدولة دي، و[countryEnglishName] بيجيب كل مدنها.
 Future<GeoPlace?> pickCity(BuildContext context,
-    {String? countryCode, String? countryName}) {
+    {String? countryCode, String? countryName, String? countryEnglishName}) {
   return showModalBottomSheet<GeoPlace>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     builder: (ctx) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-      child: _CitySearchSheet(countryCode: countryCode, countryName: countryName),
+      child: _CitySearchSheet(
+        countryCode: countryCode,
+        countryName: countryName,
+        countryEnglishName: countryEnglishName,
+      ),
     ),
   );
 }
@@ -122,35 +126,77 @@ String _flag(String code) {
 class _CitySearchSheet extends StatefulWidget {
   final String? countryCode;
   final String? countryName;
-  const _CitySearchSheet({this.countryCode, this.countryName});
+  final String? countryEnglishName;
+  const _CitySearchSheet(
+      {this.countryCode, this.countryName, this.countryEnglishName});
 
   @override
   State<_CitySearchSheet> createState() => _CitySearchSheetState();
 }
 
+/// صف مدينة: اسم + إحداثيات جاهزة (لو موجودة) — وإلا بتتجاب عند الاختيار.
+class _CityRow {
+  final String name;
+  final GeoPlace? place;
+  const _CityRow(this.name, this.place);
+}
+
 class _CitySearchSheetState extends State<_CitySearchSheet> {
   final _ctrl = TextEditingController();
   Timer? _debounce;
-  List<GeoPlace> _bundled = []; // مدن الدولة المدمجة (تظهر فورًا)
-  List<GeoPlace> _results = [];
-  bool _loading = false;
+  List<_CityRow> _all = []; // كل مدن الدولة (مدمجة + من الإنترنت)
+  List<_CityRow> _shown = [];
+  bool _loadingCities = false; // بيجيب قائمة المدن الكاملة
+  bool _resolving = false; // بيجيب إحداثيات مدينة مختارة
+  bool _searchingOnline = false; // بحث Open-Meteo لمدينة مش في القائمة
 
   @override
   void initState() {
     super.initState();
-    // لو اتحددت دولة، اعرض مدنها المدمجة فورًا كليست جاهزة.
-    _bundled = [
+    _initCities();
+  }
+
+  Future<void> _initCities() async {
+    // 1) المدن المدمجة (بإحداثيات) تظهر فورًا.
+    final bundled = <_CityRow>[
       for (final c in citiesForCountry(widget.countryCode))
-        GeoPlace(
-          name: AppState.isEnglish ? c.en : c.ar,
-          country: widget.countryName ?? '',
-          admin1: '',
-          countryCode: widget.countryCode ?? '',
-          lat: c.lat,
-          lng: c.lng,
+        _CityRow(
+          AppState.isEnglish ? c.en : c.ar,
+          GeoPlace(
+            name: AppState.isEnglish ? c.en : c.ar,
+            country: widget.countryName ?? '',
+            admin1: '',
+            countryCode: widget.countryCode ?? '',
+            lat: c.lat,
+            lng: c.lng,
+          ),
         ),
     ];
-    _results = _bundled;
+    setState(() {
+      _all = bundled;
+      _shown = bundled;
+      _loadingCities = widget.countryEnglishName != null;
+    });
+    // 2) كل مدن الدولة بالاسم من الإنترنت (تُحلّ إحداثياتها عند الاختيار).
+    if (widget.countryEnglishName == null) return;
+    final names = await fetchCountryCities(widget.countryEnglishName!);
+    if (!mounted) return;
+    final have = bundled.map((r) => r.name.toLowerCase()).toSet();
+    final merged = [...bundled];
+    for (final n in names) {
+      if (have.add(n.toLowerCase())) merged.add(_CityRow(n, null));
+    }
+    setState(() {
+      _all = merged;
+      _shown = _filter(_ctrl.text);
+      _loadingCities = false;
+    });
+  }
+
+  List<_CityRow> _filter(String q) {
+    final query = q.trim().toLowerCase();
+    if (query.isEmpty) return _all;
+    return _all.where((r) => r.name.toLowerCase().contains(query)).toList();
   }
 
   @override
@@ -161,70 +207,88 @@ class _CitySearchSheetState extends State<_CitySearchSheet> {
   }
 
   void _onChanged(String q) {
-    final query = q.trim();
-    // فلترة فورية على المدن المدمجة (من غير انتظار الشبكة).
-    final local = query.isEmpty
-        ? _bundled
-        : _bundled
-            .where((p) => p.name.toLowerCase().contains(query.toLowerCase()))
-            .toList();
-    setState(() => _results = local);
-
+    setState(() => _shown = _filter(q));
+    // لو مفيش نتائج محلية، ابحث أونلاين في Open-Meteo (احتياطي).
     _debounce?.cancel();
-    if (query.length < 2) return;
-    _debounce = Timer(const Duration(milliseconds: 400), () async {
-      setState(() => _loading = true);
-      final online = await searchCities(q, countryCode: widget.countryCode);
+    final query = q.trim();
+    if (query.length < 2 || _shown.isNotEmpty) return;
+    _debounce = Timer(const Duration(milliseconds: 500), () async {
+      setState(() => _searchingOnline = true);
+      final online = await searchCities(query, countryCode: widget.countryCode);
       if (!mounted) return;
-      // ادمج المدمج المفلتر + نتائج النت (بدون تكرار الاسم).
-      final seen = local.map((p) => p.name.toLowerCase()).toSet();
-      final merged = [...local];
-      for (final p in online) {
-        if (seen.add(p.name.toLowerCase())) merged.add(p);
-      }
       setState(() {
-        _results = merged;
-        _loading = false;
+        _shown = [for (final p in online) _CityRow(p.name, p)];
+        _searchingOnline = false;
       });
     });
+  }
+
+  Future<void> _pick(_CityRow row) async {
+    if (row.place != null) {
+      Navigator.pop(context, row.place);
+      return;
+    }
+    // مدينة بالاسم بس → هات إحداثياتها للمواعيد والطقس.
+    setState(() => _resolving = true);
+    final place = await resolveCity(row.name, countryCode: widget.countryCode);
+    if (!mounted) return;
+    setState(() => _resolving = false);
+    if (place != null) {
+      Navigator.pop(context, place);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr('تعذّر تحديد إحداثيات «${row.name}»',
+              'Could not locate "${row.name}"'))));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.7,
+      height: MediaQuery.of(context).size.height * 0.8,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-                widget.countryName != null
-                    ? tr('مدن ${widget.countryName}', 'Cities in ${widget.countryName}')
-                    : tr('دوّر على مدينتك', 'Find your city'),
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                      widget.countryName != null
+                          ? tr('مدن ${widget.countryName}',
+                              'Cities in ${widget.countryName}')
+                          : tr('دوّر على مدينتك', 'Find your city'),
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w700)),
+                ),
+                if (_loadingCities)
+                  const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2)),
+              ],
+            ),
             const SizedBox(height: 4),
             Text(
-                _bundled.isNotEmpty
-                    ? tr('اختر من القائمة أو ابحث عن مدينة تانية',
-                        'Pick from the list or search another city')
+                _all.isNotEmpty
+                    ? tr('${_all.length} مدينة — اختر أو ابحث',
+                        '${_all.length} cities — pick or search')
                     : tr('اكتب اسم المدينة', 'Type the city name'),
                 style: TextStyle(color: scheme.outline, fontSize: 12)),
             const SizedBox(height: 12),
             TextField(
               controller: _ctrl,
-              autofocus: _bundled.isEmpty,
+              autofocus: false,
               onChanged: _onChanged,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search),
-                hintText: tr('اكتب اسم المدينة (مثلًا: دبي، لندن، جدة)',
-                    'Type a city (e.g. Dubai, London)'),
+                hintText: tr('ابحث عن مدينة', 'Search a city'),
                 border: const OutlineInputBorder(),
-                suffixIcon: _loading
+                suffixIcon: _searchingOnline
                     ? const Padding(
                         padding: EdgeInsets.all(12),
                         child: SizedBox(
@@ -236,32 +300,42 @@ class _CitySearchSheetState extends State<_CitySearchSheet> {
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: _results.isEmpty
-                  ? Center(
-                      child: Text(
-                          _ctrl.text.trim().length < 2
-                              ? tr('ابدأ الكتابة...', 'Start typing...')
-                              : _loading
-                                  ? ''
+              child: Stack(
+                children: [
+                  _shown.isEmpty
+                      ? Center(
+                          child: Text(
+                              _loadingCities
+                                  ? tr('بيحمّل المدن...', 'Loading cities...')
                                   : tr('مفيش نتائج', 'No results'),
-                          style: TextStyle(color: scheme.outline)))
-                  : ListView.builder(
-                      itemCount: _results.length,
-                      itemBuilder: (context, i) {
-                        final p = _results[i];
-                        return ListTile(
-                          leading: Icon(Icons.location_on_outlined,
-                              color: scheme.primary),
-                          title: Text(p.name),
-                          subtitle: Text([
-                            if (p.admin1.isNotEmpty && p.admin1 != p.name)
-                              p.admin1,
-                            if (p.country.isNotEmpty) p.country,
-                          ].join('، ')),
-                          onTap: () => Navigator.pop(context, p),
-                        );
-                      },
+                              style: TextStyle(color: scheme.outline)))
+                      : ListView.builder(
+                          itemCount: _shown.length,
+                          itemBuilder: (context, i) {
+                            final r = _shown[i];
+                            return ListTile(
+                              dense: true,
+                              leading: Icon(Icons.location_on_outlined,
+                                  color: scheme.primary),
+                              title: Text(r.name),
+                              subtitle: r.place != null &&
+                                      r.place!.admin1.isNotEmpty &&
+                                      r.place!.admin1 != r.name
+                                  ? Text(r.place!.admin1)
+                                  : null,
+                              onTap: _resolving ? null : () => _pick(r),
+                            );
+                          },
+                        ),
+                  if (_resolving)
+                    Positioned.fill(
+                      child: ColoredBox(
+                        color: scheme.surface.withValues(alpha: 0.6),
+                        child: const Center(child: CircularProgressIndicator()),
+                      ),
                     ),
+                ],
+              ),
             ),
           ],
         ),

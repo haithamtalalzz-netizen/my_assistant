@@ -90,3 +90,40 @@ Future<GeoPlace?> reverseGeocode(double lat, double lng,
     return null;
   }
 }
+
+/// كل مدن دولة بالاسم عبر countriesnow.space (مجاني، بدون مفتاح).
+/// [countryEnglishName] لازم بالإنجليزي (زي «Egypt»/«Canada»).
+Future<List<String>> fetchCountryCities(String countryEnglishName) async {
+  if (countryEnglishName.trim().isEmpty) return [];
+  try {
+    final uri =
+        Uri.parse('https://countriesnow.space/api/v0.1/countries/cities');
+    final res = await http
+        .post(uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'country': countryEnglishName}))
+        .timeout(const Duration(seconds: 15));
+    if (res.statusCode != 200) return [];
+    final j = jsonDecode(res.body) as Map<String, dynamic>;
+    if (j['error'] == true) return [];
+    final data = j['data'] as List?;
+    if (data == null) return [];
+    final out = data
+        .map((e) => e.toString().trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    out.sort();
+    return out;
+  } on Exception catch (e) {
+    dev.log('فشل جلب مدن الدولة', error: e);
+    return [];
+  }
+}
+
+/// يحوّل اسم مدينة لإحداثيات عبر Open-Meteo (للمواعيد والطقس). null لو مالقاش.
+Future<GeoPlace?> resolveCity(String name, {String? countryCode}) async {
+  final inCountry = await searchCities(name, countryCode: countryCode);
+  if (inCountry.isNotEmpty) return inCountry.first;
+  final anywhere = await searchCities(name);
+  return anywhere.isNotEmpty ? anywhere.first : null;
+}

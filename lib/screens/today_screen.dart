@@ -432,12 +432,8 @@ class _TodayScreenState extends State<TodayScreen> {
             _weeklyBanner(context),
             const SizedBox(height: 12),
           ],
-          // كارت المياه ونوم امبارح اتشالوا من نص الرئيسية (بطلب المستخدم)؛
-          // تسجيل المياه لسه متاح من زر الإضافة السريعة 💧. الخطوات بس فضلت.
-          if (_vis('vitals') && _steps != null) ...[
-            _stepsCard(context),
-            const SizedBox(height: 12),
-          ],
+          // كارت المياه/النوم/الخطوات اتشالوا من نص الرئيسية (بطلب المستخدم).
+          // الخطوات وباقي مقاييس الساعة بتظهر في قسم «من ساعتك الذكية» تحت.
           if (_vis('smartwatch') && _hasFitnessData) ...[
             SectionHeader(tr('من ساعتك الذكية', 'From your smartwatch')),
             _fitnessSection(context),
@@ -2380,6 +2376,7 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
+  // ignore: unused_element  (اتشال من الرئيسية — الخطوات في قسم الساعة الذكية)
   Widget _stepsCard(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Card(

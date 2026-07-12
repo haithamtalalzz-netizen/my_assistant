@@ -13,6 +13,8 @@ class AppState {
   static final ValueNotifier<String> accentKey = ValueNotifier('mint');
   // مفتاح لون الخلفية للوضع الغامق — الافتراضي كحلي داكن.
   static final ValueNotifier<String> bgKey = ValueNotifier('midnight');
+  // مفتاح لون الخلفية للوضع الفاتح — الافتراضي أبيض ورقي.
+  static final ValueNotifier<String> bgLightKey = ValueNotifier('paper');
 
   static Future<void> load() async {
     final s = SettingsRepo();
@@ -21,6 +23,7 @@ class AppState {
     locale.value = Locale(lang == 'en' ? 'en' : 'ar');
     accentKey.value = await s.get('ui_accent') ?? 'mint';
     bgKey.value = await s.get('ui_bg') ?? 'midnight';
+    bgLightKey.value = await s.get('ui_bg_light') ?? 'paper';
   }
 
   static Future<void> setAccent(String key) async {
@@ -31,6 +34,11 @@ class AppState {
   static Future<void> setBg(String key) async {
     bgKey.value = key;
     await SettingsRepo().set('ui_bg', key);
+  }
+
+  static Future<void> setBgLight(String key) async {
+    bgLightKey.value = key;
+    await SettingsRepo().set('ui_bg_light', key);
   }
 
   static Future<void> setThemeMode(ThemeMode mode) async {

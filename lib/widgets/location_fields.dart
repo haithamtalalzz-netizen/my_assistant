@@ -52,7 +52,8 @@ class _LocationFieldsState extends State<LocationFields> {
           content: Text(tr('اختر الدولة الأول', 'Choose the country first'))));
       return;
     }
-    final place = await pickCity(context, countryCode: c.code, countryName: c.name);
+    final place = await pickCity(context,
+        countryCode: c.code, countryName: c.name, countryEnglishName: c.en);
     if (place == null || !mounted) return;
     setState(() => _cityLabel = place.label);
     widget.onPicked(place);
