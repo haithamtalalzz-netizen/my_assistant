@@ -615,6 +615,17 @@ void main() {
       expect(mushafPageUrl(1).endsWith('page001.png'), isTrue);
     });
 
+    test('الوِرد اليومى: عدّ لكل ذِكر', () async {
+      final repo = WorshipRepo();
+      final today = DateTime.now();
+      await repo.setWird(today, 0, 33);
+      await repo.setWird(today, 1, 100);
+      final c = await repo.wirdCounts(today);
+      expect(c[0], 33);
+      expect(c[1], 100);
+      expect(c[2], isNull);
+    });
+
     test('سلسلة الأذكار وعدّ الصيام', () async {
       final repo = WorshipRepo();
       final today = DateTime.now();

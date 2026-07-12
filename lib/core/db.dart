@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 36,
+      version: 37,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -236,7 +236,23 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 37 && newV >= 37) {
+      for (final ddl in _v37Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// الوِرد اليومى — عدّاد لكل ذِكر فى يوم.
+  static const List<String> _v37Tables = [
+    '''
+      CREATE TABLE wird_log(
+        day TEXT NOT NULL,
+        idx INTEGER NOT NULL,
+        count INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY(day, idx)
+      )''',
+  ];
 
   /// تتبّع الأذكار (يوم/نوع) + الصيام (يوم صام فيه).
   static const List<String> _v36Tables = [
@@ -946,6 +962,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v36Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v37Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);

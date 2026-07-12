@@ -213,6 +213,22 @@ class WorshipRepo {
     return (rows.first['c'] as int?) ?? 0;
   }
 
+  // ---- الوِرد اليومى ----
+
+  Future<Map<int, int>> wirdCounts(DateTime day) async {
+    final db = await AppDb.instance;
+    final rows =
+        await db.query('wird_log', where: 'day = ?', whereArgs: [dayKey(day)]);
+    return {for (final r in rows) r['idx'] as int: r['count'] as int};
+  }
+
+  Future<void> setWird(DateTime day, int idx, int count) async {
+    final db = await AppDb.instance;
+    await db.insert('wird_log',
+        {'day': dayKey(day), 'idx': idx, 'count': count},
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
   // ---- إحصائية روحية أسبوعية (آخر 7 أيام) ----
 
   Future<SpiritualWeek> weeklyStats() async {

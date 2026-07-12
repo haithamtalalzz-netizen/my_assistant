@@ -13,8 +13,12 @@ import '../../core/religion_data.dart';
 import '../../data/settings_repo.dart';
 import '../../data/worship_repo.dart';
 import 'adhkar_screen.dart';
+import 'adhkar_situations_screen.dart';
+import 'daily_wird_screen.dart';
 import 'duas_screen.dart';
 import 'fasting_screen.dart';
+import 'hajj_umrah_screen.dart';
+import 'hijri_age_screen.dart';
 import 'islamic_occasions_screen.dart';
 import 'khatma_screen.dart';
 import 'mawarith_screen.dart';
@@ -23,6 +27,7 @@ import 'names_screen.dart';
 import 'post_prayer_dhikr_screen.dart';
 import 'quran_screen.dart';
 import 'qibla_screen.dart';
+import 'ruqyah_screen.dart';
 import 'spiritual_stats_screen.dart';
 import 'tasbih_screen.dart';
 import 'zakat_screen.dart';
@@ -558,6 +563,16 @@ class _PrayerScreenState extends State<PrayerScreen> {
           const Color(0xFFB5654A), () => const MawarithScreen()),
       _Tool(Icons.event, tr('المناسبات الإسلامية', 'Islamic occasions'),
           const Color(0xFF1E7A5A), () => const IslamicOccasionsScreen()),
+      _Tool(Icons.bedtime, tr('أذكار المواقف', 'Daily-life adhkar'),
+          const Color(0xFF3C5A99), () => const AdhkarSituationsScreen()),
+      _Tool(Icons.track_changes, tr('الوِرد اليومى', 'Daily wird'),
+          const Color(0xFF2FA36B), () => const DailyWirdScreen()),
+      _Tool(Icons.healing, tr('الرقية الشرعية', 'Ruqyah'),
+          const Color(0xFF6A4C93), () => const RuqyahScreen()),
+      _Tool(Icons.mosque, tr('العمرة والحج', 'Umrah & Hajj'),
+          const Color(0xFFCC8A2E), () => const HajjUmrahScreen()),
+      _Tool(Icons.cake, tr('عمرك بالهجرى', 'Hijri age'),
+          const Color(0xFFB5654A), () => const HijriAgeScreen()),
     ];
     return GridView.builder(
       shrinkWrap: true,
