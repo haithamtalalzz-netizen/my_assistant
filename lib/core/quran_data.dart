@@ -47,7 +47,42 @@ class QuranData {
     final all = await surahs();
     return all.firstWhere((s) => s.id == id);
   }
+
+  // ---- خريطة الصفحات (صفحة → آياتها) ----
+  static Map<int, List<List<int>>>? _pages;
+
+  static Future<Map<int, List<List<int>>>> _loadPages() async {
+    if (_pages != null) return _pages!;
+    final raw = await rootBundle.loadString('assets/quran/page_ayahs.json');
+    final m = jsonDecode(raw) as Map<String, dynamic>;
+    _pages = m.map((k, v) => MapEntry(
+        int.parse(k),
+        (v as List)
+            .map((e) => [(e as List)[0] as int, e[1] as int])
+            .toList()));
+    return _pages!;
+  }
+
+  /// آيات صفحة معيّنة كأزواج [رقم السورة، رقم الآية].
+  static Future<List<List<int>>> pageAyahs(int page) async {
+    final p = await _loadPages();
+    return p[page] ?? const [];
+  }
+
+  /// أرقام السور التى تبدأ (آية 1) فى هذه الصفحة.
+  static Future<List<int>> surahsStartingOn(int page) async {
+    final ayahs = await pageAyahs(page);
+    return ayahs.where((a) => a[1] == 1).map((a) => a[0]).toList();
+  }
 }
+
+/// جزء بداية كل سورة (1..114).
+// ignore: lines_longer_than_80_chars
+const List<int> kSurahStartJuz = [1,1,3,4,6,7,8,9,10,11,11,12,13,13,14,14,15,15,16,16,17,17,18,18,18,19,19,20,20,21,21,21,21,22,22,22,23,23,23,24,24,25,25,25,25,26,26,26,26,26,26,27,27,27,27,27,27,28,28,28,28,28,28,28,28,28,29,29,29,29,29,29,29,29,29,29,29,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30];
+
+/// ترتيب نزول كل سورة (1..114).
+// ignore: lines_longer_than_80_chars
+const List<int> kSurahRevOrder = [5,87,89,92,112,55,39,88,113,51,52,53,96,72,54,70,50,69,44,45,73,103,74,102,42,47,48,49,85,84,57,75,90,58,43,41,56,38,59,60,61,62,63,64,65,66,95,111,106,34,67,76,23,37,97,46,94,105,101,91,109,110,104,108,99,107,77,2,78,79,71,40,3,4,31,98,33,80,81,24,7,82,86,83,27,36,8,68,10,35,26,9,11,12,28,1,25,100,93,14,30,16,13,32,19,29,17,15,18,114,6,22,20,21];
 
 /// عدد صفحات المصحف (مصحف المدينة).
 const int kMushafPages = 604;

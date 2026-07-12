@@ -615,6 +615,22 @@ void main() {
       expect(mushafPageUrl(1).endsWith('page001.png'), isTrue);
     });
 
+    test('خريطة صفحات المصحف وبيانات السور', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      expect(kSurahStartJuz.length, 114);
+      expect(kSurahRevOrder.length, 114);
+      expect(kSurahRevOrder.first, 5); // الفاتحة نزلت الخامسة
+      final p1 = await QuranData.pageAyahs(1);
+      expect(p1.length, 7); // الفاتحة كلها فى الصفحة الأولى
+      expect(await QuranData.surahsStartingOn(2), contains(2)); // البقرة تبدأ صفحة 2
+      // كل الآيات موزّعة على الصفحات = 6236
+      var total = 0;
+      for (var p = 1; p <= 604; p++) {
+        total += (await QuranData.pageAyahs(p)).length;
+      }
+      expect(total, 6236);
+    });
+
     test('الوِرد اليومى: عدّ لكل ذِكر', () async {
       final repo = WorshipRepo();
       final today = DateTime.now();
