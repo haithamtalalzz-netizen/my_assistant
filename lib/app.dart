@@ -17,8 +17,12 @@ class MyAssistantApp extends StatelessWidget {
       builder: (context, mode, _) => ValueListenableBuilder<Locale>(
         valueListenable: AppState.locale,
         builder: (context, locale, _) => ListenableBuilder(
-          listenable: Listenable.merge(
-              [AppState.accentKey, AppState.bgKey, AppState.bgLightKey]),
+          listenable: Listenable.merge([
+            AppState.accentKey,
+            AppState.bgKey,
+            AppState.bgLightKey,
+            AppState.gender,
+          ]),
           builder: (context, _) => MaterialApp(
             title: 'My Assistant',
             debugShowCheckedModeBanner: false,
