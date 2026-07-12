@@ -335,92 +335,103 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _accentControl(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ---- لون الهوية ----
-        Row(children: [
-          Icon(Icons.palette_outlined, color: scheme.primary),
-          const SizedBox(width: 12),
-          Text(tr('لون الهوية', 'Accent color'),
-              style: const TextStyle(fontWeight: FontWeight.w600)),
-        ]),
-        const SizedBox(height: 10),
-        ValueListenableBuilder<String>(
-          valueListenable: AppState.accentKey,
-          builder: (context, current, _) => Wrap(
-            spacing: 10,
-            runSpacing: 10,
+        // بند ألوان الهوية — الألوان جواه.
+        Card(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          child: ExpansionTile(
+            leading: const Icon(Icons.palette_outlined),
+            title: Text(tr('ألوان الهوية', 'Accent colors')),
+            shape: const Border(),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             children: [
-              for (final entry in kAccentPresets.entries)
-                _colorSwatch(
-                  color: entry.value.primary,
-                  label: entry.value.label,
-                  selected: current == entry.key,
-                  onTap: () => AppState.setAccent(entry.key),
+              ValueListenableBuilder<String>(
+                valueListenable: AppState.accentKey,
+                builder: (context, current, _) => Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final entry in kAccentPresets.entries)
+                      _colorSwatch(
+                        color: entry.value.primary,
+                        label: entry.value.label,
+                        selected: current == entry.key,
+                        onTap: () => AppState.setAccent(entry.key),
+                      ),
+                  ],
                 ),
+              ),
             ],
           ),
         ),
-        const SizedBox(height: 18),
-        // ---- لون الخلفية (الوضع الغامق) ----
-        Row(children: [
-          Icon(Icons.format_paint_outlined, color: scheme.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(tr('لون الخلفية (الوضع الغامق)', 'Background (dark mode)'),
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-          ),
-        ]),
-        const SizedBox(height: 10),
-        ValueListenableBuilder<String>(
-          valueListenable: AppState.bgKey,
-          builder: (context, current, _) => Wrap(
-            spacing: 10,
-            runSpacing: 10,
+        // بند ألوان الخلفية — الغامق + الفاتح مدموجين جواه.
+        Card(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          child: ExpansionTile(
+            leading: const Icon(Icons.format_paint_outlined),
+            title: Text(tr('ألوان الخلفية', 'Background colors')),
+            shape: const Border(),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             children: [
-              for (final entry in kBgPresets.entries)
-                _colorSwatch(
-                  color: entry.value.bg,
-                  label: entry.value.label,
-                  selected: current == entry.key,
-                  onTap: () => AppState.setBg(entry.key),
-                  ring: true,
+              _bgSubLabel(context, Icons.dark_mode_outlined,
+                  tr('الوضع الغامق', 'Dark mode')),
+              const SizedBox(height: 10),
+              ValueListenableBuilder<String>(
+                valueListenable: AppState.bgKey,
+                builder: (context, current, _) => Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final entry in kBgPresets.entries)
+                      _colorSwatch(
+                        color: entry.value.bg,
+                        label: entry.value.label,
+                        selected: current == entry.key,
+                        onTap: () => AppState.setBg(entry.key),
+                        ring: true,
+                      ),
+                  ],
                 ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-        // ---- لون الخلفية (الوضع الفاتح) ----
-        Row(children: [
-          Icon(Icons.wb_sunny_outlined, color: scheme.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(tr('لون الخلفية (الوضع الفاتح)', 'Background (light mode)'),
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-          ),
-        ]),
-        const SizedBox(height: 10),
-        ValueListenableBuilder<String>(
-          valueListenable: AppState.bgLightKey,
-          builder: (context, current, _) => Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              for (final entry in kLightBgPresets.entries)
-                _colorSwatch(
-                  color: entry.value.bg,
-                  label: entry.value.label,
-                  selected: current == entry.key,
-                  onTap: () => AppState.setBgLight(entry.key),
-                  ring: true,
+              ),
+              const SizedBox(height: 18),
+              _bgSubLabel(context, Icons.light_mode_outlined,
+                  tr('الوضع الفاتح', 'Light mode')),
+              const SizedBox(height: 10),
+              ValueListenableBuilder<String>(
+                valueListenable: AppState.bgLightKey,
+                builder: (context, current, _) => Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final entry in kLightBgPresets.entries)
+                      _colorSwatch(
+                        color: entry.value.bg,
+                        label: entry.value.label,
+                        selected: current == entry.key,
+                        onTap: () => AppState.setBgLight(entry.key),
+                        ring: true,
+                      ),
+                  ],
                 ),
+              ),
             ],
           ),
         ),
       ],
     );
+  }
+
+  Widget _bgSubLabel(BuildContext context, IconData icon, String text) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(children: [
+      Icon(icon, size: 18, color: scheme.primary),
+      const SizedBox(width: 8),
+      Text(text,
+          style: TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w600, color: scheme.outline)),
+    ]);
   }
 
   Widget _colorSwatch({

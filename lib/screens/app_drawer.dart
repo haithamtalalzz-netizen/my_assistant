@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../core/ar.dart';
+import '../core/app_state.dart';
 import '../core/l10n.dart';
+import '../data/settings_repo.dart';
+import 'account_screen.dart';
 import '../data/bills_repo.dart';
 import '../data/income_repo.dart';
 import 'alerts_center_screen.dart';
@@ -128,23 +131,50 @@ class AppDrawer extends StatelessWidget {
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            DrawerHeader(
-              decoration: BoxDecoration(color: scheme.primaryContainer),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.auto_awesome,
-                      size: 36, color: scheme.onPrimaryContainer),
-                  const SizedBox(height: 8),
-                  Text(tr('مساعدي', 'My Assistant'),
-                      style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: scheme.onPrimaryContainer)),
-                ],
-              ),
+            // حساب المستخدم — فوق (زي طارة): أفاتار + الاسم، يفتح صفحة الحساب.
+            FutureBuilder<String>(
+              future: SettingsRepo().userName(),
+              builder: (context, snap) {
+                final name = (snap.data ?? '').trim();
+                return Container(
+                  color: scheme.primaryContainer,
+                  child: ListTile(
+                    contentPadding:
+                        const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                    leading: CircleAvatar(
+                      radius: 24,
+                      backgroundColor: scheme.primary,
+                      child: Text(
+                          name.isNotEmpty ? name.characters.first : '★',
+                          style: TextStyle(
+                              color: scheme.onPrimary,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                    title: Text(name.isEmpty ? tr('حسابك', 'Your account') : name,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            color: scheme.onPrimaryContainer)),
+                    subtitle: Text(tr('إدارة حسابك', 'Manage your account'),
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onPrimaryContainer
+                                .withValues(alpha: 0.75))),
+                    trailing: Icon(Icons.chevron_left,
+                        color: scheme.onPrimaryContainer),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const AccountScreen()));
+                    },
+                  ),
+                );
+              },
             ),
+            const SizedBox(height: 4),
             // مثبّت فوق — أكتر ٣ حاجات بتتفتح.
             top(0, Icons.wb_sunny_outlined, tr('اليوم', 'Today')),
             push(Icons.psychology_outlined, tr('اسأل مديرك', 'Ask your manager'),
@@ -293,8 +323,66 @@ class AppDrawer extends StatelessWidget {
             push(Icons.medical_services_outlined,
                 tr('كارت الطوارئ', 'Emergency card'),
                 const EmergencyView()),
-            push(Icons.settings_outlined, tr('الإعدادات', 'Settings'),
-                const SettingsScreen()),
+            // صف سفلي: الإعدادات + اللغة + المظهر جنب بعض (زي طارة).
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _footerBtn(context, Icons.settings_outlined,
+                      tr('الإعدادات', 'Settings'), () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const SettingsScreen()));
+                  }),
+                  _footerBtn(
+                      context,
+                      Icons.translate,
+                      AppState.isEnglish ? 'العربية' : 'English',
+                      () => AppState.setLanguage(
+                          AppState.isEnglish ? 'ar' : 'en')),
+                  ValueListenableBuilder<ThemeMode>(
+                    valueListenable: AppState.themeMode,
+                    builder: (context, mode, _) {
+                      final isDark = mode == ThemeMode.dark ||
+                          (mode == ThemeMode.system &&
+                              MediaQuery.platformBrightnessOf(context) ==
+                                  Brightness.dark);
+                      return _footerBtn(
+                          context,
+                          isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                          isDark ? tr('فاتح', 'Light') : tr('غامق', 'Dark'),
+                          () => AppState.setThemeMode(
+                              isDark ? ThemeMode.light : ThemeMode.dark));
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// زر أداة سفلي (أيقونة + عنوان صغير تحتها).
+  Widget _footerBtn(
+      BuildContext context, IconData icon, String label, VoidCallback onTap) {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: scheme.onSurfaceVariant),
+            const SizedBox(height: 4),
+            Text(label,
+                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
           ],
         ),
       ),
