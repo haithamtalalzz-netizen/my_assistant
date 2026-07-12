@@ -63,6 +63,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _loading = true;
   bool _busy = false;
   String? _openCat; // الفئة المفتوحة حاليًا (null = القائمة الرئيسية)
+  String _catQuery = ''; // بحث في قائمة الإعدادات
 
   @override
   void initState() {
@@ -472,25 +473,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // فئات الإعدادات (بالترتيب) — كل واحدة تفتح صفحتها.
-  List<({String key, String title, IconData icon, String? sub})>
+  // فئات الإعدادات (بالترتيب) — كل واحدة تفتح صفحتها. kw = كلمات بحث إضافية.
+  List<({String key, String title, IconData icon, String? sub, String kw})>
       _categories() => [
-            (key: 'appearance', title: tr('المظهر واللغة', 'Appearance & language'), icon: Icons.palette_outlined, sub: tr('اللغة والثيم والألوان', 'Language, theme & colors')),
-            (key: 'general', title: tr('عام', 'General'), icon: Icons.tune, sub: tr('المياه والميزانية', 'Water & budget')),
-            (key: 'location', title: tr('الموقع والصلاة', 'Location & prayer'), icon: Icons.place_outlined, sub: tr('مدينتك وإشعارات الأذان', 'City & adhan alerts')),
-            (key: 'home', title: tr('الصفحة الرئيسية', 'Home screen'), icon: Icons.dashboard_customize_outlined, sub: tr('إظهار وإخفاء العناصر', 'Show / hide sections')),
-            (key: 'notifications', title: tr('الإشعارات', 'Notifications'), icon: Icons.notifications_active_outlined, sub: tr('صوت واهتزاز', 'Sound & vibration')),
-            (key: 'health', title: tr('الصحة', 'Health'), icon: Icons.favorite_outline, sub: tr('مزامنة الساعة الذكية', 'Smartwatch sync')),
-            (key: 'modes', title: tr('الأوضاع', 'Modes'), icon: Icons.toggle_on_outlined, sub: tr('رمضان / يوم صعب / سفر', 'Ramadan / hard-day / travel')),
-            (key: 'emergency', title: tr('كارت الطوارئ', 'Emergency card'), icon: Icons.medical_services_outlined, sub: tr('بيانات طبية للطوارئ', 'Emergency medical info')),
-            (key: 'chat', title: tr('محادثة المدير', 'Manager chat'), icon: Icons.psychology_outlined, sub: tr('Gemini — مجاني', 'Gemini — free')),
-            (key: 'security', title: tr('الأمان', 'Security'), icon: Icons.lock_outline, sub: tr('قفل بالبصمة', 'Biometric lock')),
-            (key: 'backup', title: tr('النسخ الاحتياطي', 'Backup'), icon: Icons.backup_outlined, sub: tr('تصدير واستعادة', 'Export & restore')),
-            (key: 'developer', title: tr('للمطوّرين', 'Developer'), icon: Icons.code, sub: tr('بيانات تجريبية ومسح', 'Demo data & reset')),
+            (key: 'appearance', title: tr('المظهر واللغة', 'Appearance & language'), icon: Icons.palette_outlined, sub: tr('اللغة والثيم والألوان', 'Language, theme & colors'), kw: 'لغة عربي انجليزي ثيم غامق فاتح لون الوان مظهر theme dark light color'),
+            (key: 'general', title: tr('عام', 'General'), icon: Icons.tune, sub: tr('المياه والميزانية', 'Water & budget'), kw: 'مياه ماء هدف ميزانية فلوس water budget'),
+            (key: 'location', title: tr('الموقع والصلاة', 'Location & prayer'), icon: Icons.place_outlined, sub: tr('مدينتك وإشعارات الأذان', 'City & adhan alerts'), kw: 'موقع مدينة دولة صلاة اذان طقس location city prayer adhan weather'),
+            (key: 'home', title: tr('الصفحة الرئيسية', 'Home screen'), icon: Icons.dashboard_customize_outlined, sub: tr('إظهار وإخفاء العناصر', 'Show / hide sections'), kw: 'رئيسية كروت اخفاء اظهار home cards'),
+            (key: 'notifications', title: tr('الإشعارات', 'Notifications'), icon: Icons.notifications_active_outlined, sub: tr('صوت واهتزاز', 'Sound & vibration'), kw: 'اشعار صوت اهتزاز تنبيه notification sound vibration'),
+            (key: 'health', title: tr('الصحة', 'Health'), icon: Icons.favorite_outline, sub: tr('مزامنة الساعة الذكية', 'Smartwatch sync'), kw: 'صحة ساعة خطوات نوم مزامنة health watch steps'),
+            (key: 'modes', title: tr('الأوضاع', 'Modes'), icon: Icons.toggle_on_outlined, sub: tr('رمضان / يوم صعب / سفر', 'Ramadan / hard-day / travel'), kw: 'رمضان سفر يوم صعب ملخص ramadan travel'),
+            (key: 'emergency', title: tr('كارت الطوارئ', 'Emergency card'), icon: Icons.medical_services_outlined, sub: tr('بيانات طبية للطوارئ', 'Emergency medical info'), kw: 'طوارئ دم حساسية امراض جهة اتصال emergency blood'),
+            (key: 'chat', title: tr('محادثة المدير', 'Manager chat'), icon: Icons.psychology_outlined, sub: tr('Gemini — مجاني', 'Gemini — free'), kw: 'محادثة ذكاء gemini chat مفتاح key'),
+            (key: 'security', title: tr('الأمان', 'Security'), icon: Icons.lock_outline, sub: tr('قفل بالبصمة', 'Biometric lock'), kw: 'امان قفل بصمة security lock fingerprint'),
+            (key: 'backup', title: tr('النسخ الاحتياطي', 'Backup'), icon: Icons.backup_outlined, sub: tr('تصدير واستعادة', 'Export & restore'), kw: 'نسخة احتياطية تصدير استعادة backup export restore'),
+            (key: 'developer', title: tr('متقدّم', 'Advanced'), icon: Icons.build_outlined, sub: tr('أدوات متقدمة (بيانات تجريبية / مسح)', 'Advanced tools (demo data / reset)'), kw: 'متقدم مطور تجريبي مسح حذف developer advanced reset'),
           ];
 
   String _catTitle(String key) =>
       _categories().firstWhere((c) => c.key == key).title;
+
+  /// الفئات بعد الفلترة بالبحث.
+  List<({String key, String title, IconData icon, String? sub, String kw})>
+      _filteredCategories() {
+    final q = _catQuery.trim().toLowerCase();
+    if (q.isEmpty) return _categories();
+    return _categories()
+        .where((c) =>
+            c.title.toLowerCase().contains(q) ||
+            (c.sub ?? '').toLowerCase().contains(q) ||
+            c.kw.toLowerCase().contains(q))
+        .toList();
+  }
 
   Future<void> _backToHub() async {
     await _persist();
@@ -518,8 +532,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             : ListView(
                 padding: EdgeInsets.all(inCat ? 16 : 4),
                 children: [
-                if (_openCat == null)
-                  for (final c in _categories())
+                if (_openCat == null) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+                    child: TextField(
+                      onChanged: (v) => setState(() => _catQuery = v),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search),
+                        hintText: tr('ابحث في الإعدادات', 'Search settings'),
+                        border: const OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  for (final c in _filteredCategories())
                     ListTile(
                       leading: Icon(c.icon),
                       title: Text(c.title),
@@ -529,8 +555,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       trailing: const Icon(Icons.chevron_left),
                       onTap: () => setState(() => _openCat = c.key),
                     ),
+                  if (_filteredCategories().isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Center(
+                        child: Text(tr('مفيش نتيجة', 'No match'),
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.outline)),
+                      ),
+                    ),
+                ],
                 if (_openCat == 'appearance') ...[
-                  SectionHeader(tr('المظهر واللغة', 'Appearance & language')),
                 _languageControl(context),
                 const SizedBox(height: 12),
                 _themeControl(context),
@@ -548,7 +583,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 ],
                 if (_openCat == 'general') ...[
-                SectionHeader(tr('عام', 'General')),
                 // الاسم اتنقل لصفحة «حسابي» في السايدبار (من فوق).
                 Row(
                   children: [
@@ -577,7 +611,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 ],
                 if (_openCat == 'location') ...[
-                SectionHeader(tr('الموقع والصلاة', 'Location & prayer')),
                 if (_customLoc != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -616,7 +649,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 ],
                 if (_openCat == 'home') ...[
-                SectionHeader(tr('الصفحة الرئيسية', 'Home screen')),
                 Card(
                   margin: EdgeInsets.zero,
                   clipBehavior: Clip.antiAlias,
@@ -654,7 +686,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 ],
                 if (_openCat == 'notifications') ...[
-                SectionHeader(tr('الإشعارات', 'Notifications')),
                 Row(
                   children: [
                     Icon(Icons.notifications_active_outlined,
@@ -690,7 +721,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 ],
                 if (_openCat == 'health') ...[
-                SectionHeader(tr('الصحة', 'Health')),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(
@@ -703,7 +733,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 ],
                 if (_openCat == 'modes') ...[
-                SectionHeader(tr('الأوضاع', 'Modes')),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(tr('وضع رمضان', 'Ramadan mode')),
@@ -757,7 +786,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
                 if (_openCat == 'emergency') ...[
-                SectionHeader(tr('كارت الطوارئ', 'Emergency card')),
                 DropdownButtonFormField<String>(
                   initialValue: _blood,
                   decoration:
@@ -808,8 +836,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 ],
                 if (_openCat == 'chat') ...[
-                SectionHeader(
-                    tr('محادثة المدير (Gemini — مجاني)', 'Chat (Gemini — free)')),
                 TextField(
                   controller: _geminiKey,
                   decoration: InputDecoration(
@@ -829,7 +855,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 ],
                 if (_openCat == 'security') ...[
-                SectionHeader(tr('الأمان', 'Security')),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(tr('قفل التطبيق بالبصمة', 'Biometric app lock')),
@@ -841,7 +866,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 ],
                 if (_openCat == 'backup') ...[
-                SectionHeader(tr('النسخ الاحتياطي', 'Backup')),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.upload_file_outlined),
@@ -881,7 +905,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 ],
                 if (_openCat == 'developer') ...[
-                SectionHeader(tr('للمطوّرين', 'Developer')),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.science_outlined),
