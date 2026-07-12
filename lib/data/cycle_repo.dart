@@ -83,6 +83,25 @@ class PhaseInsight {
   const PhaseInsight(this.phase, this.days, this.topSymptoms, this.topMood);
 }
 
+/// مقارنة النوم/المياه/الوزن بين (الدورة + ما قبل الطمث) وباقي الشهر.
+class CycleHealthLink {
+  final double? sleepSensitive, sleepRest;
+  final double? waterSensitive, waterRest;
+  final double? weightSensitive, weightRest;
+  const CycleHealthLink({
+    this.sleepSensitive,
+    this.sleepRest,
+    this.waterSensitive,
+    this.waterRest,
+    this.weightSensitive,
+    this.weightRest,
+  });
+  bool get hasAny =>
+      (sleepSensitive != null && sleepRest != null) ||
+      (waterSensitive != null && waterRest != null) ||
+      (weightSensitive != null && weightRest != null);
+}
+
 /// توقّعات الدورة الشهرية المحسوبة من التواريخ المسجّلة.
 class CyclePrediction {
   final int loggedCount;
@@ -157,6 +176,136 @@ class CycleRepo {
     final rows =
         await db.query('cycle_days', orderBy: 'day DESC', limit: limit);
     return rows.map(CycleDay.fromMap).toList();
+  }
+
+  // ---- حبوب منع الحمل ----
+
+  Future<bool> pillTakenOn(String day) async {
+    final db = await AppDb.instance;
+    final rows =
+        await db.query('pill_logs', where: 'day = ?', whereArgs: [day]);
+    return rows.isNotEmpty;
+  }
+
+  Future<void> setPillTaken(String day, bool taken) async {
+    final db = await AppDb.instance;
+    if (taken) {
+      await db.insert('pill_logs',
+          {'day': day, 'created_at': DateTime.now().toIso8601String()},
+          conflictAlgorithm: ConflictAlgorithm.replace);
+    } else {
+      await db.delete('pill_logs', where: 'day = ?', whereArgs: [day]);
+    }
+  }
+
+  /// عدد الأيام المتتالية اللي اتاخدت فيها الحبة لحد النهاردة.
+  Future<int> pillStreak() async {
+    final db = await AppDb.instance;
+    final rows = await db.query('pill_logs');
+    final set = {for (final r in rows) r['day'] as String};
+    var streak = 0;
+    var d = dateOnly(DateTime.now());
+    while (set.contains(dayKey(d))) {
+      streak++;
+      d = d.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
+
+  // ---- مدة الدورة ----
+
+  Future<void> updatePeriodLength(int id, int days) async {
+    final db = await AppDb.instance;
+    await db.update('cycle_logs', {'period_days': days.clamp(1, 14)},
+        where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// الفروق بين الدورات المتتالية (بالأيام) — لرسم الانتظام.
+  Future<List<int>> cycleIntervals() async {
+    final starts = (await all())
+        .map((l) => DateTime.tryParse(l.startDay))
+        .whereType<DateTime>()
+        .map(dateOnly)
+        .toList()
+      ..sort();
+    final out = <int>[];
+    for (var i = 1; i < starts.length; i++) {
+      final diff = starts[i].difference(starts[i - 1]).inDays;
+      if (diff >= 10 && diff <= 90) out.add(diff);
+    }
+    return out;
+  }
+
+  /// مقارنة النوم/المياه/الوزن بين مرحلة (الدورة+PMS) وباقي الشهر (آخر ~90 يوم).
+  Future<CycleHealthLink> phaseHealth() async {
+    final logs = await all();
+    final starts = logs
+        .map((l) => DateTime.tryParse(l.startDay))
+        .whereType<DateTime>()
+        .map(dateOnly)
+        .toList()
+      ..sort();
+    if (starts.isEmpty) return const CycleHealthLink();
+
+    var avg = 28;
+    if (starts.length >= 2) {
+      var sum = 0, n = 0;
+      for (var i = 1; i < starts.length; i++) {
+        final diff = starts[i].difference(starts[i - 1]).inDays;
+        if (diff >= 15 && diff <= 60) {
+          sum += diff;
+          n++;
+        }
+      }
+      if (n > 0) avg = (sum / n).round().clamp(21, 40);
+    }
+    final ov = avg - 14;
+
+    final db = await AppDb.instance;
+    final now = dateOnly(DateTime.now());
+    final fromKey = dayKey(now.subtract(const Duration(days: 89)));
+    final waterRows = await db
+        .query('water_logs', where: 'day >= ?', whereArgs: [fromKey]);
+    final sleepRows = await db
+        .query('sleep_logs', where: 'day >= ?', whereArgs: [fromKey]);
+    final waterBy = {
+      for (final r in waterRows) r['day'] as String: (r['glasses'] as num).toDouble()
+    };
+    final sleepBy = {
+      for (final r in sleepRows) r['day'] as String: (r['hours'] as num).toDouble()
+    };
+    final weightBy = {
+      for (final d in await recentDays(limit: 400))
+        if (d.weight != null) d.day: d.weight!
+    };
+
+    final sS = <double>[], sR = <double>[]; // sleep
+    final wS = <double>[], wR = <double>[]; // water
+    final gS = <double>[], gR = <double>[]; // weight
+    for (var i = 0; i < 90; i++) {
+      final date = now.subtract(Duration(days: i));
+      DateTime? ref;
+      for (final s in starts) {
+        if (!s.isAfter(date)) ref = s;
+      }
+      if (ref == null) continue;
+      final cd = date.difference(ref).inDays + 1;
+      final sensitive = cd <= 5 || cd > ov + 1; // الدورة أو ما قبل الطمث
+      final key = dayKey(date);
+      if (sleepBy[key] != null) (sensitive ? sS : sR).add(sleepBy[key]!);
+      if (waterBy[key] != null) (sensitive ? wS : wR).add(waterBy[key]!);
+      if (weightBy[key] != null) (sensitive ? gS : gR).add(weightBy[key]!);
+    }
+    double? avgOf(List<double> l) =>
+        l.isEmpty ? null : l.reduce((a, b) => a + b) / l.length;
+    return CycleHealthLink(
+      sleepSensitive: avgOf(sS),
+      sleepRest: avgOf(sR),
+      waterSensitive: avgOf(wS),
+      waterRest: avgOf(wR),
+      weightSensitive: avgOf(gS),
+      weightRest: avgOf(gR),
+    );
   }
 
   /// تحليل الأعراض والمزاج حسب مرحلة الدورة (من التسجيلات اليومية).
@@ -234,25 +383,58 @@ class CycleRepo {
     return out;
   }
 
-  /// يجدول تذكير قبل الدورة بيومين + بداية أيام الخصوبة (للسيدات فقط).
+  /// يجدول تذكيرات الدورة + حبوب منع الحمل (للسيدات فقط).
   Future<void> ensureReminders() async {
     await Notifications.cancel(Notifications.cyclePeriodNotifId);
     await Notifications.cancel(Notifications.cycleFertileNotifId);
+    await Notifications.cancel(Notifications.cycleLateNotifId);
+    await Notifications.cancel(Notifications.cycleCareNotifId);
+    await Notifications.cancel(Notifications.pillNotifId);
     final settings = SettingsRepo();
     if (await settings.get('gender') != 'female') return;
+
+    // تذكير حبوب منع الحمل اليومي (مستقل عن تذكيرات الدورة).
+    if (await settings.get('pill_reminder') == '1') {
+      final t = (await settings.get('pill_time') ?? '21:00').split(':');
+      await Notifications.scheduleDaily(
+        id: Notifications.pillNotifId,
+        title: tr('حبة منع الحمل 💊', 'Birth-control pill 💊'),
+        body: tr('متنسيش تاخدي حبتك النهاردة.',
+            "Don't forget to take your pill today."),
+        hour: int.tryParse(t[0]) ?? 21,
+        minute: t.length > 1 ? int.tryParse(t[1]) ?? 0 : 0,
+      );
+    }
+
     if (await settings.get('cycle_reminders') == '0') return;
     final p = await predict();
     if (!p.hasData || p.nextStart == null) return;
-
     final ns = p.nextStart!;
-    final before =
-        DateTime(ns.year, ns.month, ns.day, 9).subtract(const Duration(days: 2));
+
     await Notifications.scheduleOnce(
       id: Notifications.cyclePeriodNotifId,
       title: tr('الدورة قربت 🌸', 'Period is near 🌸'),
       body: tr('دورتك متوقّعة خلال يومين — جهّزي نفسك.',
           'Your period is expected in ~2 days.'),
-      when: before,
+      when: DateTime(ns.year, ns.month, ns.day, 9)
+          .subtract(const Duration(days: 2)),
+    );
+    // عناية أثناء الدورة (يوم البداية المتوقّع).
+    await Notifications.scheduleOnce(
+      id: Notifications.cycleCareNotifId,
+      title: tr('فترة الدورة 🌸', 'Your period 🌸'),
+      body: tr('اشربي مياه كفاية وارتاحي — واسجّلي بدايتها.',
+          'Drink enough water & rest — and log its start.'),
+      when: DateTime(ns.year, ns.month, ns.day, 10),
+    );
+    // تنبيه تأخّر الدورة (بعد الموعد بـ3 أيام).
+    await Notifications.scheduleOnce(
+      id: Notifications.cycleLateNotifId,
+      title: tr('دورتك اتأخرت ⏰', 'Period is late ⏰'),
+      body: tr('عدّى 3 أيام على المتوقّع — سجّليها أو اطمني باختبار حمل.',
+          "3 days past due — log it, or consider a pregnancy test."),
+      when: DateTime(ns.year, ns.month, ns.day, 11)
+          .add(const Duration(days: 3)),
     );
     final fs = p.fertileStart;
     if (fs != null) {

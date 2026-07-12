@@ -44,6 +44,9 @@ class Notifications {
   static const int weekSummaryNotifId = 1070001;
   static const int cyclePeriodNotifId = 1080001; // تذكير قبل الدورة
   static const int cycleFertileNotifId = 1080002; // بداية أيام الخصوبة
+  static const int cycleLateNotifId = 1080003; // تأخّر الدورة
+  static const int cycleCareNotifId = 1080004; // عناية أثناء الدورة
+  static const int pillNotifId = 1090001; // حبوب منع الحمل اليومية
 
   static const NotificationDetails _details = NotificationDetails(
     android: AndroidNotificationDetails(

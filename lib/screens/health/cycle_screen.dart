@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
@@ -28,6 +29,12 @@ class _CycleScreenState extends State<CycleScreen> {
   CycleDay? _today;
   List<CycleDay> _recentDays = [];
   List<PhaseInsight> _insights = [];
+  bool _pillOn = false;
+  String _pillTime = '21:00';
+  bool _pillTakenToday = false;
+  int _pillStreak = 0;
+  List<int> _intervals = [];
+  CycleHealthLink _health = const CycleHealthLink();
 
   @override
   void initState() {
@@ -43,6 +50,12 @@ class _CycleScreenState extends State<CycleScreen> {
     final remindersOn = await _settings.get('cycle_reminders') != '0';
     final mode = await _settings.get('cycle_mode') ?? 'normal';
     final insights = await _repo.phaseInsights();
+    final pillOn = await _settings.get('pill_reminder') == '1';
+    final pillTime = await _settings.get('pill_time') ?? '21:00';
+    final pillTaken = await _repo.pillTakenOn(dayKey(DateTime.now()));
+    final pillStreak = await _repo.pillStreak();
+    final intervals = await _repo.cycleIntervals();
+    final health = await _repo.phaseHealth();
     if (!mounted) return;
     setState(() {
       _logs = logs;
@@ -52,8 +65,82 @@ class _CycleScreenState extends State<CycleScreen> {
       _remindersOn = remindersOn;
       _mode = mode;
       _insights = insights;
+      _pillOn = pillOn;
+      _pillTime = pillTime;
+      _pillTakenToday = pillTaken;
+      _pillStreak = pillStreak;
+      _intervals = intervals;
+      _health = health;
       _loading = false;
     });
+  }
+
+  Future<void> _togglePill(bool on) async {
+    await _settings.set('pill_reminder', on ? '1' : '0');
+    setState(() => _pillOn = on);
+    await _repo.ensureReminders();
+  }
+
+  Future<void> _pickPillTime() async {
+    final parts = _pillTime.split(':');
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+          hour: int.tryParse(parts[0]) ?? 21,
+          minute: parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0),
+    );
+    if (picked == null) return;
+    final t =
+        '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+    await _settings.set('pill_time', t);
+    setState(() => _pillTime = t);
+    await _repo.ensureReminders();
+  }
+
+  Future<void> _takePill() async {
+    final day = dayKey(DateTime.now());
+    await _repo.setPillTaken(day, !_pillTakenToday);
+    await _load();
+  }
+
+  Future<void> _editPeriodLength(CycleLog log) async {
+    var days = log.periodDays;
+    final saved = await showDialog<int>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: Text(tr('مدة الدورة (أيام)', 'Period length (days)')),
+          content: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                  icon: const Icon(Icons.remove_circle_outline),
+                  onPressed: () =>
+                      setD(() => days = (days - 1).clamp(1, 14))),
+              Text(arNum(days),
+                  style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.w700)),
+              IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  onPressed: () =>
+                      setD(() => days = (days + 1).clamp(1, 14))),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(tr('إلغاء', 'Cancel'))),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, days),
+                child: Text(tr('حفظ', 'Save'))),
+          ],
+        ),
+      ),
+    );
+    if (saved != null && log.id != null) {
+      await _repo.updatePeriodLength(log.id!, saved);
+      await _load();
+    }
   }
 
   Future<void> _setMode(String m) async {
@@ -137,6 +224,10 @@ class _CycleScreenState extends State<CycleScreen> {
                     _pregnancyCard(context)
                   else ...[
                     _statusCard(context),
+                    if (_pred.hasData && (_pred.daysUntilNext ?? 0) <= -3) ...[
+                      const SizedBox(height: 8),
+                      _lateCard(context),
+                    ],
                     if (_mode == 'ttc' && _pred.hasData) ...[
                       const SizedBox(height: 8),
                       _ttcBanner(context),
@@ -148,10 +239,20 @@ class _CycleScreenState extends State<CycleScreen> {
                   ],
                   const SizedBox(height: 4),
                   _todayLogCard(context),
+                  const SizedBox(height: 4),
+                  _pillCard(context),
+                  if (_intervals.length >= 2) ...[
+                    SectionHeader(tr('انتظام الدورة', 'Cycle regularity')),
+                    _regularityCard(context),
+                  ],
                   if (_insights.isNotEmpty) ...[
                     SectionHeader(
                         tr('أنماط الأعراض والمزاج', 'Symptom & mood patterns')),
                     _patternsCard(context),
+                  ],
+                  if (_health.hasAny) ...[
+                    SectionHeader(tr('الدورة وصحتك', 'Cycle & your health')),
+                    _healthLinkCard(context),
                   ],
                   if (_recentDays.isNotEmpty) ...[
                     SectionHeader(tr('تسجيلاتك اليومية', 'Your daily logs')),
@@ -175,6 +276,211 @@ class _CycleScreenState extends State<CycleScreen> {
         onPressed: () => _logStart(),
         icon: const Icon(Icons.add),
         label: Text(tr('سجّلي بداية الدورة', 'Log period start')),
+      ),
+    );
+  }
+
+  Widget _lateCard(BuildContext context) {
+    final late = -(_pred.daysUntilNext ?? 0);
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          const Text('⏰', style: TextStyle(fontSize: 22)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+                tr('دورتك متأخرة ${arNum(late)} يوم — سجّليها أول ما تنزل، أو لو حابة تطمني اعملي اختبار حمل.',
+                    'Period ${arNum(late)} days late — log it when it comes, or take a pregnancy test to be sure.'),
+                style: TextStyle(
+                    fontSize: 12.5, color: scheme.onErrorContainer)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pillCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      child: Column(
+        children: [
+          SwitchListTile(
+            secondary: const Text('💊', style: TextStyle(fontSize: 22)),
+            title: Text(tr('حبوب منع الحمل', 'Birth-control pill')),
+            subtitle: Text(_pillOn
+                ? tr('تذكير يومي الساعة $_pillTime', 'Daily reminder at $_pillTime')
+                : tr('تذكير يومي في معاد ثابت', 'A daily reminder')),
+            value: _pillOn,
+            onChanged: _togglePill,
+          ),
+          if (_pillOn) ...[
+            const Divider(height: 1),
+            ListTile(
+              dense: true,
+              leading: const Icon(Icons.schedule),
+              title: Text(tr('معاد التذكير', 'Reminder time')),
+              trailing: TextButton(
+                  onPressed: _pickPillTime, child: Text(_pillTime)),
+            ),
+            ListTile(
+              dense: true,
+              leading: Icon(
+                  _pillTakenToday
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
+                  color: _pillTakenToday ? Colors.green : scheme.outline),
+              title: Text(_pillTakenToday
+                  ? tr('خدتي حبة النهاردة ✓', 'Taken today ✓')
+                  : tr('خدتي حبة النهاردة؟', 'Taken your pill today?')),
+              subtitle: _pillStreak > 0
+                  ? Text(tr('${arNum(_pillStreak)} يوم متتالي 🔥',
+                      '${arNum(_pillStreak)}-day streak 🔥'))
+                  : null,
+              trailing: FilledButton(
+                onPressed: _takePill,
+                child: Text(_pillTakenToday
+                    ? tr('تراجع', 'Undo')
+                    : tr('خدتها', 'Took it')),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _regularityCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final iv = _intervals;
+    final minV = iv.reduce((a, b) => a < b ? a : b);
+    final maxV = iv.reduce((a, b) => a > b ? a : b);
+    final regular = (maxV - minV) <= 5;
+    final maxY = (maxV + 4).toDouble();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 14, 14, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(regular ? Icons.check_circle : Icons.info_outline,
+                    color: regular ? Colors.green : Colors.orange, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                    regular
+                        ? tr('دورتك منتظمة', 'Your cycle is regular')
+                        : tr('دورتك غير منتظمة شوية',
+                            'Your cycle is a bit irregular'),
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+                tr('أقصر: ${arNum(minV)} يوم · أطول: ${arNum(maxV)} يوم',
+                    'Shortest: ${arNum(minV)}d · Longest: ${arNum(maxV)}d'),
+                style: TextStyle(fontSize: 12, color: scheme.outline)),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 130,
+              child: BarChart(
+                BarChartData(
+                  maxY: maxY,
+                  minY: 0,
+                  gridData: const FlGridData(show: false),
+                  borderData: FlBorderData(show: false),
+                  titlesData: FlTitlesData(
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 28,
+                            interval: 10,
+                            getTitlesWidget: (v, _) => Text(arNum(v.toInt()),
+                                style: const TextStyle(fontSize: 9)))),
+                    bottomTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  barGroups: [
+                    for (var i = 0; i < iv.length; i++)
+                      BarChartGroupData(x: i, barRods: [
+                        BarChartRodData(
+                            toY: iv[i].toDouble(),
+                            width: 12,
+                            color: scheme.primary,
+                            borderRadius: BorderRadius.circular(3)),
+                      ]),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _healthLinkCard(BuildContext context) {
+    final h = _health;
+    final scheme = Theme.of(context).colorScheme;
+    Widget row(String label, double? sens, double? rest, String unit) {
+      if (sens == null || rest == null) return const SizedBox.shrink();
+      final diff = sens - rest;
+      final up = diff > 0;
+      final arrow = diff.abs() < 0.1 ? '≈' : (up ? '↑' : '↓');
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Expanded(child: Text(label)),
+            Text(
+                '${sens.toStringAsFixed(1)} $unit',
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(width: 4),
+            Text(arrow,
+                style: TextStyle(
+                    color: arrow == '↑'
+                        ? Colors.orange
+                        : arrow == '↓'
+                            ? Colors.blue
+                            : scheme.outline,
+                    fontWeight: FontWeight.w800)),
+            const SizedBox(width: 4),
+            Text('(${rest.toStringAsFixed(1)})',
+                style: TextStyle(fontSize: 12, color: scheme.outline)),
+          ],
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+                tr('في الدورة/ما قبل الطمث مقابل باقي الشهر',
+                    'During period/PMS vs the rest of the month'),
+                style: TextStyle(fontSize: 12, color: scheme.outline)),
+            const SizedBox(height: 6),
+            row(tr('النوم', 'Sleep'), h.sleepSensitive, h.sleepRest,
+                tr('س', 'h')),
+            row(tr('المياه', 'Water'), h.waterSensitive, h.waterRest,
+                tr('كوب', 'cups')),
+            row(tr('الوزن', 'Weight'), h.weightSensitive, h.weightRest,
+                tr('كجم', 'kg')),
+          ],
+        ),
       ),
     );
   }
@@ -442,12 +748,15 @@ class _CycleScreenState extends State<CycleScreen> {
         dense: true,
         leading: const Text('🩸', style: TextStyle(fontSize: 20)),
         title: Text(d != null ? arShortDate(d) : log.startDay),
-        subtitle: Text(tr('بداية الدورة', 'Period start')),
+        subtitle: Text(tr('بداية الدورة · المدة ${arNum(log.periodDays)} أيام',
+            'Period start · ${arNum(log.periodDays)} days')),
+        onTap: () => _editPeriodLength(log),
         trailing: IconButton(
           icon: const Icon(Icons.delete_outline, size: 20),
           onPressed: () async {
             await _repo.delete(log.id!);
             await _load();
+            await _repo.ensureReminders();
           },
         ),
       ),

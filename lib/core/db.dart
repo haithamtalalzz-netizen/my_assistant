@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 31,
+      version: 32,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -212,7 +212,21 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 32 && newV >= 32) {
+      for (final ddl in _v32Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// تتبّع حبوب منع الحمل — يوم أُخذت فيه الحبة.
+  static const List<String> _v32Tables = [
+    '''
+      CREATE TABLE pill_logs(
+        day TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL
+      )''',
+  ];
 
   /// تسجيل يومي للدورة (مزاج/أعراض/شدة نزيف/وزن/ملاحظة).
   static const List<String> _v31Tables = [
@@ -850,6 +864,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v31Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v32Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);

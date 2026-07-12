@@ -1378,6 +1378,20 @@ void main() {
     });
   });
 
+  group('ترقية قاعدة البيانات v31 ← v32', () {
+    test('جدول حبوب منع الحمل بيتعمل', () async {
+      final v31 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v31, 31, 32);
+      await v31.insert('pill_logs',
+          {'day': '2026-06-07', 'created_at': DateTime.now().toIso8601String()});
+      final rows = await v31.query('pill_logs');
+      expect(rows.length, 1);
+      expect(rows.first['day'], '2026-06-07');
+      await v31.close();
+    });
+  });
+
   group('الدورة الشهرية', () {
     test('حساب متوسط الدورة والدورة الجاية والتبويض', () async {
       final repo = CycleRepo();
@@ -1430,6 +1444,32 @@ void main() {
       final period = ins.firstWhere((i) => i.phase == 'period');
       expect(period.topMood, 'tired');
       expect(period.topSymptoms.first.key, 'cramps');
+    });
+
+    test('فروق الدورات + تعديل مدة الدورة', () async {
+      final repo = CycleRepo();
+      final now = DateTime.now().toIso8601String();
+      final id = await repo.add(CycleLog(startDay: '2026-05-01', createdAt: now));
+      await repo.add(CycleLog(startDay: '2026-05-29', createdAt: now)); // +28
+      await repo.add(CycleLog(startDay: '2026-06-30', createdAt: now)); // +32
+      expect(await repo.cycleIntervals(), [28, 32]);
+      await repo.updatePeriodLength(id, 6);
+      final log = (await repo.all()).firstWhere((l) => l.id == id);
+      expect(log.periodDays, 6);
+    });
+
+    test('حبوب منع الحمل: أخذ + streak متتالي', () async {
+      final repo = CycleRepo();
+      final today = dayKey(DateTime.now());
+      final yesterday =
+          dayKey(DateTime.now().subtract(const Duration(days: 1)));
+      expect(await repo.pillTakenOn(today), false);
+      await repo.setPillTaken(yesterday, true);
+      await repo.setPillTaken(today, true);
+      expect(await repo.pillTakenOn(today), true);
+      expect(await repo.pillStreak(), 2);
+      await repo.setPillTaken(today, false);
+      expect(await repo.pillStreak(), 0); // النهاردة اتشال → السلسلة اتقطعت
     });
   });
 
