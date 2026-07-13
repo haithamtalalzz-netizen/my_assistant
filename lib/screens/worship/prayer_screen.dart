@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:hijri/hijri_calendar.dart';
+import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 
 import '../../core/adhan_custom.dart';
 import '../../core/app_state.dart';
@@ -18,7 +19,6 @@ import 'daily_wird_screen.dart';
 import 'duas_screen.dart';
 import 'fasting_screen.dart';
 import 'hajj_umrah_screen.dart';
-import 'hijri_age_screen.dart';
 import 'islamic_occasions_screen.dart';
 import 'khatma_screen.dart';
 import 'mawarith_screen.dart';
@@ -56,6 +56,7 @@ class _PrayerScreenState extends State<PrayerScreen> {
   String? _customChannel;
   bool _friday = true;
   bool _rawatib = false;
+  List<String> _toolOrder = [];
   Timer? _tick;
 
   @override
@@ -79,9 +80,11 @@ class _PrayerScreenState extends State<PrayerScreen> {
     final customChannel = await _settings.adhanCustomChannel();
     final friday = await _settings.fridayReminderEnabled();
     final rawatib = await _settings.rawatibRemindersEnabled();
+    final toolOrder = await _settings.prayerToolsOrder();
     if (!mounted) return;
     setState(() {
       _rawatib = rawatib;
+      _toolOrder = toolOrder;
       _place = gov.name;
       _prayers = prayerTimesFor(now, gov);
       _tomorrow = prayerTimesFor(now.add(const Duration(days: 1)), gov);
@@ -152,6 +155,12 @@ class _PrayerScreenState extends State<PrayerScreen> {
       appBar: AppBar(
         title: Text(tr('الصلاة والأذكار', 'Prayer & Adhkar')),
         actions: [
+          IconButton(
+            tooltip: tr('سجل العبادات', 'Worship history'),
+            icon: const Icon(Icons.calendar_month),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const WorshipHistoryScreen())),
+          ),
           IconButton(
             tooltip: tr('اتجاه القبلة', 'Qibla'),
             icon: const Icon(Icons.explore),
@@ -534,50 +543,54 @@ class _PrayerScreenState extends State<PrayerScreen> {
 
   Widget _toolsGrid() {
     final tools = [
-      _Tool(Icons.import_contacts, tr('المصحف', 'Quran'),
+      _Tool('quran', Icons.import_contacts, tr('المصحف', 'Quran'),
           const Color(0xFF1E7A5A), () => const MushafScreen()),
-      _Tool(Icons.explore, tr('بوصلة القبلة', 'Qibla'), const Color(0xFF2E7D6B),
-          () => const QiblaScreen()),
-      _Tool(Icons.radio_button_checked, tr('المسبحة', 'Tasbih'),
+      _Tool('qibla', Icons.explore, tr('بوصلة القبلة', 'Qibla'),
+          const Color(0xFF2E7D6B), () => const QiblaScreen()),
+      _Tool('tasbih', Icons.radio_button_checked, tr('المسبحة', 'Tasbih'),
           const Color(0xFF6A4C93), () => const TasbihScreen()),
-      _Tool(Icons.wb_sunny, tr('أذكار الصباح', 'Morning adhkar'),
+      _Tool('adhkar_m', Icons.wb_sunny, tr('أذكار الصباح', 'Morning adhkar'),
           const Color(0xFFCC8A2E), () => const AdhkarScreen(morning: true)),
-      _Tool(Icons.nightlight_round, tr('أذكار المساء', 'Evening adhkar'),
+      _Tool('adhkar_e', Icons.nightlight_round, tr('أذكار المساء', 'Evening adhkar'),
           const Color(0xFF3C5A99), () => const AdhkarScreen(morning: false)),
-      _Tool(Icons.star, tr('أسماء الله الحسنى', 'Names of Allah'),
+      _Tool('names', Icons.star, tr('أسماء الله الحسنى', 'Names of Allah'),
           const Color(0xFF2FA36B), () => const NamesScreen()),
-      _Tool(Icons.volunteer_activism, tr('أدعية مأثورة', 'Supplications'),
+      _Tool('duas', Icons.volunteer_activism, tr('أدعية مأثورة', 'Supplications'),
           const Color(0xFFB5654A), () => const DuasScreen()),
-      _Tool(Icons.menu_book, tr('ختمة القرآن', 'Quran khatma'),
+      _Tool('khatma', Icons.menu_book, tr('ختمة القرآن', 'Quran khatma'),
           const Color(0xFF1E7A5A), () => const KhatmaScreen()),
-      _Tool(Icons.calendar_month, tr('مواقيت الشهر', 'Monthly times'),
+      _Tool('monthly', Icons.calendar_month, tr('مواقيت الشهر', 'Monthly times'),
           const Color(0xFF4A6FB5), () => const MonthlyTimesScreen()),
-      _Tool(Icons.self_improvement, tr('أذكار بعد الصلاة', 'Post-prayer adhkar'),
+      _Tool('post_prayer', Icons.self_improvement,
+          tr('أذكار بعد الصلاة', 'Post-prayer adhkar'),
           const Color(0xFF6A4C93), () => const PostPrayerDhikrScreen()),
-      _Tool(Icons.wb_twilight, tr('الصيام', 'Fasting'),
+      _Tool('fasting', Icons.wb_twilight, tr('الصيام', 'Fasting'),
           const Color(0xFFCC8A2E), () => const FastingScreen()),
-      _Tool(Icons.calendar_month, tr('سجل العبادات', 'Worship history'),
-          const Color(0xFF1E7A5A), () => const WorshipHistoryScreen()),
-      _Tool(Icons.insights, tr('إحصائيتك الروحية', 'Spiritual week'),
+      _Tool('stats', Icons.insights, tr('إحصائيتك الروحية', 'Spiritual week'),
           const Color(0xFF3C5A99), () => const SpiritualStatsScreen()),
-      _Tool(Icons.calculate, tr('حاسبة الزكاة', 'Zakat'),
+      _Tool('zakat', Icons.calculate, tr('حاسبة الزكاة', 'Zakat'),
           const Color(0xFF2E7D6B), () => const ZakatScreen()),
-      _Tool(Icons.account_tree, tr('حاسبة المواريث', 'Inheritance'),
+      _Tool('mawarith', Icons.account_tree, tr('حاسبة المواريث', 'Inheritance'),
           const Color(0xFFB5654A), () => const MawarithScreen()),
-      _Tool(Icons.event, tr('المناسبات الإسلامية', 'Islamic occasions'),
+      _Tool('occasions', Icons.event, tr('المناسبات الإسلامية', 'Islamic occasions'),
           const Color(0xFF1E7A5A), () => const IslamicOccasionsScreen()),
-      _Tool(Icons.bedtime, tr('أذكار المواقف', 'Daily-life adhkar'),
+      _Tool('situations', Icons.bedtime, tr('أذكار المواقف', 'Daily-life adhkar'),
           const Color(0xFF3C5A99), () => const AdhkarSituationsScreen()),
-      _Tool(Icons.track_changes, tr('الوِرد اليومى', 'Daily wird'),
+      _Tool('wird', Icons.track_changes, tr('الوِرد اليومى', 'Daily wird'),
           const Color(0xFF2FA36B), () => const DailyWirdScreen()),
-      _Tool(Icons.healing, tr('الرقية الشرعية', 'Ruqyah'),
+      _Tool('ruqyah', Icons.healing, tr('الرقية الشرعية', 'Ruqyah'),
           const Color(0xFF6A4C93), () => const RuqyahScreen()),
-      _Tool(Icons.mosque, tr('العمرة والحج', 'Umrah & Hajj'),
+      _Tool('hajj', Icons.mosque, tr('العمرة والحج', 'Umrah & Hajj'),
           const Color(0xFFCC8A2E), () => const HajjUmrahScreen()),
-      _Tool(Icons.cake, tr('عمرك بالهجرى', 'Hijri age'),
-          const Color(0xFFB5654A), () => const HijriAgeScreen()),
     ];
-    return GridView.builder(
+    // ترتيب محفوظ (المستخدم رتّبها بالسحب)؛ الجديد يتحط فى الآخر.
+    final byId = {for (final t in tools) t.id: t};
+    final ordered = <_Tool>[
+      for (final id in _toolOrder) ?byId.remove(id),
+      ...byId.values,
+    ];
+
+    return ReorderableGridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -586,10 +599,18 @@ class _PrayerScreenState extends State<PrayerScreen> {
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
-      itemCount: tools.length,
+      itemCount: ordered.length,
+      onReorder: (oldI, newI) {
+        final list = [...ordered];
+        final moved = list.removeAt(oldI);
+        list.insert(newI, moved);
+        setState(() => _toolOrder = [for (final t in list) t.id]);
+        _settings.setPrayerToolsOrder(_toolOrder);
+      },
       itemBuilder: (_, i) {
-        final t = tools[i];
+        final t = ordered[i];
         return InkWell(
+          key: ValueKey(t.id),
           borderRadius: BorderRadius.circular(16),
           onTap: () => Navigator.push(
               context, MaterialPageRoute(builder: (_) => t.build())),
@@ -630,9 +651,10 @@ class _PrayerScreenState extends State<PrayerScreen> {
 }
 
 class _Tool {
+  final String id;
   final IconData icon;
   final String label;
   final Color color;
   final Widget Function() build;
-  _Tool(this.icon, this.label, this.color, this.build);
+  _Tool(this.id, this.icon, this.label, this.color, this.build);
 }

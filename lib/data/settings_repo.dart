@@ -191,6 +191,15 @@ class SettingsRepo {
   Future<void> setQuranSpeed(double v) async =>
       set('quran_speed', v.toString());
 
+  /// ترتيب كروت أدوات صفحة الصلاة (رتّبها المستخدم بالسحب).
+  Future<List<String>> prayerToolsOrder() async {
+    final raw = await get('prayer_tools_order') ?? '';
+    return raw.split(',').where((s) => s.isNotEmpty).toList();
+  }
+
+  Future<void> setPrayerToolsOrder(List<String> ids) async =>
+      set('prayer_tools_order', ids.join(','));
+
   Future<bool> ramadanMode() async => await get('ramadan_mode') == '1';
 
   /// ملخص بكرة المسائي — شغال افتراضيًا الساعة 21:30.

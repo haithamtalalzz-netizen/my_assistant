@@ -58,6 +58,8 @@ dependencies:
   flutter_cache_manager: ^3.4.0
   # التقاط بطاقة الآية كصورة للمشاركة.
   screenshot: ^3.0.0
+  # ترتيب الكروت بالسحب (ضغطة طويلة).
+  reorderable_grid_view: ^2.2.8
 
 dev_dependencies:
   flutter_test:
