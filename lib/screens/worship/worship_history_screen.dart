@@ -6,6 +6,7 @@ import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/prayers.dart';
 import '../../data/worship_repo.dart';
+import '../../widgets/month_year_wheel.dart';
 
 /// تقويم/سجل العبادات — ترجع للأيام الماضية تشوف صلّيت إيه وقريت قرآن أدّ إيه.
 class WorshipHistoryScreen extends StatefulWidget {
@@ -33,6 +34,14 @@ class _WorshipHistoryScreenState extends State<WorshipHistoryScreen> {
 
   void _shift(int d) {
     setState(() => _month = DateTime(_month.year, _month.month + d));
+    _load();
+  }
+
+  /// دوسة على الشهر/السنة → عجلة دوّارة لاختيار التاريخ.
+  Future<void> _pickMonthYear() async {
+    final picked = await showMonthYearWheel(context, initial: _month);
+    if (picked == null || !mounted) return;
+    setState(() => _month = DateTime(picked.year, picked.month));
     _load();
   }
 
@@ -116,12 +125,25 @@ class _WorshipHistoryScreenState extends State<WorshipHistoryScreen> {
             children: [
               IconButton(
                   onPressed: () => _shift(-1),
-                  icon: const Icon(Icons.chevron_right)),
+                  icon: const Icon(Icons.chevron_left)),
               Expanded(
-                child: Center(
-                  child: Text(DateFormat('MMMM y', locale).format(_month),
-                      style: const TextStyle(
-                          fontSize: 17, fontWeight: FontWeight.w800)),
+                child: InkWell(
+                  onTap: _pickMonthYear,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(DateFormat('MMMM y', locale).format(_month),
+                            style: const TextStyle(
+                                fontSize: 17, fontWeight: FontWeight.w800)),
+                        const SizedBox(width: 4),
+                        Icon(Icons.arrow_drop_down,
+                            color: scheme.onSurfaceVariant),
+                      ],
+                    ),
+                  ),
                 ),
               ),
               IconButton(
@@ -129,7 +151,7 @@ class _WorshipHistoryScreenState extends State<WorshipHistoryScreen> {
                       _month.isBefore(DateTime(today.year, today.month))
                           ? () => _shift(1)
                           : null,
-                  icon: const Icon(Icons.chevron_left)),
+                  icon: const Icon(Icons.chevron_right)),
             ],
           ),
           Row(
