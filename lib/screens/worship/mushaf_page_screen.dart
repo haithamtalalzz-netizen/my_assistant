@@ -45,6 +45,7 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
   int _page = 1;
   bool _reciting = false;
   bool _night = false;
+  bool _zoomed = false; // لمّا الصفحة مكبّرة نوقف قلب الصفحات.
   int _readCount = 0;
   List<QuranSurah> _surahs = const [];
 
@@ -525,13 +526,22 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
           Positioned.fill(
             child: PageView.builder(
               controller: _controller,
+              // وإنت مكبّر، نوقف قلب الصفحة عشان السحب يحرّك الصورة مش يقلب.
+              physics: _zoomed
+                  ? const NeverScrollableScrollPhysics()
+                  : const PageScrollPhysics(),
               itemCount: kMushafPages,
               onPageChanged: (i) {
                 setState(() => _page = i + 1);
                 _markRead(i + 1);
               },
-              itemBuilder: (_, i) =>
-                  _MushafPageImage(page: i + 1, night: _night),
+              itemBuilder: (_, i) => _MushafPageImage(
+                page: i + 1,
+                night: _night,
+                onZoom: (z) {
+                  if (z != _zoomed) setState(() => _zoomed = z);
+                },
+              ),
             ),
           ),
           _nowPlayingStrip(),
@@ -836,7 +846,8 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
 class _MushafPageImage extends StatefulWidget {
   final int page;
   final bool night;
-  const _MushafPageImage({required this.page, this.night = false});
+  final ValueChanged<bool>? onZoom;
+  const _MushafPageImage({required this.page, this.night = false, this.onZoom});
 
   @override
   State<_MushafPageImage> createState() => _MushafPageImageState();
@@ -853,12 +864,28 @@ const ColorFilter _invert = ColorFilter.matrix(<double>[
 class _MushafPageImageState extends State<_MushafPageImage>
     with AutomaticKeepAliveClientMixin {
   final _tc = TransformationController();
+  bool _isZoomed = false;
 
   @override
   bool get wantKeepAlive => true;
 
   @override
+  void initState() {
+    super.initState();
+    _tc.addListener(_onTransform);
+  }
+
+  void _onTransform() {
+    final zoomed = _tc.value.getMaxScaleOnAxis() > 1.02;
+    if (zoomed != _isZoomed) {
+      _isZoomed = zoomed;
+      widget.onZoom?.call(zoomed);
+    }
+  }
+
+  @override
   void dispose() {
+    _tc.removeListener(_onTransform);
     _tc.dispose();
     super.dispose();
   }
