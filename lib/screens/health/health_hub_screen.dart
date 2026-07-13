@@ -10,6 +10,7 @@ import '../../data/measurements_repo.dart';
 import '../../data/medical_repo.dart';
 import '../../data/pharmacy_repo.dart';
 import '../../models/models.dart';
+import '../../widgets/history_calendar.dart';
 import '../brain/charts_screen.dart';
 import '../food/meal_sheet.dart';
 import '../gym/gym_screen.dart';
@@ -91,12 +92,55 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
     if (mounted) await _load();
   }
 
+  /// تقويم/سجل الصحة — ترجع للأيام الماضية تشوف مياهك ونومك وقياساتك.
+  void _openHistory() {
+    const emoji = {'ضغط': '🩸', 'سكر': '🍬', 'وزن': '⚖️', 'حرارة': '🌡'};
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => HistoryCalendar(
+          title: tr('سجل الصحة', 'Health history'),
+          accent: Colors.teal,
+          activeDays: (y, m) => HealthRepo().activeDaysInMonth(y, m),
+          dayReport: (day) async {
+            final r = await HealthRepo().dayReport(dayKey(day));
+            return [
+              if (r.water > 0)
+                HistoryRow('💧', tr('مياه', 'Water'),
+                    tr('${arNum(r.water)} كوب', '${arNum(r.water)} cups')),
+              if (r.sleep != null)
+                HistoryRow('😴', tr('نوم', 'Sleep'),
+                    tr('${arNum(r.sleep!.round())} ساعة',
+                        '${arNum(r.sleep!.round())}h')),
+              if (r.steps > 0)
+                HistoryRow('👟', tr('خطوات', 'Steps'), arNum(r.steps)),
+              if (r.calories > 0)
+                HistoryRow('🍽', tr('سعرات', 'Calories'),
+                    tr('${arNum(r.calories)} سعر', '${arNum(r.calories)} kcal')),
+              if (r.meals > 0)
+                HistoryRow('🍴', tr('وجبات', 'Meals'), arNum(r.meals)),
+              for (final mm in r.measurements)
+                HistoryRow(emoji[mm.type] ?? '📊', mm.type, mm.display()),
+            ];
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('لوحة الصحة', 'Health hub')),
-          actions: [searchAction(context)]),
+          actions: [
+            searchAction(context),
+            IconButton(
+              onPressed: _openHistory,
+              tooltip: tr('سجل الصحة', 'Health history'),
+              icon: const Icon(Icons.calendar_month_outlined),
+            ),
+          ]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

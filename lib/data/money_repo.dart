@@ -98,4 +98,66 @@ class MoneyRepo {
         [day]);
     return (rows.first['total'] as num).toDouble();
   }
+
+  // ---- تقويم/سجل الفلوس ----
+
+  /// أيام الشهر اللى فيها دخل أو مصروف (لنقاط التقويم).
+  Future<Set<String>> activeDaysInMonth(int year, int month) async {
+    final db = await AppDb.instance;
+    final like = '${monthPrefix(year, month)}%';
+    final days = <String>{};
+    for (final t in const ['expenses', 'income']) {
+      final rows = await db
+          .rawQuery('SELECT DISTINCT day FROM $t WHERE day LIKE ?', [like]);
+      for (final r in rows) {
+        days.add(r['day'] as String);
+      }
+    }
+    return days;
+  }
+
+  /// ملخّص فلوس يوم واحد: دخل + مصروف + عدد + توزيع الفئات.
+  Future<MoneyDay> dayReport(String day) async {
+    final db = await AppDb.instance;
+    final spent = ((await db.rawQuery(
+                'SELECT COALESCE(SUM(amount),0) t FROM expenses WHERE day = ?',
+                [day]))
+            .first['t'] as num)
+        .toDouble();
+    final income = ((await db.rawQuery(
+                'SELECT COALESCE(SUM(amount),0) t FROM income WHERE day = ?',
+                [day]))
+            .first['t'] as num)
+        .toDouble();
+    final count = ((await db.rawQuery(
+                'SELECT COUNT(*) c FROM expenses WHERE day = ?', [day]))
+            .first['c'] as int?) ??
+        0;
+    final catRows = await db.rawQuery(
+        'SELECT category, SUM(amount) t FROM expenses WHERE day = ? '
+        'GROUP BY category ORDER BY t DESC',
+        [day]);
+    final byCat = {
+      for (final r in catRows)
+        r['category'] as String: (r['t'] as num).toDouble()
+    };
+    return MoneyDay(
+        spent: spent, income: income, expenseCount: count, byCategory: byCat);
+  }
+}
+
+/// ملخّص فلوس يوم واحد (للتقويم).
+class MoneyDay {
+  final double spent;
+  final double income;
+  final int expenseCount;
+  final Map<String, double> byCategory;
+  const MoneyDay({
+    required this.spent,
+    required this.income,
+    required this.expenseCount,
+    required this.byCategory,
+  });
+
+  bool get hasAny => spent > 0 || income > 0;
 }

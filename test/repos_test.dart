@@ -361,6 +361,26 @@ void main() {
       await repo.setSleep('2026-06-12', 5.5);
       expect(await repo.sleepOn('2026-06-12'), 5.5);
     });
+
+    test('تقويم الصحة: أيام النشاط وملخّص اليوم', () async {
+      final repo = HealthRepo();
+      await repo.addWater('2026-09-05', 3);
+      await repo.setSleep('2026-09-05', 6);
+      await MeasurementsRepo()
+          .add(const Measurement(day: '2026-09-05', type: 'وزن', value: 80));
+
+      final days = await repo.activeDaysInMonth(2026, 9);
+      expect(days.contains('2026-09-05'), isTrue);
+      expect(days.contains('2026-09-06'), isFalse);
+
+      final rep = await repo.dayReport('2026-09-05');
+      expect(rep.water, 3);
+      expect(rep.sleep, 6);
+      expect(rep.measurements.length, 1);
+      expect(rep.measurements.first.type, 'وزن');
+      expect(rep.hasAny, isTrue);
+      expect((await repo.dayReport('2026-09-06')).hasAny, isFalse);
+    });
   });
 
   group('المواعيد', () {
@@ -429,6 +449,31 @@ void main() {
       expect(byCat['أكل'], 150);
       expect(byCat.keys.first, 'فواتير');
       expect(await repo.totalForDay('2026-06-15'), 50);
+    });
+
+    test('تقويم الفلوس: أيام النشاط وملخّص اليوم', () async {
+      final repo = MoneyRepo();
+      await repo.add(const Expense(
+          amount: 100, category: 'أكل', day: '2026-08-03'));
+      await repo.add(const Expense(
+          amount: 40, category: 'مواصلات', day: '2026-08-03'));
+      await IncomeRepo().add(const Income(
+          amount: 5000, source: 'مرتب', day: '2026-08-03', note: ''));
+      await IncomeRepo().add(const Income(
+          amount: 200, source: 'بيع', day: '2026-08-20', note: ''));
+
+      final days = await repo.activeDaysInMonth(2026, 8);
+      expect(days.contains('2026-08-03'), isTrue); // مصروف + دخل
+      expect(days.contains('2026-08-20'), isTrue); // دخل بس
+      expect(days.contains('2026-08-04'), isFalse);
+
+      final rep = await repo.dayReport('2026-08-03');
+      expect(rep.spent, 140);
+      expect(rep.income, 5000);
+      expect(rep.expenseCount, 2);
+      expect(rep.byCategory['أكل'], 100);
+      expect(rep.hasAny, isTrue);
+      expect((await repo.dayReport('2026-08-04')).hasAny, isFalse);
     });
   });
 

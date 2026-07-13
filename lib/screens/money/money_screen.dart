@@ -15,6 +15,7 @@ import '../../data/money_repo.dart';
 import '../../data/settings_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../widgets/history_calendar.dart';
 import '../baladna/debts_screen.dart';
 import '../baladna/gameya_screen.dart';
 import '../baladna/home_maintenance_screen.dart';
@@ -160,6 +161,36 @@ class _MoneyScreenState extends State<MoneyScreen> {
     if (added == true && mounted) await _load();
   }
 
+  /// تقويم/سجل الفلوس — ترجع للأيام الماضية تشوف صرفت وقبضت كام.
+  void _openHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => HistoryCalendar(
+          title: tr('سجل الفلوس', 'Money history'),
+          accent: Colors.green,
+          activeDays: (y, m) => _repo.activeDaysInMonth(y, m),
+          dayReport: (day) async {
+            final r = await _repo.dayReport(dayKey(day));
+            return [
+              if (r.income > 0)
+                HistoryRow('💰', tr('دخل', 'Income'), egp(r.income)),
+              HistoryRow('🧾', tr('مصروف', 'Spent'), egp(r.spent)),
+              if (r.expenseCount > 0)
+                HistoryRow('🔢', tr('عدد المصاريف', 'Expenses'),
+                    arNum(r.expenseCount)),
+              if (r.income > 0 || r.spent > 0)
+                HistoryRow('⚖️', tr('صافى اليوم', 'Net'),
+                    egp(r.income - r.spent)),
+              for (final e in r.byCategory.entries)
+                HistoryRow('•', expenseCategoryLabel(e.key), egp(e.value)),
+            ];
+          },
+        ),
+      ),
+    );
+  }
+
   /// صوّر الفاتورة → OCR محلي → شيت المصروف متملي بالإجمالي.
   Future<void> _scanReceipt() async {
     final picked = await ImagePicker()
@@ -292,6 +323,11 @@ class _MoneyScreenState extends State<MoneyScreen> {
         title: Text(tr('المحفظة', 'Wallet')),
         actions: [
           searchAction(context),
+          IconButton(
+            onPressed: _openHistory,
+            tooltip: tr('سجل الفلوس', 'Money history'),
+            icon: const Icon(Icons.calendar_month_outlined),
+          ),
           IconButton(
             onPressed: () async {
               await Navigator.push(context,
