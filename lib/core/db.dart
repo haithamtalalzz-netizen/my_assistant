@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 41,
+      version: 42,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -261,7 +261,26 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 42 && newV >= 42) {
+      for (final ddl in _v42Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// مفكرة الأعراض — سجل يومى لأعراض بشدّة وملاحظة.
+  static const List<String> _v42Tables = [
+    '''
+      CREATE TABLE symptom_logs(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        day TEXT NOT NULL,
+        symptom TEXT NOT NULL,
+        severity INTEGER NOT NULL DEFAULT 3,
+        note TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+    'CREATE INDEX idx_symptom_day ON symptom_logs(day)',
+  ];
 
   /// السفر (رحلات + عناصر) + التعلّم (كورسات) + الحيوانات (+أحداث) + كلمات السر.
   static const List<String> _v41Tables = [
@@ -1173,6 +1192,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v41Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v42Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);

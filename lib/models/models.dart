@@ -2449,3 +2449,39 @@ class PasswordEntry {
         'created_at': createdAt,
       };
 }
+
+/// عرض مسجّل فى مفكرة الأعراض — يوم + عرض + شدّة ١..٥ + ملاحظة.
+class SymptomLog {
+  final int? id;
+  final String day;
+  final String symptom;
+  final int severity;
+  final String note;
+  final String createdAt;
+
+  const SymptomLog({
+    this.id,
+    required this.day,
+    required this.symptom,
+    this.severity = 3,
+    this.note = '',
+    required this.createdAt,
+  });
+
+  factory SymptomLog.fromMap(Map<String, Object?> m) => SymptomLog(
+        id: m['id'] as int?,
+        day: m['day'] as String,
+        symptom: m['symptom'] as String,
+        severity: (m['severity'] as int?) ?? 3,
+        note: m['note'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'day': day,
+        'symptom': symptom,
+        'severity': severity,
+        'note': note,
+        'created_at': createdAt,
+      };
+}

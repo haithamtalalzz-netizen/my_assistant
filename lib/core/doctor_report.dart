@@ -11,6 +11,7 @@ import '../data/appointments_repo.dart';
 import '../data/insights_repo.dart';
 import '../data/measurements_repo.dart';
 import '../data/medical_repo.dart';
+import '../data/symptoms_repo.dart';
 import '../data/meds_repo.dart';
 import '../data/settings_repo.dart';
 import 'ar.dart';
@@ -64,6 +65,7 @@ class DoctorReport {
 
     final measurements = await MeasurementsRepo().since(fromKey);
     final medicalRecords = await MedicalRepo().since(fromKey);
+    final symptoms = await SymptomsRepo().since(fromKey);
     final appts = await AppointmentsRepo().all();
     final healthAppts = [
       for (final a in appts)
@@ -137,6 +139,11 @@ class DoctorReport {
           line('• ${r.day} — ${medType(r.type)}: ${r.title}'
               '${r.provider.isEmpty ? '' : ' (${r.provider})'}'
               '${r.result.isEmpty ? '' : ' — ${r.result}'}'),
+        header('الأعراض المسجلة'),
+        if (symptoms.isEmpty) line('لا يوجد أعراض مسجلة في الفترة دي.'),
+        for (final s in symptoms)
+          line('• ${s.day} — ${s.symptom} (شدّة ${arNum(s.severity)}/٥)'
+              '${s.note.isEmpty ? '' : ' — ${s.note}'}'),
         header('مواعيد صحية (سابقة وقادمة)'),
         if (healthAppts.isEmpty) line('لا يوجد.'),
         for (final a in healthAppts)

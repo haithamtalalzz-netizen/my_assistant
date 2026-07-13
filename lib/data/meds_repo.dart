@@ -1,6 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../core/ar.dart';
 import '../core/db.dart';
 import '../core/l10n.dart';
 import '../core/notifications.dart';
@@ -55,6 +56,24 @@ class MedsRepo {
     final db = await AppDb.instance;
     final rows = await db.query('med_logs', where: 'day = ?', whereArgs: [day]);
     return rows.map((r) => '${r['med_id']}|${r['time_slot']}').toSet();
+  }
+
+  /// نسبة الالتزام بالأدوية خلال آخر [days] يوم (المتاخد ÷ المفروض).
+  /// بيرجّع null لو مفيش أدوية فعّالة بجرعات.
+  Future<int?> adherencePercent({int days = 7}) async {
+    final db = await AppDb.instance;
+    final meds = await all(activeOnly: true);
+    var expected = 0;
+    for (final m in meds) {
+      expected += m.times.length * days;
+    }
+    if (expected == 0) return null;
+    final from =
+        dayKey(dateOnly(DateTime.now()).subtract(Duration(days: days - 1)));
+    final taken = Sqflite.firstIntValue(await db.rawQuery(
+            'SELECT COUNT(*) FROM med_logs WHERE day >= ?', [from])) ??
+        0;
+    return ((taken / expected) * 100).round().clamp(0, 100);
   }
 
   Future<void> setTaken(int medId, String day, String slot, bool taken) async {

@@ -8,11 +8,14 @@ import '../../data/health_repo.dart';
 import '../../data/meals_repo.dart';
 import '../../data/measurements_repo.dart';
 import '../../data/medical_repo.dart';
+import '../../data/meds_repo.dart';
 import '../../data/pharmacy_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/history_calendar.dart';
 import '../brain/charts_screen.dart';
 import '../food/meal_sheet.dart';
+import '../schedule/schedule_screen.dart';
+import 'symptom_journal_screen.dart';
 import '../gym/gym_screen.dart';
 import '../gym/progress_screen.dart';
 import '../home/pharmacy_screen.dart';
@@ -37,6 +40,7 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
   int _mealsCount = 0;
   int _medicalCount = 0;
   int _pharmacyExpiring = 0;
+  int? _adherence;
 
   /// آخر قراءتين لكل نوع قياس (ضغط/سكر/وزن/حرارة) — للأحدث + اتجاه التغيّر.
   final Map<String, List<Measurement>> _vitals = {};
@@ -55,6 +59,7 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
     final meals = await MealsRepo().forDay(today);
     final medical = await MedicalRepo().all();
     final pharmacy = await PharmacyRepo().all();
+    final adherence = await MedsRepo().adherencePercent();
 
     final vitals = <String, List<Measurement>>{};
     for (final t in kMeasurementTypes) {
@@ -79,6 +84,7 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
       _mealsCount = meals.length;
       _medicalCount = medical.length;
       _pharmacyExpiring = expiring;
+      _adherence = adherence;
       _vitals
         ..clear()
         ..addAll(vitals);
@@ -237,6 +243,24 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
                         'Your meds & expiry dates'),
                     badge: _pharmacyExpiring,
                     onTap: () => _open(const PharmacyScreen()),
+                  ),
+                  _navCard(
+                    icon: Icons.fact_check_outlined,
+                    color: Colors.indigo,
+                    title: tr('التزام الدواء', 'Med adherence'),
+                    subtitle: _adherence == null
+                        ? tr('تابع تناولك للأدوية', 'Track your meds intake')
+                        : tr('التزامك آخر أسبوع: ٪${arNum(_adherence!)}',
+                            "This week's adherence: ${arNum(_adherence!)}%"),
+                    onTap: () => _open(const MedsScreen()),
+                  ),
+                  _navCard(
+                    icon: Icons.sick_outlined,
+                    color: Colors.brown,
+                    title: tr('مفكرة الأعراض', 'Symptom journal'),
+                    subtitle: tr('سجّل أعراضك بشدّتها',
+                        'Log symptoms with severity'),
+                    onTap: () => _open(const SymptomJournalScreen()),
                   ),
                   _navCard(
                     icon: Icons.restaurant_menu_outlined,

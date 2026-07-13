@@ -38,6 +38,7 @@ import 'package:my_assistant/data/trips_repo.dart';
 import 'package:my_assistant/data/courses_repo.dart';
 import 'package:my_assistant/data/pets_repo.dart';
 import 'package:my_assistant/data/passwords_repo.dart';
+import 'package:my_assistant/data/symptoms_repo.dart';
 import 'package:my_assistant/core/streak_guard.dart';
 import 'package:my_assistant/core/weather.dart';
 import 'package:my_assistant/core/month_summary.dart';
@@ -2557,6 +2558,47 @@ void main() {
           label: 'بنك', secret: '123',
           createdAt: DateTime.now().toIso8601String()));
       expect((await pw.all()).length, 1);
+    });
+  });
+
+  group('مفكرة الأعراض والتزام الدواء (v42)', () {
+    test('ترقية v41 ← v42 بتعمل جدول الأعراض', () async {
+      final v41 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v41, 41, 42);
+      await v41.insert('symptom_logs',
+          {'day': '2026-07-14', 'symptom': 'صداع', 'severity': 4, 'created_at': '2026-07-14'});
+      expect((await v41.query('symptom_logs')).length, 1);
+      await v41.close();
+    });
+
+    test('SymptomsRepo: حفظ + أكثر الأعراض تكرارًا', () async {
+      final repo = SymptomsRepo();
+      await repo.save(SymptomLog(
+          day: '2026-07-10', symptom: 'صداع', severity: 3,
+          createdAt: DateTime.now().toIso8601String()));
+      await repo.save(SymptomLog(
+          day: '2026-07-12', symptom: 'صداع', severity: 4,
+          createdAt: DateTime.now().toIso8601String()));
+      await repo.save(SymptomLog(
+          day: '2026-07-13', symptom: 'مغص', severity: 2,
+          createdAt: DateTime.now().toIso8601String()));
+      expect((await repo.recent()).length, 3);
+      final top = await repo.topSymptoms();
+      expect(top.first.symptom, 'صداع');
+      expect(top.first.count, 2);
+      expect((await repo.since('2026-07-12')).length, 2);
+    });
+
+    test('MedsRepo: نسبة الالتزام', () async {
+      final repo = MedsRepo();
+      final today = dayKey(DateTime.now());
+      final id = await repo.save(Medication(
+          name: 'دوا', times: ['08:00', '20:00'], active: true));
+      // جرعتين/يوم × ٧ أيام = ١٤ متوقّعة؛ ناخد جرعة واحدة النهاردة.
+      await repo.setTaken(id, today, '08:00', true);
+      final pct = await repo.adherencePercent(days: 7);
+      expect(pct, ((1 / 14) * 100).round());
     });
   });
 
