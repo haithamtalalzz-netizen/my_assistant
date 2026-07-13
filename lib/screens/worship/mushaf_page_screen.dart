@@ -48,6 +48,11 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
   bool _zoomed = false; // لمّا الصفحة مكبّرة نوقف قلب الصفحات.
   int _readCount = 0;
   List<QuranSurah> _surahs = const [];
+  // للتحكّم فى شيت التفسير + متابعة الآية الجارية.
+  final DraggableScrollableController _sheetCtrl =
+      DraggableScrollableController();
+  final GlobalKey _activeAyahKey = GlobalKey();
+  int _lastScrolled = -1;
 
   @override
   void initState() {
@@ -94,6 +99,7 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
     QuranAudio.playing.removeListener(_onAudio);
     QuranAudio.stop();
     _controller.dispose();
+    _sheetCtrl.dispose();
     super.dispose();
   }
 
@@ -577,21 +583,34 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
                   const Icon(Icons.volume_up, color: Colors.white, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('يُتلى الآن — ${surah.name} · آية ${arNum(p.ayah)}',
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 12.5)),
-                        Text(snippet,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontSize: 14)),
-                      ],
+                    child: InkWell(
+                      // دوس على الشريط → يفتح شيت التفسير مع تعليم الآية الجارية.
+                      onTap: _openSheetToActive,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                    'يُتلى الآن — ${surah.name} · آية ${arNum(p.ayah)}',
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12.5)),
+                              ),
+                              const Icon(Icons.unfold_more,
+                                  color: Colors.white70, size: 16),
+                            ],
+                          ),
+                          Text(snippet,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  fontSize: 14)),
+                        ],
+                      ),
                     ),
                   ),
                   InkWell(
@@ -608,9 +627,18 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
     );
   }
 
+  /// يفتح شيت التفسير على أكبر حجم (بيتبع الآية الجارية تلقائيًا).
+  void _openSheetToActive() {
+    if (_sheetCtrl.isAttached) {
+      _sheetCtrl.animateTo(0.9,
+          duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+    }
+  }
+
   Widget _tafsirSheet() {
     final scheme = Theme.of(context).colorScheme;
     return DraggableScrollableSheet(
+      controller: _sheetCtrl,
       initialChildSize: 0.09,
       minChildSize: 0.09,
       maxChildSize: 0.9,
@@ -735,11 +763,52 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
 
   Widget _ayahTaf(_AyahTaf it) {
     final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    // المحتوى بيتبنى مرّة واحدة ويتمرّر كـ child عشان تغيّر التعليم مايعيدش
+    // تحميل الترجمة (FutureBuilder) كل ما تتغيّر الآية الجارية.
+    final inner = _ayahTafBody(it, scheme);
+    return ValueListenableBuilder<({int surah, int ayah})?>(
+      valueListenable: QuranAudio.playing,
+      child: inner,
+      builder: (context, p, child) {
+        final active = p != null && p.surah == it.surah && p.ayah == it.ayah;
+        if (active) {
+          final id = it.surah * 1000 + it.ayah;
+          if (_lastScrolled != id) {
+            _lastScrolled = id;
+            // نمشّى الشيت للآية الجارية (لو مفتوح كفاية).
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              final ctx = _activeAyahKey.currentContext;
+              if (ctx != null &&
+                  _sheetCtrl.isAttached &&
+                  _sheetCtrl.size > 0.25) {
+                Scrollable.ensureVisible(ctx,
+                    alignment: 0.25,
+                    duration: const Duration(milliseconds: 300));
+              }
+            });
+          }
+        }
+        return Container(
+          key: active ? _activeAyahKey : null,
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: EdgeInsets.all(active ? 8 : 0),
+          decoration: active
+              ? BoxDecoration(
+                  color: scheme.primaryContainer.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: scheme.primary, width: 1.4),
+                )
+              : null,
+          child: child,
+        );
+      },
+    );
+  }
+
+  Widget _ayahTafBody(_AyahTaf it, ColorScheme scheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
           Row(
             children: [
               CircleAvatar(
@@ -833,8 +902,7 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
             ),
           ),
         ],
-      ),
-    );
+      );
   }
 
   String _surahName(int surahId) =>
