@@ -200,6 +200,15 @@ class SettingsRepo {
   Future<void> setPrayerToolsOrder(List<String> ids) async =>
       set('prayer_tools_order', ids.join(','));
 
+  /// ترتيب كروت أى صفحة (عام) — مفتاح لكل صفحة.
+  Future<List<String>> cardOrder(String key) async {
+    final raw = await get('order.$key') ?? '';
+    return raw.split(',').where((s) => s.isNotEmpty).toList();
+  }
+
+  Future<void> setCardOrder(String key, List<String> ids) async =>
+      set('order.$key', ids.join(','));
+
   Future<bool> ramadanMode() async => await get('ramadan_mode') == '1';
 
   /// ملخص بكرة المسائي — شغال افتراضيًا الساعة 21:30.

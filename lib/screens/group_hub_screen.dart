@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/l10n.dart';
+import '../widgets/reorderable_cards.dart';
 import '../widgets/search_action.dart';
 
 /// عنصر في هَب المجموعة — إما بيفتح شاشة (screen) أو بيبدّل تبويب في الـShell.
@@ -41,13 +42,17 @@ class GroupHubScreen extends StatelessWidget {
     final cols = width > 640 ? 4 : 3;
     return Scaffold(
       appBar: AppBar(title: Text(title), actions: [searchAction(context)]),
-      body: GridView.count(
-        padding: const EdgeInsets.all(16),
+      body: ReorderableCards(
+        // ترتيب لكل مجموعة على حدة (اضغط مطوّل واسحب).
+        storageKey: 'group.$title',
         crossAxisCount: cols,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
         childAspectRatio: 0.92,
-        children: [for (final it in items) _tile(context, it)],
+        padding: const EdgeInsets.all(16),
+        shrinkWrap: false,
+        physics: const AlwaysScrollableScrollPhysics(),
+        cards: [
+          for (final it in items) ReorderCard(it.label, _tile(context, it)),
+        ],
       ),
     );
   }
