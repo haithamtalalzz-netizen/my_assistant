@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import '../../core/ar.dart';
+import '../../core/ayah_share.dart';
 import '../../core/l10n.dart';
 import '../../core/quran_audio.dart';
 import '../../core/quran_data.dart';
 import '../../core/tafsir_data.dart';
+import '../../core/translation_data.dart';
 import '../../data/mushaf_repo.dart';
 import '../../data/settings_repo.dart';
+import '../../data/worship_repo.dart';
 import 'quran_search_screen.dart';
 
 /// عرض صفحات المصحف كصور + سحب لأعلى (تفسير الصفحة + نبذة السورة) + تلاوة تُعلّم
@@ -36,6 +39,7 @@ class _PageContent {
 class _MushafPageScreenState extends State<MushafPageScreen> {
   final _settings = SettingsRepo();
   final _repo = MushafRepo();
+  final _worship = WorshipRepo();
   late final PageController _controller =
       PageController(initialPage: widget.startPage - 1);
   int _page = 1;
@@ -315,6 +319,16 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
     );
   }
 
+  Future<void> _logWird() async {
+    await _worship.ensureKhatma();
+    await _worship.logKhatmaRead(1);
+    final today = await _worship.todayKhatmaPages();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr('اتسجّلت فى وردك — وردك اليوم ${arNum(today)} صفحة',
+            'Logged — today\'s wird: ${arNum(today)} pages'))));
+  }
+
   void _progressDialog() {
     final pct = (_readCount / kMushafPages * 100).round();
     showDialog(
@@ -482,6 +496,8 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
                   _repeatSpeedSheet();
                 case 'progress':
                   _progressDialog();
+                case 'wird':
+                  _logWird();
                 case 'download':
                   _downloadAll();
               }
@@ -497,6 +513,7 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
               PopupMenuItem(value: 'bookmarks', child: Text(tr('العلامات المرجعية', 'Bookmarks'))),
               PopupMenuItem(value: 'addbm', child: Text(tr('أضف علامة هنا', 'Bookmark this page'))),
               PopupMenuItem(value: 'repeat', child: Text(tr('تكرار وسرعة التلاوة', 'Repeat & speed'))),
+              PopupMenuItem(value: 'wird', child: Text(tr('سجّل هذه الصفحة فى وردى', 'Log this page to my wird'))),
               PopupMenuItem(value: 'progress', child: Text(tr('تقدّم القراءة', 'Reading progress'))),
               PopupMenuItem(value: 'download', child: Text(tr('تحميل المصحف كامل', 'Download mushaf'))),
             ],
@@ -737,6 +754,38 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
               ),
             ],
           ),
+          // أزرار: نسخ + مشاركة كصورة.
+          Padding(
+            padding: const EdgeInsetsDirectional.only(start: 30),
+            child: Row(
+              children: [
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact),
+                  icon: const Icon(Icons.copy, size: 16),
+                  label: Text(tr('نسخ', 'Copy')),
+                  onPressed: () async {
+                    await copyAyah(_surahName(it.surah), it.ayah, it.text,
+                        it.tafsir);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(tr('اتنسخت ✓', 'Copied ✓'))));
+                    }
+                  },
+                ),
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact),
+                  icon: const Icon(Icons.ios_share, size: 16),
+                  label: Text(tr('مشاركة كصورة', 'Share image')),
+                  onPressed: () => shareAyahImage(
+                      surahName: _surahName(it.surah),
+                      ayah: it.ayah,
+                      text: it.text),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 6),
           Padding(
             padding: const EdgeInsetsDirectional.only(start: 34),
@@ -744,10 +793,42 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
                 style: TextStyle(
                     fontSize: 15, height: 1.8, color: scheme.onSurfaceVariant)),
           ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsetsDirectional.only(start: 34),
+            child: FutureBuilder<String>(
+              future: TranslationData.of(it.surah, it.ayah),
+              builder: (_, snap) {
+                final t = snap.data ?? '';
+                if (t.isEmpty) return const SizedBox.shrink();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(tr('المعنى بالإنجليزية', 'English meaning'),
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: scheme.primary)),
+                    Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: Text(t,
+                          style: TextStyle(
+                              fontSize: 13.5,
+                              height: 1.6,
+                              color: scheme.onSurfaceVariant)),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
   }
+
+  String _surahName(int surahId) =>
+      _surahs.isEmpty ? '' : _surahs[surahId - 1].name;
 }
 
 /// صفحة مصحف واحدة — StatefulWidget عشان الزووم (TransformationController)

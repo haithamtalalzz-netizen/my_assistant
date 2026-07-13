@@ -16,6 +16,7 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
   final _repo = WorshipRepo();
   Khatma? _k;
   double _avg = 0;
+  int _today = 0;
   bool _loading = true;
 
   @override
@@ -27,10 +28,12 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
   Future<void> _load() async {
     final k = await _repo.activeKhatma();
     final avg = await _repo.khatmaAvgPerDay();
+    final today = await _repo.todayKhatmaPages();
     if (!mounted) return;
     setState(() {
       _k = k;
       _avg = avg;
+      _today = today;
       _loading = false;
     });
   }
@@ -234,6 +237,37 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
           ),
         ],
         const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              const Text('📖', style: TextStyle(fontSize: 24)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(tr('وردك اليوم', "Today's wird"),
+                        style: TextStyle(color: scheme.onSurfaceVariant)),
+                    Text(
+                      tr('${arNum(_today)} من ${arNum(k.dailyTarget)} صفحة',
+                          '${arNum(_today)} of ${arNum(k.dailyTarget)} pages'),
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w900),
+                    ),
+                  ],
+                ),
+              ),
+              if (_today >= k.dailyTarget)
+                const Icon(Icons.check_circle, color: Color(0xFF2FA36B)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
         if (_avg > 0)
           Text(
             tr('متوسّط وردك: ${arNum(_avg.toStringAsFixed(1))} صفحة/يوم',

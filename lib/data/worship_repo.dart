@@ -138,6 +138,20 @@ class WorshipRepo {
     });
   }
 
+  /// يبدأ ختمة لو مفيش نشطة (عشان تسجيل الورد من المصحف يشتغل دايمًا).
+  Future<void> ensureKhatma() async {
+    if (await activeKhatma() == null) await startKhatma();
+  }
+
+  /// عدد صفحات الورد المسجّلة النهارده.
+  Future<int> todayKhatmaPages() async {
+    final db = await AppDb.instance;
+    final rows = await db.rawQuery(
+        'SELECT SUM(pages) p FROM khatma_reads WHERE day = ?',
+        [dayKey(DateTime.now())]);
+    return (rows.first['p'] as int?) ?? 0;
+  }
+
   /// متوسط الصفحات فى اليوم من السجل الفعلى (0 لو مفيش).
   Future<double> khatmaAvgPerDay() async {
     final db = await AppDb.instance;
