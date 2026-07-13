@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 40,
+      version: 41,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -256,7 +256,77 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 41 && newV >= 41) {
+      for (final ddl in _v41Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// السفر (رحلات + عناصر) + التعلّم (كورسات) + الحيوانات (+أحداث) + كلمات السر.
+  static const List<String> _v41Tables = [
+    '''
+      CREATE TABLE trips(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        destination TEXT NOT NULL DEFAULT '',
+        start_day TEXT,
+        end_day TEXT,
+        budget REAL NOT NULL DEFAULT 0,
+        notes TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+    '''
+      CREATE TABLE trip_items(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        trip_id INTEGER NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'packing',
+        text TEXT NOT NULL,
+        done INTEGER NOT NULL DEFAULT 0,
+        sort INTEGER NOT NULL DEFAULT 0
+      )''',
+    'CREATE INDEX idx_trip_items_trip ON trip_items(trip_id)',
+    '''
+      CREATE TABLE courses(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        provider TEXT NOT NULL DEFAULT '',
+        total_units INTEGER NOT NULL DEFAULT 0,
+        done_units INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'active',
+        notes TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+    '''
+      CREATE TABLE pets(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        species TEXT NOT NULL DEFAULT '',
+        notes TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+    '''
+      CREATE TABLE pet_events(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pet_id INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        day TEXT NOT NULL,
+        next_due TEXT,
+        note TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+    'CREATE INDEX idx_pet_events_pet ON pet_events(pet_id)',
+    '''
+      CREATE TABLE passwords(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        label TEXT NOT NULL,
+        username TEXT NOT NULL DEFAULT '',
+        secret TEXT NOT NULL DEFAULT '',
+        url TEXT NOT NULL DEFAULT '',
+        notes TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+  ];
 
   /// السيارة (بيانات + أحداث صيانة/بنزين/تأمين/رخصة) + التجديدات (وثائق بتنتهى).
   static const List<String> _v40Tables = [
@@ -1100,6 +1170,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v40Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v41Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);

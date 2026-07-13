@@ -12,6 +12,10 @@ import 'money/subscriptions_screen.dart';
 import 'growth/goals_screen.dart';
 import 'car/car_screen.dart';
 import 'renewals/renewals_screen.dart';
+import 'travel/travel_screen.dart';
+import 'growth/courses_screen.dart';
+import 'pets/pets_screen.dart';
+import 'passwords/passwords_screen.dart';
 import '../data/bills_repo.dart';
 import '../data/income_repo.dart';
 import 'alerts_center_screen.dart';
@@ -304,11 +308,17 @@ class AppDrawer extends StatelessWidget {
                 const CarScreen()),
             push(Icons.badge_outlined, tr('التجديدات', 'Renewals'),
                 const RenewalsScreen()),
+            push(Icons.flight_takeoff, tr('السفر', 'Travel'),
+                const TravelScreen()),
+            push(Icons.pets_outlined, tr('الحيوانات الأليفة', 'Pets'),
+                const PetsScreen()),
             groupTile(Icons.self_improvement, tr('تطوّري', 'Growth'),
                 accent: Colors.indigo,
                 [
                   GroupHubItem(Icons.flag_outlined, tr('الأهداف', 'Goals'),
                       screen: const GoalsScreen()),
+                  GroupHubItem(Icons.school_outlined, tr('التعلّم', 'Learning'),
+                      screen: const CoursesScreen()),
                   GroupHubItem(Icons.menu_book_outlined,
                       tr('مراجعة القرآن', 'Quran review'),
                       screen: const QuranScreen()),
@@ -329,6 +339,9 @@ class AppDrawer extends StatelessWidget {
                   GroupHubItem(Icons.lock_outline,
                       tr('الخزنة السرية', 'Secret vault'),
                       screen: const SecretNotesScreen()),
+                  GroupHubItem(Icons.key_outlined,
+                      tr('كلمات السر', 'Passwords'),
+                      screen: const PasswordsScreen()),
                 ]),
             groupTile(Icons.insights_outlined,
                 tr('المتابعة والأدوات', 'Review & tools'),

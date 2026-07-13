@@ -34,6 +34,10 @@ import 'package:my_assistant/data/subscriptions_repo.dart';
 import 'package:my_assistant/data/goals_repo.dart';
 import 'package:my_assistant/data/cars_repo.dart';
 import 'package:my_assistant/data/renewals_repo.dart';
+import 'package:my_assistant/data/trips_repo.dart';
+import 'package:my_assistant/data/courses_repo.dart';
+import 'package:my_assistant/data/pets_repo.dart';
+import 'package:my_assistant/data/passwords_repo.dart';
 import 'package:my_assistant/core/streak_guard.dart';
 import 'package:my_assistant/core/weather.dart';
 import 'package:my_assistant/core/month_summary.dart';
@@ -2479,6 +2483,67 @@ void main() {
       final due = await repo.dueSoon(days: 45);
       expect(due.length, 1);
       expect(due.first.title, 'بطاقة');
+    });
+  });
+
+  group('السفر والتعلّم والحيوانات وكلمات السر (v41)', () {
+    test('ترقية v40 ← v41 بتعمل الجداول', () async {
+      final v40 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v40, 40, 41);
+      await v40.insert('trips', {'title': 'إسكندرية', 'created_at': '2026-07-14'});
+      await v40.insert('trip_items', {'trip_id': 1, 'kind': 'packing', 'text': 'شاحن'});
+      await v40.insert('courses', {'title': 'فلاتر', 'created_at': '2026-07-14'});
+      await v40.insert('pets', {'name': 'مشمش', 'created_at': '2026-07-14'});
+      await v40.insert('pet_events',
+          {'pet_id': 1, 'type': 'vaccine', 'day': '2026-07-14', 'created_at': '2026-07-14'});
+      await v40.insert('passwords', {'label': 'جيميل', 'created_at': '2026-07-14'});
+      expect((await v40.query('trip_items')).length, 1);
+      expect((await v40.query('courses')).length, 1);
+      expect((await v40.query('pet_events')).length, 1);
+      expect((await v40.query('passwords')).length, 1);
+      await v40.close();
+    });
+
+    test('TripsRepo: عناصر مصنّفة + إكمال', () async {
+      final repo = TripsRepo();
+      final id = await repo.save(
+          Trip(title: 'رحلة', createdAt: DateTime.now().toIso8601String()));
+      await repo.addItem(id, 'packing', 'جواز');
+      final it = await repo.addItem(id, 'todo', 'حجز فندق');
+      await repo.toggleItem(it, true);
+      final items = await repo.items(id);
+      expect(items.length, 2);
+      expect(items.where((i) => i.done).length, 1);
+    });
+
+    test('CoursesRepo: تقدّم بالوحدات + اكتمال', () async {
+      final repo = CoursesRepo();
+      final id = await repo.save(Course(
+          title: 'ك', totalUnits: 2,
+          createdAt: DateTime.now().toIso8601String()));
+      var c = (await repo.all()).firstWhere((x) => x.id == id);
+      await repo.bumpProgress(c, 2);
+      c = (await repo.all()).firstWhere((x) => x.id == id);
+      expect(c.doneUnits, 2);
+      expect(c.status, 'done');
+      expect(c.progress, 1);
+    });
+
+    test('PetsRepo + PasswordsRepo: حفظ أساسى', () async {
+      final pets = PetsRepo();
+      final pid = await pets.savePet(
+          Pet(name: 'ريكس', createdAt: DateTime.now().toIso8601String()));
+      await pets.saveEvent(PetEvent(
+          petId: pid, type: 'vet', day: '2026-07-14',
+          createdAt: DateTime.now().toIso8601String()));
+      expect((await pets.events(pid)).length, 1);
+
+      final pw = PasswordsRepo();
+      await pw.save(PasswordEntry(
+          label: 'بنك', secret: '123',
+          createdAt: DateTime.now().toIso8601String()));
+      expect((await pw.all()).length, 1);
     });
   });
 

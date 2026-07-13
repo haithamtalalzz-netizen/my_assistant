@@ -57,6 +57,8 @@ class Notifications {
   static int subscriptionNotifId(int id) => 1120000 + id; // تجديد اشتراك
   static int carEventNotifId(int id) => 1130000 + id; // تجديد تأمين/رخصة السيارة
   static int renewalNotifId(int id) => 1140000 + id; // تجديد وثيقة
+  static int petEventNotifId(int id) => 1150000 + id; // تطعيم/بيطري حيوان
+  static int tripNotifId(int id) => 1160000 + id; // قرب موعد رحلة
 
   /// تفاصيل إشعار الأذان بخصائص المنبّه. [sound] = ملف المستخدم المخصّص، أو null
   /// (تنبيه صوتى قوى بالنغمة الافتراضية لحد ما المستخدم يختار ملف أذانه).

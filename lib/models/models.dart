@@ -2198,3 +2198,254 @@ class Renewal {
         'created_at': createdAt,
       };
 }
+
+/// رحلة سفر.
+class Trip {
+  final int? id;
+  final String title;
+  final String destination;
+  final String? startDay;
+  final String? endDay;
+  final double budget;
+  final String notes;
+  final String createdAt;
+
+  const Trip({
+    this.id,
+    required this.title,
+    this.destination = '',
+    this.startDay,
+    this.endDay,
+    this.budget = 0,
+    this.notes = '',
+    required this.createdAt,
+  });
+
+  DateTime? get start => startDay == null ? null : DateTime.tryParse(startDay!);
+  DateTime? get end => endDay == null ? null : DateTime.tryParse(endDay!);
+
+  factory Trip.fromMap(Map<String, Object?> m) => Trip(
+        id: m['id'] as int?,
+        title: m['title'] as String,
+        destination: m['destination'] as String? ?? '',
+        startDay: m['start_day'] as String?,
+        endDay: m['end_day'] as String?,
+        budget: (m['budget'] as num?)?.toDouble() ?? 0,
+        notes: m['notes'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'title': title,
+        'destination': destination,
+        'start_day': startDay,
+        'end_day': endDay,
+        'budget': budget,
+        'notes': notes,
+        'created_at': createdAt,
+      };
+}
+
+/// عنصر رحلة — تجهيز شنطة / مهمة / حجز.
+class TripItem {
+  final int? id;
+  final int tripId;
+
+  /// packing / todo / booking.
+  final String kind;
+  final String text;
+  final bool done;
+  final int sort;
+
+  const TripItem({
+    this.id,
+    required this.tripId,
+    this.kind = 'packing',
+    required this.text,
+    this.done = false,
+    this.sort = 0,
+  });
+
+  factory TripItem.fromMap(Map<String, Object?> m) => TripItem(
+        id: m['id'] as int?,
+        tripId: m['trip_id'] as int,
+        kind: m['kind'] as String? ?? 'packing',
+        text: m['text'] as String,
+        done: (m['done'] as int? ?? 0) == 1,
+        sort: (m['sort'] as int?) ?? 0,
+      );
+
+  Map<String, Object?> toMap() => {
+        'trip_id': tripId,
+        'kind': kind,
+        'text': text,
+        'done': done ? 1 : 0,
+        'sort': sort,
+      };
+}
+
+/// كورس/دورة تعليمية بتتبّع تقدّم بالوحدات.
+class Course {
+  final int? id;
+  final String title;
+  final String provider;
+  final int totalUnits;
+  final int doneUnits;
+
+  /// active / done / paused.
+  final String status;
+  final String notes;
+  final String createdAt;
+
+  const Course({
+    this.id,
+    required this.title,
+    this.provider = '',
+    this.totalUnits = 0,
+    this.doneUnits = 0,
+    this.status = 'active',
+    this.notes = '',
+    required this.createdAt,
+  });
+
+  double get progress =>
+      totalUnits == 0 ? (status == 'done' ? 1 : 0) : (doneUnits / totalUnits).clamp(0, 1);
+
+  factory Course.fromMap(Map<String, Object?> m) => Course(
+        id: m['id'] as int?,
+        title: m['title'] as String,
+        provider: m['provider'] as String? ?? '',
+        totalUnits: (m['total_units'] as int?) ?? 0,
+        doneUnits: (m['done_units'] as int?) ?? 0,
+        status: m['status'] as String? ?? 'active',
+        notes: m['notes'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'title': title,
+        'provider': provider,
+        'total_units': totalUnits,
+        'done_units': doneUnits,
+        'status': status,
+        'notes': notes,
+        'created_at': createdAt,
+      };
+}
+
+/// حيوان أليف.
+class Pet {
+  final int? id;
+  final String name;
+  final String species;
+  final String notes;
+  final String createdAt;
+
+  const Pet({
+    this.id,
+    required this.name,
+    this.species = '',
+    this.notes = '',
+    required this.createdAt,
+  });
+
+  factory Pet.fromMap(Map<String, Object?> m) => Pet(
+        id: m['id'] as int?,
+        name: m['name'] as String,
+        species: m['species'] as String? ?? '',
+        notes: m['notes'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'name': name,
+        'species': species,
+        'notes': notes,
+        'created_at': createdAt,
+      };
+}
+
+/// حدث حيوان — تطعيم / بيطري / أكل / آخر، باستحقاق جاى اختيارى.
+class PetEvent {
+  final int? id;
+  final int petId;
+
+  /// vaccine / vet / food / other.
+  final String type;
+  final String day;
+  final String? nextDue;
+  final String note;
+  final String createdAt;
+
+  const PetEvent({
+    this.id,
+    required this.petId,
+    required this.type,
+    required this.day,
+    this.nextDue,
+    this.note = '',
+    required this.createdAt,
+  });
+
+  DateTime? get nextDueDate =>
+      nextDue == null ? null : DateTime.tryParse(nextDue!);
+
+  factory PetEvent.fromMap(Map<String, Object?> m) => PetEvent(
+        id: m['id'] as int?,
+        petId: m['pet_id'] as int,
+        type: m['type'] as String,
+        day: m['day'] as String,
+        nextDue: m['next_due'] as String?,
+        note: m['note'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'pet_id': petId,
+        'type': type,
+        'day': day,
+        'next_due': nextDue,
+        'note': note,
+        'created_at': createdAt,
+      };
+}
+
+/// مدخل كلمة سر (الوصول محمى بالبصمة؛ مخزّن محليًا).
+class PasswordEntry {
+  final int? id;
+  final String label;
+  final String username;
+  final String secret;
+  final String url;
+  final String notes;
+  final String createdAt;
+
+  const PasswordEntry({
+    this.id,
+    required this.label,
+    this.username = '',
+    this.secret = '',
+    this.url = '',
+    this.notes = '',
+    required this.createdAt,
+  });
+
+  factory PasswordEntry.fromMap(Map<String, Object?> m) => PasswordEntry(
+        id: m['id'] as int?,
+        label: m['label'] as String,
+        username: m['username'] as String? ?? '',
+        secret: m['secret'] as String? ?? '',
+        url: m['url'] as String? ?? '',
+        notes: m['notes'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'label': label,
+        'username': username,
+        'secret': secret,
+        'url': url,
+        'notes': notes,
+        'created_at': createdAt,
+      };
+}
