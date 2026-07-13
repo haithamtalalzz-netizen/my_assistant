@@ -10,6 +10,8 @@ import 'schedule/schedule_screen.dart';
 import 'tasks/tasks_screen.dart';
 import 'money/subscriptions_screen.dart';
 import 'growth/goals_screen.dart';
+import 'car/car_screen.dart';
+import 'renewals/renewals_screen.dart';
 import '../data/bills_repo.dart';
 import '../data/income_repo.dart';
 import 'alerts_center_screen.dart';
@@ -298,6 +300,10 @@ class AppDrawer extends StatelessWidget {
                 const WardrobeScreen()),
             push(Icons.shopping_cart_outlined, tr('قائمة التسوق', 'Shopping list'),
                 const ShoppingListScreen()),
+            push(Icons.directions_car_outlined, tr('السيارة', 'Car'),
+                const CarScreen()),
+            push(Icons.badge_outlined, tr('التجديدات', 'Renewals'),
+                const RenewalsScreen()),
             groupTile(Icons.self_improvement, tr('تطوّري', 'Growth'),
                 accent: Colors.indigo,
                 [

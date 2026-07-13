@@ -2039,3 +2039,162 @@ class GoalMilestone {
         'sort': sort,
       };
 }
+
+/// سيارة.
+class Car {
+  final int? id;
+  final String name;
+  final String plate;
+  final String make;
+  final String model;
+  final int? year;
+  final int odometer;
+  final String notes;
+  final String createdAt;
+
+  const Car({
+    this.id,
+    required this.name,
+    this.plate = '',
+    this.make = '',
+    this.model = '',
+    this.year,
+    this.odometer = 0,
+    this.notes = '',
+    required this.createdAt,
+  });
+
+  factory Car.fromMap(Map<String, Object?> m) => Car(
+        id: m['id'] as int?,
+        name: m['name'] as String,
+        plate: m['plate'] as String? ?? '',
+        make: m['make'] as String? ?? '',
+        model: m['model'] as String? ?? '',
+        year: m['year'] as int?,
+        odometer: (m['odometer'] as int?) ?? 0,
+        notes: m['notes'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'name': name,
+        'plate': plate,
+        'make': make,
+        'model': model,
+        'year': year,
+        'odometer': odometer,
+        'notes': notes,
+        'created_at': createdAt,
+      };
+}
+
+/// حدث سيارة — صيانة / بنزين / تأمين / رخصة / آخر.
+class CarEvent {
+  final int? id;
+  final int carId;
+
+  /// service / fuel / insurance / license / other.
+  final String type;
+  final String day; // YYYY-MM-DD
+  final double cost;
+  final int? odometer;
+  final double? liters;
+
+  /// ISO date للتجديد الجاى (تأمين/رخصة) أو null.
+  final String? nextDue;
+  final String note;
+  final String createdAt;
+
+  const CarEvent({
+    this.id,
+    required this.carId,
+    required this.type,
+    required this.day,
+    this.cost = 0,
+    this.odometer,
+    this.liters,
+    this.nextDue,
+    this.note = '',
+    required this.createdAt,
+  });
+
+  DateTime? get nextDueDate =>
+      nextDue == null ? null : DateTime.tryParse(nextDue!);
+
+  factory CarEvent.fromMap(Map<String, Object?> m) => CarEvent(
+        id: m['id'] as int?,
+        carId: m['car_id'] as int,
+        type: m['type'] as String,
+        day: m['day'] as String,
+        cost: (m['cost'] as num?)?.toDouble() ?? 0,
+        odometer: m['odometer'] as int?,
+        liters: (m['liters'] as num?)?.toDouble(),
+        nextDue: m['next_due'] as String?,
+        note: m['note'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'car_id': carId,
+        'type': type,
+        'day': day,
+        'cost': cost,
+        'odometer': odometer,
+        'liters': liters,
+        'next_due': nextDue,
+        'note': note,
+        'created_at': createdAt,
+      };
+}
+
+/// تجديد وثيقة (جواز/رخصة/بطاقة/تأمين) — بينتهى فى [expiry].
+class Renewal {
+  final int? id;
+  final String title;
+
+  /// passport / license / national_id / insurance / other.
+  final String type;
+  final String expiry; // YYYY-MM-DD
+  final int remindDays;
+  final String notes;
+  final String createdAt;
+
+  const Renewal({
+    this.id,
+    required this.title,
+    this.type = '',
+    required this.expiry,
+    this.remindDays = 30,
+    this.notes = '',
+    required this.createdAt,
+  });
+
+  DateTime? get expiryDate => DateTime.tryParse(expiry);
+  int? get daysLeft {
+    final e = expiryDate;
+    if (e == null) return null;
+    return DateTime(e.year, e.month, e.day)
+        .difference(DateTime(DateTime.now().year, DateTime.now().month,
+            DateTime.now().day))
+        .inDays;
+  }
+
+  factory Renewal.fromMap(Map<String, Object?> m) => Renewal(
+        id: m['id'] as int?,
+        title: m['title'] as String,
+        type: m['type'] as String? ?? '',
+        expiry: m['expiry'] as String,
+        remindDays: (m['remind_days'] as int?) ?? 30,
+        notes: m['notes'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'title': title,
+        'type': type,
+        'expiry': expiry,
+        'remind_days': remindDays,
+        'notes': notes,
+        'created_at': createdAt,
+      };
+}

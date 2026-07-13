@@ -55,6 +55,8 @@ class Notifications {
   static const int adhanTestNotifId = 1100002; // تجربة صوت الأذان
   static int taskNotifId(int id) => 1110000 + id; // موعد مهمة
   static int subscriptionNotifId(int id) => 1120000 + id; // تجديد اشتراك
+  static int carEventNotifId(int id) => 1130000 + id; // تجديد تأمين/رخصة السيارة
+  static int renewalNotifId(int id) => 1140000 + id; // تجديد وثيقة
 
   /// تفاصيل إشعار الأذان بخصائص المنبّه. [sound] = ملف المستخدم المخصّص، أو null
   /// (تنبيه صوتى قوى بالنغمة الافتراضية لحد ما المستخدم يختار ملف أذانه).

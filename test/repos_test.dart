@@ -32,6 +32,8 @@ import 'package:my_assistant/data/money_repo.dart';
 import 'package:my_assistant/data/tasks_repo.dart';
 import 'package:my_assistant/data/subscriptions_repo.dart';
 import 'package:my_assistant/data/goals_repo.dart';
+import 'package:my_assistant/data/cars_repo.dart';
+import 'package:my_assistant/data/renewals_repo.dart';
 import 'package:my_assistant/core/streak_guard.dart';
 import 'package:my_assistant/core/weather.dart';
 import 'package:my_assistant/core/month_summary.dart';
@@ -2429,6 +2431,54 @@ void main() {
       final (done, total) = await repo.progress(gid);
       expect(done, 1);
       expect(total, 2);
+    });
+  });
+
+  group('السيارة والتجديدات (v40)', () {
+    test('ترقية v39 ← v40 بتعمل الجداول', () async {
+      final v39 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v39, 39, 40);
+      await v39.insert('cars', {'name': 'عربيتي', 'created_at': '2026-07-14'});
+      await v39.insert('car_events',
+          {'car_id': 1, 'type': 'fuel', 'day': '2026-07-14', 'created_at': '2026-07-14'});
+      await v39.insert('renewals',
+          {'title': 'رخصة', 'expiry': '2027-01-01', 'created_at': '2026-07-14'});
+      expect((await v39.query('cars')).length, 1);
+      expect((await v39.query('car_events')).length, 1);
+      expect((await v39.query('renewals')).length, 1);
+      await v39.close();
+    });
+
+    test('CarsRepo: كفاءة الوقود من فرق العدّادات', () async {
+      final repo = CarsRepo();
+      final id = await repo.saveCar(
+          Car(name: 'س', createdAt: DateTime.now().toIso8601String()));
+      // تعبئة أولى عند 1000 كم، تانية عند 1400 كم بـ 40 لتر → 400/40 = 10 كم/ل.
+      await repo.saveEvent(CarEvent(
+          carId: id, type: 'fuel', day: '2026-07-01', odometer: 1000,
+          liters: 35, createdAt: DateTime.now().toIso8601String()));
+      await repo.saveEvent(CarEvent(
+          carId: id, type: 'fuel', day: '2026-07-10', odometer: 1400,
+          liters: 40, createdAt: DateTime.now().toIso8601String()));
+      expect(await repo.fuelEconomy(id), 10);
+      expect(await repo.totalSpent(id), 0);
+    });
+
+    test('RenewalsRepo: قرب الانتهاء', () async {
+      final repo = RenewalsRepo();
+      final soon = DateTime.now().add(const Duration(days: 10));
+      await repo.save(Renewal(
+          title: 'بطاقة',
+          expiry: dayKey(soon),
+          createdAt: DateTime.now().toIso8601String()));
+      await repo.save(Renewal(
+          title: 'جواز',
+          expiry: dayKey(DateTime.now().add(const Duration(days: 400))),
+          createdAt: DateTime.now().toIso8601String()));
+      final due = await repo.dueSoon(days: 45);
+      expect(due.length, 1);
+      expect(due.first.title, 'بطاقة');
     });
   });
 

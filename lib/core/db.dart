@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 39,
+      version: 40,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -251,7 +251,52 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 40 && newV >= 40) {
+      for (final ddl in _v40Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// السيارة (بيانات + أحداث صيانة/بنزين/تأمين/رخصة) + التجديدات (وثائق بتنتهى).
+  static const List<String> _v40Tables = [
+    '''
+      CREATE TABLE cars(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        plate TEXT NOT NULL DEFAULT '',
+        make TEXT NOT NULL DEFAULT '',
+        model TEXT NOT NULL DEFAULT '',
+        year INTEGER,
+        odometer INTEGER NOT NULL DEFAULT 0,
+        notes TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+    '''
+      CREATE TABLE car_events(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        car_id INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        day TEXT NOT NULL,
+        cost REAL NOT NULL DEFAULT 0,
+        odometer INTEGER,
+        liters REAL,
+        next_due TEXT,
+        note TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+    'CREATE INDEX idx_car_events_car ON car_events(car_id)',
+    '''
+      CREATE TABLE renewals(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT '',
+        expiry TEXT NOT NULL,
+        remind_days INTEGER NOT NULL DEFAULT 30,
+        notes TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+  ];
 
   /// المهام والمشاريع + الاشتراكات + الأهداف والمعالم.
   static const List<String> _v39Tables = [
@@ -1052,6 +1097,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v39Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v40Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);
