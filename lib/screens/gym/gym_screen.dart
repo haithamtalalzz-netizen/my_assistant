@@ -8,6 +8,7 @@ import '../../models/models.dart';
 import '../../widgets/common.dart';
 import '../../widgets/search_action.dart';
 import 'exercise_library_screen.dart';
+import 'rest_timer.dart';
 import 'gym_session_form.dart';
 import 'progress_screen.dart';
 import 'walk_tracker_screen.dart';
@@ -111,6 +112,11 @@ class _GymScreenState extends State<GymScreen> {
       appBar: AppBar(
         title: Text(tr('الجيم', 'Gym')),
         actions: [
+          IconButton(
+            tooltip: tr('مؤقّت الراحة', 'Rest timer'),
+            icon: const Icon(Icons.timer_outlined),
+            onPressed: () => showRestTimer(context),
+          ),
           IconButton(
             tooltip: tr('تتبّع المشي/الجري', 'Walk / run tracker'),
             icon: const Icon(Icons.directions_run),

@@ -5,6 +5,7 @@ import '../../core/l10n.dart';
 import '../../data/gym_repo.dart';
 import '../../data/workout_repo.dart';
 import '../../models/models.dart';
+import 'rest_timer.dart';
 
 class _SetEntry {
   final exercise = TextEditingController();
@@ -90,7 +91,16 @@ class _GymSessionFormState extends State<GymSessionForm> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('تسجيل تمرين', 'Log workout'))),
+      appBar: AppBar(
+        title: Text(tr('تسجيل تمرين', 'Log workout')),
+        actions: [
+          IconButton(
+            tooltip: tr('مؤقّت الراحة', 'Rest timer'),
+            icon: const Icon(Icons.timer_outlined),
+            onPressed: () => showRestTimer(context),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
