@@ -12,6 +12,7 @@ import '../../core/translation_data.dart';
 import '../../data/mushaf_repo.dart';
 import '../../data/settings_repo.dart';
 import '../../data/worship_repo.dart';
+import 'mushaf_qcf_screen.dart';
 import 'quran_search_screen.dart';
 
 /// عرض صفحات المصحف كصور + سحب لأعلى (تفسير الصفحة + نبذة السورة) + تلاوة تُعلّم
@@ -498,6 +499,11 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
                   _progressDialog();
                 case 'wird':
                   _logWird();
+                case 'qcf':
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => MushafQcfScreen(startPage: _page)));
                 case 'download':
                   _downloadAll();
               }
@@ -515,6 +521,7 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
               PopupMenuItem(value: 'repeat', child: Text(tr('تكرار وسرعة التلاوة', 'Repeat & speed'))),
               PopupMenuItem(value: 'wird', child: Text(tr('سجّل هذه الصفحة فى وردى', 'Log this page to my wird'))),
               PopupMenuItem(value: 'progress', child: Text(tr('تقدّم القراءة', 'Reading progress'))),
+              PopupMenuItem(value: 'qcf', child: Text(tr('جرّب عرض الخط (تجريبى)', 'Try font view (beta)'))),
               PopupMenuItem(value: 'download', child: Text(tr('تحميل المصحف كامل', 'Download mushaf'))),
             ],
           ),
