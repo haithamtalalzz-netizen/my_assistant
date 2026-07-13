@@ -862,9 +862,12 @@ const ColorFilter _invert = ColorFilter.matrix(<double>[
 ]);
 
 class _MushafPageImageState extends State<_MushafPageImage>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
   final _tc = TransformationController();
   bool _isZoomed = false;
+  late final AnimationController _anim =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
+  TapDownDetails? _doubleTapDetails;
 
   @override
   bool get wantKeepAlive => true;
@@ -883,8 +886,29 @@ class _MushafPageImageState extends State<_MushafPageImage>
     }
   }
 
+  void _animateTo(Matrix4 target) {
+    final anim = Matrix4Tween(begin: _tc.value, end: target)
+        .animate(CurvedAnimation(parent: _anim, curve: Curves.easeOut));
+    void listener() => _tc.value = anim.value;
+    anim.addListener(listener);
+    _anim.forward(from: 0).whenComplete(() => anim.removeListener(listener));
+  }
+
+  void _onDoubleTap() {
+    if (_tc.value.getMaxScaleOnAxis() > 1.02) {
+      _animateTo(Matrix4.identity());
+    } else {
+      final p = _doubleTapDetails?.localPosition ?? Offset.zero;
+      const s = 2.6;
+      _animateTo(Matrix4.identity()
+        ..translateByDouble(p.dx * (1 - s), p.dy * (1 - s), 0, 1)
+        ..scaleByDouble(s, s, s, 1));
+    }
+  }
+
   @override
   void dispose() {
+    _anim.dispose();
     _tc.removeListener(_onTransform);
     _tc.dispose();
     super.dispose();
@@ -916,14 +940,18 @@ class _MushafPageImageState extends State<_MushafPageImage>
       color: widget.night ? Colors.black : Colors.white,
       // مسافة سفلية عشان مقبض التفسير/الشريط مايغطّيش آخر الصفحة.
       padding: const EdgeInsets.fromLTRB(4, 4, 4, 64),
-      child: InteractiveViewer(
-        transformationController: _tc,
-        minScale: 1,
-        maxScale: 5,
-        clipBehavior: Clip.none,
-        child: widget.night
-            ? ColorFiltered(colorFilter: _invert, child: img)
-            : img,
+      child: GestureDetector(
+        onDoubleTapDown: (d) => _doubleTapDetails = d,
+        onDoubleTap: _onDoubleTap,
+        child: InteractiveViewer(
+          transformationController: _tc,
+          minScale: 1,
+          maxScale: 5,
+          clipBehavior: Clip.none,
+          child: widget.night
+              ? ColorFiltered(colorFilter: _invert, child: img)
+              : img,
+        ),
       ),
     );
   }
