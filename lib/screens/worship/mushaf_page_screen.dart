@@ -4,6 +4,7 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../core/quran_audio.dart';
 import '../../core/quran_data.dart';
 import '../../core/tafsir_data.dart';
 import '../../data/settings_repo.dart';
@@ -39,13 +40,62 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
   void initState() {
     super.initState();
     _page = widget.startPage;
+    _settings.quranReciter().then((r) => QuranAudio.reciter = r);
+    QuranAudio.playing.addListener(_onAudio);
+  }
+
+  void _onAudio() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
     _settings.setQuranLastPage(_page);
+    QuranAudio.playing.removeListener(_onAudio);
+    QuranAudio.stop();
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _togglePlay() async {
+    if (QuranAudio.playing.value != null) {
+      await QuranAudio.stop();
+    } else {
+      final refs = await QuranData.pageAyahs(_page);
+      await QuranAudio.playList(refs);
+    }
+  }
+
+  Future<void> _pickReciter() async {
+    final chosen = await showModalBottomSheet<String>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Text(tr('اختر القارئ', 'Choose reciter'),
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w800)),
+            ),
+            for (final r in kReciters)
+              ListTile(
+                title: Text(r.name),
+                trailing: QuranAudio.reciter == r.id
+                    ? const Icon(Icons.check, color: Colors.green)
+                    : null,
+                onTap: () => Navigator.pop(context, r.id),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (chosen != null) {
+      QuranAudio.reciter = chosen;
+      await _settings.setQuranReciter(chosen);
+      if (mounted) setState(() {});
+    }
   }
 
   Future<_PageContent> _loadPage(int page) async {
@@ -156,6 +206,18 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            tooltip: tr('القارئ', 'Reciter'),
+            icon: const Icon(Icons.record_voice_over),
+            onPressed: _pickReciter,
+          ),
+          IconButton(
+            tooltip: tr('تلاوة الصفحة', 'Recite page'),
+            icon: Icon(QuranAudio.playing.value != null
+                ? Icons.stop_circle
+                : Icons.play_circle),
+            onPressed: _togglePlay,
+          ),
           IconButton(
             tooltip: tr('تحميل المصحف كامل', 'Download full mushaf'),
             icon: const Icon(Icons.download_for_offline_outlined),

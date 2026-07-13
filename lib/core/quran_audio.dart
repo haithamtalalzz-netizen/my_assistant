@@ -29,18 +29,16 @@ class QuranAudio {
       ValueNotifier(null);
   static String reciter = 'Alafasy_128kbps';
 
-  static bool _continuous = false;
-  static int _lastAyah = 0;
+  static List<List<int>> _queue = const []; // [[سورة، آية], …]
+  static int _idx = 0;
   static bool _wired = false;
 
   static void _wire() {
     if (_wired) return;
     _wired = true;
     _player.onPlayerComplete.listen((_) {
-      final cur = playing.value;
-      if (cur == null) return;
-      if (_continuous && cur.ayah < _lastAyah) {
-        _playOne(cur.surah, cur.ayah + 1);
+      if (_idx + 1 < _queue.length) {
+        _playAt(_idx + 1);
       } else {
         playing.value = null;
       }
@@ -51,27 +49,35 @@ class QuranAudio {
       'https://everyayah.com/data/$reciter/'
       '${s.toString().padLeft(3, '0')}${a.toString().padLeft(3, '0')}.mp3';
 
-  static Future<void> _playOne(int s, int a) async {
+  static Future<void> _playAt(int i) async {
+    if (i < 0 || i >= _queue.length) {
+      playing.value = null;
+      return;
+    }
+    _idx = i;
+    final s = _queue[i][0], a = _queue[i][1];
     playing.value = (surah: s, ayah: a);
     await _player.stop();
     await _player.play(UrlSource(_url(s, a)));
   }
 
+  /// يشغّل آية واحدة.
   static Future<void> playAyah(int s, int a) async {
     _wire();
-    _continuous = false;
-    await _playOne(s, a);
+    _queue = [[s, a]];
+    await _playAt(0);
   }
 
-  static Future<void> playSurah(int s, int fromAyah, int lastAyah) async {
+  /// يشغّل قائمة آيات بالتتابع (مثلاً آيات صفحة كاملة).
+  static Future<void> playList(List<List<int>> refs) async {
+    if (refs.isEmpty) return;
     _wire();
-    _continuous = true;
-    _lastAyah = lastAyah;
-    await _playOne(s, fromAyah);
+    _queue = refs;
+    await _playAt(0);
   }
 
   static Future<void> stop() async {
-    _continuous = false;
+    _queue = const [];
     await _player.stop();
     playing.value = null;
   }

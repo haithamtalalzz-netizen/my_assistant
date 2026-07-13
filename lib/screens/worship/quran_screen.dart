@@ -5,9 +5,8 @@ import '../../core/l10n.dart';
 import '../../core/quran_data.dart';
 import '../../data/settings_repo.dart';
 import 'mushaf_page_screen.dart';
-import 'surah_reader_screen.dart';
 
-/// المصحف — قائمة السور + تبديل بين «صفحات المصحف» (صور) و«النص» (تفسير/صوت).
+/// المصحف — قائمة السور تفتح على صفحات المصحف (مصحف المدينة) + متابعة من آخر صفحة.
 class MushafScreen extends StatefulWidget {
   const MushafScreen({super.key});
 
@@ -18,9 +17,7 @@ class MushafScreen extends StatefulWidget {
 class _MushafScreenState extends State<MushafScreen> {
   final _settings = SettingsRepo();
   String _query = '';
-  String _mode = 'page';
   int _lastPage = 1;
-  ({int surah, int ayah})? _bookmark;
 
   @override
   void initState() {
@@ -29,60 +26,14 @@ class _MushafScreenState extends State<MushafScreen> {
   }
 
   Future<void> _reload() async {
-    final mode = await _settings.quranViewMode();
     final page = await _settings.quranLastPage();
-    final bm = await _settings.quranBookmark();
-    if (!mounted) return;
-    setState(() {
-      _mode = mode;
-      _lastPage = page;
-      _bookmark = bm;
-    });
+    if (mounted) setState(() => _lastPage = page);
   }
 
-  Future<void> _openSurah(int surahId) async {
-    if (_mode == 'page') {
-      await Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (_) =>
-                  MushafPageScreen(startPage: surahStartPage(surahId))));
-    } else {
-      await Navigator.push(context,
-          MaterialPageRoute(builder: (_) => SurahReaderScreen(surahId: surahId)));
-    }
+  Future<void> _openPage(int startPage) async {
+    await Navigator.push(context,
+        MaterialPageRoute(builder: (_) => MushafPageScreen(startPage: startPage)));
     _reload();
-  }
-
-  Future<void> _resume() async {
-    if (_mode == 'page') {
-      await Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (_) => MushafPageScreen(startPage: _lastPage)));
-    } else if (_bookmark != null) {
-      await Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (_) => SurahReaderScreen(
-                  surahId: _bookmark!.surah, startAyah: _bookmark!.ayah)));
-    }
-    _reload();
-  }
-
-  Future<void> _setMode(String m) async {
-    setState(() => _mode = m);
-    await _settings.setQuranViewMode(m);
-  }
-
-  bool get _hasResume => _mode == 'page' ? _lastPage > 1 : _bookmark != null;
-
-  String get _resumeText {
-    if (_mode == 'page') {
-      return tr('صفحة ${arNum(_lastPage)}', 'Page ${arNum(_lastPage)}');
-    }
-    return tr('سورة ${arNum(_bookmark!.surah)} — آية ${arNum(_bookmark!.ayah)}',
-        'Surah ${arNum(_bookmark!.surah)} — Ayah ${arNum(_bookmark!.ayah)}');
   }
 
   @override
@@ -109,24 +60,7 @@ class _MushafScreenState extends State<MushafScreen> {
           return Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-                child: SegmentedButton<String>(
-                  segments: [
-                    ButtonSegment(
-                        value: 'page',
-                        icon: const Icon(Icons.menu_book, size: 18),
-                        label: Text(tr('صفحات المصحف', 'Mushaf pages'))),
-                    ButtonSegment(
-                        value: 'text',
-                        icon: const Icon(Icons.notes, size: 18),
-                        label: Text(tr('نص + تفسير', 'Text + tafsir'))),
-                  ],
-                  selected: {_mode},
-                  onSelectionChanged: (s) => _setMode(s.first),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                 child: TextField(
                   decoration: InputDecoration(
                     hintText: tr('ابحث عن سورة…', 'Search a surah…'),
@@ -136,12 +70,12 @@ class _MushafScreenState extends State<MushafScreen> {
                   onChanged: (v) => setState(() => _query = v),
                 ),
               ),
-              if (_hasResume && q.isEmpty)
+              if (_lastPage > 1 && q.isEmpty)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(14),
-                    onTap: _resume,
+                    onTap: () => _openPage(_lastPage),
                     child: Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
@@ -162,7 +96,8 @@ class _MushafScreenState extends State<MushafScreen> {
                                     style: TextStyle(
                                         color: scheme.primary,
                                         fontWeight: FontWeight.w800)),
-                                Text(_resumeText,
+                                Text(tr('صفحة ${arNum(_lastPage)}',
+                                    'Page ${arNum(_lastPage)}'),
                                     style: TextStyle(color: scheme.onSurface)),
                               ],
                             ),
@@ -188,7 +123,7 @@ class _MushafScreenState extends State<MushafScreen> {
                         '${tr('صفحة', 'p.')} ${arNum(surahStartPage(s.id))}',
                         style: TextStyle(color: scheme.onSurfaceVariant),
                       ),
-                      onTap: () => _openSurah(s.id),
+                      onTap: () => _openPage(surahStartPage(s.id)),
                     );
                   },
                 ),
