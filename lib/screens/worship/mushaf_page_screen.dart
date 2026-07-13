@@ -9,7 +9,8 @@ import '../../core/quran_data.dart';
 import '../../core/tafsir_data.dart';
 import '../../data/settings_repo.dart';
 
-/// عرض صفحات المصحف كصور + سحب لأعلى يفتح تفسير آيات الصفحة + نبذة عن السورة.
+/// عرض صفحات المصحف كصور + سحب لأعلى (تفسير الصفحة + نبذة السورة) + تلاوة تُعلّم
+/// الآية الجارية وتمشى مع الصفحات.
 class MushafPageScreen extends StatefulWidget {
   final int startPage;
   const MushafPageScreen({super.key, this.startPage = 1});
@@ -25,7 +26,7 @@ class _AyahTaf {
 }
 
 class _PageContent {
-  final List<int> starts; // سور تبدأ فى الصفحة
+  final List<int> starts;
   final List<_AyahTaf> items;
   const _PageContent(this.starts, this.items);
 }
@@ -35,22 +36,40 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
   late final PageController _controller =
       PageController(initialPage: widget.startPage - 1);
   int _page = 1;
+  bool _reciting = false;
+  List<QuranSurah> _surahs = const [];
 
   @override
   void initState() {
     super.initState();
     _page = widget.startPage;
     _settings.quranReciter().then((r) => QuranAudio.reciter = r);
+    QuranData.surahs().then((s) {
+      if (mounted) setState(() => _surahs = s);
+    });
     QuranAudio.playing.addListener(_onAudio);
   }
 
+  // بيتنفّذ لمّا تخلص آيات الصفحة → ينتقل للى بعدها ويكمّل التلاوة.
   void _onAudio() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    if (QuranAudio.playing.value == null && _reciting) {
+      if (_page < kMushafPages) {
+        final next = _page + 1;
+        _controller.jumpToPage(next - 1);
+        QuranData.pageAyahs(next).then((r) {
+          if (_reciting) QuranAudio.playList(r);
+        });
+      } else {
+        _reciting = false;
+      }
+    }
   }
 
   @override
   void dispose() {
     _settings.setQuranLastPage(_page);
+    _reciting = false;
     QuranAudio.playing.removeListener(_onAudio);
     QuranAudio.stop();
     _controller.dispose();
@@ -58,9 +77,11 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
   }
 
   Future<void> _togglePlay() async {
-    if (QuranAudio.playing.value != null) {
+    if (_reciting || QuranAudio.playing.value != null) {
+      _reciting = false;
       await QuranAudio.stop();
     } else {
+      _reciting = true;
       final refs = await QuranData.pageAyahs(_page);
       await QuranAudio.playList(refs);
     }
@@ -211,12 +232,13 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
             icon: const Icon(Icons.record_voice_over),
             onPressed: _pickReciter,
           ),
-          IconButton(
-            tooltip: tr('تلاوة الصفحة', 'Recite page'),
-            icon: Icon(QuranAudio.playing.value != null
-                ? Icons.stop_circle
-                : Icons.play_circle),
-            onPressed: _togglePlay,
+          ValueListenableBuilder<({int surah, int ayah})?>(
+            valueListenable: QuranAudio.playing,
+            builder: (_, p, _) => IconButton(
+              tooltip: tr('تلاوة', 'Recite'),
+              icon: Icon(p != null ? Icons.stop_circle : Icons.play_circle),
+              onPressed: _togglePlay,
+            ),
           ),
           IconButton(
             tooltip: tr('تحميل المصحف كامل', 'Download full mushaf'),
@@ -232,38 +254,70 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
               controller: _controller,
               itemCount: kMushafPages,
               onPageChanged: (i) => setState(() => _page = i + 1),
-              itemBuilder: (_, i) => Container(
-                color: Colors.white,
-                padding: const EdgeInsets.only(bottom: 40),
-                child: InteractiveViewer(
-                  maxScale: 4,
-                  child: Center(
-                    child: CachedNetworkImage(
-                      imageUrl: mushafPageUrl(i + 1),
-                      fit: BoxFit.contain,
-                      width: double.infinity,
-                      placeholder: (_, _) =>
-                          const Center(child: CircularProgressIndicator()),
-                      errorWidget: (_, _, _) => Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(
-                            tr('تعذّر تحميل الصفحة — تحقق من الإنترنت',
-                                'Could not load the page — check your connection'),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.black54),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              itemBuilder: (_, i) => _MushafPageImage(page: i + 1),
             ),
           ),
+          _nowPlayingStrip(),
           _tafsirSheet(),
         ],
       ),
+    );
+  }
+
+  // شريط «يُتلى الآن» بيعلّم الآية الجارية (فوق مقبض التفسير).
+  Widget _nowPlayingStrip() {
+    return ValueListenableBuilder<({int surah, int ayah})?>(
+      valueListenable: QuranAudio.playing,
+      builder: (context, p, _) {
+        if (p == null || _surahs.isEmpty) return const SizedBox.shrink();
+        final surah = _surahs[p.surah - 1];
+        final v = surah.verses.firstWhere((e) => e.id == p.ayah,
+            orElse: () => surah.verses.first);
+        var snippet = v.text;
+        if (snippet.length > 60) snippet = '${snippet.substring(0, 60)}…';
+        return Positioned(
+          left: 12,
+          right: 12,
+          bottom: 70,
+          child: Material(
+            elevation: 6,
+            borderRadius: BorderRadius.circular(14),
+            color: const Color(0xFF1E7A5A),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                children: [
+                  const Icon(Icons.volume_up, color: Colors.white, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('يُتلى الآن — ${surah.name} · آية ${arNum(p.ayah)}',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12.5)),
+                        Text(snippet,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                  InkWell(
+                    onTap: _togglePlay,
+                    child: const Icon(Icons.stop_circle,
+                        color: Colors.white, size: 26),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -283,7 +337,6 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
           controller: controller,
           padding: EdgeInsets.zero,
           children: [
-            // مقبض السحب.
             Column(
               children: [
                 const SizedBox(height: 8),
@@ -301,8 +354,9 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
                     Icon(Icons.keyboard_arrow_up,
                         size: 18, color: scheme.primary),
                     const SizedBox(width: 4),
-                    Text(tr('اسحب لأعلى: تفسير آيات الصفحة',
-                        'Swipe up: page tafsir'),
+                    Text(
+                        tr('اسحب لأعلى: تفسير آيات الصفحة',
+                            'Swipe up: page tafsir'),
                         style: TextStyle(
                             color: scheme.primary,
                             fontWeight: FontWeight.w700,
@@ -313,7 +367,6 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
               ],
             ),
             FutureBuilder<_PageContent>(
-              // key بالصفحة عشان يعيد التحميل عند تغييرها.
               key: ValueKey(_page),
               future: _loadPage(_page),
               builder: (_, snap) {
@@ -344,60 +397,52 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
 
   Widget _surahIntro(int surahId) {
     final scheme = Theme.of(context).colorScheme;
-    return FutureBuilder<List<QuranSurah>>(
-      future: QuranData.surahs(),
-      builder: (_, snap) {
-        if (!snap.hasData) return const SizedBox.shrink();
-        final s = snap.data![surahId - 1];
-        final meccan = s.isMeccan;
-        return Container(
-          width: double.infinity,
-          margin: const EdgeInsets.only(bottom: 14),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [
-              scheme.primary.withValues(alpha: 0.85),
-              scheme.primary.withValues(alpha: 0.55),
-            ]),
-            borderRadius: BorderRadius.circular(16),
+    if (_surahs.isEmpty) return const SizedBox.shrink();
+    final s = _surahs[surahId - 1];
+    final meccan = s.isMeccan;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [
+          scheme.primary.withValues(alpha: 0.85),
+          scheme.primary.withValues(alpha: 0.55),
+        ]),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('نبذة عن سورة ${s.name}',
+              style: TextStyle(
+                  color: scheme.onPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900)),
+          const SizedBox(height: 8),
+          Text(
+            meccan
+                ? 'سورة مكية — نزلت قبل الهجرة إلى المدينة.'
+                : 'سورة مدنية — نزلت بعد الهجرة إلى المدينة.',
+            style: TextStyle(
+                color: scheme.onPrimary.withValues(alpha: 0.95), height: 1.7),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('نبذة عن سورة ${s.name}',
-                  style: TextStyle(
-                      color: scheme.onPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900)),
-              const SizedBox(height: 8),
-              Text(
-                meccan
-                    ? 'سورة مكية — نزلت قبل الهجرة إلى المدينة.'
-                    : 'سورة مدنية — نزلت بعد الهجرة إلى المدينة.',
-                style: TextStyle(
-                    color: scheme.onPrimary.withValues(alpha: 0.95),
-                    height: 1.7),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'ترتيبها فى المصحف: ${arNum(surahId)} · '
-                'ترتيب نزولها: ${arNum(kSurahRevOrder[surahId - 1])}',
-                style: TextStyle(
-                    color: scheme.onPrimary.withValues(alpha: 0.95),
-                    height: 1.7),
-              ),
-              Text(
-                'عدد آياتها: ${arNum(s.verses.length)} · '
-                'الجزء ${arNum(kSurahStartJuz[surahId - 1])} · '
-                'صفحة ${arNum(surahStartPage(surahId))}',
-                style: TextStyle(
-                    color: scheme.onPrimary.withValues(alpha: 0.95),
-                    height: 1.7),
-              ),
-            ],
+          const SizedBox(height: 6),
+          Text(
+            'ترتيبها فى المصحف: ${arNum(surahId)} · '
+            'ترتيب نزولها: ${arNum(kSurahRevOrder[surahId - 1])}',
+            style: TextStyle(
+                color: scheme.onPrimary.withValues(alpha: 0.95), height: 1.7),
           ),
-        );
-      },
+          Text(
+            'عدد آياتها: ${arNum(s.verses.length)} · '
+            'الجزء ${arNum(kSurahStartJuz[surahId - 1])} · '
+            'صفحة ${arNum(surahStartPage(surahId))}',
+            style: TextStyle(
+                color: scheme.onPrimary.withValues(alpha: 0.95), height: 1.7),
+          ),
+        ],
+      ),
     );
   }
 
@@ -422,6 +467,14 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
                 child: Text(it.text,
                     style: const TextStyle(fontSize: 18, height: 1.9)),
               ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.play_arrow, size: 20),
+                onPressed: () {
+                  _reciting = false;
+                  QuranAudio.playAyah(it.surah, it.ayah);
+                },
+              ),
             ],
           ),
           const SizedBox(height: 6),
@@ -432,6 +485,67 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
                     fontSize: 15, height: 1.8, color: scheme.onSurfaceVariant)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// صفحة مصحف واحدة — StatefulWidget عشان الزووم (TransformationController)
+/// يفضل ثابت ومايترسمش من جديد مع أى تحديث خارجى (يخلّى التكبير سلس).
+class _MushafPageImage extends StatefulWidget {
+  final int page;
+  const _MushafPageImage({required this.page});
+
+  @override
+  State<_MushafPageImage> createState() => _MushafPageImageState();
+}
+
+class _MushafPageImageState extends State<_MushafPageImage>
+    with AutomaticKeepAliveClientMixin {
+  final _tc = TransformationController();
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void dispose() {
+    _tc.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.only(bottom: 40),
+      child: InteractiveViewer(
+        transformationController: _tc,
+        minScale: 1,
+        maxScale: 5,
+        clipBehavior: Clip.none,
+        child: Center(
+          child: CachedNetworkImage(
+            imageUrl: mushafPageUrl(widget.page),
+            fit: BoxFit.fitWidth,
+            width: double.infinity,
+            fadeInDuration: const Duration(milliseconds: 120),
+            placeholder: (_, _) =>
+                const Center(child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: CircularProgressIndicator())),
+            errorWidget: (_, _, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'تعذّر تحميل الصفحة — تحقق من الإنترنت',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.black54),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
