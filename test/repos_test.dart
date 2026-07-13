@@ -18,6 +18,7 @@ import 'package:my_assistant/core/prayers.dart';
 import 'package:my_assistant/core/religion_data.dart';
 import 'package:my_assistant/core/quran_data.dart';
 import 'package:my_assistant/core/mawarith.dart';
+import 'package:my_assistant/data/mushaf_repo.dart';
 import 'package:my_assistant/core/seed_demo.dart';
 import 'package:my_assistant/data/wallets_repo.dart';
 import 'package:my_assistant/core/voice_parser.dart';
@@ -629,6 +630,23 @@ void main() {
         total += (await QuranData.pageAyahs(p)).length;
       }
       expect(total, 6236);
+    });
+
+    test('الأجزاء + علامات المصحف + الصفحات المقروءة', () async {
+      expect(kJuzStartPage.length, 30);
+      expect(kJuzStartPage.first, 1);
+      expect(pageJuz(1), 1);
+      expect(pageJuz(22), 2);
+      expect(pageJuz(604), 30);
+      final repo = MushafRepo();
+      await repo.addBookmark(50, 'آل عمران');
+      final bms = await repo.bookmarks();
+      expect(bms.length, 1);
+      expect(bms.first.page, 50);
+      await repo.markRead(1);
+      await repo.markRead(1); // مكرّرة تُتجاهل
+      await repo.markRead(2);
+      expect(await repo.readCount(), 2);
     });
 
     test('الوِرد اليومى: عدّ لكل ذِكر', () async {

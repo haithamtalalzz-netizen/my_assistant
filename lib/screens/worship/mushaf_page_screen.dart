@@ -7,7 +7,9 @@ import '../../core/l10n.dart';
 import '../../core/quran_audio.dart';
 import '../../core/quran_data.dart';
 import '../../core/tafsir_data.dart';
+import '../../data/mushaf_repo.dart';
 import '../../data/settings_repo.dart';
+import 'quran_search_screen.dart';
 
 /// عرض صفحات المصحف كصور + سحب لأعلى (تفسير الصفحة + نبذة السورة) + تلاوة تُعلّم
 /// الآية الجارية وتمشى مع الصفحات.
@@ -33,10 +35,13 @@ class _PageContent {
 
 class _MushafPageScreenState extends State<MushafPageScreen> {
   final _settings = SettingsRepo();
+  final _repo = MushafRepo();
   late final PageController _controller =
       PageController(initialPage: widget.startPage - 1);
   int _page = 1;
   bool _reciting = false;
+  bool _night = false;
+  int _readCount = 0;
   List<QuranSurah> _surahs = const [];
 
   @override
@@ -44,10 +49,21 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
     super.initState();
     _page = widget.startPage;
     _settings.quranReciter().then((r) => QuranAudio.reciter = r);
+    _settings.quranSpeed().then((v) => QuranAudio.speed = v);
+    _settings.mushafNight().then((n) {
+      if (mounted) setState(() => _night = n);
+    });
+    _markRead(widget.startPage);
     QuranData.surahs().then((s) {
       if (mounted) setState(() => _surahs = s);
     });
     QuranAudio.playing.addListener(_onAudio);
+  }
+
+  Future<void> _markRead(int page) async {
+    await _repo.markRead(page);
+    final c = await _repo.readCount();
+    if (mounted) setState(() => _readCount = c);
   }
 
   // بيتنفّذ لمّا تخلص آيات الصفحة → ينتقل للى بعدها ويكمّل التلاوة.
@@ -117,6 +133,214 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
       await _settings.setQuranReciter(chosen);
       if (mounted) setState(() {});
     }
+  }
+
+  Future<void> _toggleNight() async {
+    setState(() => _night = !_night);
+    await _settings.setMushafNight(_night);
+  }
+
+  void _juzSheet() {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SizedBox(
+        height: 420,
+        child: GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 5, childAspectRatio: 1.3,
+              crossAxisSpacing: 8, mainAxisSpacing: 8),
+          itemCount: 30,
+          itemBuilder: (ctx, i) => InkWell(
+            onTap: () {
+              Navigator.pop(ctx);
+              _controller.jumpToPage(kJuzStartPage[i] - 1);
+            },
+            child: Container(
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Theme.of(ctx).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(tr('جزء', 'Juz'),
+                      style: const TextStyle(fontSize: 11)),
+                  Text(arNum(i + 1),
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w800)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addBookmark() async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(tr('علامة على صفحة ${arNum(_page)}',
+            'Bookmark page ${arNum(_page)}')),
+        content: TextField(
+          controller: ctrl,
+          decoration: InputDecoration(
+              hintText: tr('اسم العلامة (اختيارى)', 'Label (optional)')),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(tr('إلغاء', 'Cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(tr('حفظ', 'Save'))),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await _repo.addBookmark(_page, ctrl.text.trim());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(tr('اتحفظت العلامة ✓', 'Bookmark saved ✓'))));
+      }
+    }
+  }
+
+  void _bookmarksSheet() {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSheet) => FutureBuilder<List<QuranBookmark>>(
+          future: _repo.bookmarks(),
+          builder: (_, snap) {
+            final list = snap.data ?? const <QuranBookmark>[];
+            if (list.isEmpty) {
+              return SizedBox(
+                height: 160,
+                child: Center(
+                    child: Text(tr('لا توجد علامات بعد', 'No bookmarks yet'))),
+              );
+            }
+            return ListView(
+              shrinkWrap: true,
+              children: [
+                for (final b in list)
+                  ListTile(
+                    leading: const Icon(Icons.bookmark),
+                    title: Text(b.label.isEmpty
+                        ? tr('صفحة ${arNum(b.page)}', 'Page ${arNum(b.page)}')
+                        : b.label),
+                    subtitle: b.label.isEmpty
+                        ? null
+                        : Text(tr('صفحة ${arNum(b.page)}', 'Page ${arNum(b.page)}')),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () async {
+                        await _repo.deleteBookmark(b.id);
+                        setSheet(() {});
+                      },
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _controller.jumpToPage(b.page - 1);
+                    },
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _repeatSpeedSheet() {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(tr('سرعة التلاوة', 'Recitation speed'),
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [0.75, 1.0, 1.25, 1.5]
+                    .map((v) => ChoiceChip(
+                          label: Text('${arNum(v)}×'),
+                          selected: QuranAudio.speed == v,
+                          onSelected: (_) {
+                            QuranAudio.setSpeed(v);
+                            _settings.setQuranSpeed(v);
+                            setSheet(() {});
+                          },
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 16),
+              Text(tr('التكرار (للحفظ)', 'Repeat (memorization)'),
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ('none', tr('بدون', 'None')),
+                  ('one', tr('كرّر الآية', 'Repeat ayah')),
+                  ('all', tr('كرّر الصفحة', 'Loop page')),
+                ]
+                    .map((e) => ChoiceChip(
+                          label: Text(e.$2),
+                          selected: QuranAudio.repeatMode == e.$1,
+                          onSelected: (_) {
+                            QuranAudio.repeatMode = e.$1;
+                            setSheet(() {});
+                          },
+                        ))
+                    .toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _progressDialog() {
+    final pct = (_readCount / kMushafPages * 100).round();
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(tr('تقدّم القراءة', 'Reading progress')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('${arNum(pct)}%',
+                style: const TextStyle(
+                    fontSize: 40, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(value: _readCount / kMushafPages),
+            const SizedBox(height: 10),
+            Text(tr('قرأت ${arNum(_readCount)} من ${arNum(kMushafPages)} صفحة',
+                'Read ${arNum(_readCount)} of ${arNum(kMushafPages)} pages')),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(tr('تمام', 'OK'))),
+        ],
+      ),
+    );
   }
 
   Future<_PageContent> _loadPage(int page) async {
@@ -240,10 +464,42 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
               onPressed: _togglePlay,
             ),
           ),
-          IconButton(
-            tooltip: tr('تحميل المصحف كامل', 'Download full mushaf'),
-            icon: const Icon(Icons.download_for_offline_outlined),
-            onPressed: _downloadAll,
+          PopupMenuButton<String>(
+            onSelected: (v) {
+              switch (v) {
+                case 'night':
+                  _toggleNight();
+                case 'juz':
+                  _juzSheet();
+                case 'bookmarks':
+                  _bookmarksSheet();
+                case 'addbm':
+                  _addBookmark();
+                case 'search':
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const QuranSearchScreen()));
+                case 'repeat':
+                  _repeatSpeedSheet();
+                case 'progress':
+                  _progressDialog();
+                case 'download':
+                  _downloadAll();
+              }
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                  value: 'night',
+                  child: Text(_night
+                      ? tr('وضع نهارى', 'Day mode')
+                      : tr('وضع ليلى', 'Night mode'))),
+              PopupMenuItem(value: 'search', child: Text(tr('بحث فى القرآن', 'Search'))),
+              PopupMenuItem(value: 'juz', child: Text(tr('فهرس الأجزاء', 'Juz index'))),
+              PopupMenuItem(value: 'bookmarks', child: Text(tr('العلامات المرجعية', 'Bookmarks'))),
+              PopupMenuItem(value: 'addbm', child: Text(tr('أضف علامة هنا', 'Bookmark this page'))),
+              PopupMenuItem(value: 'repeat', child: Text(tr('تكرار وسرعة التلاوة', 'Repeat & speed'))),
+              PopupMenuItem(value: 'progress', child: Text(tr('تقدّم القراءة', 'Reading progress'))),
+              PopupMenuItem(value: 'download', child: Text(tr('تحميل المصحف كامل', 'Download mushaf'))),
+            ],
           ),
         ],
       ),
@@ -253,8 +509,12 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
             child: PageView.builder(
               controller: _controller,
               itemCount: kMushafPages,
-              onPageChanged: (i) => setState(() => _page = i + 1),
-              itemBuilder: (_, i) => _MushafPageImage(page: i + 1),
+              onPageChanged: (i) {
+                setState(() => _page = i + 1);
+                _markRead(i + 1);
+              },
+              itemBuilder: (_, i) =>
+                  _MushafPageImage(page: i + 1, night: _night),
             ),
           ),
           _nowPlayingStrip(),
@@ -494,11 +754,20 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
 /// يفضل ثابت ومايترسمش من جديد مع أى تحديث خارجى (يخلّى التكبير سلس).
 class _MushafPageImage extends StatefulWidget {
   final int page;
-  const _MushafPageImage({required this.page});
+  final bool night;
+  const _MushafPageImage({required this.page, this.night = false});
 
   @override
   State<_MushafPageImage> createState() => _MushafPageImageState();
 }
+
+/// مصفوفة عكس الألوان (وضع ليلى) — خلفية سوداء ونصّ فاتح.
+const ColorFilter _invert = ColorFilter.matrix(<double>[
+  -1, 0, 0, 0, 255, //
+  0, -1, 0, 0, 255, //
+  0, 0, -1, 0, 255, //
+  0, 0, 0, 1, 0, //
+]);
 
 class _MushafPageImageState extends State<_MushafPageImage>
     with AutomaticKeepAliveClientMixin {
@@ -516,8 +785,26 @@ class _MushafPageImageState extends State<_MushafPageImage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final img = CachedNetworkImage(
+      imageUrl: mushafPageUrl(widget.page),
+      fit: BoxFit.fitWidth,
+      width: double.infinity,
+      fadeInDuration: const Duration(milliseconds: 120),
+      placeholder: (_, _) => const Center(
+          child: Padding(
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator())),
+      errorWidget: (_, _, _) => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text('تعذّر تحميل الصفحة — تحقق من الإنترنت',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.black54)),
+        ),
+      ),
+    );
     return Container(
-      color: Colors.white,
+      color: widget.night ? Colors.black : Colors.white,
       padding: const EdgeInsets.only(bottom: 40),
       child: InteractiveViewer(
         transformationController: _tc,
@@ -525,26 +812,9 @@ class _MushafPageImageState extends State<_MushafPageImage>
         maxScale: 5,
         clipBehavior: Clip.none,
         child: Center(
-          child: CachedNetworkImage(
-            imageUrl: mushafPageUrl(widget.page),
-            fit: BoxFit.fitWidth,
-            width: double.infinity,
-            fadeInDuration: const Duration(milliseconds: 120),
-            placeholder: (_, _) =>
-                const Center(child: Padding(
-                    padding: EdgeInsets.all(40),
-                    child: CircularProgressIndicator())),
-            errorWidget: (_, _, _) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  'تعذّر تحميل الصفحة — تحقق من الإنترنت',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.black54),
-                ),
-              ),
-            ),
-          ),
+          child: widget.night
+              ? ColorFiltered(colorFilter: _invert, child: img)
+              : img,
         ),
       ),
     );

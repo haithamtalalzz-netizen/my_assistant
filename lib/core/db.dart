@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 37,
+      version: 38,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -241,6 +241,11 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 38 && newV >= 38) {
+      for (final ddl in _v38Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
 
   /// الوِرد اليومى — عدّاد لكل ذِكر فى يوم.
@@ -251,6 +256,21 @@ class AppDb {
         idx INTEGER NOT NULL,
         count INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY(day, idx)
+      )''',
+  ];
+
+  /// علامات مرجعية للمصحف + الصفحات المقروءة (لمؤشّر التقدّم).
+  static const List<String> _v38Tables = [
+    '''
+      CREATE TABLE quran_bookmarks(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        page INTEGER NOT NULL,
+        label TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+    '''
+      CREATE TABLE quran_read_pages(
+        page INTEGER PRIMARY KEY
       )''',
   ];
 
@@ -965,6 +985,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v37Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v38Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);

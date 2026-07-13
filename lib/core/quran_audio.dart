@@ -28,6 +28,10 @@ class QuranAudio {
   static final ValueNotifier<({int surah, int ayah})?> playing =
       ValueNotifier(null);
   static String reciter = 'Alafasy_128kbps';
+  static double speed = 1.0;
+
+  /// 'none' = عادى · 'one' = كرّر الآية · 'all' = كرّر المقطع كله (حفظ).
+  static String repeatMode = 'none';
 
   static List<List<int>> _queue = const []; // [[سورة، آية], …]
   static int _idx = 0;
@@ -37,12 +41,23 @@ class QuranAudio {
     if (_wired) return;
     _wired = true;
     _player.onPlayerComplete.listen((_) {
-      if (_idx + 1 < _queue.length) {
+      if (repeatMode == 'one') {
+        _playAt(_idx);
+      } else if (_idx + 1 < _queue.length) {
         _playAt(_idx + 1);
+      } else if (repeatMode == 'all' && _queue.isNotEmpty) {
+        _playAt(0);
       } else {
         playing.value = null;
       }
     });
+  }
+
+  static Future<void> setSpeed(double v) async {
+    speed = v;
+    try {
+      await _player.setPlaybackRate(v);
+    } catch (_) {}
   }
 
   static String _url(int s, int a) =>
@@ -59,6 +74,9 @@ class QuranAudio {
     playing.value = (surah: s, ayah: a);
     await _player.stop();
     await _player.play(UrlSource(_url(s, a)));
+    try {
+      await _player.setPlaybackRate(speed);
+    } catch (_) {}
   }
 
   /// يشغّل آية واحدة.

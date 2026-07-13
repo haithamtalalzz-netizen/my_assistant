@@ -180,6 +180,17 @@ class SettingsRepo {
       int.tryParse(await get('quran_last_page') ?? '') ?? 1;
   Future<void> setQuranLastPage(int p) async => set('quran_last_page', '$p');
 
+  /// الوضع الليلى للمصحف (عكس ألوان الصفحة).
+  Future<bool> mushafNight() async => await get('mushaf_night') == '1';
+  Future<void> setMushafNight(bool on) async =>
+      set('mushaf_night', on ? '1' : '0');
+
+  /// سرعة التلاوة (0.75 / 1 / 1.25 / 1.5) — الافتراضى 1.
+  Future<double> quranSpeed() async =>
+      double.tryParse(await get('quran_speed') ?? '') ?? 1.0;
+  Future<void> setQuranSpeed(double v) async =>
+      set('quran_speed', v.toString());
+
   Future<bool> ramadanMode() async => await get('ramadan_mode') == '1';
 
   /// ملخص بكرة المسائي — شغال افتراضيًا الساعة 21:30.

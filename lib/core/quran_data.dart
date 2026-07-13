@@ -74,6 +74,36 @@ class QuranData {
     final ayahs = await pageAyahs(page);
     return ayahs.where((a) => a[1] == 1).map((a) => a[0]).toList();
   }
+
+  /// صفحة آية معيّنة (بناء عكسى من خريطة الصفحات).
+  static Map<String, int>? _ayahPage;
+  static Future<int> pageOfAyah(int surah, int ayah) async {
+    if (_ayahPage == null) {
+      final pages = await _loadPages();
+      _ayahPage = {};
+      pages.forEach((p, refs) {
+        for (final r in refs) {
+          _ayahPage!['${r[0]}:${r[1]}'] = p;
+        }
+      });
+    }
+    return _ayahPage!['$surah:$ayah'] ?? 1;
+  }
+}
+
+/// صفحة بداية كل جزء (1..30).
+const List<int> kJuzStartPage = [
+  1, 22, 42, 62, 82, 102, 121, 142, 162, 182, 201, 222, 242, 262, 282, 302,
+  322, 342, 362, 382, 402, 422, 442, 462, 482, 502, 522, 542, 562, 582,
+];
+
+/// رقم الجزء الذى تقع فيه صفحة معيّنة (1..30).
+int pageJuz(int page) {
+  var j = 1;
+  for (var i = 0; i < kJuzStartPage.length; i++) {
+    if (page >= kJuzStartPage[i]) j = i + 1;
+  }
+  return j;
 }
 
 /// جزء بداية كل سورة (1..114).
