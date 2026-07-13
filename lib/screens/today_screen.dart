@@ -400,7 +400,7 @@ class _TodayScreenState extends State<TodayScreen> {
     return Scaffold(
       drawer: widget.drawer,
       appBar: AppBar(
-        title: Text(tr('اليوم', 'Today')),
+        title: Text(tr('الرئيسية', 'Home')),
         actions: [searchAction(context)],
       ),
       body: AnimatedSwitcher(

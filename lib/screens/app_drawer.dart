@@ -113,7 +113,6 @@ class AppDrawer extends StatelessWidget {
               ],
             ],
           ),
-          trailing: const Icon(Icons.chevron_right, size: 20),
           onTap: () {
             Navigator.pop(context);
             Navigator.push(
@@ -178,7 +177,7 @@ class AppDrawer extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             // مثبّت فوق — أكتر ٣ حاجات بتتفتح.
-            top(0, Icons.wb_sunny_outlined, tr('اليوم', 'Today')),
+            top(0, Icons.home_outlined, tr('الرئيسية', 'Home')),
             push(Icons.psychology_outlined, tr('اسأل مديرك', 'Ask your manager'),
                 const ChatScreen()),
             top(1, Icons.event_note_outlined, tr('المواعيد', 'Appointments')),
