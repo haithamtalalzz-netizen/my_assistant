@@ -47,7 +47,6 @@ import 'settings_screen.dart';
 import 'wardrobe/wardrobe_screen.dart';
 import 'weekly/weekly_planning_screen.dart';
 import 'worship/prayer_screen.dart';
-import 'worship/quran_screen.dart';
 
 /// الدرج الجانبي (زي طارة): بنود التطبيق الرئيسية بتبدّل الشاشة،
 /// وباقي الأدوات بتتفتح كصفحات ليها سهم رجوع.
@@ -182,12 +181,11 @@ class AppDrawer extends StatelessWidget {
             top(0, Icons.wb_sunny_outlined, tr('اليوم', 'Today')),
             push(Icons.psychology_outlined, tr('اسأل مديرك', 'Ask your manager'),
                 const ChatScreen()),
-            push(Icons.mosque_outlined, tr('الصلاة والأذكار', 'Prayer & Adhkar'),
-                const PrayerScreen()),
-            push(Icons.import_contacts_outlined, tr('المصحف', 'Quran'),
-                const MushafScreen()),
             top(1, Icons.event_note_outlined, tr('الجدول', 'Schedule')),
             const Divider(),
+            // الصلاة والأذكار — فوق الفلوس مباشرة (المصحف جوّاها).
+            push(Icons.mosque_outlined, tr('الصلاة والأذكار', 'Prayer & Adhkar'),
+                const PrayerScreen()),
             // مجموعات بحسب مجال الحياة.
             groupTile(
                 Icons.account_balance_wallet_outlined,
@@ -290,8 +288,7 @@ class AppDrawer extends StatelessWidget {
                 const WardrobeScreen()),
             push(Icons.shopping_cart_outlined, tr('قائمة التسوق', 'Shopping list'),
                 const ShoppingListScreen()),
-            groupTile(
-                Icons.self_improvement, tr('حياتي وتطوّري', 'My life & growth'),
+            groupTile(Icons.self_improvement, tr('تطوّري', 'Growth'),
                 accent: Colors.indigo,
                 [
                   GroupHubItem(Icons.menu_book_outlined,
