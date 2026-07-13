@@ -460,6 +460,19 @@ void main() {
       expect(await repo.totalForDay('2026-06-15'), 50);
     });
 
+    test('ميزانيات الفئات: حفظ وقراءة وحذف', () async {
+      final s = SettingsRepo();
+      await s.setCategoryBudget('أكل', 500);
+      await s.setCategoryBudget('مواصلات', 300);
+      var b = await s.categoryBudgets();
+      expect(b['أكل'], 500);
+      expect(b['مواصلات'], 300);
+      await s.setCategoryBudget('أكل', 0); // حذف
+      b = await s.categoryBudgets();
+      expect(b.containsKey('أكل'), isFalse);
+      expect(b['مواصلات'], 300);
+    });
+
     test('تقويم الفلوس: أيام النشاط وملخّص اليوم', () async {
       final repo = MoneyRepo();
       await repo.add(const Expense(

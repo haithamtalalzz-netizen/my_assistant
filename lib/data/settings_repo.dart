@@ -216,4 +216,29 @@ class SettingsRepo {
       await get('evening_summary') != '0';
 
   Future<String> eveningTime() async => await get('evening_time') ?? '21:30';
+
+  /// ميزانية شهرية لكل فئة مصروفات — مخزّنة "فئة:مبلغ|فئة:مبلغ".
+  /// (أسماء الفئات عربية بدون : أو | فالتفكيك آمن.)
+  Future<Map<String, double>> categoryBudgets() async {
+    final raw = await get('category_budgets') ?? '';
+    final map = <String, double>{};
+    for (final part in raw.split('|')) {
+      final i = part.lastIndexOf(':');
+      if (i <= 0) continue;
+      final amt = double.tryParse(part.substring(i + 1));
+      if (amt != null && amt > 0) map[part.substring(0, i)] = amt;
+    }
+    return map;
+  }
+
+  Future<void> setCategoryBudget(String cat, double amount) async {
+    final map = await categoryBudgets();
+    if (amount <= 0) {
+      map.remove(cat);
+    } else {
+      map[cat] = amount;
+    }
+    await set('category_budgets',
+        map.entries.map((e) => '${e.key}:${e.value}').join('|'));
+  }
 }

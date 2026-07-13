@@ -7,6 +7,7 @@ import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../widgets/search_action.dart';
 import '../../core/month_summary.dart';
+import '../../core/money_export.dart';
 import '../../core/ocr.dart';
 import '../../data/bills_repo.dart';
 import '../../data/debts_repo.dart';
@@ -41,6 +42,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
   bool _loading = true;
   List<Expense> _expenses = [];
   Map<String, double> _byCategory = {};
+  Map<String, double> _categoryBudgets = {};
   List<RecurringBill> _bills = [];
   List<Income> _income = [];
   List<RecurringIncome> _recurringIncome = [];
@@ -65,6 +67,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
     final byCat = await _repo.byCategory(_month.year, _month.month);
     final total = await _repo.totalForMonth(_month.year, _month.month);
     final budget = await _settings.monthlyBudget();
+    final catBudgets = await _settings.categoryBudgets();
     final bills = await BillsRepo().all();
     final now = DateTime.now();
     bills.sort((a, b) {
@@ -82,6 +85,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
     setState(() {
       _expenses = expenses;
       _byCategory = byCat;
+      _categoryBudgets = catBudgets;
       _total = total;
       _budget = budget;
       _bills = bills;
@@ -347,6 +351,13 @@ class _MoneyScreenState extends State<MoneyScreen> {
             tooltip: tr('أشتري ولا أستنى؟', 'Buy or wait?'),
             icon: const Icon(Icons.calculate_outlined),
           ),
+          IconButton(
+            onPressed: () async {
+              await MoneyExport.exportMonthCsv(_month.year, _month.month);
+            },
+            tooltip: tr('تصدير Excel', 'Export Excel'),
+            icon: const Icon(Icons.file_download_outlined),
+          ),
         ],
       ),
       body: _loading
@@ -398,7 +409,10 @@ class _MoneyScreenState extends State<MoneyScreen> {
                   else
                     ..._bills.map((b) => _billTile(context, b)),
                   if (_byCategory.isNotEmpty) ...[
-                    SectionHeader(tr('حسب الفئة', 'By category')),
+                    SectionHeader(tr('حسب الفئة', 'By category'),
+                        trailing: TextButton(
+                            onPressed: _editCategoryBudgets,
+                            child: Text(tr('ميزانيات', 'Budgets')))),
                     _categoryBreakdown(context),
                   ],
                   SectionHeader(tr('بلدنا', 'Local')),
@@ -761,6 +775,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
   }
 
   Widget _categoryBreakdown(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final maxValue =
         _byCategory.values.fold<double>(0, (m, v) => v > m ? v : m);
     return Card(
@@ -770,39 +785,125 @@ class _MoneyScreenState extends State<MoneyScreen> {
         child: Column(
           children: [
             for (final e in _byCategory.entries)
+              Builder(builder: (_) {
+                final budget = _categoryBudgets[e.key];
+                final over = budget != null && e.value > budget;
+                final barColor =
+                    over ? scheme.error : expenseCategoryColor(e.key);
+                final barValue = budget != null
+                    ? (e.value / budget).clamp(0.0, 1.0)
+                    : (maxValue == 0 ? 0.0 : e.value / maxValue);
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(expenseCategoryIcon(e.key),
+                              size: 16, color: expenseCategoryColor(e.key)),
+                          const SizedBox(width: 6),
+                          Expanded(child: Text(expenseCategoryLabel(e.key))),
+                          Text(
+                              budget != null
+                                  ? '${egp(e.value)} / ${egp(budget)}'
+                                  : (_total > 0
+                                      ? '${egp(e.value)} • ٪${arNum((e.value * 100 / _total).round())}'
+                                      : egp(e.value)),
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: over ? scheme.error : null)),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      LinearProgressIndicator(
+                        value: barValue,
+                        minHeight: 4,
+                        borderRadius: BorderRadius.circular(2),
+                        color: barColor,
+                      ),
+                      if (over)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                              tr('عدّيت الميزانية بـ ${egp(e.value - budget)}',
+                                  '${egp(e.value - budget)} over budget'),
+                              style: TextStyle(
+                                  fontSize: 11, color: scheme.error)),
+                        ),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// تحرير ميزانية شهرية لكل فئة مصروفات.
+  Future<void> _editCategoryBudgets() async {
+    final controllers = {
+      for (final c in kExpenseCategories)
+        c: TextEditingController(
+            text: (_categoryBudgets[c] ?? 0) > 0
+                ? _categoryBudgets[c]!.toStringAsFixed(0)
+                : ''),
+    };
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        scrollable: true,
+        title: Text(tr('ميزانيات الفئات', 'Category budgets')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final c in kExpenseCategories)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Icon(expenseCategoryIcon(e.key),
-                            size: 16, color: expenseCategoryColor(e.key)),
-                        const SizedBox(width: 6),
-                        Expanded(child: Text(expenseCategoryLabel(e.key))),
-                        Text(
-                            _total > 0
-                                ? '${egp(e.value)} • ٪${arNum((e.value * 100 / _total).round())}'
-                                : egp(e.value),
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    LinearProgressIndicator(
-                      value: maxValue == 0 ? 0 : e.value / maxValue,
-                      minHeight: 4,
-                      borderRadius: BorderRadius.circular(2),
-                      color: expenseCategoryColor(e.key),
+                    Icon(expenseCategoryIcon(c),
+                        size: 18, color: expenseCategoryColor(c)),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(expenseCategoryLabel(c))),
+                    SizedBox(
+                      width: 90,
+                      child: TextField(
+                        controller: controllers[c],
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                            hintText: tr('ج.م', 'EGP'),
+                            isDense: true),
+                      ),
                     ),
                   ],
                 ),
               ),
           ],
         ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('إلغاء', 'Cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(tr('حفظ', 'Save'))),
+        ],
       ),
     );
+    if (saved == true) {
+      for (final c in kExpenseCategories) {
+        await _settings.setCategoryBudget(
+            c, parseNumber(controllers[c]!.text) ?? 0);
+      }
+      if (mounted) await _load();
+    }
+    for (final ctl in controllers.values) {
+      ctl.dispose();
+    }
   }
 
   Widget _billTile(BuildContext context, RecurringBill b) {
