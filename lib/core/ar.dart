@@ -50,6 +50,7 @@ String arFullDate(DateTime d) =>
 String arShortDate(DateTime d) => _west(DateFormat('d MMM y', _dl()).format(d));
 String arMonth(DateTime d) => _west(DateFormat('MMMM y', _dl()).format(d));
 String arTime(DateTime d) => _west(DateFormat('h:mm a', _dl()).format(d));
+String arDateTime(DateTime d) => '${arShortDate(d)} · ${arTime(d)}';
 
 /// وقت جرعة مخزن كـ HH:mm.
 String arTimeOfSlot(String hhmm) {

@@ -28,6 +28,8 @@ import 'data/cycle_repo.dart';
 import 'data/meters_repo.dart';
 import 'data/pharmacy_repo.dart';
 import 'data/plants_repo.dart';
+import 'data/tasks_repo.dart';
+import 'data/subscriptions_repo.dart';
 import 'data/quran_repo.dart';
 import 'data/relatives_repo.dart';
 import 'data/settings_repo.dart';
@@ -107,4 +109,6 @@ Future<void> _startup() async {
   unawaited(CapsuleRepo().rescheduleAll());
   unawaited(PlantsRepo().rescheduleAll());
   unawaited(CycleRepo().ensureReminders());
+  unawaited(TasksRepo().rescheduleAll());
+  unawaited(SubscriptionsRepo().rescheduleAll());
 }

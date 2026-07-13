@@ -53,6 +53,8 @@ class Notifications {
   static const int pillNotifId = 1090001; // حبوب منع الحمل اليومية
   static const int fridayNotifId = 1100001; // تذكير الجمعة (الكهف + الصلاة على النبى)
   static const int adhanTestNotifId = 1100002; // تجربة صوت الأذان
+  static int taskNotifId(int id) => 1110000 + id; // موعد مهمة
+  static int subscriptionNotifId(int id) => 1120000 + id; // تجديد اشتراك
 
   /// تفاصيل إشعار الأذان بخصائص المنبّه. [sound] = ملف المستخدم المخصّص، أو null
   /// (تنبيه صوتى قوى بالنغمة الافتراضية لحد ما المستخدم يختار ملف أذانه).

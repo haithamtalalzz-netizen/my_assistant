@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 38,
+      version: 39,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -246,7 +246,68 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 39 && newV >= 39) {
+      for (final ddl in _v39Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// المهام والمشاريع + الاشتراكات + الأهداف والمعالم.
+  static const List<String> _v39Tables = [
+    '''
+      CREATE TABLE projects(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        color INTEGER NOT NULL DEFAULT 0,
+        archived INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      )''',
+    '''
+      CREATE TABLE tasks(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER,
+        title TEXT NOT NULL,
+        notes TEXT NOT NULL DEFAULT '',
+        due_at TEXT,
+        priority INTEGER NOT NULL DEFAULT 1,
+        done INTEGER NOT NULL DEFAULT 0,
+        done_at TEXT,
+        created_at TEXT NOT NULL
+      )''',
+    'CREATE INDEX idx_tasks_project ON tasks(project_id)',
+    '''
+      CREATE TABLE subscriptions(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        amount REAL NOT NULL DEFAULT 0,
+        cycle TEXT NOT NULL DEFAULT 'monthly',
+        day_of_month INTEGER NOT NULL DEFAULT 1,
+        category TEXT NOT NULL DEFAULT '',
+        active INTEGER NOT NULL DEFAULT 1,
+        notes TEXT NOT NULL DEFAULT '',
+        last_paid_month TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+    '''
+      CREATE TABLE goals(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        notes TEXT NOT NULL DEFAULT '',
+        target_date TEXT,
+        done INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      )''',
+    '''
+      CREATE TABLE goal_milestones(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        goal_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        done INTEGER NOT NULL DEFAULT 0,
+        sort INTEGER NOT NULL DEFAULT 0
+      )''',
+    'CREATE INDEX idx_milestones_goal ON goal_milestones(goal_id)',
+  ];
 
   /// الوِرد اليومى — عدّاد لكل ذِكر فى يوم.
   static const List<String> _v37Tables = [
@@ -988,6 +1049,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v38Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v39Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);

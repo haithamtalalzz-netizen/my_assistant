@@ -1821,3 +1821,221 @@ class Habit {
         'created_at': createdAt,
       };
 }
+
+/// مشروع يجمع مهام.
+class Project {
+  final int? id;
+  final String name;
+  final int color;
+  final bool archived;
+  final String createdAt;
+
+  const Project({
+    this.id,
+    required this.name,
+    this.color = 0,
+    this.archived = false,
+    required this.createdAt,
+  });
+
+  factory Project.fromMap(Map<String, Object?> m) => Project(
+        id: m['id'] as int?,
+        name: m['name'] as String,
+        color: (m['color'] as int?) ?? 0,
+        archived: (m['archived'] as int? ?? 0) == 1,
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'name': name,
+        'color': color,
+        'archived': archived ? 1 : 0,
+        'created_at': createdAt,
+      };
+}
+
+/// مهمة — عنوان + أولوية + موعد اختيارى + مشروع اختيارى.
+class Task {
+  final int? id;
+  final int? projectId;
+  final String title;
+  final String notes;
+
+  /// ISO datetime أو null.
+  final String? dueAt;
+
+  /// 0 منخفضة، 1 عادية، 2 عالية.
+  final int priority;
+  final bool done;
+  final String? doneAt;
+  final String createdAt;
+
+  const Task({
+    this.id,
+    this.projectId,
+    required this.title,
+    this.notes = '',
+    this.dueAt,
+    this.priority = 1,
+    this.done = false,
+    this.doneAt,
+    required this.createdAt,
+  });
+
+  DateTime? get due => dueAt == null ? null : DateTime.tryParse(dueAt!);
+  bool get overdue =>
+      !done && due != null && due!.isBefore(DateTime.now());
+
+  factory Task.fromMap(Map<String, Object?> m) => Task(
+        id: m['id'] as int?,
+        projectId: m['project_id'] as int?,
+        title: m['title'] as String,
+        notes: m['notes'] as String? ?? '',
+        dueAt: m['due_at'] as String?,
+        priority: (m['priority'] as int?) ?? 1,
+        done: (m['done'] as int? ?? 0) == 1,
+        doneAt: m['done_at'] as String?,
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'project_id': projectId,
+        'title': title,
+        'notes': notes,
+        'due_at': dueAt,
+        'priority': priority,
+        'done': done ? 1 : 0,
+        'done_at': doneAt,
+        'created_at': createdAt,
+      };
+}
+
+/// اشتراك دورى (نتفليكس/جيم/إنترنت…) — شهرى أو سنوى.
+class Subscription {
+  final int? id;
+  final String name;
+  final double amount;
+
+  /// monthly / yearly.
+  final String cycle;
+  final int dayOfMonth;
+  final String category;
+  final bool active;
+  final String notes;
+  final String lastPaidMonth;
+  final String createdAt;
+
+  const Subscription({
+    this.id,
+    required this.name,
+    this.amount = 0,
+    this.cycle = 'monthly',
+    this.dayOfMonth = 1,
+    this.category = '',
+    this.active = true,
+    this.notes = '',
+    this.lastPaidMonth = '',
+    required this.createdAt,
+  });
+
+  /// التكلفة الشهرية المكافئة (السنوى ÷ ١٢).
+  double get monthlyCost => cycle == 'yearly' ? amount / 12 : amount;
+
+  factory Subscription.fromMap(Map<String, Object?> m) => Subscription(
+        id: m['id'] as int?,
+        name: m['name'] as String,
+        amount: (m['amount'] as num?)?.toDouble() ?? 0,
+        cycle: m['cycle'] as String? ?? 'monthly',
+        dayOfMonth: (m['day_of_month'] as int?) ?? 1,
+        category: m['category'] as String? ?? '',
+        active: (m['active'] as int? ?? 1) == 1,
+        notes: m['notes'] as String? ?? '',
+        lastPaidMonth: m['last_paid_month'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'name': name,
+        'amount': amount,
+        'cycle': cycle,
+        'day_of_month': dayOfMonth,
+        'category': category,
+        'active': active ? 1 : 0,
+        'notes': notes,
+        'last_paid_month': lastPaidMonth,
+        'created_at': createdAt,
+      };
+}
+
+/// هدف بمعالم (milestones).
+class Goal {
+  final int? id;
+  final String title;
+  final String notes;
+
+  /// ISO date أو null.
+  final String? targetDate;
+  final bool done;
+  final String createdAt;
+
+  const Goal({
+    this.id,
+    required this.title,
+    this.notes = '',
+    this.targetDate,
+    this.done = false,
+    required this.createdAt,
+  });
+
+  DateTime? get target =>
+      targetDate == null ? null : DateTime.tryParse(targetDate!);
+
+  factory Goal.fromMap(Map<String, Object?> m) => Goal(
+        id: m['id'] as int?,
+        title: m['title'] as String,
+        notes: m['notes'] as String? ?? '',
+        targetDate: m['target_date'] as String?,
+        done: (m['done'] as int? ?? 0) == 1,
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'title': title,
+        'notes': notes,
+        'target_date': targetDate,
+        'done': done ? 1 : 0,
+        'created_at': createdAt,
+      };
+}
+
+/// معلم داخل هدف.
+class GoalMilestone {
+  final int? id;
+  final int goalId;
+  final String title;
+  final bool done;
+  final int sort;
+
+  const GoalMilestone({
+    this.id,
+    required this.goalId,
+    required this.title,
+    this.done = false,
+    this.sort = 0,
+  });
+
+  factory GoalMilestone.fromMap(Map<String, Object?> m) => GoalMilestone(
+        id: m['id'] as int?,
+        goalId: m['goal_id'] as int,
+        title: m['title'] as String,
+        done: (m['done'] as int? ?? 0) == 1,
+        sort: (m['sort'] as int?) ?? 0,
+      );
+
+  Map<String, Object?> toMap() => {
+        'goal_id': goalId,
+        'title': title,
+        'done': done ? 1 : 0,
+        'sort': sort,
+      };
+}

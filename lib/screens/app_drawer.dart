@@ -7,6 +7,9 @@ import '../core/l10n.dart';
 import '../data/settings_repo.dart';
 import 'account_screen.dart';
 import 'schedule/schedule_screen.dart';
+import 'tasks/tasks_screen.dart';
+import 'money/subscriptions_screen.dart';
+import 'growth/goals_screen.dart';
 import '../data/bills_repo.dart';
 import '../data/income_repo.dart';
 import 'alerts_center_screen.dart';
@@ -181,6 +184,8 @@ class AppDrawer extends StatelessWidget {
             push(Icons.psychology_outlined, tr('اسأل مديرك', 'Ask your manager'),
                 const ChatScreen()),
             top(1, Icons.event_note_outlined, tr('المواعيد', 'Appointments')),
+            push(Icons.checklist_rtl, tr('المهام', 'Tasks'),
+                const TasksScreen()),
             const Divider(),
             // الصلاة والأذكار — فوق الفلوس مباشرة (المصحف جوّاها).
             push(Icons.mosque_outlined, tr('الصلاة والأذكار', 'Prayer & Adhkar'),
@@ -206,6 +211,9 @@ class AppDrawer extends StatelessWidget {
                   GroupHubItem(Icons.volunteer_activism_outlined,
                       tr('الواجبات الاجتماعية', 'Social ledger'),
                       screen: const SocialScreen()),
+                  GroupHubItem(Icons.subscriptions_outlined,
+                      tr('الاشتراكات', 'Subscriptions'),
+                      screen: const SubscriptionsScreen()),
                 ],
                 trailingBadge: FutureBuilder<int>(
                   future: _moneyDueCount(),
@@ -293,6 +301,8 @@ class AppDrawer extends StatelessWidget {
             groupTile(Icons.self_improvement, tr('تطوّري', 'Growth'),
                 accent: Colors.indigo,
                 [
+                  GroupHubItem(Icons.flag_outlined, tr('الأهداف', 'Goals'),
+                      screen: const GoalsScreen()),
                   GroupHubItem(Icons.menu_book_outlined,
                       tr('مراجعة القرآن', 'Quran review'),
                       screen: const QuranScreen()),

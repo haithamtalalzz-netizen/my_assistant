@@ -29,6 +29,9 @@ import 'package:my_assistant/data/habits_repo.dart';
 import 'package:my_assistant/data/health_repo.dart';
 import 'package:my_assistant/data/meds_repo.dart';
 import 'package:my_assistant/data/money_repo.dart';
+import 'package:my_assistant/data/tasks_repo.dart';
+import 'package:my_assistant/data/subscriptions_repo.dart';
+import 'package:my_assistant/data/goals_repo.dart';
 import 'package:my_assistant/core/streak_guard.dart';
 import 'package:my_assistant/core/weather.dart';
 import 'package:my_assistant/core/month_summary.dart';
@@ -2366,6 +2369,66 @@ void main() {
       expect((await v3.query('measurements')).length, 1);
       expect((await v3.query('steps_logs')).length, 1);
       await v3.close();
+    });
+  });
+
+  group('المهام والاشتراكات والأهداف (v39)', () {
+    test('ترقية v38 ← v39 بتعمل الجداول', () async {
+      final v38 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v38, 38, 39);
+      await v38.insert('projects',
+          {'name': 'شغل', 'created_at': '2026-07-14'});
+      await v38.insert('tasks',
+          {'title': 'مهمة', 'created_at': '2026-07-14'});
+      await v38.insert('subscriptions',
+          {'name': 'نتفليكس', 'amount': 200, 'created_at': '2026-07-14'});
+      await v38.insert('goals', {'title': 'هدف', 'created_at': '2026-07-14'});
+      await v38.insert('goal_milestones', {'goal_id': 1, 'title': 'معلم'});
+      expect((await v38.query('tasks')).length, 1);
+      expect((await v38.query('subscriptions')).length, 1);
+      expect((await v38.query('goal_milestones')).length, 1);
+      await v38.close();
+    });
+
+    test('TasksRepo: حفظ/إنجاز/فلترة بالمشروع', () async {
+      final repo = TasksRepo();
+      final pid = await repo.saveProject(
+          Project(name: 'مشروع', createdAt: DateTime.now().toIso8601String()));
+      await repo.save(Task(
+          title: 'أ', projectId: pid, priority: 2,
+          createdAt: DateTime.now().toIso8601String()));
+      await repo.save(Task(
+          title: 'ب', createdAt: DateTime.now().toIso8601String()));
+      expect((await repo.tasks()).length, 2);
+      expect((await repo.tasks(projectId: pid)).length, 1);
+      expect((await repo.tasks(projectId: -1)).length, 1); // بدون مشروع
+      final open = await repo.tasks(openOnly: true);
+      await repo.setDone(open.first.id!, true);
+      expect(await repo.openCount(), 1);
+    });
+
+    test('SubscriptionsRepo: الإجمالى الشهرى (السنوى ÷ ١٢)', () async {
+      final repo = SubscriptionsRepo();
+      await repo.save(Subscription(
+          name: 'شهرى', amount: 100, cycle: 'monthly',
+          createdAt: DateTime.now().toIso8601String()));
+      await repo.save(Subscription(
+          name: 'سنوى', amount: 1200, cycle: 'yearly',
+          createdAt: DateTime.now().toIso8601String()));
+      expect(await repo.monthlyTotal(), 200); // 100 + 1200/12
+    });
+
+    test('GoalsRepo: معالم + نسبة التقدّم', () async {
+      final repo = GoalsRepo();
+      final gid = await repo.save(
+          Goal(title: 'هدف', createdAt: DateTime.now().toIso8601String()));
+      await repo.addMilestone(gid, 'واحد');
+      final m2 = await repo.addMilestone(gid, 'اتنين');
+      await repo.toggleMilestone(m2, true);
+      final (done, total) = await repo.progress(gid);
+      expect(done, 1);
+      expect(total, 2);
     });
   });
 
