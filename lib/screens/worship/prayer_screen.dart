@@ -30,6 +30,7 @@ import 'qibla_screen.dart';
 import 'ruqyah_screen.dart';
 import 'spiritual_stats_screen.dart';
 import 'tasbih_screen.dart';
+import 'worship_history_screen.dart';
 import 'zakat_screen.dart';
 
 /// صفحة الصلاة والأذكار — مواعيد الصلاة + تتبّعها + بوصلة القبلة + أدوات دينية.
@@ -555,6 +556,8 @@ class _PrayerScreenState extends State<PrayerScreen> {
           const Color(0xFF6A4C93), () => const PostPrayerDhikrScreen()),
       _Tool(Icons.wb_twilight, tr('الصيام', 'Fasting'),
           const Color(0xFFCC8A2E), () => const FastingScreen()),
+      _Tool(Icons.calendar_month, tr('سجل العبادات', 'Worship history'),
+          const Color(0xFF1E7A5A), () => const WorshipHistoryScreen()),
       _Tool(Icons.insights, tr('إحصائيتك الروحية', 'Spiritual week'),
           const Color(0xFF3C5A99), () => const SpiritualStatsScreen()),
       _Tool(Icons.calculate, tr('حاسبة الزكاة', 'Zakat'),

@@ -649,6 +649,22 @@ void main() {
       expect(await repo.readCount(), 2);
     });
 
+    test('سجل العبادات: ملخّص اليوم وأيام النشاط', () async {
+      final repo = WorshipRepo();
+      final today = DateTime.now();
+      await repo.togglePrayer(today, 0, true);
+      await repo.togglePrayer(today, 1, true);
+      await repo.markDhikrDone(today, 'morning');
+      await repo.setFasted(today, true);
+      final r = await repo.dayReport(today);
+      expect(r.prayers.length, 2);
+      expect(r.dhikr.contains('morning'), isTrue);
+      expect(r.fasted, isTrue);
+      expect(r.hasAny, isTrue);
+      final days = await repo.worshipDaysInMonth(today.year, today.month);
+      expect(days.contains(dayKey(today)), isTrue);
+    });
+
     test('الوِرد اليومى: عدّ لكل ذِكر', () async {
       final repo = WorshipRepo();
       final today = DateTime.now();

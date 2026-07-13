@@ -24,7 +24,9 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // حزمة health (Health Connect) محتاجة 26 على الأقل.
         minSdk = maxOf(26, flutter.minSdkVersion)
-        targetSdk = flutter.targetSdkVersion
+        // مثبّت على 34: أندرويد 15 (targetSdk 35) بيفرض edge-to-edge فالمحتوى
+        // بيمتد تحت شريط التنقّل وآخر الصفحات يتقص. 34 بيرجّع الشريط فوق المحتوى.
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

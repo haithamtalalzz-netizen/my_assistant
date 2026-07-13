@@ -243,6 +243,58 @@ class WorshipRepo {
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  // ---- سجل/تقويم العبادات ----
+
+  /// أيام الشهر التى فيها أى نشاط عبادى (لنقاط التقويم).
+  Future<Set<String>> worshipDaysInMonth(int year, int month) async {
+    final db = await AppDb.instance;
+    final prefix =
+        '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}-%';
+    const tables = [
+      'prayer_log',
+      'dhikr_log',
+      'sunnah_log',
+      'fasting_log',
+      'khatma_reads',
+      'wird_log',
+    ];
+    final days = <String>{};
+    for (final t in tables) {
+      final rows = await db
+          .rawQuery('SELECT DISTINCT day FROM $t WHERE day LIKE ?', [prefix]);
+      for (final r in rows) {
+        days.add(r['day'] as String);
+      }
+    }
+    return days;
+  }
+
+  /// ملخّص عبادات يوم معيّن.
+  Future<WorshipDay> dayReport(DateTime day) async {
+    final db = await AppDb.instance;
+    final k = dayKey(day);
+    final prayers = (await db.query('prayer_log', where: 'day = ?', whereArgs: [k]))
+        .map((r) => r['prayer'] as int)
+        .toSet();
+    final dhikr = (await db.query('dhikr_log', where: 'day = ?', whereArgs: [k]))
+        .map((r) => r['kind'] as String)
+        .toSet();
+    final sunnah = Sqflite.firstIntValue(await db
+            .rawQuery('SELECT COUNT(*) FROM sunnah_log WHERE day = ?', [k])) ??
+        0;
+    final fasted =
+        (await db.query('fasting_log', where: 'day = ?', whereArgs: [k]))
+            .isNotEmpty;
+    final quran = Sqflite.firstIntValue(await db.rawQuery(
+            'SELECT COALESCE(SUM(pages),0) FROM khatma_reads WHERE day = ?',
+            [k])) ??
+        0;
+    final wird = Sqflite.firstIntValue(await db.rawQuery(
+            'SELECT COALESCE(SUM(count),0) FROM wird_log WHERE day = ?', [k])) ??
+        0;
+    return WorshipDay(prayers, dhikr, sunnah, fasted, quran, wird);
+  }
+
   // ---- إحصائية روحية أسبوعية (آخر 7 أيام) ----
 
   Future<SpiritualWeek> weeklyStats() async {
@@ -276,6 +328,26 @@ class WorshipRepo {
       khatmaPercent: khatma == null ? null : (khatma.progress * 100).round(),
     );
   }
+}
+
+/// ملخّص عبادات يوم واحد (للتقويم/السجل).
+class WorshipDay {
+  final Set<int> prayers; // 0..4
+  final Set<String> dhikr; // morning/evening
+  final int sunnah;
+  final bool fasted;
+  final int quranPages;
+  final int wird;
+  const WorshipDay(this.prayers, this.dhikr, this.sunnah, this.fasted,
+      this.quranPages, this.wird);
+
+  bool get hasAny =>
+      prayers.isNotEmpty ||
+      dhikr.isNotEmpty ||
+      sunnah > 0 ||
+      fasted ||
+      quranPages > 0 ||
+      wird > 0;
 }
 
 /// ملخّص أسبوعى روحى.
