@@ -22,23 +22,36 @@ class ScheduleScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Scaffold(
         drawer: drawer,
         appBar: AppBar(
-          title: Text(tr('الجدول', 'Schedule')),
+          title: Text(tr('المواعيد', 'Appointments')),
           actions: [searchAction(context)],
           bottom: TabBar(tabs: [
             Tab(text: tr('المواعيد', 'Appointments')),
-            Tab(text: tr('الأدوية', 'Medications')),
             Tab(text: tr('المناسبات', 'Occasions')),
           ]),
         ),
         body: const TabBarView(
-            children: [_AppointmentsTab(), _MedsTab(), _OccasionsTab()]),
+            children: [_AppointmentsTab(), _OccasionsTab()]),
       ),
     );
   }
+}
+
+/// شاشة الأدوية مستقلة — تُفتح من مجموعة «الصحة» فى السايدبار.
+class MedsScreen extends StatelessWidget {
+  const MedsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+          title: Text(tr('الأدوية', 'Medications')),
+          actions: [searchAction(context)],
+        ),
+        body: const _MedsTab(),
+      );
 }
 
 class _OccasionsTab extends StatefulWidget {

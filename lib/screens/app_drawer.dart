@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/ar.dart';
 import '../core/app_state.dart';
 import '../core/l10n.dart';
 import '../data/settings_repo.dart';
 import 'account_screen.dart';
+import 'schedule/schedule_screen.dart';
 import '../data/bills_repo.dart';
 import '../data/income_repo.dart';
 import 'alerts_center_screen.dart';
@@ -59,12 +61,14 @@ class AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // خط موحّد لكل بنود السايدبار (نفس الحجم والوزن).
+    const navStyle = TextStyle(fontSize: 15, fontWeight: FontWeight.w500);
 
     Widget top(int index, IconData icon, String label) => ListTile(
           selected: current == index,
           selectedTileColor: scheme.secondaryContainer,
           leading: Icon(icon),
-          title: Text(label),
+          title: Text(label, style: navStyle),
           onTap: () {
             Navigator.pop(context);
             onSelect(index);
@@ -72,9 +76,8 @@ class AppDrawer extends StatelessWidget {
         );
 
     Widget push(IconData icon, String label, Widget screen) => ListTile(
-          dense: true,
           leading: Icon(icon),
-          title: Text(label),
+          title: Text(label, style: navStyle),
           onTap: () {
             Navigator.pop(context);
             Navigator.push(
@@ -103,10 +106,7 @@ class AppDrawer extends StatelessWidget {
           leading: Icon(icon, color: accent),
           title: Row(
             children: [
-              Flexible(
-                child: Text(title,
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-              ),
+              Flexible(child: Text(title, style: navStyle)),
               if (trailingBadge != null) ...[
                 const SizedBox(width: 8),
                 trailingBadge,
@@ -181,7 +181,7 @@ class AppDrawer extends StatelessWidget {
             top(0, Icons.wb_sunny_outlined, tr('اليوم', 'Today')),
             push(Icons.psychology_outlined, tr('اسأل مديرك', 'Ask your manager'),
                 const ChatScreen()),
-            top(1, Icons.event_note_outlined, tr('الجدول', 'Schedule')),
+            top(1, Icons.event_note_outlined, tr('المواعيد', 'Appointments')),
             const Divider(),
             // الصلاة والأذكار — فوق الفلوس مباشرة (المصحف جوّاها).
             push(Icons.mosque_outlined, tr('الصلاة والأذكار', 'Prayer & Adhkar'),
@@ -228,6 +228,9 @@ class AppDrawer extends StatelessWidget {
                         screen: const CycleScreen(), color: Colors.pink),
                   GroupHubItem(Icons.task_alt, tr('العادات', 'Habits'),
                       tabIndex: 3),
+                  GroupHubItem(Icons.medication_outlined,
+                      tr('الأدوية', 'Medications'),
+                      screen: const MedsScreen()),
                   GroupHubItem(Icons.medical_information_outlined,
                       tr('الملف الطبي', 'Medical file'),
                       screen: const MedicalScreen()),
@@ -378,6 +381,31 @@ class AppDrawer extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: Icon(Icons.logout, color: scheme.error),
+              title: Text(tr('تسجيل الخروج', 'Log out'),
+                  style: navStyle.copyWith(color: scheme.error)),
+              onTap: () async {
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: Text(tr('تسجيل الخروج', 'Log out')),
+                    content: Text(tr('هيتقفل التطبيق. تحب تكمل؟',
+                        'The app will close. Continue?')),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: Text(tr('إلغاء', 'Cancel'))),
+                      FilledButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: Text(tr('خروج', 'Log out'))),
+                    ],
+                  ),
+                );
+                if (ok == true) await SystemNavigator.pop();
+              },
             ),
           ],
         ),
