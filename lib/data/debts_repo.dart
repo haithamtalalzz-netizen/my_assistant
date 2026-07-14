@@ -26,6 +26,15 @@ class DebtsRepo {
     await db.delete('debts', where: 'id = ?', whereArgs: [id]);
   }
 
+  /// خطة سداد بطريقة «كرة الثلج»: الديون اللى عليك (direction='عليا') مرتّبة
+  /// من الأصغر للأكبر — تقفل الصغيّر الأول عشان تكسب دفعة معنوية وتقلّل العدد.
+  Future<List<Debt>> payoffPlan() async {
+    final list = await all();
+    final iOwe = [for (final d in list) if (d.direction == 'عليا') d];
+    iOwe.sort((a, b) => a.amount.compareTo(b.amount));
+    return iOwe;
+  }
+
   /// صافي الوضع: (اللي ليك) − (اللي عليك) من الديون المفتوحة.
   Future<(double owedToMe, double iOwe)> totals() async {
     final db = await AppDb.instance;

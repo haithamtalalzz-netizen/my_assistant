@@ -124,7 +124,14 @@ class _DebtsScreenState extends State<DebtsScreen> {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('الديون والسلف', 'Debts & loans')),
-          actions: [searchAction(context)]),
+          actions: [
+            IconButton(
+              tooltip: tr('خطة السداد', 'Payoff plan'),
+              icon: const Icon(Icons.trending_down),
+              onPressed: _showPayoffPlan,
+            ),
+            searchAction(context),
+          ]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -177,6 +184,67 @@ class _DebtsScreenState extends State<DebtsScreen> {
         onPressed: _addDebt,
         icon: const Icon(Icons.add),
         label: Text(tr('دين جديد', 'New debt')),
+      ),
+    );
+  }
+
+  Future<void> _showPayoffPlan() async {
+    final plan = await _repo.payoffPlan();
+    if (!mounted) return;
+    final scheme = Theme.of(context).colorScheme;
+    final total = plan.fold<double>(0, (s, d) => s + d.amount);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        scrollable: true,
+        title: Text(tr('خطة السداد', 'Payoff plan')),
+        content: plan.isEmpty
+            ? Text(tr('مفيش ديون عليك — تمام 👌', "You owe nothing — all clear 👌"))
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                      tr('بطريقة «كرة الثلج»: اقفل الأصغر الأول عشان تكسب دفعة وتقلّل عدد الديون.',
+                          'Snowball method: clear the smallest first for a quick win and fewer debts.'),
+                      style: TextStyle(fontSize: 12, color: scheme.outline)),
+                  const SizedBox(height: 12),
+                  for (var i = 0; i < plan.length; i++)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      leading: CircleAvatar(
+                        radius: 14,
+                        backgroundColor: scheme.primary.withValues(alpha: 0.15),
+                        child: Text(arNum(i + 1),
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: scheme.primary)),
+                      ),
+                      title: Text(plan[i].person),
+                      trailing: Text(egp(plan[i].amount),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, color: scheme.error)),
+                    ),
+                  const Divider(),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(tr('الإجمالي عليك', 'Total you owe'),
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      Text(egp(total),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w800, color: scheme.error)),
+                    ],
+                  ),
+                ],
+              ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(tr('تمام', 'OK'))),
+        ],
       ),
     );
   }

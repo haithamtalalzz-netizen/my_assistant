@@ -1,4 +1,11 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/ar.dart';
@@ -15,6 +22,7 @@ class KhatmaScreen extends StatefulWidget {
 
 class _KhatmaScreenState extends State<KhatmaScreen> {
   final _repo = WorshipRepo();
+  final GlobalKey _cardKey = GlobalKey();
   Khatma? _k;
   double _avg = 0;
   int _today = 0;
@@ -157,7 +165,36 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
         : tr(
             'تقدّمى فى ختمة القرآن: ${arNum(k.currentPage)}/${arNum(k.totalPages)} صفحة (٪${arNum(pct)}) — الجزء ${arNum(juz)}. 🤲',
             'My Quran khatma: ${arNum(k.currentPage)}/${arNum(k.totalPages)} pages (${arNum(pct)}%), juz ${arNum(juz)}. 🤲');
+
+    // نحاول نشارك كارت التقدّم كصورة؛ لو فشل نرجع لمشاركة نص.
+    final bytes = await _captureCard();
+    if (bytes != null) {
+      try {
+        final dir = await getTemporaryDirectory();
+        final file = File(p.join(dir.path, 'khatma_progress.png'));
+        await file.writeAsBytes(bytes);
+        await Share.shareXFiles([XFile(file.path)], text: msg);
+        return;
+      } on Exception {
+        // نكمّل لمشاركة النص كحل بديل.
+      }
+    }
     await Share.share(msg);
+  }
+
+  /// يلتقط كارت التقدّم كصورة PNG (null لو مش جاهز).
+  Future<Uint8List?> _captureCard() async {
+    try {
+      final ctx = _cardKey.currentContext;
+      if (ctx == null) return null;
+      final boundary = ctx.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return null;
+      final image = await boundary.toImage(pixelRatio: 3);
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      return data?.buffer.asUint8List();
+    } on Exception {
+      return null;
+    }
   }
 
   Widget _progressView(Khatma k) {
@@ -167,7 +204,9 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Container(
+        RepaintBoundary(
+          key: _cardKey,
+          child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -233,6 +272,7 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
               ),
             ],
           ),
+        ),
         ),
         const SizedBox(height: 20),
         if (!k.done) ...[

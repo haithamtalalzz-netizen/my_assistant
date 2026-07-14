@@ -2992,6 +2992,27 @@ void main() {
     });
   });
 
+  group('خطة سداد الديون (كرة الثلج)', () {
+    test('بترتّب اللى عليك من الأصغر للأكبر وتتجاهل اللى ليك', () async {
+      final repo = DebtsRepo();
+      final now = DateTime.now().toIso8601String();
+      await repo.add(Debt(
+          person: 'أحمد', amount: 500, direction: 'عليا', createdAt: now));
+      await repo.add(Debt(
+          person: 'سعيد', amount: 100, direction: 'عليا', createdAt: now));
+      await repo.add(Debt(
+          person: 'منى', amount: 300, direction: 'عليا', createdAt: now));
+      // دين ليك (عند حد) — لازم يتستبعد من خطة السداد.
+      await repo.add(Debt(
+          person: 'خالد', amount: 50, direction: 'لى', createdAt: now));
+
+      final plan = await repo.payoffPlan();
+      expect(plan.map((d) => d.person).toList(), ['سعيد', 'منى', 'أحمد']);
+      expect(plan.every((d) => d.direction == 'عليا'), isTrue);
+      expect(plan.fold<double>(0, (s, d) => s + d.amount), 900);
+    });
+  });
+
   group('قوالب المواعيد', () {
     test('كل قالب نوعه ووقت تذكيره صالحين', () {
       for (final t in kApptTemplates) {
