@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 44,
+      version: 45,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -275,6 +275,11 @@ class AppDb {
       for (final ddl in _v44Tables) {
         await db.execute(ddl);
       }
+    }
+    if (oldV < 45 && newV >= 45) {
+      // تتبّع الغسيل: عمود على جدول الملابس الموجود.
+      await _safeAddColumn(
+          db, 'clothes', 'needs_wash', 'INTEGER NOT NULL DEFAULT 0');
     }
   }
 
@@ -846,7 +851,8 @@ class AppDb {
         formality TEXT NOT NULL DEFAULT 'casual',
         photo TEXT NOT NULL DEFAULT '',
         last_worn TEXT,
-        favorite INTEGER NOT NULL DEFAULT 0
+        favorite INTEGER NOT NULL DEFAULT 0,
+        needs_wash INTEGER NOT NULL DEFAULT 0
       )''',
   ];
 

@@ -1225,6 +1225,9 @@ class ClothingItem {
   final String? lastWorn;
   final bool favorite;
 
+  /// محتاجة غسيل (فى سلة الغسيل).
+  final bool needsWash;
+
   const ClothingItem({
     this.id,
     required this.name,
@@ -1235,6 +1238,7 @@ class ClothingItem {
     this.photo = '',
     this.lastWorn,
     this.favorite = false,
+    this.needsWash = false,
   });
 
   factory ClothingItem.fromMap(Map<String, Object?> m) => ClothingItem(
@@ -1247,6 +1251,7 @@ class ClothingItem {
         photo: m['photo'] as String? ?? '',
         lastWorn: m['last_worn'] as String?,
         favorite: (m['favorite'] as int? ?? 0) == 1,
+        needsWash: (m['needs_wash'] as int? ?? 0) == 1,
       );
 
   Map<String, Object?> toMap() => {
@@ -1258,6 +1263,7 @@ class ClothingItem {
         'photo': photo,
         'last_worn': lastWorn,
         'favorite': favorite ? 1 : 0,
+        'needs_wash': needsWash ? 1 : 0,
       };
 }
 

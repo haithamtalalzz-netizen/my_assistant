@@ -74,6 +74,30 @@ class WardrobeRepo {
         where: 'id = ?', whereArgs: [id]);
   }
 
+  // ---- تتبّع الغسيل ----
+
+  Future<void> setNeedsWash(int id, bool needs) async {
+    final db = await AppDb.instance;
+    await db.update('clothes', {'needs_wash': needs ? 1 : 0},
+        where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// القطع اللى محتاجة غسيل (سلة الغسيل).
+  Future<List<ClothingItem>> laundry() async {
+    final db = await AppDb.instance;
+    final rows =
+        await db.query('clothes', where: 'needs_wash = 1', orderBy: 'name');
+    return rows.map(ClothingItem.fromMap).toList();
+  }
+
+  Future<int> laundryCount() async => (await laundry()).length;
+
+  /// «غسلت الكل» — تفريغ السلة.
+  Future<void> washAll() async {
+    final db = await AppDb.instance;
+    await db.update('clothes', {'needs_wash': 0}, where: 'needs_wash = 1');
+  }
+
   /// اقتراح تلبيسة بالقواعد: عنصر لكل خانة يطابق الموسم والرسمية، ويفضّل
   /// الأقل لبسًا مؤخرًا (last_worn الأقدم/الفاضي الأول). الجاكيت للشتا بس.
   /// [weather] لتحديد الموسم تلقائيًا (لو null بنجيبه).

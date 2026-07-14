@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../widgets/search_action.dart';
 import '../../data/wardrobe_repo.dart';
@@ -23,6 +24,8 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
   bool _loading = true;
   List<ClothingItem> _items = [];
   String? _filter;
+  bool _laundryMode = false;
+  int _laundryCount = 0;
 
   @override
   void initState() {
@@ -31,10 +34,13 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
   }
 
   Future<void> _load() async {
-    final items = await _repo.all(category: _filter);
+    final items =
+        _laundryMode ? await _repo.laundry() : await _repo.all(category: _filter);
+    final laundryCount = await _repo.laundryCount();
     if (!mounted) return;
     setState(() {
       _items = items;
+      _laundryCount = laundryCount;
       _loading = false;
     });
   }
@@ -236,37 +242,75 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
             tooltip: tr('إيه ألبس؟', 'What to wear?'),
             icon: const Icon(Icons.auto_awesome),
           ),
+          IconButton(
+            tooltip: tr('سلة الغسيل', 'Laundry'),
+            onPressed: () {
+              setState(() => _laundryMode = !_laundryMode);
+              _load();
+            },
+            icon: Badge(
+              isLabelVisible: _laundryCount > 0,
+              label: Text(arNum(_laundryCount)),
+              child: Icon(_laundryMode
+                  ? Icons.local_laundry_service
+                  : Icons.local_laundry_service_outlined),
+            ),
+          ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                  child: Wrap(
-                    spacing: 6,
-                    children: [
-                      ChoiceChip(
-                        label: Text(tr('الكل', 'All')),
-                        selected: _filter == null,
-                        onSelected: (_) {
-                          setState(() => _filter = null);
-                          _load();
-                        },
-                      ),
-                      for (final c in kClothingCategories)
+                if (_laundryMode)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                              tr('سلة الغسيل — ${arNum(_laundryCount)} قطعة',
+                                  'Laundry — ${arNum(_laundryCount)} items'),
+                              style: const TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                        if (_laundryCount > 0)
+                          TextButton.icon(
+                            icon: const Icon(Icons.done_all, size: 18),
+                            label: Text(tr('غسلت الكل', 'Washed all')),
+                            onPressed: () async {
+                              await _repo.washAll();
+                              await _load();
+                            },
+                          ),
+                      ],
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                    child: Wrap(
+                      spacing: 6,
+                      children: [
                         ChoiceChip(
-                          label: Text(clothingCategoryLabel(c)),
-                          selected: _filter == c,
+                          label: Text(tr('الكل', 'All')),
+                          selected: _filter == null,
                           onSelected: (_) {
-                            setState(() => _filter = c);
+                            setState(() => _filter = null);
                             _load();
                           },
                         ),
-                    ],
+                        for (final c in kClothingCategories)
+                          ChoiceChip(
+                            label: Text(clothingCategoryLabel(c)),
+                            selected: _filter == c,
+                            onSelected: (_) {
+                              setState(() => _filter = c);
+                              _load();
+                            },
+                          ),
+                      ],
+                    ),
                   ),
-                ),
                 Expanded(
                   child: _items.isEmpty
                       ? EmptyHint(
@@ -299,20 +343,33 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
   }
 
   Widget _card(ClothingItem it) {
+    final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: () => _openForm(it),
-      onLongPress: () async {
-        if (!await confirmDelete(context, tr('"${it.name}"', '"${it.name}"'))) {
-          return;
-        }
-        await _repo.delete(it.id!);
-        if (mounted) await _load();
-      },
+      onLongPress: () => _cardMenu(it),
       borderRadius: BorderRadius.circular(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _thumb(it, double.infinity)),
+          Expanded(
+            child: Stack(
+              children: [
+                Positioned.fill(child: _thumb(it, double.infinity)),
+                if (it.needsWash)
+                  Positioned(
+                    top: 4,
+                    left: 4,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                          color: scheme.primary, shape: BoxShape.circle),
+                      child: Icon(Icons.local_laundry_service,
+                          size: 13, color: scheme.onPrimary),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           const SizedBox(height: 4),
           Text(it.name,
               maxLines: 1,
@@ -320,6 +377,47 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 12)),
         ],
+      ),
+    );
+  }
+
+  Future<void> _cardMenu(ClothingItem it) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(it.needsWash
+                  ? Icons.check_circle_outline
+                  : Icons.local_laundry_service_outlined),
+              title: Text(it.needsWash
+                  ? tr('غسلتها (شيلها من السلة)', 'Washed (remove from basket)')
+                  : tr('علّمها للغسيل', 'Mark for laundry')),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await _repo.setNeedsWash(it.id!, !it.needsWash);
+                await _load();
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete_outline,
+                  color: Theme.of(ctx).colorScheme.error),
+              title: Text(tr('حذف', 'Delete')),
+              onTap: () async {
+                Navigator.pop(ctx);
+                if (!await confirmDelete(
+                    context, tr('"${it.name}"', '"${it.name}"'))) {
+                  return;
+                }
+                await _repo.delete(it.id!);
+                if (mounted) await _load();
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

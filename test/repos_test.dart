@@ -30,6 +30,7 @@ import 'package:my_assistant/data/health_repo.dart';
 import 'package:my_assistant/data/meds_repo.dart';
 import 'package:my_assistant/data/meters_repo.dart';
 import 'package:my_assistant/data/home_inventory_repo.dart';
+import 'package:my_assistant/data/wardrobe_repo.dart';
 import 'package:my_assistant/data/money_repo.dart';
 import 'package:my_assistant/data/tasks_repo.dart';
 import 'package:my_assistant/data/subscriptions_repo.dart';
@@ -2724,6 +2725,37 @@ void main() {
       await repo.setRate('electricity', 2); // ٢ ج.م/وحدة
       // المتوسط = 250 × 2 = 500
       expect(await repo.estimateBill('electricity'), 500);
+    });
+  });
+
+  group('تتبّع الغسيل (v45)', () {
+    test('ترقية v44 ← v45 بتضيف عمود needs_wash', () async {
+      final v44 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      // نعمل جدول الملابس القديم (من غير needs_wash) قبل الترقية.
+      await v44.execute('''CREATE TABLE clothes(
+        id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
+        category TEXT NOT NULL, color TEXT NOT NULL DEFAULT '',
+        season TEXT NOT NULL DEFAULT 'all', formality TEXT NOT NULL DEFAULT 'casual',
+        photo TEXT NOT NULL DEFAULT '', last_worn TEXT,
+        favorite INTEGER NOT NULL DEFAULT 0)''');
+      await AppDb.upgradeSchema(v44, 44, 45);
+      await v44.insert('clothes',
+          {'name': 'قميص', 'category': 'top', 'needs_wash': 1});
+      expect((await v44.query('clothes')).first['needs_wash'], 1);
+      await v44.close();
+    });
+
+    test('WardrobeRepo: سلة الغسيل + غسلت الكل', () async {
+      final repo = WardrobeRepo();
+      final id = await repo.save(const ClothingItem(name: 'ت', category: 'top'));
+      await repo.save(const ClothingItem(name: 'ب', category: 'bottom'));
+      expect(await repo.laundryCount(), 0);
+      await repo.setNeedsWash(id, true);
+      expect(await repo.laundryCount(), 1);
+      expect((await repo.laundry()).first.name, 'ت');
+      await repo.washAll();
+      expect(await repo.laundryCount(), 0);
     });
   });
 
