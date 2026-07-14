@@ -23,6 +23,14 @@ class MyAssistantWidgetProvider : HomeWidgetProvider() {
                     widgetData.getString("line_prayer", "افتح التطبيق لتحديث البيانات") ?: ""
                 )
                 setTextViewText(
+                    R.id.widget_tasks,
+                    widgetData.getString("line_tasks", "—") ?: ""
+                )
+                setTextViewText(
+                    R.id.widget_bills,
+                    widgetData.getString("line_bills", "—") ?: ""
+                )
+                setTextViewText(
                     R.id.widget_appts,
                     widgetData.getString("line_appts", "") ?: ""
                 )

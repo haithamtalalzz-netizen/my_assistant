@@ -3,8 +3,10 @@ import 'dart:developer' as dev;
 import 'package:home_widget/home_widget.dart';
 
 import '../data/appointments_repo.dart';
+import '../data/bills_repo.dart';
 import '../data/health_repo.dart';
 import '../data/settings_repo.dart';
+import '../data/tasks_repo.dart';
 import 'ar.dart';
 import 'prayers.dart';
 import 'water_guard.dart';
@@ -40,10 +42,37 @@ class WidgetBridge {
             : '${arNum(appts.length)} مواعيد — أولها ${first.title} ${arTime(first.when)}';
       }
 
+      // المهام: أقرب مهمتين مستحقتين + عدّاد الباقى.
+      final dueTasks = await TasksRepo().dueTasks(now);
+      final String tasksLine;
+      if (dueTasks.isEmpty) {
+        tasksLine = 'مفيش مهام مستحقة ✓';
+      } else {
+        final shown = dueTasks.take(2).map((t) => '• ${t.title}').join('\n');
+        final extra = dueTasks.length - 2;
+        tasksLine = extra > 0 ? '$shown\n+${arNum(extra)} كمان' : shown;
+      }
+
+      // الفواتير المستحقة هذا الشهر (اسم + مبلغ تقريبى).
+      final dueBills = await BillsRepo().due(now);
+      final String billsLine;
+      if (dueBills.isEmpty) {
+        billsLine = 'مفيش فواتير مستحقة';
+      } else {
+        final shown = dueBills
+            .take(2)
+            .map((b) => '• ${b.name} ${arNum(b.amount.round())}')
+            .join('\n');
+        final extra = dueBills.length - 2;
+        billsLine = extra > 0 ? '$shown\n+${arNum(extra)} كمان' : shown;
+      }
+
       final water = await HealthRepo().waterOn(day);
       final goal = await settings.waterGoal();
 
       await HomeWidget.saveWidgetData<String>('line_prayer', prayerLine);
+      await HomeWidget.saveWidgetData<String>('line_tasks', tasksLine);
+      await HomeWidget.saveWidgetData<String>('line_bills', billsLine);
       await HomeWidget.saveWidgetData<String>('line_appts', apptsLine);
       await HomeWidget.saveWidgetData<String>(
           'line_water', 'المياه ${arNum(water)} / ${arNum(goal)}');
