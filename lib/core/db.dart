@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 48,
+      version: 49,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -301,7 +301,30 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 49 && newV >= 49) {
+      // سجل التطعيمات + موقع الموعد (لفتح الخرائط).
+      await _safeAddColumn(
+          db, 'appointments', 'location', "TEXT NOT NULL DEFAULT ''");
+      for (final ddl in _v49Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// سجل التطعيمات (اسم/تاريخ/الجرعة الجاية/ملاحظات).
+  static const List<String> _v49Tables = [
+    '''
+      CREATE TABLE vaccinations(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        person TEXT NOT NULL DEFAULT '',
+        date TEXT NOT NULL DEFAULT '',
+        next_due TEXT NOT NULL DEFAULT '',
+        notes TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+    'CREATE INDEX idx_vax_next ON vaccinations(next_due)',
+  ];
 
   /// تتبّع المزاج + قائمة الأمنيات + قائمة المشاهدة.
   static const List<String> _v48Tables = [
@@ -1144,7 +1167,8 @@ class AppDb {
         done INTEGER NOT NULL DEFAULT 0,
         postpone_count INTEGER NOT NULL DEFAULT 0,
         travel_min INTEGER NOT NULL DEFAULT 0,
-        repeat TEXT NOT NULL DEFAULT 'none'
+        repeat TEXT NOT NULL DEFAULT 'none',
+        location TEXT NOT NULL DEFAULT ''
       )''');
     batch.execute('''
       CREATE TABLE weekly_reviews(
@@ -1348,6 +1372,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v48Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v49Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);

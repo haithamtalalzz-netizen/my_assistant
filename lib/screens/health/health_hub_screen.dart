@@ -10,12 +10,14 @@ import '../../data/measurements_repo.dart';
 import '../../data/medical_repo.dart';
 import '../../data/meds_repo.dart';
 import '../../data/pharmacy_repo.dart';
+import '../../data/vaccinations_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/history_calendar.dart';
 import '../brain/charts_screen.dart';
 import '../food/meal_sheet.dart';
 import '../schedule/schedule_screen.dart';
 import 'symptom_journal_screen.dart';
+import 'vaccinations_screen.dart';
 import '../gym/gym_screen.dart';
 import '../gym/progress_screen.dart';
 import '../home/pharmacy_screen.dart';
@@ -40,6 +42,7 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
   int _mealsCount = 0;
   int _medicalCount = 0;
   int _pharmacyExpiring = 0;
+  int _vaccineDue = 0;
   int? _adherence;
 
   /// آخر قراءتين لكل نوع قياس (ضغط/سكر/وزن/حرارة) — للأحدث + اتجاه التغيّر.
@@ -60,6 +63,7 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
     final medical = await MedicalRepo().all();
     final pharmacy = await PharmacyRepo().all();
     final adherence = await MedsRepo().adherencePercent();
+    final vaccineDue = (await VaccinationsRepo().dueSoon()).length;
 
     final vitals = <String, List<Measurement>>{};
     for (final t in kMeasurementTypes) {
@@ -84,6 +88,7 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
       _mealsCount = meals.length;
       _medicalCount = medical.length;
       _pharmacyExpiring = expiring;
+      _vaccineDue = vaccineDue;
       _adherence = adherence;
       _vitals
         ..clear()
@@ -261,6 +266,17 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
                     subtitle: tr('سجّل أعراضك بشدّتها',
                         'Log symptoms with severity'),
                     onTap: () => _open(const SymptomJournalScreen()),
+                  ),
+                  _navCard(
+                    icon: Icons.vaccines_outlined,
+                    color: Colors.teal,
+                    title: tr('سجل التطعيمات', 'Vaccinations'),
+                    subtitle: _vaccineDue == 0
+                        ? tr('سجّل تطعيماتك وجرعاتك الجاية',
+                            'Log vaccines & next doses')
+                        : tr('${arNum(_vaccineDue)} جرعة قربت',
+                            '${arNum(_vaccineDue)} dose(s) due soon'),
+                    onTap: () => _open(const VaccinationsScreen()),
                   ),
                   _navCard(
                     icon: Icons.restaurant_menu_outlined,

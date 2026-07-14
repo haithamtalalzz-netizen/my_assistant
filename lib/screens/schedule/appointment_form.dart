@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/ar.dart';
 import '../../core/calendar_sync.dart';
@@ -69,6 +70,7 @@ class _AppointmentFormState extends State<AppointmentForm> {
   final _title = TextEditingController();
   final _notes = TextEditingController();
   final _travel = TextEditingController();
+  final _location = TextEditingController();
   String _category = kApptCategories.first;
   DateTime? _date;
   TimeOfDay? _time;
@@ -95,6 +97,7 @@ class _AppointmentFormState extends State<AppointmentForm> {
           : 60;
       if (a.travelMin > 0) _travel.text = a.travelMin.toString();
       _repeat = kRepeatModes.contains(a.repeat) ? a.repeat : 'none';
+      _location.text = a.location;
     }
   }
 
@@ -103,7 +106,21 @@ class _AppointmentFormState extends State<AppointmentForm> {
     _title.dispose();
     _notes.dispose();
     _travel.dispose();
+    _location.dispose();
     super.dispose();
+  }
+
+  Future<void> _openMaps() async {
+    final q = _location.text.trim();
+    if (q.isEmpty) return;
+    // خرائط جوجل بالبحث النصى — تفتح تطبيق الخرائط أو المتصفح.
+    final uri = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(q)}');
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr('مقدرش أفتح الخرائط', "Couldn't open maps"))));
+    }
   }
 
   void _applyTemplate(
@@ -188,6 +205,7 @@ class _AppointmentFormState extends State<AppointmentForm> {
           notes: _notes.text.trim(),
           remindBeforeMin: _remind,
           travelMin: (parseNumber(_travel.text) ?? 0).round(),
+          location: _location.text.trim(),
         ));
       }
       if (!mounted) return;
@@ -213,6 +231,7 @@ class _AppointmentFormState extends State<AppointmentForm> {
       done: widget.appointment?.done ?? false,
       travelMin: (parseNumber(_travel.text) ?? 0).round(),
       repeat: _repeat,
+      location: _location.text.trim(),
     ));
     if (!mounted) return;
     Navigator.pop(context, true);
@@ -396,6 +415,20 @@ class _AppointmentFormState extends State<AppointmentForm> {
                       'Travel time (min) — "leave now" alert'),
                   helperText: tr('سيبها فاضية لو الموعد في نفس المكان',
                       'Leave empty if no travel needed')),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _location,
+              decoration: InputDecoration(
+                labelText: tr('المكان (اختياري)', 'Location (optional)'),
+                helperText: tr('اسم المكان أو العنوان — يفتح فى الخرائط',
+                    'Place name or address — opens in Maps'),
+                suffixIcon: IconButton(
+                  tooltip: tr('افتح فى الخرائط', 'Open in Maps'),
+                  icon: const Icon(Icons.map_outlined),
+                  onPressed: _openMaps,
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             TextFormField(

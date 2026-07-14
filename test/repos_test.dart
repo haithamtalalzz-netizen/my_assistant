@@ -38,6 +38,7 @@ import 'package:my_assistant/data/gratitude_repo.dart';
 import 'package:my_assistant/data/mood_repo.dart';
 import 'package:my_assistant/data/wishlist_repo.dart';
 import 'package:my_assistant/data/watchlist_repo.dart';
+import 'package:my_assistant/data/vaccinations_repo.dart';
 import 'package:my_assistant/data/money_repo.dart';
 import 'package:my_assistant/data/tasks_repo.dart';
 import 'package:my_assistant/data/subscriptions_repo.dart';
@@ -2934,6 +2935,60 @@ void main() {
       expect((await v2.query('meals')).length, 1);
       expect((await v2.query('occasions')).length, 1);
       await v2.close();
+    });
+  });
+
+  group('سجل التطعيمات (v49)', () {
+    test('ترقية v48 ← v49 بتعمل الجدول وتضيف عمود موقع الموعد', () async {
+      // نبدأ من قاعدة فاضية بجدول مواعيد قديم (من غير location) — زى نسخة 48.
+      final v48 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await v48.execute('''
+        CREATE TABLE appointments(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          category TEXT NOT NULL DEFAULT 'شخصي',
+          when_at TEXT NOT NULL
+        )''');
+      await AppDb.upgradeSchema(v48, 48, 49);
+      // الجدول الجديد اتعمل.
+      await v48.insert('vaccinations', {
+        'name': 'تيتانوس',
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      expect((await v48.query('vaccinations')).length, 1);
+      // عمود location اتضاف على المواعيد القديمة.
+      await v48.insert('appointments', {
+        'title': 'دكتور',
+        'category': 'صحة',
+        'when_at': DateTime.now().toIso8601String(),
+        'location': 'مستشفى',
+      });
+      final appt = (await v48.query('appointments')).first;
+      expect(appt['location'], 'مستشفى');
+      await v48.close();
+    });
+
+    test('VaccinationsRepo: حفظ + جرعة قربت (dueSoon) + daysLeft', () async {
+      final repo = VaccinationsRepo();
+      final soon = DateTime.now().add(const Duration(days: 10));
+      await repo.save(Vaccination(
+        name: 'إنفلونزا',
+        nextDue:
+            '${soon.year}-${soon.month.toString().padLeft(2, '0')}-${soon.day.toString().padLeft(2, '0')}',
+        createdAt: DateTime.now().toIso8601String(),
+      ));
+      await repo.save(Vaccination(
+        name: 'قديم بدون جرعة جاية',
+        createdAt: DateTime.now().toIso8601String(),
+      ));
+      final all = await repo.all();
+      expect(all.length, 2);
+      // اللى ليها جرعة جاية بتطلع الأول.
+      expect(all.first.name, 'إنفلونزا');
+      final due = await repo.dueSoon(days: 30);
+      expect(due.length, 1);
+      expect(due.first.daysLeft, inInclusiveRange(9, 10));
     });
   });
 

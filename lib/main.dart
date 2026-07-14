@@ -36,6 +36,7 @@ import 'data/renewals_repo.dart';
 import 'data/trips_repo.dart';
 import 'data/pets_repo.dart';
 import 'data/fasting_repo.dart';
+import 'data/vaccinations_repo.dart';
 import 'data/quran_repo.dart';
 import 'data/relatives_repo.dart';
 import 'data/settings_repo.dart';
@@ -125,4 +126,5 @@ Future<void> _startup() async {
   unawaited(PetsRepo().rescheduleAll());
   unawaited(FastingRepo().rescheduleCurrent());
   unawaited(ProactiveInsight.ensureScheduled());
+  unawaited(VaccinationsRepo().rescheduleAll());
 }

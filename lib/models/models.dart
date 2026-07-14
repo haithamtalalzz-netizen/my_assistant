@@ -20,6 +20,9 @@ class Appointment {
   /// أول ما يتعمل «تم».
   final String repeat;
 
+  /// مكان الموعد (نص) — لفتح الخرائط.
+  final String location;
+
   const Appointment({
     this.id,
     required this.title,
@@ -31,6 +34,7 @@ class Appointment {
     this.postponeCount = 0,
     this.travelMin = 0,
     this.repeat = 'none',
+    this.location = '',
   });
 
   factory Appointment.fromMap(Map<String, Object?> m) => Appointment(
@@ -44,6 +48,7 @@ class Appointment {
         postponeCount: m['postpone_count'] as int? ?? 0,
         travelMin: m['travel_min'] as int? ?? 0,
         repeat: m['repeat'] as String? ?? 'none',
+        location: m['location'] as String? ?? '',
       );
 
   Map<String, Object?> toMap() => {
@@ -56,6 +61,7 @@ class Appointment {
         'postpone_count': postponeCount,
         'travel_min': travelMin,
         'repeat': repeat,
+        'location': location,
       };
 
   bool get isRecurring => repeat != 'none';
@@ -2794,4 +2800,56 @@ class FastSession {
         'target_hours': targetHours,
         'created_at': createdAt,
       };
+}
+
+/// تطعيم فى سجل التطعيمات (بشرى) — مع تاريخ الجرعة الجاية للتذكير.
+class Vaccination {
+  final int? id;
+  final String name;
+  final String person;
+  final String date; // yyyy-MM-dd للجرعة اللى اتاخدت
+  final String nextDue; // yyyy-MM-dd للجرعة الجاية (فاضى = مفيش)
+  final String notes;
+  final String createdAt;
+
+  const Vaccination({
+    this.id,
+    required this.name,
+    this.person = '',
+    this.date = '',
+    this.nextDue = '',
+    this.notes = '',
+    required this.createdAt,
+  });
+
+  factory Vaccination.fromMap(Map<String, Object?> m) => Vaccination(
+        id: m['id'] as int?,
+        name: m['name'] as String,
+        person: m['person'] as String? ?? '',
+        date: m['date'] as String? ?? '',
+        nextDue: m['next_due'] as String? ?? '',
+        notes: m['notes'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'name': name,
+        'person': person,
+        'date': date,
+        'next_due': nextDue,
+        'notes': notes,
+        'created_at': createdAt,
+      };
+
+  DateTime? get nextDueDate => DateTime.tryParse(nextDue);
+
+  /// عدد الأيام للجرعة الجاية (سالب = فاتت، null = مفيش موعد).
+  int? get daysLeft {
+    final d = nextDueDate;
+    if (d == null) return null;
+    final today = DateTime.now();
+    return DateTime(d.year, d.month, d.day)
+        .difference(DateTime(today.year, today.month, today.day))
+        .inDays;
+  }
 }

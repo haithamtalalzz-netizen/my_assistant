@@ -61,6 +61,7 @@ class Notifications {
   static int tripNotifId(int id) => 1160000 + id; // قرب موعد رحلة
   static const int fastingEndNotifId = 1170001; // انتهاء نافذة الصيام المتقطّع
   static const int proactiveNotifId = 1180001; // رؤية استباقية يومية من العقل
+  static int vaccineNotifId(int id) => 1190000 + id; // جرعة تطعيم جاية
 
   /// تفاصيل إشعار الأذان بخصائص المنبّه. [sound] = ملف المستخدم المخصّص، أو null
   /// (تنبيه صوتى قوى بالنغمة الافتراضية لحد ما المستخدم يختار ملف أذانه).
