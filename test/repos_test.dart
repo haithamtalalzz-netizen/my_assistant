@@ -39,6 +39,8 @@ import 'package:my_assistant/data/courses_repo.dart';
 import 'package:my_assistant/data/pets_repo.dart';
 import 'package:my_assistant/data/passwords_repo.dart';
 import 'package:my_assistant/data/symptoms_repo.dart';
+import 'package:my_assistant/data/fasting_repo.dart';
+import 'package:my_assistant/data/meal_plan_repo.dart';
 import 'package:my_assistant/core/streak_guard.dart';
 import 'package:my_assistant/core/weather.dart';
 import 'package:my_assistant/core/month_summary.dart';
@@ -2599,6 +2601,44 @@ void main() {
       await repo.setTaken(id, today, '08:00', true);
       final pct = await repo.adherencePercent(days: 7);
       expect(pct, ((1 / 14) * 100).round());
+    });
+  });
+
+  group('الصيام المتقطّع ومخطّط الوجبات (v43)', () {
+    test('ترقية v42 ← v43 بتعمل الجداول', () async {
+      final v42 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v42, 42, 43);
+      await v42.insert('if_fasts',
+          {'start_at': '2026-07-14T08:00:00.000', 'target_hours': 16, 'created_at': '2026-07-14'});
+      await v42.insert('meal_plan', {'weekday': 6, 'slot': 'غدا', 'text': 'فراخ'});
+      expect((await v42.query('if_fasts')).length, 1);
+      expect((await v42.query('meal_plan')).length, 1);
+      await v42.close();
+    });
+
+    test('FastingRepo: بدء وإنهاء صيام', () async {
+      final repo = FastingRepo();
+      expect(await repo.current(), isNull);
+      await repo.start(targetHours: 16);
+      final cur = await repo.current();
+      expect(cur, isNotNull);
+      expect(cur!.ongoing, isTrue);
+      expect(cur.targetHours, 16);
+      await repo.stop();
+      expect(await repo.current(), isNull);
+      expect((await repo.recent()).length, 1);
+    });
+
+    test('MealPlanRepo: حفظ خانة + حذف بالنص الفاضى', () async {
+      final repo = MealPlanRepo();
+      await repo.setItem(6, 'غدا', 'كشري');
+      var m = await repo.weekMap();
+      expect(m['6|غدا'], 'كشري');
+      expect((await repo.allTexts()).contains('كشري'), isTrue);
+      await repo.setItem(6, 'غدا', ''); // حذف
+      m = await repo.weekMap();
+      expect(m.containsKey('6|غدا'), isFalse);
     });
   });
 

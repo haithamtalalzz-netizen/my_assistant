@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 42,
+      version: 43,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -266,7 +266,31 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 43 && newV >= 43) {
+      for (final ddl in _v43Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// الصيام المتقطّع (نوافذ صيام) + مخطّط الوجبات الأسبوعى.
+  static const List<String> _v43Tables = [
+    '''
+      CREATE TABLE if_fasts(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        start_at TEXT NOT NULL,
+        end_at TEXT,
+        target_hours INTEGER NOT NULL DEFAULT 16,
+        created_at TEXT NOT NULL
+      )''',
+    '''
+      CREATE TABLE meal_plan(
+        weekday INTEGER NOT NULL,
+        slot TEXT NOT NULL,
+        text TEXT NOT NULL DEFAULT '',
+        PRIMARY KEY(weekday, slot)
+      )''',
+  ];
 
   /// مفكرة الأعراض — سجل يومى لأعراض بشدّة وملاحظة.
   static const List<String> _v42Tables = [
@@ -1195,6 +1219,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v42Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v43Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);

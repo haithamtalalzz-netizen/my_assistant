@@ -2485,3 +2485,41 @@ class SymptomLog {
         'created_at': createdAt,
       };
 }
+
+/// نافذة صيام متقطّع — من [startAt] لحد [endAt] (null = شغّالة دلوقتى).
+class FastSession {
+  final int? id;
+  final String startAt;
+  final String? endAt;
+  final int targetHours;
+  final String createdAt;
+
+  const FastSession({
+    this.id,
+    required this.startAt,
+    this.endAt,
+    this.targetHours = 16,
+    required this.createdAt,
+  });
+
+  DateTime get start => DateTime.parse(startAt);
+  DateTime? get end => endAt == null ? null : DateTime.tryParse(endAt!);
+  bool get ongoing => endAt == null;
+  Duration get elapsed => (end ?? DateTime.now()).difference(start);
+  bool get reachedTarget => elapsed.inMinutes >= targetHours * 60;
+
+  factory FastSession.fromMap(Map<String, Object?> m) => FastSession(
+        id: m['id'] as int?,
+        startAt: m['start_at'] as String,
+        endAt: m['end_at'] as String?,
+        targetHours: (m['target_hours'] as int?) ?? 16,
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'start_at': startAt,
+        'end_at': endAt,
+        'target_hours': targetHours,
+        'created_at': createdAt,
+      };
+}

@@ -13,6 +13,8 @@ import 'growth/goals_screen.dart';
 import 'car/car_screen.dart';
 import 'renewals/renewals_screen.dart';
 import 'travel/travel_screen.dart';
+import 'food/fasting_screen.dart';
+import 'food/meal_planner_screen.dart';
 import 'growth/courses_screen.dart';
 import 'pets/pets_screen.dart';
 import 'passwords/passwords_screen.dart';
@@ -278,6 +280,12 @@ class AppDrawer extends StatelessWidget {
                   GroupHubItem(Icons.restaurant_menu,
                       tr('الأنظمة الغذائية', 'Diet plans'),
                       screen: const DietPlansScreen()),
+                  GroupHubItem(Icons.calendar_view_week_outlined,
+                      tr('مخطّط الوجبات', 'Meal planner'),
+                      screen: const MealPlannerScreen()),
+                  GroupHubItem(Icons.timer_outlined,
+                      tr('الصيام المتقطّع', 'Intermittent fasting'),
+                      screen: const FastingScreen()),
                   GroupHubItem(Icons.restaurant_menu_outlined,
                       tr('دفتر الوصفات', 'Recipes'),
                       screen: const RecipesScreen()),
