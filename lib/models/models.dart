@@ -2853,3 +2853,65 @@ class Vaccination {
         .inDays;
   }
 }
+
+/// نتيجة تحليل طبى — قيمة + وحدة + نطاق طبيعى اختيارى + تاريخ.
+class LabResult {
+  final int? id;
+  final String name;
+  final double value;
+  final String unit;
+  final String date; // yyyy-MM-dd
+  final String refLow; // نص (فاضى = مش محدّد)
+  final String refHigh;
+  final String notes;
+  final String createdAt;
+
+  const LabResult({
+    this.id,
+    required this.name,
+    this.value = 0,
+    this.unit = '',
+    this.date = '',
+    this.refLow = '',
+    this.refHigh = '',
+    this.notes = '',
+    required this.createdAt,
+  });
+
+  factory LabResult.fromMap(Map<String, Object?> m) => LabResult(
+        id: m['id'] as int?,
+        name: m['name'] as String,
+        value: (m['value'] as num?)?.toDouble() ?? 0,
+        unit: m['unit'] as String? ?? '',
+        date: m['date'] as String? ?? '',
+        refLow: m['ref_low'] as String? ?? '',
+        refHigh: m['ref_high'] as String? ?? '',
+        notes: m['notes'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'name': name,
+        'value': value,
+        'unit': unit,
+        'date': date,
+        'ref_low': refLow,
+        'ref_high': refHigh,
+        'notes': notes,
+        'created_at': createdAt,
+      };
+
+  double? get low => double.tryParse(refLow);
+  double? get high => double.tryParse(refHigh);
+  DateTime? get dateTime => DateTime.tryParse(date);
+
+  /// حالة القيمة بالنسبة للنطاق: -1 تحت / 0 طبيعى أو غير محدّد / 1 فوق.
+  int get status {
+    final l = low, h = high;
+    if (l != null && value < l) return -1;
+    if (h != null && value > h) return 1;
+    return 0;
+  }
+
+  bool get outOfRange => status != 0;
+}

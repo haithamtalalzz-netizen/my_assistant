@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 49,
+      version: 50,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -309,7 +309,29 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 50 && newV >= 50) {
+      for (final ddl in _v50Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// مؤشرات التحاليل الطبية (نتيجة تحليل بقيمة ووحدة ونطاق طبيعى + تاريخ).
+  static const List<String> _v50Tables = [
+    '''
+      CREATE TABLE lab_results(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        value REAL NOT NULL DEFAULT 0,
+        unit TEXT NOT NULL DEFAULT '',
+        date TEXT NOT NULL DEFAULT '',
+        ref_low TEXT NOT NULL DEFAULT '',
+        ref_high TEXT NOT NULL DEFAULT '',
+        notes TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+    'CREATE INDEX idx_lab_name_date ON lab_results(name, date)',
+  ];
 
   /// سجل التطعيمات (اسم/تاريخ/الجرعة الجاية/ملاحظات).
   static const List<String> _v49Tables = [
@@ -1375,6 +1397,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v49Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v50Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);

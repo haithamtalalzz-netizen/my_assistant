@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../data/appointments_repo.dart';
 import '../data/insights_repo.dart';
+import '../data/lab_results_repo.dart';
 import '../data/measurements_repo.dart';
 import '../data/medical_repo.dart';
 import '../data/symptoms_repo.dart';
@@ -64,6 +65,7 @@ class DoctorReport {
         xs.isEmpty ? null : xs.reduce((a, b) => a + b) / xs.length;
 
     final measurements = await MeasurementsRepo().since(fromKey);
+    final labResults = await LabResultsRepo().latestPerName();
     final medicalRecords = await MedicalRepo().since(fromKey);
     final symptoms = await SymptomsRepo().since(fromKey);
     final appts = await AppointmentsRepo().all();
@@ -132,6 +134,13 @@ class DoctorReport {
         if (measurements.isEmpty) line('لا يوجد قياسات متسجلة في الفترة دي.'),
         for (final m in measurements)
           line('• ${m.day} — ${m.type}: ${m.display()}'),
+        header('مؤشرات التحاليل (آخر نتيجة لكل تحليل)'),
+        if (labResults.isEmpty) line('لا يوجد تحاليل متسجلة.'),
+        for (final r in labResults)
+          line('• ${r.name}: ${arNum(r.value == r.value.roundToDouble() ? r.value.round().toString() : r.value.toStringAsFixed(1))}'
+              '${r.unit.isEmpty ? '' : ' ${r.unit}'}'
+              '${r.date.isEmpty ? '' : ' (${r.date})'}'
+              '${r.outOfRange ? (r.status > 0 ? ' — فوق الطبيعى ⚠' : ' — تحت الطبيعى ⚠') : ''}'),
         header('السجل الطبي (زيارات / تحاليل / أشعة / إجراءات)'),
         if (medicalRecords.isEmpty)
           line('لا يوجد سجلات طبية في الفترة دي.'),

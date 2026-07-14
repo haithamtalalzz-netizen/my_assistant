@@ -39,6 +39,7 @@ import 'package:my_assistant/data/mood_repo.dart';
 import 'package:my_assistant/data/wishlist_repo.dart';
 import 'package:my_assistant/data/watchlist_repo.dart';
 import 'package:my_assistant/data/vaccinations_repo.dart';
+import 'package:my_assistant/data/lab_results_repo.dart';
 import 'package:my_assistant/data/money_repo.dart';
 import 'package:my_assistant/data/tasks_repo.dart';
 import 'package:my_assistant/data/subscriptions_repo.dart';
@@ -2935,6 +2936,61 @@ void main() {
       expect((await v2.query('meals')).length, 1);
       expect((await v2.query('occasions')).length, 1);
       await v2.close();
+    });
+  });
+
+  group('مؤشرات التحاليل (v50)', () {
+    test('ترقية v49 ← v50 بتعمل جدول التحاليل', () async {
+      final v49 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v49, 49, 50);
+      await v49.insert('lab_results', {
+        'name': 'سكر صائم',
+        'value': 95,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      expect((await v49.query('lab_results')).length, 1);
+      await v49.close();
+    });
+
+    test('LabResultsRepo: اتجاه + خارج النطاق + آخر نتيجة لكل تحليل', () async {
+      final repo = LabResultsRepo();
+      final now = DateTime.now().toIso8601String();
+      await repo.save(LabResult(
+          name: 'سكر صائم',
+          value: 90,
+          unit: 'mg/dL',
+          date: '2026-01-01',
+          refLow: '70',
+          refHigh: '100',
+          createdAt: now));
+      await repo.save(LabResult(
+          name: 'سكر صائم',
+          value: 130, // فوق النطاق
+          unit: 'mg/dL',
+          date: '2026-03-01',
+          refLow: '70',
+          refHigh: '100',
+          createdAt: now));
+      await repo.save(LabResult(
+          name: 'فيتامين د',
+          value: 20, // تحت النطاق
+          date: '2026-02-01',
+          refLow: '30',
+          refHigh: '100',
+          createdAt: now));
+
+      // forName مرتّب تصاعدياً بالتاريخ (للرسم).
+      final sugar = await repo.forName('سكر صائم');
+      expect(sugar.map((r) => r.value).toList(), [90, 130]);
+      // آخر نتيجة لكل تحليل.
+      final latest = await repo.latestPerName();
+      expect(latest.length, 2);
+      final latestSugar = latest.firstWhere((r) => r.name == 'سكر صائم');
+      expect(latestSugar.value, 130);
+      expect(latestSugar.status, 1); // فوق
+      // عدد التحاليل خارج النطاق فى آخر قراءة = السكر (فوق) + فيتامين د (تحت).
+      expect(await repo.outOfRangeCount(), 2);
     });
   });
 
