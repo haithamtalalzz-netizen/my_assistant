@@ -47,6 +47,7 @@ import 'package:my_assistant/data/symptoms_repo.dart';
 import 'package:my_assistant/data/fasting_repo.dart';
 import 'package:my_assistant/data/meal_plan_repo.dart';
 import 'package:my_assistant/core/week_overview.dart';
+import 'package:my_assistant/core/year_review.dart';
 import 'package:my_assistant/core/streak_guard.dart';
 import 'package:my_assistant/core/weather.dart';
 import 'package:my_assistant/core/month_summary.dart';
@@ -2834,6 +2835,22 @@ void main() {
       final mine = stats.firstWhere((s) => s.habit.id == id);
       expect(mine.streak >= 1, isTrue);
       expect(mine.recentDone >= 1, isTrue);
+    });
+  });
+
+  group('المراجعة السنوية', () {
+    test('بتجمّع مصاريف ومهام السنة', () async {
+      final year = DateTime.now().year;
+      await MoneyRepo().add(Expense(
+          amount: 100, category: 'أكل', day: '$year-03-01'));
+      await MoneyRepo().add(Expense(
+          amount: 999, category: 'أكل', day: '${year - 1}-03-01')); // سنة تانية
+      final stats = await collectYearReview(year);
+      final spent = stats.firstWhere((s) => s.label.contains('صرفت'));
+      // مصاريف السنة دي بس (100) مش اللى قبلها.
+      expect(spent.value.contains('100'), isTrue);
+      expect(spent.value.contains('999'), isFalse);
+      expect(stats.length >= 8, isTrue);
     });
   });
 

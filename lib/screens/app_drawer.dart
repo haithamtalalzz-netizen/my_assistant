@@ -26,6 +26,7 @@ import '../data/bills_repo.dart';
 import '../data/income_repo.dart';
 import 'alerts_center_screen.dart';
 import 'reports_hub_screen.dart';
+import 'reports/year_review_screen.dart';
 import 'baladna/debts_screen.dart';
 import 'baladna/gameya_screen.dart';
 import 'baladna/home_maintenance_screen.dart';
@@ -372,6 +373,9 @@ class AppDrawer extends StatelessWidget {
                 [
                   GroupHubItem(Icons.lightbulb_outline,
                       tr('رؤى المدير', 'Insights'), tabIndex: 5),
+                  GroupHubItem(Icons.emoji_events_outlined,
+                      tr('المراجعة السنوية', 'Year in review'),
+                      screen: const YearReviewScreen()),
                   GroupHubItem(Icons.pie_chart_outline, tr('التقارير', 'Reports'),
                       screen: const ReportsHubScreen()),
                   GroupHubItem(Icons.bar_chart, tr('إحصائياتك', 'Charts'),
