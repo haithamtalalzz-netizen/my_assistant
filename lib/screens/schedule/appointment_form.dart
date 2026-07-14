@@ -36,6 +36,25 @@ String repeatLabel(String r) => switch (r) {
       _ => r,
     };
 
+/// قوالب مواعيد جاهزة: تملأ النوع + وقت التذكير + اقتراح عنوان بضغطة.
+const List<({String key, String title, String category, int remind})>
+    kApptTemplates = [
+  (key: 'doctor', title: 'زيارة دكتور', category: 'صحة', remind: 180),
+  (key: 'work', title: 'اجتماع شغل', category: 'شغل', remind: 60),
+  (key: 'family', title: 'لمّة العيلة', category: 'عيلة', remind: 1440),
+  (key: 'pharmacy', title: 'الصيدلية', category: 'صحة', remind: 30),
+  (key: 'gov', title: 'مصلحة حكومية', category: 'شخصي', remind: 1440),
+];
+
+String apptTemplateLabel(String key) => switch (key) {
+      'doctor' => tr('دكتور', 'Doctor'),
+      'work' => tr('شغل', 'Work'),
+      'family' => tr('عائلة', 'Family'),
+      'pharmacy' => tr('صيدلية', 'Pharmacy'),
+      'gov' => tr('حكومي', 'Government'),
+      _ => key,
+    };
+
 class AppointmentForm extends StatefulWidget {
   final Appointment? appointment;
 
@@ -85,6 +104,17 @@ class _AppointmentFormState extends State<AppointmentForm> {
     _notes.dispose();
     _travel.dispose();
     super.dispose();
+  }
+
+  void _applyTemplate(
+      ({String key, String title, String category, int remind}) t) {
+    setState(() {
+      if (_title.text.trim().isEmpty) _title.text = t.title;
+      _category = kApptCategories.contains(t.category)
+          ? t.category
+          : _category;
+      _remind = remindOptions().containsKey(t.remind) ? t.remind : _remind;
+    });
   }
 
   Future<void> _pickDate() async {
@@ -208,6 +238,27 @@ class _AppointmentFormState extends State<AppointmentForm> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (isNew) ...[
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(tr('قوالب سريعة', 'Quick templates'),
+                    style: Theme.of(context).textTheme.labelLarge),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final t in kApptTemplates)
+                    ActionChip(
+                      avatar: const Icon(Icons.bolt, size: 16),
+                      label: Text(apptTemplateLabel(t.key)),
+                      onPressed: () => _applyTemplate(t),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
             TextFormField(
               controller: _title,
               decoration: InputDecoration(

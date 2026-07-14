@@ -72,6 +72,7 @@ import 'package:my_assistant/data/settings_repo.dart';
 import 'package:my_assistant/data/weekly_repo.dart';
 import 'package:my_assistant/data/workout_repo.dart';
 import 'package:my_assistant/models/models.dart';
+import 'package:my_assistant/screens/schedule/appointment_form.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -2933,6 +2934,21 @@ void main() {
       expect((await v2.query('meals')).length, 1);
       expect((await v2.query('occasions')).length, 1);
       await v2.close();
+    });
+  });
+
+  group('قوالب المواعيد', () {
+    test('كل قالب نوعه ووقت تذكيره صالحين', () {
+      for (final t in kApptTemplates) {
+        expect(kApptCategories.contains(t.category), isTrue,
+            reason: 'نوع القالب ${t.key} لازم يكون من الأنواع المعروفة');
+        expect(remindOptions().containsKey(t.remind), isTrue,
+            reason: 'وقت تذكير القالب ${t.key} لازم يكون من الخيارات');
+        expect(t.title.trim().isNotEmpty, isTrue);
+      }
+      // فيه على الأقل قالب دكتور وشغل.
+      final keys = kApptTemplates.map((t) => t.key).toSet();
+      expect(keys.containsAll({'doctor', 'work'}), isTrue);
     });
   });
 

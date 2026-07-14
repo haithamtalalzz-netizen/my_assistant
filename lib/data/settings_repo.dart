@@ -46,6 +46,12 @@ class SettingsRepo {
     await set('diet_fat_g', fat <= 0 ? '' : '$fat');
   }
 
+  /// رؤية استباقية يومية من العقل (إشعار «مديرك لاحظ إن…») — مفعّلة افتراضياً.
+  Future<bool> proactiveInsightEnabled() async =>
+      await get('proactive_insight') != '0';
+  Future<void> setProactiveInsight(bool v) async =>
+      set('proactive_insight', v ? '1' : '0');
+
   /// وضع «يوم صعب» — يهدّي التطبيق ويخفي الضغط.
   Future<bool> hardDayMode() async => await get('hard_day_mode') == '1';
 

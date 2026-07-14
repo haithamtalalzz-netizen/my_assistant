@@ -12,6 +12,7 @@ import 'core/app_state.dart';
 import 'core/db_init_web.dart' if (dart.library.io) 'core/db_init_stub.dart';
 import 'core/backup.dart';
 import 'core/evening.dart';
+import 'core/proactive_insight.dart';
 import 'core/notification_actions.dart';
 import 'core/notifications.dart';
 import 'core/prayers.dart';
@@ -123,4 +124,5 @@ Future<void> _startup() async {
   unawaited(TripsRepo().rescheduleAll());
   unawaited(PetsRepo().rescheduleAll());
   unawaited(FastingRepo().rescheduleCurrent());
+  unawaited(ProactiveInsight.ensureScheduled());
 }

@@ -60,6 +60,7 @@ class Notifications {
   static int petEventNotifId(int id) => 1150000 + id; // تطعيم/بيطري حيوان
   static int tripNotifId(int id) => 1160000 + id; // قرب موعد رحلة
   static const int fastingEndNotifId = 1170001; // انتهاء نافذة الصيام المتقطّع
+  static const int proactiveNotifId = 1180001; // رؤية استباقية يومية من العقل
 
   /// تفاصيل إشعار الأذان بخصائص المنبّه. [sound] = ملف المستخدم المخصّص، أو null
   /// (تنبيه صوتى قوى بالنغمة الافتراضية لحد ما المستخدم يختار ملف أذانه).

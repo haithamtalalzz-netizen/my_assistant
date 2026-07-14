@@ -10,6 +10,7 @@ import '../core/app_state.dart';
 import '../core/ar.dart';
 import '../core/backup.dart';
 import '../core/data_export.dart';
+import '../core/proactive_insight.dart';
 import '../core/db.dart';
 import '../core/evening.dart';
 import '../core/health_service.dart';
@@ -55,6 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _hardDay = false;
   bool _travel = false;
   bool _eveningSummary = true;
+  bool _proactive = true;
   TimeOfDay _eveningTime = const TimeOfDay(hour: 21, minute: 30);
   String _blood = '';
   String _governorate = 'القاهرة';
@@ -87,6 +89,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final hardDay = await _settings.hardDayMode();
     final travel = await _settings.travelMode();
     final eveningSummary = await _settings.eveningSummaryEnabled();
+    final proactive = await _settings.proactiveInsightEnabled();
     final eveningTimeParts = (await _settings.eveningTime()).split(':');
     final blood = await _settings.get('emergency_blood') ?? '';
     final allergies = await _settings.get('emergency_allergies') ?? '';
@@ -115,6 +118,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _hardDay = hardDay;
       _travel = travel;
       _eveningSummary = eveningSummary;
+      _proactive = proactive;
       _eveningTime = TimeOfDay(
         hour: int.tryParse(eveningTimeParts[0]) ?? 21,
         minute: eveningTimeParts.length > 1
@@ -162,6 +166,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _settings.set('hard_day_mode', _hardDay ? '1' : '0');
     await _settings.set('travel_mode', _travel ? '1' : '0');
     await _settings.set('evening_summary', _eveningSummary ? '1' : '0');
+    await _settings.set('proactive_insight', _proactive ? '1' : '0');
     await _settings.set('evening_time',
         '${_eveningTime.hour.toString().padLeft(2, '0')}:${_eveningTime.minute.toString().padLeft(2, '0')}');
     await _settings.set('emergency_blood', _blood);
@@ -173,6 +178,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _settings.set('gemini_send_health', _geminiSendHealth ? '1' : '0');
     await PrayerScheduler.ensureScheduled();
     await EveningScheduler.ensureScheduled();
+    await ProactiveInsight.ensureScheduled();
   }
 
   Future<void> _toggleHealthSync(bool enable) async {
@@ -970,6 +976,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           _eveningTime.hour, _eveningTime.minute))),
                     ),
                   ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(tr('رؤية استباقية من المدير',
+                      'Proactive manager insight')),
+                  subtitle: Text(tr(
+                      'إشعار الصبح «مديرك لاحظ إن…» بأهم ملاحظة من تحليل بياناتك',
+                      "Morning notice: your manager's top insight from your data")),
+                  value: _proactive,
+                  onChanged: (v) => setState(() => _proactive = v),
+                ),
                 ],
                 if (_openCat == 'emergency') ...[
                 DropdownButtonFormField<String>(
