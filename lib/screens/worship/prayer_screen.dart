@@ -68,6 +68,68 @@ class _PrayerScreenState extends State<PrayerScreen> {
     });
   }
 
+  Future<void> _pickCalcMethod() async {
+    var method = PrayerPrefs.method;
+    var madhab = PrayerPrefs.madhab;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          scrollable: true,
+          title: Text(tr('طريقة حساب المواقيت', 'Calculation method')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: method,
+                isExpanded: true,
+                decoration: InputDecoration(labelText: tr('الطريقة', 'Method')),
+                items: [
+                  for (final m in kPrayerMethods)
+                    DropdownMenuItem(
+                        value: m,
+                        child: Text(prayerMethodLabel(m),
+                            overflow: TextOverflow.ellipsis)),
+                ],
+                onChanged: (v) => setD(() => method = v ?? method),
+              ),
+              const SizedBox(height: 14),
+              Text(tr('مذهب حساب العصر', 'Asr madhab'),
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Wrap(spacing: 6, children: [
+                ChoiceChip(
+                    label: Text(tr('الجمهور', 'Standard')),
+                    selected: madhab == 'shafi',
+                    onSelected: (_) => setD(() => madhab = 'shafi')),
+                ChoiceChip(
+                    label: Text(tr('حنفي', 'Hanafi')),
+                    selected: madhab == 'hanafi',
+                    onSelected: (_) => setD(() => madhab = 'hanafi')),
+              ]),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(tr('إلغاء', 'Cancel'))),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(tr('حفظ', 'Save'))),
+          ],
+        ),
+      ),
+    );
+    if (ok == true) {
+      await _settings.set('prayer.method', method);
+      await _settings.set('prayer.madhab', madhab);
+      await PrayerPrefs.load();
+      await PrayerScheduler.ensureScheduled();
+      if (mounted) await _load();
+    }
+  }
+
   Future<void> _load() async {
     final gov = await resolvePlace(_settings);
     final now = DateTime.now();
@@ -166,6 +228,11 @@ class _PrayerScreenState extends State<PrayerScreen> {
             icon: const Icon(Icons.explore),
             onPressed: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const QiblaScreen())),
+          ),
+          IconButton(
+            tooltip: tr('طريقة حساب المواقيت', 'Calculation method'),
+            icon: const Icon(Icons.tune),
+            onPressed: _pickCalcMethod,
           ),
         ],
       ),

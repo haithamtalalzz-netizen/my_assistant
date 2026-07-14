@@ -99,12 +99,66 @@ class PrayerDay {
   }
 }
 
-/// حساب فلكي محلي بالكامل (هيئة المساحة المصرية) — من غير نت.
+/// طرق حساب المواقيت المتاحة (المفتاح مخزّن، والعرض بـ [prayerMethodLabel]).
+const List<String> kPrayerMethods = [
+  'egyptian',
+  'ummAlQura',
+  'muslimWorldLeague',
+  'karachi',
+  'dubai',
+  'qatar',
+  'kuwait',
+  'turkiye',
+  'northAmerica',
+];
+
+String prayerMethodLabel(String key) => switch (key) {
+      'egyptian' => tr('الهيئة المصرية العامة للمساحة', 'Egyptian General Authority'),
+      'ummAlQura' => tr('أم القرى (السعودية)', 'Umm al-Qura (Saudi)'),
+      'muslimWorldLeague' => tr('رابطة العالم الإسلامي', 'Muslim World League'),
+      'karachi' => tr('كراتشي (جامعة العلوم)', 'Karachi'),
+      'dubai' => tr('دبي', 'Dubai'),
+      'qatar' => tr('قطر', 'Qatar'),
+      'kuwait' => tr('الكويت', 'Kuwait'),
+      'turkiye' => tr('تركيا (ديانت)', 'Turkey (Diyanet)'),
+      'northAmerica' => tr('أمريكا الشمالية (ISNA)', 'North America (ISNA)'),
+      _ => key,
+    };
+
+/// تفضيلات حساب المواقيت — بتتحمّل مرة عند بدء التطبيق + بعد أى تغيير.
+class PrayerPrefs {
+  static String method = 'egyptian';
+  static String madhab = 'shafi';
+
+  static Future<void> load() async {
+    final s = SettingsRepo();
+    method = await s.get('prayer.method') ?? 'egyptian';
+    madhab = await s.get('prayer.madhab') ?? 'shafi';
+  }
+}
+
+CalculationParameters _prayerParams() {
+  final p = switch (PrayerPrefs.method) {
+    'ummAlQura' => CalculationMethodParameters.ummAlQura(),
+    'muslimWorldLeague' => CalculationMethodParameters.muslimWorldLeague(),
+    'karachi' => CalculationMethodParameters.karachi(),
+    'dubai' => CalculationMethodParameters.dubai(),
+    'qatar' => CalculationMethodParameters.qatar(),
+    'kuwait' => CalculationMethodParameters.kuwait(),
+    'turkiye' => CalculationMethodParameters.turkiye(),
+    'northAmerica' => CalculationMethodParameters.northAmerica(),
+    _ => CalculationMethodParameters.egyptian(),
+  };
+  p.madhab = PrayerPrefs.madhab == 'hanafi' ? Madhab.hanafi : Madhab.shafi;
+  return p;
+}
+
+/// حساب فلكي محلي بالكامل — من غير نت (الطريقة والمذهب من التفضيلات).
 PrayerDay prayerTimesFor(DateTime day, Governorate gov) {
   final pt = PrayerTimes(
     date: DateTime(day.year, day.month, day.day, 12),
     coordinates: Coordinates(gov.lat, gov.lng),
-    calculationParameters: CalculationMethodParameters.egyptian(),
+    calculationParameters: _prayerParams(),
     precision: true,
   );
   return PrayerDay(

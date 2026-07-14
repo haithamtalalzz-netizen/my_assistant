@@ -594,6 +594,22 @@ void main() {
       expect(prayers.nextIndex(prayers.isha.add(const Duration(hours: 1))), isNull);
     });
 
+    test('طريقة الحساب بتغيّر المواقيت (مصرية ≠ أم القرى)', () {
+      final day = DateTime(2026, 6, 12);
+      PrayerPrefs.method = 'egyptian';
+      final egyptian = prayerTimesFor(day, governorateByName('القاهرة'));
+      PrayerPrefs.method = 'ummAlQura';
+      final umm = prayerTimesFor(day, governorateByName('القاهرة'));
+      // أم القرى بتحسب العشا بفارق ثابت بعد المغرب → مختلفة عن المصرية.
+      expect(egyptian.isha.isAtSameMomentAs(umm.isha), isFalse);
+      // المذهب الحنفي بيأخّر العصر عن الجمهور.
+      PrayerPrefs.method = 'egyptian';
+      PrayerPrefs.madhab = 'hanafi';
+      final hanafi = prayerTimesFor(day, governorateByName('القاهرة'));
+      expect(hanafi.asr.isAfter(egyptian.asr), isTrue);
+      PrayerPrefs.madhab = 'shafi'; // رجوع للافتراضي
+    });
+
     test('محافظة غير معروفة ترجع القاهرة', () {
       expect(governorateByName('مش موجودة').name, 'القاهرة');
     });

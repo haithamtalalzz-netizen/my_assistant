@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
@@ -54,6 +55,12 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
       appBar: AppBar(
         title: Text(tr('ختمة القرآن', 'Quran khatma')),
         actions: [
+          if (_k != null)
+            IconButton(
+              tooltip: tr('شارك تقدّمك', 'Share progress'),
+              icon: const Icon(Icons.share_outlined),
+              onPressed: _shareProgress,
+            ),
           if (_k != null)
             IconButton(
               tooltip: tr('ختمة جديدة', 'New khatma'),
@@ -138,6 +145,20 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
         ),
         onPressed: () => _start(pages),
       );
+
+  Future<void> _shareProgress() async {
+    final k = _k;
+    if (k == null) return;
+    final pct = (k.progress * 100).round();
+    final juz = (k.currentPage / 20).clamp(0, 30).ceil();
+    final msg = k.done
+        ? tr('ختمت القرآن الكريم كاملًا 🎉 — عبر تطبيق My Assistant',
+            'I completed reading the whole Quran 🎉 — via My Assistant')
+        : tr(
+            'تقدّمى فى ختمة القرآن: ${arNum(k.currentPage)}/${arNum(k.totalPages)} صفحة (٪${arNum(pct)}) — الجزء ${arNum(juz)}. 🤲',
+            'My Quran khatma: ${arNum(k.currentPage)}/${arNum(k.totalPages)} pages (${arNum(pct)}%), juz ${arNum(juz)}. 🤲');
+    await Share.share(msg);
+  }
 
   Widget _progressView(Khatma k) {
     final scheme = Theme.of(context).colorScheme;

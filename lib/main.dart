@@ -81,6 +81,8 @@ Future<void> _startup() async {
   runApp(const MyAssistantApp());
   // على الويب: مفيش إشعارات/ودجت/جدولة — التطبيق للعرض والتجربة بس.
   if (kIsWeb) return;
+  // تفضيلات حساب المواقيت (الطريقة/المذهب) قبل جدولة الأذان.
+  await PrayerPrefs.load();
   // جدولات بتتجدد مع كل فتحة: صلاة + مناسبات + ملخص الليلة + فواتير
   // + حماية السلاسل + النسخة التلقائية الأسبوعية.
   unawaited(PrayerScheduler.ensureScheduled());
