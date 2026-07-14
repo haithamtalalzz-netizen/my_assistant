@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 47,
+      version: 48,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -296,7 +296,44 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 48 && newV >= 48) {
+      for (final ddl in _v48Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// تتبّع المزاج + قائمة الأمنيات + قائمة المشاهدة.
+  static const List<String> _v48Tables = [
+    '''
+      CREATE TABLE mood_logs(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        day TEXT NOT NULL,
+        score INTEGER NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+    'CREATE INDEX idx_mood_day ON mood_logs(day)',
+    '''
+      CREATE TABLE wishlist(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        price REAL NOT NULL DEFAULT 0,
+        priority INTEGER NOT NULL DEFAULT 1,
+        note TEXT NOT NULL DEFAULT '',
+        bought INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      )''',
+    '''
+      CREATE TABLE watchlist(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'movie',
+        status TEXT NOT NULL DEFAULT 'want',
+        note TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+  ];
 
   /// تتبّع القراءة (كتب) + مفكرة الامتنان.
   static const List<String> _v47Tables = [
@@ -1308,6 +1345,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v47Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v48Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);

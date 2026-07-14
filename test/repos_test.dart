@@ -33,6 +33,9 @@ import 'package:my_assistant/data/home_inventory_repo.dart';
 import 'package:my_assistant/data/wardrobe_repo.dart';
 import 'package:my_assistant/data/reading_repo.dart';
 import 'package:my_assistant/data/gratitude_repo.dart';
+import 'package:my_assistant/data/mood_repo.dart';
+import 'package:my_assistant/data/wishlist_repo.dart';
+import 'package:my_assistant/data/watchlist_repo.dart';
 import 'package:my_assistant/data/money_repo.dart';
 import 'package:my_assistant/data/tasks_repo.dart';
 import 'package:my_assistant/data/subscriptions_repo.dart';
@@ -2835,6 +2838,47 @@ void main() {
       final mine = stats.firstWhere((s) => s.habit.id == id);
       expect(mine.streak >= 1, isTrue);
       expect(mine.recentDone >= 1, isTrue);
+    });
+  });
+
+  group('المزاج والأمنيات والمشاهدة (v48)', () {
+    test('ترقية v47 ← v48 بتعمل الجداول', () async {
+      final v47 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v47, 47, 48);
+      await v47.insert('mood_logs',
+          {'day': '2026-07-14', 'score': 4, 'created_at': 'x'});
+      await v47.insert('wishlist', {'name': 'موبايل', 'price': 9000, 'created_at': 'x'});
+      await v47.insert('watchlist', {'title': 'فيلم', 'created_at': 'x'});
+      expect((await v47.query('mood_logs')).length, 1);
+      expect((await v47.query('wishlist')).length, 1);
+      expect((await v47.query('watchlist')).length, 1);
+      await v47.close();
+    });
+
+    test('MoodRepo: صف واحد لليوم + متوسط', () async {
+      final repo = MoodRepo();
+      await repo.setToday(3);
+      await repo.setToday(5); // بيحدّث نفس اليوم مش يضيف
+      expect((await repo.recent()).length, 1);
+      expect((await repo.forDay(dayKey(DateTime.now())))!.score, 5);
+      expect(await repo.average(), 5);
+    });
+
+    test('WishlistRepo: إجمالي المعلّق', () async {
+      final repo = WishlistRepo();
+      await repo.save(WishItem(name: 'أ', price: 100, createdAt: 'x'));
+      final id = await repo.save(WishItem(name: 'ب', price: 50, createdAt: 'x'));
+      expect(await repo.pendingTotal(), 150);
+      await repo.setBought(id, true);
+      expect(await repo.pendingTotal(), 100); // المشترى مايتحسبش
+    });
+
+    test('WatchlistRepo: حفظ + تغيير حالة', () async {
+      final repo = WatchlistRepo();
+      final id = await repo.save(WatchItem(title: 'ف', kind: 'series', createdAt: 'x'));
+      await repo.setStatus(id, 'done');
+      expect((await repo.all()).first.status, 'done');
     });
   });
 

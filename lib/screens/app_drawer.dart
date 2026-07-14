@@ -27,6 +27,10 @@ import '../data/income_repo.dart';
 import 'alerts_center_screen.dart';
 import 'reports_hub_screen.dart';
 import 'reports/year_review_screen.dart';
+import 'reports/calculators_screen.dart';
+import 'health/mood_screen.dart';
+import 'money/wishlist_screen.dart';
+import 'growth/watchlist_screen.dart';
 import 'baladna/debts_screen.dart';
 import 'baladna/gameya_screen.dart';
 import 'baladna/home_maintenance_screen.dart';
@@ -227,6 +231,9 @@ class AppDrawer extends StatelessWidget {
                   GroupHubItem(Icons.subscriptions_outlined,
                       tr('الاشتراكات', 'Subscriptions'),
                       screen: const SubscriptionsScreen()),
+                  GroupHubItem(Icons.favorite_border,
+                      tr('قائمة الأمنيات', 'Wishlist'),
+                      screen: const WishlistScreen()),
                 ],
                 trailingBadge: FutureBuilder<int>(
                   future: _moneyDueCount(),
@@ -248,6 +255,8 @@ class AppDrawer extends StatelessWidget {
                         screen: const CycleScreen(), color: Colors.pink),
                   GroupHubItem(Icons.task_alt, tr('العادات', 'Habits'),
                       tabIndex: 3),
+                  GroupHubItem(Icons.mood, tr('تتبّع المزاج', 'Mood tracker'),
+                      screen: const MoodScreen()),
                   GroupHubItem(Icons.medication_outlined,
                       tr('الأدوية', 'Medications'),
                       screen: const MedsScreen()),
@@ -343,6 +352,9 @@ class AppDrawer extends StatelessWidget {
                   GroupHubItem(Icons.insights_outlined,
                       tr('تحليلات العادات', 'Habit analytics'),
                       screen: const HabitAnalyticsScreen()),
+                  GroupHubItem(Icons.movie_outlined,
+                      tr('قائمة المشاهدة', 'Watchlist'),
+                      screen: const WatchlistScreen()),
                   GroupHubItem(Icons.auto_stories_outlined,
                       tr('مراجعة القرآن', 'Quran review'),
                       screen: const QuranScreen()),
@@ -380,6 +392,8 @@ class AppDrawer extends StatelessWidget {
                       screen: const ReportsHubScreen()),
                   GroupHubItem(Icons.bar_chart, tr('إحصائياتك', 'Charts'),
                       screen: const ChartsScreen()),
+                  GroupHubItem(Icons.calculate_outlined, tr('حاسبات', 'Calculators'),
+                      screen: const CalculatorsScreen()),
                   GroupHubItem(Icons.calendar_month_outlined,
                       tr('تقويم النتيجة', 'Activity calendar'),
                       screen: const CalendarScreen()),

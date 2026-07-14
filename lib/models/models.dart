@@ -2522,6 +2522,120 @@ class SymptomLog {
       };
 }
 
+/// تسجيل مزاج يومى (score 1..5).
+class MoodLog {
+  final int? id;
+  final String day;
+  final int score;
+  final String note;
+  final String createdAt;
+
+  const MoodLog({
+    this.id,
+    required this.day,
+    required this.score,
+    this.note = '',
+    required this.createdAt,
+  });
+
+  factory MoodLog.fromMap(Map<String, Object?> m) => MoodLog(
+        id: m['id'] as int?,
+        day: m['day'] as String,
+        score: (m['score'] as int?) ?? 3,
+        note: m['note'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'day': day,
+        'score': score,
+        'note': note,
+        'created_at': createdAt,
+      };
+}
+
+/// عنصر فى قائمة الأمنيات (حاجة عايز تشتريها).
+class WishItem {
+  final int? id;
+  final String name;
+  final double price;
+
+  /// 0 منخفضة، 1 عادية، 2 عالية.
+  final int priority;
+  final String note;
+  final bool bought;
+  final String createdAt;
+
+  const WishItem({
+    this.id,
+    required this.name,
+    this.price = 0,
+    this.priority = 1,
+    this.note = '',
+    this.bought = false,
+    required this.createdAt,
+  });
+
+  factory WishItem.fromMap(Map<String, Object?> m) => WishItem(
+        id: m['id'] as int?,
+        name: m['name'] as String,
+        price: (m['price'] as num?)?.toDouble() ?? 0,
+        priority: (m['priority'] as int?) ?? 1,
+        note: m['note'] as String? ?? '',
+        bought: (m['bought'] as int? ?? 0) == 1,
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'name': name,
+        'price': price,
+        'priority': priority,
+        'note': note,
+        'bought': bought ? 1 : 0,
+        'created_at': createdAt,
+      };
+}
+
+/// عنصر فى قائمة المشاهدة (فيلم/مسلسل).
+class WatchItem {
+  final int? id;
+  final String title;
+
+  /// movie / series.
+  final String kind;
+
+  /// want / watching / done.
+  final String status;
+  final String note;
+  final String createdAt;
+
+  const WatchItem({
+    this.id,
+    required this.title,
+    this.kind = 'movie',
+    this.status = 'want',
+    this.note = '',
+    required this.createdAt,
+  });
+
+  factory WatchItem.fromMap(Map<String, Object?> m) => WatchItem(
+        id: m['id'] as int?,
+        title: m['title'] as String,
+        kind: m['kind'] as String? ?? 'movie',
+        status: m['status'] as String? ?? 'want',
+        note: m['note'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'title': title,
+        'kind': kind,
+        'status': status,
+        'note': note,
+        'created_at': createdAt,
+      };
+}
+
 /// كتاب فى تتبّع القراءة.
 class Book {
   final int? id;
