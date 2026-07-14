@@ -316,6 +316,85 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _scheduleControl(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          secondary:
+              Icon(Icons.nightlight_outlined, color: scheme.primary),
+          title: Text(tr('وضع ليلي مجدول', 'Scheduled dark mode')),
+          subtitle: Text(tr('يتحوّل غامق/فاتح تلقائيًا فى وقت تحدده',
+              'Auto dark/light at your chosen times')),
+          value: AppState.scheduleEnabled,
+          onChanged: (v) async {
+            await AppState.setSchedule(enabled: v);
+            if (mounted) setState(() {});
+          },
+        ),
+        if (AppState.scheduleEnabled)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _timeField(
+                    label: tr('يبدأ الغامق', 'Dark from'),
+                    value: AppState.darkFrom,
+                    onPick: (t) async {
+                      await AppState.setSchedule(from: t);
+                      if (mounted) setState(() {});
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _timeField(
+                    label: tr('يرجع فاتح', 'Light from'),
+                    value: AppState.darkTo,
+                    onPick: (t) async {
+                      await AppState.setSchedule(to: t);
+                      if (mounted) setState(() {});
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _timeField({
+    required String label,
+    required String value,
+    required Future<void> Function(String) onPick,
+  }) {
+    final parts = value.split(':');
+    final tod = TimeOfDay(
+        hour: int.tryParse(parts[0]) ?? 0,
+        minute: parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0);
+    return OutlinedButton.icon(
+      icon: const Icon(Icons.schedule, size: 18),
+      label: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+        ],
+      ),
+      onPressed: () async {
+        final picked = await showTimePicker(context: context, initialTime: tod);
+        if (picked == null) return;
+        final hm =
+            '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+        await onPick(hm);
+      },
+    );
+  }
+
   Future<void> _openQuickActionsSettings() async {
     final saved = await SettingsRepo().get('quick_actions');
     final order = (saved == null || saved.trim().isEmpty)
@@ -658,6 +737,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _languageControl(context),
                 const SizedBox(height: 12),
                 _themeControl(context),
+                const SizedBox(height: 8),
+                _scheduleControl(context),
                 const SizedBox(height: 12),
                 _accentControl(context),
                 const SizedBox(height: 4),

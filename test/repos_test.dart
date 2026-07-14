@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/backup.dart';
+import 'package:my_assistant/core/app_state.dart';
 import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/food_db.dart';
 import 'package:my_assistant/core/exercise_library.dart';
@@ -2931,6 +2932,24 @@ void main() {
       expect((await v2.query('meals')).length, 1);
       expect((await v2.query('occasions')).length, 1);
       await v2.close();
+    });
+  });
+
+  group('الوضع الليلي المجدول', () {
+    test('نافذة عادية (٢٢:٠٠ → ٠٦:٠٠) بتتعامل مع تجاوز منتصف الليل', () {
+      // ١١م → غامق
+      expect(AppState.isDarkWindow(23 * 60, '22:00', '06:00'), isTrue);
+      // ٢ص → غامق (بعد منتصف الليل)
+      expect(AppState.isDarkWindow(2 * 60, '22:00', '06:00'), isTrue);
+      // ٦ص بالظبط → فاتح (النهاية غير شاملة)
+      expect(AppState.isDarkWindow(6 * 60, '22:00', '06:00'), isFalse);
+      // ٣ع → فاتح
+      expect(AppState.isDarkWindow(15 * 60, '22:00', '06:00'), isFalse);
+    });
+    test('نافذة نهارية عادية (٠٩:٠٠ → ١٧:٠٠) بدون تجاوز', () {
+      expect(AppState.isDarkWindow(12 * 60, '09:00', '17:00'), isTrue);
+      expect(AppState.isDarkWindow(8 * 60, '09:00', '17:00'), isFalse);
+      expect(AppState.isDarkWindow(20 * 60, '09:00', '17:00'), isFalse);
     });
   });
 }
