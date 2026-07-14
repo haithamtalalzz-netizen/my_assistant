@@ -4,6 +4,26 @@ import '../core/l10n.dart';
 import '../models/models.dart';
 
 const List<String> kMealSlots = ['فطار', 'غدا', 'عشا', 'سناك'];
+
+/// تصنيفات أصناف التسوق.
+const List<String> kShoppingCategories = [
+  'خضار وفاكهة',
+  'بقالة',
+  'لحوم',
+  'ألبان',
+  'منظفات',
+  'أخرى',
+];
+
+String shoppingCategoryLabel(String c) => switch (c) {
+      'خضار وفاكهة' => tr('خضار وفاكهة', 'Produce'),
+      'بقالة' => tr('بقالة', 'Grocery'),
+      'لحوم' => tr('لحوم', 'Meat'),
+      'ألبان' => tr('ألبان', 'Dairy'),
+      'منظفات' => tr('منظفات', 'Cleaning'),
+      'أخرى' => tr('أخرى', 'Other'),
+      _ => c,
+    };
 const List<String> kRamadanMealSlots = ['سحور', 'فطار', 'سناك'];
 
 /// عرض نوع الوجبة بالإنجليزي مع إبقاء القيمة المخزّنة عربي.
@@ -59,12 +79,28 @@ class MealsRepo {
     return rows.map(ShoppingItem.fromMap).toList();
   }
 
-  Future<int> addShoppingItem(String name) async {
+  Future<int> addShoppingItem(String name,
+      {String category = '', double price = 0}) async {
     final db = await AppDb.instance;
-    return db.insert('shopping_items', ShoppingItem(
-      name: name,
-      createdAt: DateTime.now().toIso8601String(),
-    ).toMap());
+    return db.insert(
+        'shopping_items',
+        ShoppingItem(
+          name: name,
+          category: category,
+          price: price,
+          createdAt: DateTime.now().toIso8601String(),
+        ).toMap());
+  }
+
+  Future<void> updateShoppingItem(int id,
+      {String? name, String? category, double? price}) async {
+    final db = await AppDb.instance;
+    final data = <String, Object?>{};
+    if (name != null) data['name'] = name;
+    if (category != null) data['category'] = category;
+    if (price != null) data['price'] = price;
+    if (data.isEmpty) return;
+    await db.update('shopping_items', data, where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> setChecked(int id, bool checked) async {
@@ -81,5 +117,52 @@ class MealsRepo {
   Future<void> clearChecked() async {
     final db = await AppDb.instance;
     await db.delete('shopping_items', where: 'checked = 1');
+  }
+
+  /// إجمالي أسعار العناصر اللى لسه ماتشالتش.
+  Future<double> shoppingTotal() async {
+    final db = await AppDb.instance;
+    final r = await db.rawQuery(
+        'SELECT COALESCE(SUM(price),0) t FROM shopping_items WHERE checked = 0');
+    return (r.first['t'] as num).toDouble();
+  }
+
+  // ---- الأساسيات المتكررة ----
+
+  Future<List<ShoppingStaple>> staples() async {
+    final db = await AppDb.instance;
+    final rows = await db.query('shopping_staples', orderBy: 'category, name');
+    return rows.map(ShoppingStaple.fromMap).toList();
+  }
+
+  Future<void> addStaple(String name, {String category = ''}) async {
+    final db = await AppDb.instance;
+    await db.insert('shopping_staples', {
+      'name': name,
+      'category': category,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<void> deleteStaple(int id) async {
+    final db = await AppDb.instance;
+    await db.delete('shopping_staples', where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// يضيف كل الأساسيات لقائمة التسوق (اللى مش موجودة بالفعل غير متشالة).
+  Future<int> addStaplesToList() async {
+    final staplesList = await staples();
+    final existing = (await shoppingItems())
+        .where((i) => !i.checked)
+        .map((i) => i.name)
+        .toSet();
+    var added = 0;
+    for (final s in staplesList) {
+      if (!existing.contains(s.name)) {
+        await addShoppingItem(s.name, category: s.category);
+        added++;
+      }
+    }
+    return added;
   }
 }

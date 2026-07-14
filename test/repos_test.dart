@@ -2759,6 +2759,34 @@ void main() {
     });
   });
 
+  group('التسوق: تصنيفات وأسعار وأساسيات (v46)', () {
+    test('ترقية v45 ← v46 بتضيف الأعمدة وجدول الأساسيات', () async {
+      final v45 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await v45.execute('''CREATE TABLE shopping_items(
+        id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
+        checked INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)''');
+      await AppDb.upgradeSchema(v45, 45, 46);
+      await v45.insert('shopping_items',
+          {'name': 'رز', 'category': 'بقالة', 'price': 30, 'created_at': 'x'});
+      await v45.insert('shopping_staples', {'name': 'زيت', 'created_at': 'x'});
+      expect((await v45.query('shopping_items')).first['price'], 30);
+      expect((await v45.query('shopping_staples')).length, 1);
+      await v45.close();
+    });
+
+    test('MealsRepo: إجمالي السعر + الأساسيات للقائمة', () async {
+      final repo = MealsRepo();
+      await repo.addShoppingItem('رز', category: 'بقالة', price: 30);
+      await repo.addShoppingItem('لحمة', category: 'لحوم', price: 200);
+      expect(await repo.shoppingTotal(), 230);
+      await repo.addStaple('زيت');
+      await repo.addStaple('رز'); // موجود بالفعل في القائمة
+      final added = await repo.addStaplesToList();
+      expect(added, 1); // زيت بس (رز موجود)
+    });
+  });
+
   group('نظرة الأسبوع (الرئيسية)', () {
     test('بتجمّع مهمة ليها موعد فى الأسبوع الجاى', () async {
       final due = DateTime.now().add(const Duration(days: 2));

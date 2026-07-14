@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 45,
+      version: 46,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -281,7 +281,28 @@ class AppDb {
       await _safeAddColumn(
           db, 'clothes', 'needs_wash', 'INTEGER NOT NULL DEFAULT 0');
     }
+    if (oldV < 46 && newV >= 46) {
+      // التسوق: تصنيف + سعر على العناصر + جدول الأساسيات المتكررة.
+      await _safeAddColumn(
+          db, 'shopping_items', 'category', "TEXT NOT NULL DEFAULT ''");
+      await _safeAddColumn(
+          db, 'shopping_items', 'price', 'REAL NOT NULL DEFAULT 0');
+      for (final ddl in _v46Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// الأساسيات المتكررة لقائمة التسوق (تتضاف بضغطة كل شهر).
+  static const List<String> _v46Tables = [
+    '''
+      CREATE TABLE shopping_staples(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+  ];
 
   /// جرد ممتلكات البيت — للتأمين/الطوارئ.
   static const List<String> _v44Tables = [
@@ -1020,6 +1041,8 @@ class AppDb {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         checked INTEGER NOT NULL DEFAULT 0,
+        category TEXT NOT NULL DEFAULT '',
+        price REAL NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL
       )''',
     '''
@@ -1251,6 +1274,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v44Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v46Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);

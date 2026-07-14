@@ -1631,12 +1631,16 @@ class ShoppingItem {
   final int? id;
   final String name;
   final bool checked;
+  final String category;
+  final double price;
   final String createdAt;
 
   const ShoppingItem({
     this.id,
     required this.name,
     this.checked = false,
+    this.category = '',
+    this.price = 0,
     required this.createdAt,
   });
 
@@ -1644,14 +1648,40 @@ class ShoppingItem {
         id: m['id'] as int?,
         name: m['name'] as String,
         checked: (m['checked'] as int? ?? 0) == 1,
+        category: m['category'] as String? ?? '',
+        price: (m['price'] as num?)?.toDouble() ?? 0,
         createdAt: m['created_at'] as String,
       );
 
   Map<String, Object?> toMap() => {
         'name': name,
         'checked': checked ? 1 : 0,
+        'category': category,
+        'price': price,
         'created_at': createdAt,
       };
+}
+
+/// صنف أساسى متكرر يتضاف لقائمة التسوق بضغطة.
+class ShoppingStaple {
+  final int? id;
+  final String name;
+  final String category;
+  final String createdAt;
+
+  const ShoppingStaple({
+    this.id,
+    required this.name,
+    this.category = '',
+    required this.createdAt,
+  });
+
+  factory ShoppingStaple.fromMap(Map<String, Object?> m) => ShoppingStaple(
+        id: m['id'] as int?,
+        name: m['name'] as String,
+        category: m['category'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
 }
 
 class Occasion {
