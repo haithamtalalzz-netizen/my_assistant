@@ -62,6 +62,8 @@ dependencies:
   reorderable_grid_view: ^2.2.8
   # مسح باركود الأطعمة (الكاميرا) → بحث Open Food Facts. موبايل فقط (kIsWeb محمي).
   mobile_scanner: ^5.2.3
+  # قراءة ردود «اسأل مديرك» صوتيًا (TTS مدمج فى الجهاز — مجانى).
+  flutter_tts: ^4.2.0
 
 dev_dependencies:
   flutter_test:

@@ -36,8 +36,16 @@ import '../data/settings_repo.dart';
 import '../data/wallets_repo.dart';
 import '../data/warranty_repo.dart';
 import '../data/workout_repo.dart';
+import '../data/tasks_repo.dart';
+import '../data/subscriptions_repo.dart';
+import '../data/renewals_repo.dart';
+import '../data/cars_repo.dart';
+import '../data/goals_repo.dart';
+import '../data/courses_repo.dart';
+import '../data/fasting_repo.dart';
 import '../models/models.dart';
 import 'ar.dart';
+import 'week_overview.dart';
 import 'insights.dart';
 import 'l10n.dart';
 import 'notifications.dart';
@@ -221,6 +229,40 @@ class LocalBrain {
     // سؤال عن شخص بالاسم (ديونه + تليفونه) — قبل الديون العامة.
     final person = await _person(t);
     if (person != null) return (text: person, handled: true);
+
+    // ---- بنود جديدة (قبل الديون/الخطة عشان ماتتلقطش بـ«عليا/مهامي») ----
+    // المهام.
+    if (_has(t, ['مهامي', 'المهام', 'كام مهمه', 'مهمه عليا', 'حاجات عليا', 'مهام عليا', 'todo', 'tasks'])) {
+      return (text: await _tasksBrief(), handled: true);
+    }
+    // الاشتراكات.
+    if (_has(t, ['اشتراكاتي', 'اشتراكات', 'كام اشتراك', 'بدفع اشتراكات', 'subscriptions'])) {
+      return (text: await _subscriptionsBrief(), handled: true);
+    }
+    // التجديدات (استحقاق انتهاء الوثائق) — مخصّص عشان مايتلقطش بحث المستندات.
+    if (_has(t, ['تجديدات', 'التجديدات', 'امتى تنتهي', 'امتى تخلص', 'هتنتهي امتى', 'تجديد الرخصه', 'تجديد الجواز', 'وثايق بتنتهي'])) {
+      return (text: await _renewalsBrief(), handled: true);
+    }
+    // السيارة.
+    if (_has(t, ['عربيتي', 'عربيتى', 'السياره', 'سيارتي', 'صرفت على العربيه', 'كفاءه البنزين', 'استهلاك البنزين', 'بنزين العربيه'])) {
+      return (text: await _carBrief(), handled: true);
+    }
+    // الأهداف.
+    if (_has(t, ['اهدافي', 'هدفي', 'الاهداف', 'كام هدف'])) {
+      return (text: await _goalsBrief(), handled: true);
+    }
+    // التعلّم / الكورسات.
+    if (_has(t, ['كورساتي', 'كورسات', 'دوراتي', 'بتعلم ايه', 'التعلم'])) {
+      return (text: await _coursesBrief(), handled: true);
+    }
+    // الصيام المتقطّع.
+    if (_has(t, ['الصيام المتقطع', 'صيامي', 'صايم بقالي', 'ساعات الصيام', 'انا صايم', 'fasting'])) {
+      return (text: await _fastingBrief(), handled: true);
+    }
+    // نظرة الأسبوع / اللى جاى.
+    if (_has(t, ['الاسبوع الجاي', 'اللي جاي', 'اللى جاى', 'عندي ايه الاسبوع', 'مواعيد الاسبوع', 'اجندتي', 'week ahead'])) {
+      return (text: await _weekAheadBrief(), handled: true);
+    }
 
     // ديون / سلف.
     if (_has(t, [
@@ -964,6 +1006,164 @@ class LocalBrain {
     b.writeln(tr('من أرقامك:', 'From your numbers:'));
     for (final ins in list.take(3)) {
       b.writeln('• ${ins.text}');
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _tasksBrief() async {
+    final repo = TasksRepo();
+    final open = await repo.tasks(openOnly: true);
+    if (open.isEmpty) {
+      return tr('مفيش مهام مفتوحة — تمام كده 👌',
+          'No open tasks — all clear 👌');
+    }
+    final now = DateTime.now();
+    final overdue = open.where((t) => t.overdue).length;
+    final today = open
+        .where((t) => t.due != null && dayKey(t.due!) == dayKey(now))
+        .length;
+    final b = StringBuffer();
+    b.writeln(tr('عندك ${arNum(open.length)} مهمة مفتوحة.',
+        'You have ${arNum(open.length)} open tasks.'));
+    if (overdue > 0) {
+      b.writeln(tr('منهم ${arNum(overdue)} فات موعدها ⚠️',
+          '${arNum(overdue)} overdue ⚠️'));
+    }
+    if (today > 0) {
+      b.writeln(tr('و${arNum(today)} موعدها النهاردة.',
+          '${arNum(today)} due today.'));
+    }
+    for (final t in open.take(3)) {
+      b.writeln('• ${t.title}'
+          '${t.due != null ? ' (${arShortDate(t.due!)})' : ''}');
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _subscriptionsBrief() async {
+    final repo = SubscriptionsRepo();
+    final active = (await repo.all()).where((s) => s.active).toList();
+    if (active.isEmpty) {
+      return tr('مفيش اشتراكات مسجلة. ضيفها من «الاشتراكات».',
+          'No subscriptions logged. Add them in Subscriptions.');
+    }
+    final monthly = await repo.monthlyTotal();
+    final b = StringBuffer();
+    b.writeln(tr(
+        'عندك ${arNum(active.length)} اشتراك فعّال بـ ${egp(monthly)} شهريًا (≈ ${egp(monthly * 12)} سنويًا).',
+        '${arNum(active.length)} active subscriptions — ${egp(monthly)}/mo (≈ ${egp(monthly * 12)}/yr).'));
+    for (final s in active.take(4)) {
+      b.writeln('• ${s.name} — ${egp(s.amount)} '
+          '${s.cycle == 'yearly' ? tr('سنوي', 'yr') : tr('شهري', 'mo')}');
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _renewalsBrief() async {
+    final all = await RenewalsRepo().all();
+    if (all.isEmpty) {
+      return tr('مفيش وثائق للتجديد. ضيف رخصتك وجوازك من «التجديدات».',
+          'No documents to renew. Add your ID/license in Renewals.');
+    }
+    all.sort((a, b) => (a.daysLeft ?? 999999).compareTo(b.daysLeft ?? 999999));
+    final b = StringBuffer();
+    for (final r in all.take(4)) {
+      final d = r.daysLeft;
+      final st = d == null
+          ? ''
+          : d < 0
+              ? tr('(انتهت)', '(expired)')
+              : tr('(باقي ${arNum(d)} يوم)', '(${arNum(d)}d left)');
+      b.writeln('• ${r.title} — '
+          '${r.expiryDate != null ? arShortDate(r.expiryDate!) : ''} $st');
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _carBrief() async {
+    final repo = CarsRepo();
+    final cars = await repo.cars();
+    if (cars.isEmpty) {
+      return tr('مسجلتش عربية. ضيفها من «السيارة».',
+          "No car logged. Add it in Car.");
+    }
+    final b = StringBuffer();
+    for (final c in cars) {
+      final spent = await repo.totalSpent(c.id!);
+      final eco = await repo.fuelEconomy(c.id!);
+      b.writeln(tr(
+          '${c.name}: صرفت ${egp(spent)}'
+          '${eco != null ? ' · كفاءة ${eco.toStringAsFixed(1)} كم/لتر' : ''}.',
+          '${c.name}: spent ${egp(spent)}'
+          '${eco != null ? ' · ${eco.toStringAsFixed(1)} km/L' : ''}.'));
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _goalsBrief() async {
+    final repo = GoalsRepo();
+    final goals = await repo.all();
+    if (goals.isEmpty) {
+      return tr('مفيش أهداف. حدد هدف من «الأهداف» وأنا أتابعه معاك.',
+          'No goals. Set one in Goals and I\'ll track it with you.');
+    }
+    final open = goals.where((g) => !g.done).toList();
+    final b = StringBuffer();
+    b.writeln(tr('عندك ${arNum(open.length)} هدف شغّال.',
+        '${arNum(open.length)} active goals.'));
+    for (final g in open.take(3)) {
+      final (d, total) = await repo.progress(g.id!);
+      final pct = total == 0 ? 0 : (d * 100 / total).round();
+      b.writeln('• ${g.title} — ${arNum(pct)}%');
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _coursesBrief() async {
+    final courses = await CoursesRepo().all();
+    if (courses.isEmpty) {
+      return tr('مفيش كورسات مسجلة. ضيفها من «التعلّم».',
+          'No courses logged. Add them in Learning.');
+    }
+    final active = courses.where((c) => c.status != 'done').toList();
+    final b = StringBuffer();
+    b.writeln(tr('عندك ${arNum(active.length)} كورس شغّال.',
+        '${arNum(active.length)} active courses.'));
+    for (final c in active.take(3)) {
+      b.writeln('• ${c.title} — ${arNum((c.progress * 100).round())}%');
+    }
+    return b.toString().trim();
+  }
+
+  static Future<String> _fastingBrief() async {
+    final repo = FastingRepo();
+    final cur = await repo.current();
+    final week = await repo.completedLast(7);
+    if (cur != null) {
+      final h = cur.elapsed.inHours;
+      final m = cur.elapsed.inMinutes % 60;
+      return tr(
+          'صايم بقالك ${arNum(h)} ساعة و${arNum(m)} دقيقة من هدف ${arNum(cur.targetHours)} ساعة.'
+          '${cur.reachedTarget ? ' كمّلت الهدف 🎉 تقدر تفطر.' : ''}',
+          'Fasting ${arNum(h)}h ${arNum(m)}m of a ${arNum(cur.targetHours)}h goal.'
+          '${cur.reachedTarget ? ' Goal reached 🎉 you can eat.' : ''}');
+    }
+    return tr(
+        'مش صايم دلوقتي. كمّلت ${arNum(week)} صيام الأسبوع ده. ابدأ من «الصيام المتقطّع».',
+        'Not fasting now. ${arNum(week)} fasts completed this week. Start from Intermittent fasting.');
+  }
+
+  static Future<String> _weekAheadBrief() async {
+    final items = await collectWeekOverview();
+    if (items.isEmpty) {
+      return tr('الأسبوع الجاي فاضي — مفيش مواعيد ولا استحقاقات 👌',
+          'Your week ahead is clear 👌');
+    }
+    final b = StringBuffer();
+    b.writeln(tr('اللي جاي الأسبوع ده (${arNum(items.length)}):',
+        "This week (${arNum(items.length)}):"));
+    for (final it in items.take(6)) {
+      b.writeln('• ${it.text} — ${arShortDate(it.date)}');
     }
     return b.toString().trim();
   }

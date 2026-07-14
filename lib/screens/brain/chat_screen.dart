@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/app_state.dart';
 import '../../core/gemini.dart';
 import '../../core/l10n.dart';
 import '../../core/local_brain.dart';
@@ -29,6 +31,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _keyInput = TextEditingController();
   final _scroll = ScrollController();
   final _stt = SpeechToText();
+  final FlutterTts _tts = FlutterTts();
   final List<_ChatMessage> _messages = [];
   bool _hasKey = false;
   bool _sending = false;
@@ -42,9 +45,20 @@ class _ChatScreenState extends State<ChatScreen> {
     _greet();
   }
 
+  /// يقرأ الرد صوتيًا (TTS المدمج فى الجهاز — مجانى، بدون إنترنت).
+  Future<void> _speak(String text) async {
+    if (kIsWeb) return;
+    try {
+      await _tts.stop();
+      await _tts.setLanguage(AppState.isEnglish ? 'en-US' : 'ar');
+      await _tts.speak(text);
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     _stt.stop();
+    _tts.stop();
     _input.dispose();
     _keyInput.dispose();
     _scroll.dispose();
@@ -301,33 +315,42 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   child: Text(m.text, style: const TextStyle(height: 1.6)),
                 );
-                if (m.fromUser || m.actions.isEmpty) {
-                  return Align(
-                    alignment: m.fromUser
-                        ? Alignment.centerLeft
-                        : Alignment.centerRight,
-                    child: bubble,
-                  );
+                if (m.fromUser) {
+                  return Align(alignment: Alignment.centerLeft, child: bubble);
                 }
+                // رسالة المدير: فقاعة + زر قراءة صوتية + أزرار الإجراءات لو فيه.
                 return Align(
                   alignment: Alignment.centerRight,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       bubble,
-                      const SizedBox(height: 6),
-                      Wrap(
-                        alignment: WrapAlignment.end,
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          for (final a in m.actions)
-                            FilledButton.tonal(
-                              onPressed: _sending ? null : () => _runAction(a, i),
-                              child: Text(a.label),
-                            ),
-                        ],
-                      ),
+                      if (!kIsWeb)
+                        IconButton(
+                          iconSize: 18,
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          tooltip: tr('اقرأ بصوت', 'Read aloud'),
+                          icon: const Icon(Icons.volume_up_outlined),
+                          onPressed: () => _speak(m.text),
+                        ),
+                      if (m.actions.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Wrap(
+                          alignment: WrapAlignment.end,
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            for (final a in m.actions)
+                              FilledButton.tonal(
+                                onPressed:
+                                    _sending ? null : () => _runAction(a, i),
+                                child: Text(a.label),
+                              ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 );

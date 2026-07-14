@@ -2643,6 +2643,31 @@ void main() {
     });
   });
 
+  group('العقل المحلي — بنود جديدة', () {
+    test('المهام: بيرجّع عدد المفتوحة', () async {
+      await TasksRepo().save(Task(
+          title: 'مهمة برين',
+          createdAt: DateTime.now().toIso8601String()));
+      final r = await LocalBrain.answer('كام مهمة عليا؟');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('مهمة'), isTrue);
+    });
+
+    test('الاشتراكات: بيرجّع الإجمالي الشهري', () async {
+      await SubscriptionsRepo().save(Subscription(
+          name: 'نتفليكس', amount: 200, cycle: 'monthly',
+          createdAt: DateTime.now().toIso8601String()));
+      final r = await LocalBrain.answer('اشتراكاتي');
+      expect(r.handled, isTrue);
+      expect(r.text.contains('نتفليكس'), isTrue);
+    });
+
+    test('الصيام: بيقول مش صايم لو مفيش', () async {
+      final r = await LocalBrain.answer('انا صايم؟');
+      expect(r.handled, isTrue);
+    });
+  });
+
   group('نظرة الأسبوع (الرئيسية)', () {
     test('بتجمّع مهمة ليها موعد فى الأسبوع الجاى', () async {
       final due = DateTime.now().add(const Duration(days: 2));
