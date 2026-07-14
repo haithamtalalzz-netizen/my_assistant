@@ -8,6 +8,7 @@ import 'package:hijri/hijri_calendar.dart';
 import '../core/app_state.dart';
 import '../core/ar.dart';
 import '../core/health_service.dart';
+import '../core/week_overview.dart';
 import '../core/l10n.dart';
 import '../core/notifications.dart';
 import '../core/prayers.dart';
@@ -111,6 +112,7 @@ class _TodayScreenState extends State<TodayScreen> {
   CyclePrediction? _cyclePred; // للسيدات فقط
   bool _hardDay = false;
   Set<String> _hidden = {}; // عناصر الرئيسية المخفية (من الإعدادات)
+  List<WeekItem> _weekItems = [];
 
   /// عنصر الرئيسية ظاهر؟ (لكل ما هو مش مخفي من الإعدادات).
   bool _vis(String key) => !_hidden.contains(key);
@@ -221,6 +223,7 @@ class _TodayScreenState extends State<TodayScreen> {
     final dueBills = await BillsRepo().due(now);
     final dueMaintenance = await HomeMaintenanceRepo().due(now);
     final duePlants = await PlantsRepo().due(now);
+    final weekItems = await collectWeekOverview();
     if (!mounted) return;
     setState(() {
       _name = name;
@@ -252,6 +255,7 @@ class _TodayScreenState extends State<TodayScreen> {
       _cyclePred = cyclePred;
       _hardDay = hardDay;
       _hidden = hidden;
+      _weekItems = weekItems;
       _meals = meals;
       _workoutPlan = workoutPlan;
       _workoutDone = workoutDone;
@@ -436,6 +440,10 @@ class _TodayScreenState extends State<TodayScreen> {
           ],
           _heroAndSummary(context),
           const SizedBox(height: 12),
+          if (_vis('week') && _weekItems.isNotEmpty) ...[
+            _weekOverviewCard(context),
+            const SizedBox(height: 12),
+          ],
           if (_vis('cycle') && _showCycleCard) ...[
             _cycleCard(context),
             const SizedBox(height: 12),
@@ -524,6 +532,71 @@ class _TodayScreenState extends State<TodayScreen> {
 
   /// شريط بحث بارز (زي طارة) — بيفتح البحث الشامل الحي.
   /// بانر وضع «يوم صعب» — بيهدّي بدل الضغط.
+  /// نظرة الأسبوع — أهم اللى جاى فى الـ٧ أيام الجاية.
+  Widget _weekOverviewCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    String whenLabel(DateTime d) {
+      final diff = DateTime(d.year, d.month, d.day).difference(today).inDays;
+      if (diff <= 0) return tr('النهاردة', 'Today');
+      if (diff == 1) return tr('بكرة', 'Tomorrow');
+      return arShortDate(d);
+    }
+
+    final shown = _weekItems.take(6).toList();
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.date_range, size: 18, color: scheme.primary),
+                const SizedBox(width: 6),
+                Text(tr('نظرة الأسبوع', 'Week ahead'),
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+                const Spacer(),
+                Text(tr('${arNum(_weekItems.length)} قادم', '${arNum(_weekItems.length)} upcoming'),
+                    style: TextStyle(fontSize: 12, color: scheme.outline)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            for (final it in shown)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Icon(it.icon, size: 16, color: it.color),
+                    const SizedBox(width: 8),
+                    Expanded(
+                        child: Text(it.text,
+                            maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    const SizedBox(width: 8),
+                    Text(whenLabel(it.date),
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            if (_weekItems.length > shown.length)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                    tr('+ ${arNum(_weekItems.length - shown.length)} كمان',
+                        '+ ${arNum(_weekItems.length - shown.length)} more'),
+                    style: TextStyle(fontSize: 12, color: scheme.outline)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _hardDayBanner(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(

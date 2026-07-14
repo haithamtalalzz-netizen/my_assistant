@@ -41,6 +41,7 @@ import 'package:my_assistant/data/passwords_repo.dart';
 import 'package:my_assistant/data/symptoms_repo.dart';
 import 'package:my_assistant/data/fasting_repo.dart';
 import 'package:my_assistant/data/meal_plan_repo.dart';
+import 'package:my_assistant/core/week_overview.dart';
 import 'package:my_assistant/core/streak_guard.dart';
 import 'package:my_assistant/core/weather.dart';
 import 'package:my_assistant/core/month_summary.dart';
@@ -2639,6 +2640,25 @@ void main() {
       await repo.setItem(6, 'غدا', ''); // حذف
       m = await repo.weekMap();
       expect(m.containsKey('6|غدا'), isFalse);
+    });
+  });
+
+  group('نظرة الأسبوع (الرئيسية)', () {
+    test('بتجمّع مهمة ليها موعد فى الأسبوع الجاى', () async {
+      final due = DateTime.now().add(const Duration(days: 2));
+      await TasksRepo().save(Task(
+          title: 'مهمة الأسبوع',
+          dueAt: due.toIso8601String(),
+          createdAt: DateTime.now().toIso8601String()));
+      final week = await collectWeekOverview();
+      expect(week.any((w) => w.text == 'مهمة الأسبوع'), isTrue);
+      // مهمة موعدها بعد شهر ما تظهرش.
+      await TasksRepo().save(Task(
+          title: 'مهمة بعيدة',
+          dueAt: DateTime.now().add(const Duration(days: 40)).toIso8601String(),
+          createdAt: DateTime.now().toIso8601String()));
+      final week2 = await collectWeekOverview();
+      expect(week2.any((w) => w.text == 'مهمة بعيدة'), isFalse);
     });
   });
 
