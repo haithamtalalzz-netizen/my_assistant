@@ -60,6 +60,8 @@ dependencies:
   screenshot: ^3.0.0
   # ترتيب الكروت بالسحب (ضغطة طويلة).
   reorderable_grid_view: ^2.2.8
+  # مسح باركود الأطعمة (الكاميرا) → بحث Open Food Facts. موبايل فقط (kIsWeb محمي).
+  mobile_scanner: ^5.2.3
 
 dev_dependencies:
   flutter_test:

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/ar.dart';
 import '../../core/food_db.dart';
 import '../../core/l10n.dart';
+import 'barcode_scan_screen.dart';
 
 /// نتيجة اختيار صنف من قاعدة الأكل: الاسم + الكمية + القيم الغذائية المحسوبة.
 class PickedFood {
@@ -90,6 +91,11 @@ class _FoodPickerSheetState extends State<_FoodPickerSheet> {
               onChanged: _onQuery,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search),
+                suffixIcon: IconButton(
+                  tooltip: tr('امسح باركود', 'Scan barcode'),
+                  icon: const Icon(Icons.qr_code_scanner),
+                  onPressed: _scanBarcode,
+                ),
                 hintText: tr('دوّر على أكلة أو مشروب…', 'Search a food or drink…'),
                 border: const OutlineInputBorder(),
                 isDense: true,
@@ -168,6 +174,11 @@ class _FoodPickerSheetState extends State<_FoodPickerSheet> {
       trailing: const Icon(Icons.add_circle_outline),
       onTap: () => _pickQuantity(f),
     );
+  }
+
+  Future<void> _scanBarcode() async {
+    final item = await scanBarcodeForFood(context);
+    if (item != null && mounted) await _pickQuantity(item);
   }
 
   Future<void> _pickQuantity(FoodItem f) async {

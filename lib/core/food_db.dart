@@ -310,6 +310,46 @@ Future<List<FoodItem>> searchOpenFoodFacts(String query) async {
   }
 }
 
+/// يجيب منتج من Open Food Facts برقم الباركود (مجانى، بدون مفتاح).
+Future<FoodItem?> lookupBarcode(String barcode) async {
+  final code = barcode.trim();
+  if (code.length < 6) return null;
+  try {
+    final uri = Uri.parse('https://world.openfoodfacts.org/api/v2/product/'
+        '$code.json?fields=product_name,product_name_ar,brands,nutriments');
+    final res = await http.get(uri, headers: {
+      'User-Agent': 'MyAssistant/1.0 (offline personal app)'
+    }).timeout(const Duration(seconds: 12));
+    if (res.statusCode != 200) return null;
+    final json = jsonDecode(res.body) as Map<String, dynamic>;
+    if (json['status'] != 1) return null; // مش موجود
+    final p = json['product'] as Map<String, dynamic>?;
+    final n = p?['nutriments'] as Map<String, dynamic>?;
+    if (p == null || n == null) return null;
+    final kcal = _num(n['energy-kcal_100g']);
+    if (kcal == null || kcal <= 0) return null;
+    final nameAr = (p['product_name_ar'] ?? '').toString().trim();
+    final nameEn = (p['product_name'] ?? '').toString().trim();
+    final brand = (p['brands'] ?? '').toString().split(',').first.trim();
+    var display = nameEn.isNotEmpty ? nameEn : nameAr;
+    if (display.isEmpty) display = code;
+    if (brand.isNotEmpty && !display.toLowerCase().contains(brand.toLowerCase())) {
+      display = '$display ($brand)';
+    }
+    return FoodItem(
+      nameAr.isNotEmpty ? nameAr : display,
+      display,
+      kcal,
+      _num(n['proteins_100g']) ?? 0,
+      _num(n['carbohydrates_100g']) ?? 0,
+      _num(n['fat_100g']) ?? 0,
+      group: tr('من الباركود', 'From barcode'),
+    );
+  } on Exception catch (_) {
+    return null;
+  }
+}
+
 double? _num(Object? v) {
   if (v == null) return null;
   if (v is num) return v.toDouble();
