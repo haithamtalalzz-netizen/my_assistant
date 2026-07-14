@@ -2,6 +2,7 @@ import '../core/db.dart';
 import '../core/l10n.dart';
 import '../core/notifications.dart';
 import '../models/models.dart';
+import 'settings_repo.dart';
 
 const List<String> kMeterTypes = ['electricity', 'water', 'gas'];
 
@@ -39,6 +40,34 @@ class MetersRepo {
       if (list.isNotEmpty) result[t] = list.first;
     }
     return result;
+  }
+
+  /// الاستهلاك بين كل قراءتين متتاليتين (زمنيًا) — لرسم الاستهلاك.
+  Future<List<({String day, double delta})>> consumptions(String type,
+      {int limit = 6}) async {
+    final list = (await forType(type)).reversed.toList(); // زمنيًا تصاعدي
+    final out = <({String day, double delta})>[];
+    for (var i = 1; i < list.length; i++) {
+      final d = list[i].reading - list[i - 1].reading;
+      if (d >= 0) out.add((day: list[i].day, delta: d));
+    }
+    if (out.length > limit) return out.sublist(out.length - limit);
+    return out;
+  }
+
+  /// سعر الوحدة لكل نوع (ج.م) — من الإعدادات.
+  Future<double> rate(String type) async =>
+      double.tryParse(await SettingsRepo().get('meter.rate.$type') ?? '') ?? 0;
+
+  Future<void> setRate(String type, double value) async =>
+      SettingsRepo().set('meter.rate.$type', value <= 0 ? '' : '$value');
+
+  /// تقدير فاتورة الفترة الجاية = متوسط آخر استهلاكات × سعر الوحدة (0 لو مفيش).
+  Future<double> estimateBill(String type) async {
+    final cons = await consumptions(type);
+    if (cons.isEmpty) return 0;
+    final avg = cons.fold<double>(0, (s, c) => s + c.delta) / cons.length;
+    return avg * await rate(type);
   }
 
   /// تذكير شهري (يوم ٢٥) لتسجيل قراءات العدادات.

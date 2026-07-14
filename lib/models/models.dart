@@ -2486,6 +2486,50 @@ class SymptomLog {
       };
 }
 
+/// عنصر فى جرد ممتلكات البيت (للتأمين/الطوارئ).
+class HomeInventoryItem {
+  final int? id;
+  final String name;
+  final String category;
+  final double value;
+  final String location;
+  final String note;
+  final String photo;
+  final String createdAt;
+
+  const HomeInventoryItem({
+    this.id,
+    required this.name,
+    this.category = '',
+    this.value = 0,
+    this.location = '',
+    this.note = '',
+    this.photo = '',
+    required this.createdAt,
+  });
+
+  factory HomeInventoryItem.fromMap(Map<String, Object?> m) => HomeInventoryItem(
+        id: m['id'] as int?,
+        name: m['name'] as String,
+        category: m['category'] as String? ?? '',
+        value: (m['value'] as num?)?.toDouble() ?? 0,
+        location: m['location'] as String? ?? '',
+        note: m['note'] as String? ?? '',
+        photo: m['photo'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'name': name,
+        'category': category,
+        'value': value,
+        'location': location,
+        'note': note,
+        'photo': photo,
+        'created_at': createdAt,
+      };
+}
+
 /// نافذة صيام متقطّع — من [startAt] لحد [endAt] (null = شغّالة دلوقتى).
 class FastSession {
   final int? id;

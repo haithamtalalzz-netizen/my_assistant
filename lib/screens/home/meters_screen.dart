@@ -112,6 +112,138 @@ class _MetersScreenState extends State<MetersScreen> {
     );
   }
 
+  /// رسم الاستهلاك (بارات) + تقدير الفاتورة (متوسط × سعر الوحدة).
+  Widget _consumptionSection(String type, ColorScheme scheme) {
+    return FutureBuilder<List<({String day, double delta})>>(
+      future: _repo.consumptions(type),
+      builder: (context, snap) {
+        final cons = snap.data ?? const [];
+        if (cons.length < 2) return const SizedBox.shrink();
+        final maxV =
+            cons.fold<double>(0, (m, c) => c.delta > m ? c.delta : m);
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(tr('الاستهلاك حسب الفترة', 'Consumption by period'),
+                  style: TextStyle(fontSize: 12, color: scheme.outline)),
+              const SizedBox(height: 4),
+              for (final c in cons)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                          width: 52,
+                          child: Text(arShortDate(DateTime.parse(c.day)),
+                              style: const TextStyle(fontSize: 10))),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (_, bc) => Stack(
+                            children: [
+                              Container(
+                                height: 14,
+                                decoration: BoxDecoration(
+                                    color: scheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(7)),
+                              ),
+                              Container(
+                                height: 14,
+                                width: maxV == 0
+                                    ? 0
+                                    : bc.maxWidth * (c.delta / maxV),
+                                decoration: BoxDecoration(
+                                    color: scheme.primary,
+                                    borderRadius: BorderRadius.circular(7)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      SizedBox(
+                        width: 42,
+                        child: Text(
+                            arNum(c.delta % 1 == 0
+                                ? c.delta.toInt()
+                                : c.delta.toStringAsFixed(1)),
+                            textAlign: TextAlign.end,
+                            style: const TextStyle(
+                                fontSize: 11, fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 4),
+              FutureBuilder<double>(
+                future: _repo.estimateBill(type),
+                builder: (_, est) {
+                  final e = est.data ?? 0;
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                            e > 0
+                                ? tr('تقدير الفاتورة الجاية: ${egp(e)}',
+                                    'Estimated next bill: ${egp(e)}')
+                                : tr('حدّد سعر الوحدة لتقدير الفاتورة',
+                                    'Set a unit price to estimate the bill'),
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: e > 0 ? scheme.primary : scheme.outline,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                      TextButton(
+                        onPressed: () => _setRate(type),
+                        child: Text(tr('السعر', 'Price')),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _setRate(String type) async {
+    final current = await _repo.rate(type);
+    final ctrl = TextEditingController(
+        text: current > 0 ? current.toStringAsFixed(2) : '');
+    if (!mounted) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('سعر وحدة ${meterTypeLabel(type)}',
+            '${meterTypeLabel(type)} unit price')),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+              labelText: tr('السعر لكل وحدة (ج.م)', 'Price per unit (EGP)')),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('إلغاء', 'Cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(tr('حفظ', 'Save'))),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await _repo.setRate(
+          type, double.tryParse(toEnglishDigits(ctrl.text.trim())) ?? 0);
+      if (mounted) setState(() {});
+    }
+    ctrl.dispose();
+  }
+
   Widget _meterCard(BuildContext context, String type) {
     final scheme = Theme.of(context).colorScheme;
     final list = _byType[type] ?? [];
@@ -179,6 +311,7 @@ class _MetersScreenState extends State<MetersScreen> {
                     ],
                   ],
                 ),
+              if (list.length >= 2) _consumptionSection(type, scheme),
               if (list.length > 1)
                 Align(
                   alignment: AlignmentDirectional.centerEnd,

@@ -28,6 +28,8 @@ import 'package:my_assistant/data/docs_repo.dart';
 import 'package:my_assistant/data/habits_repo.dart';
 import 'package:my_assistant/data/health_repo.dart';
 import 'package:my_assistant/data/meds_repo.dart';
+import 'package:my_assistant/data/meters_repo.dart';
+import 'package:my_assistant/data/home_inventory_repo.dart';
 import 'package:my_assistant/data/money_repo.dart';
 import 'package:my_assistant/data/tasks_repo.dart';
 import 'package:my_assistant/data/subscriptions_repo.dart';
@@ -2681,6 +2683,47 @@ void main() {
     test('الصيام: بيقول مش صايم لو مفيش', () async {
       final r = await LocalBrain.answer('انا صايم؟');
       expect(r.handled, isTrue);
+    });
+  });
+
+  group('جرد الممتلكات واستهلاك العدادات (v44)', () {
+    test('ترقية v43 ← v44 بتعمل جدول الجرد', () async {
+      final v43 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v43, 43, 44);
+      await v43.insert('home_inventory',
+          {'name': 'تلاجة', 'value': 15000, 'created_at': '2026-07-14'});
+      expect((await v43.query('home_inventory')).length, 1);
+      await v43.close();
+    });
+
+    test('HomeInventoryRepo: إجمالي القيمة', () async {
+      final repo = HomeInventoryRepo();
+      await repo.save(HomeInventoryItem(
+          name: 'لابتوب', value: 20000,
+          createdAt: DateTime.now().toIso8601String()));
+      await repo.save(HomeInventoryItem(
+          name: 'مكتب', value: 5000,
+          createdAt: DateTime.now().toIso8601String()));
+      expect(await repo.totalValue(), 25000);
+      expect((await repo.all()).length, 2);
+    });
+
+    test('MetersRepo: استهلاك + تقدير الفاتورة', () async {
+      final repo = MetersRepo();
+      await repo.add(const MeterReading(
+          meterType: 'electricity', reading: 1000, day: '2026-05-01'));
+      await repo.add(const MeterReading(
+          meterType: 'electricity', reading: 1200, day: '2026-06-01'));
+      await repo.add(const MeterReading(
+          meterType: 'electricity', reading: 1500, day: '2026-07-01'));
+      final cons = await repo.consumptions('electricity');
+      expect(cons.length, 2); // 200 ثم 300
+      expect(cons.first.delta, 200);
+      expect(cons.last.delta, 300);
+      await repo.setRate('electricity', 2); // ٢ ج.م/وحدة
+      // المتوسط = 250 × 2 = 500
+      expect(await repo.estimateBill('electricity'), 500);
     });
   });
 

@@ -15,6 +15,7 @@ import 'renewals/renewals_screen.dart';
 import 'travel/travel_screen.dart';
 import 'food/fasting_screen.dart';
 import 'food/meal_planner_screen.dart';
+import 'home/home_inventory_screen.dart';
 import 'growth/courses_screen.dart';
 import 'pets/pets_screen.dart';
 import 'passwords/passwords_screen.dart';
@@ -294,6 +295,9 @@ class AppDrawer extends StatelessWidget {
             groupTile(Icons.home_outlined, tr('البيت', 'Home'),
                 accent: Colors.brown,
                 [
+                  GroupHubItem(Icons.inventory_2_outlined,
+                      tr('جرد الممتلكات', 'Home inventory'),
+                      screen: const HomeInventoryScreen()),
                   GroupHubItem(Icons.home_repair_service_outlined,
                       tr('صيانة البيت', 'Home maintenance'),
                       screen: const HomeMaintenanceScreen()),

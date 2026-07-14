@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 43,
+      version: 44,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -271,7 +271,27 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 44 && newV >= 44) {
+      for (final ddl in _v44Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// جرد ممتلكات البيت — للتأمين/الطوارئ.
+  static const List<String> _v44Tables = [
+    '''
+      CREATE TABLE home_inventory(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT '',
+        value REAL NOT NULL DEFAULT 0,
+        location TEXT NOT NULL DEFAULT '',
+        note TEXT NOT NULL DEFAULT '',
+        photo TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+  ];
 
   /// الصيام المتقطّع (نوافذ صيام) + مخطّط الوجبات الأسبوعى.
   static const List<String> _v43Tables = [
@@ -1222,6 +1242,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v43Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v44Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);
