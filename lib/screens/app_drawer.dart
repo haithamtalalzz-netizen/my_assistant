@@ -17,6 +17,9 @@ import 'food/fasting_screen.dart';
 import 'food/meal_planner_screen.dart';
 import 'home/home_inventory_screen.dart';
 import 'growth/courses_screen.dart';
+import 'growth/reading_screen.dart';
+import 'growth/gratitude_screen.dart';
+import 'growth/habit_analytics_screen.dart';
 import 'pets/pets_screen.dart';
 import 'passwords/passwords_screen.dart';
 import '../data/bills_repo.dart';
@@ -331,7 +334,15 @@ class AppDrawer extends StatelessWidget {
                       screen: const GoalsScreen()),
                   GroupHubItem(Icons.school_outlined, tr('التعلّم', 'Learning'),
                       screen: const CoursesScreen()),
-                  GroupHubItem(Icons.menu_book_outlined,
+                  GroupHubItem(Icons.menu_book_outlined, tr('القراءة', 'Reading'),
+                      screen: const ReadingScreen()),
+                  GroupHubItem(Icons.favorite_border,
+                      tr('مفكرة الامتنان', 'Gratitude'),
+                      screen: const GratitudeScreen()),
+                  GroupHubItem(Icons.insights_outlined,
+                      tr('تحليلات العادات', 'Habit analytics'),
+                      screen: const HabitAnalyticsScreen()),
+                  GroupHubItem(Icons.auto_stories_outlined,
                       tr('مراجعة القرآن', 'Quran review'),
                       screen: const QuranScreen()),
                   GroupHubItem(Icons.flag_outlined, tr('التحديات', 'Challenges'),

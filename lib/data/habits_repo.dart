@@ -87,4 +87,57 @@ class HabitsRepo {
     await StreakGuard.ensureScheduled();
     return result;
   }
+
+  /// تحليلات لكل عادة: السلسلة الحالية + الإنجاز فى آخر [windowDays] +
+  /// نسبة الالتزام + أكتر يوم أسبوع بتتعملها فيه.
+  Future<List<HabitStat>> analytics({int windowDays = 30}) async {
+    final habits = await active();
+    final now = DateTime.now();
+    final out = <HabitStat>[];
+    for (final h in habits) {
+      final days = await daysFor(h.id!);
+      final streak = computeStreak(days, now);
+      var recent = 0;
+      final weekday = List<int>.filled(7, 0); // 0=إثنين .. 6=أحد
+      for (final d in days) {
+        final dt = DateTime.tryParse(d);
+        if (dt == null) continue;
+        if (now.difference(dt).inDays < windowDays) recent++;
+        weekday[dt.weekday - 1]++;
+      }
+      var best = 0;
+      for (var i = 1; i < 7; i++) {
+        if (weekday[i] > weekday[best]) best = i;
+      }
+      out.add(HabitStat(
+        habit: h,
+        streak: streak,
+        recentDone: recent,
+        rate: (recent / windowDays).clamp(0.0, 1.0),
+        bestWeekday: weekday.every((c) => c == 0) ? null : best + 1,
+        total: days.length,
+      ));
+    }
+    // الأعلى التزامًا الأول.
+    out.sort((a, b) => b.rate.compareTo(a.rate));
+    return out;
+  }
+}
+
+/// إحصائية عادة واحدة (للتحليلات).
+class HabitStat {
+  final Habit habit;
+  final int streak;
+  final int recentDone; // فى نافذة التحليل
+  final double rate; // 0..1
+  final int? bestWeekday; // Dart weekday 1..7 أو null
+  final int total; // إجمالى الأيام المسجّلة
+  const HabitStat({
+    required this.habit,
+    required this.streak,
+    required this.recentDone,
+    required this.rate,
+    required this.bestWeekday,
+    required this.total,
+  });
 }

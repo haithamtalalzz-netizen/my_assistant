@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 46,
+      version: 47,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -291,7 +291,35 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 47 && newV >= 47) {
+      for (final ddl in _v47Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// تتبّع القراءة (كتب) + مفكرة الامتنان.
+  static const List<String> _v47Tables = [
+    '''
+      CREATE TABLE books(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        author TEXT NOT NULL DEFAULT '',
+        total_pages INTEGER NOT NULL DEFAULT 0,
+        current_page INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'reading',
+        note TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+    '''
+      CREATE TABLE gratitude(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        day TEXT NOT NULL,
+        text TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )''',
+    'CREATE INDEX idx_gratitude_day ON gratitude(day)',
+  ];
 
   /// الأساسيات المتكررة لقائمة التسوق (تتضاف بضغطة كل شهر).
   static const List<String> _v46Tables = [
@@ -1277,6 +1305,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v46Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v47Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);

@@ -2522,6 +2522,84 @@ class SymptomLog {
       };
 }
 
+/// كتاب فى تتبّع القراءة.
+class Book {
+  final int? id;
+  final String title;
+  final String author;
+  final int totalPages;
+  final int currentPage;
+
+  /// reading / done / wishlist.
+  final String status;
+  final String note;
+  final String createdAt;
+
+  const Book({
+    this.id,
+    required this.title,
+    this.author = '',
+    this.totalPages = 0,
+    this.currentPage = 0,
+    this.status = 'reading',
+    this.note = '',
+    required this.createdAt,
+  });
+
+  double get progress => totalPages == 0
+      ? (status == 'done' ? 1 : 0)
+      : (currentPage / totalPages).clamp(0, 1);
+
+  factory Book.fromMap(Map<String, Object?> m) => Book(
+        id: m['id'] as int?,
+        title: m['title'] as String,
+        author: m['author'] as String? ?? '',
+        totalPages: (m['total_pages'] as int?) ?? 0,
+        currentPage: (m['current_page'] as int?) ?? 0,
+        status: m['status'] as String? ?? 'reading',
+        note: m['note'] as String? ?? '',
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'title': title,
+        'author': author,
+        'total_pages': totalPages,
+        'current_page': currentPage,
+        'status': status,
+        'note': note,
+        'created_at': createdAt,
+      };
+}
+
+/// مدخل فى مفكرة الامتنان.
+class GratitudeEntry {
+  final int? id;
+  final String day;
+  final String text;
+  final String createdAt;
+
+  const GratitudeEntry({
+    this.id,
+    required this.day,
+    required this.text,
+    required this.createdAt,
+  });
+
+  factory GratitudeEntry.fromMap(Map<String, Object?> m) => GratitudeEntry(
+        id: m['id'] as int?,
+        day: m['day'] as String,
+        text: m['text'] as String,
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'day': day,
+        'text': text,
+        'created_at': createdAt,
+      };
+}
+
 /// عنصر فى جرد ممتلكات البيت (للتأمين/الطوارئ).
 class HomeInventoryItem {
   final int? id;

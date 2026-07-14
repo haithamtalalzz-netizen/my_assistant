@@ -31,6 +31,8 @@ import 'package:my_assistant/data/meds_repo.dart';
 import 'package:my_assistant/data/meters_repo.dart';
 import 'package:my_assistant/data/home_inventory_repo.dart';
 import 'package:my_assistant/data/wardrobe_repo.dart';
+import 'package:my_assistant/data/reading_repo.dart';
+import 'package:my_assistant/data/gratitude_repo.dart';
 import 'package:my_assistant/data/money_repo.dart';
 import 'package:my_assistant/data/tasks_repo.dart';
 import 'package:my_assistant/data/subscriptions_repo.dart';
@@ -2784,6 +2786,54 @@ void main() {
       await repo.addStaple('رز'); // موجود بالفعل في القائمة
       final added = await repo.addStaplesToList();
       expect(added, 1); // زيت بس (رز موجود)
+    });
+  });
+
+  group('القراءة والامتنان والتحليلات (v47)', () {
+    test('ترقية v46 ← v47 بتعمل الجداول', () async {
+      final v46 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v46, 46, 47);
+      await v46.insert('books',
+          {'title': 'كتاب', 'total_pages': 100, 'created_at': 'x'});
+      await v46.insert('gratitude',
+          {'day': '2026-07-14', 'text': 'الصحة', 'created_at': 'x'});
+      expect((await v46.query('books')).length, 1);
+      expect((await v46.query('gratitude')).length, 1);
+      await v46.close();
+    });
+
+    test('ReadingRepo: تقدّم صفحات + اكتمال', () async {
+      final repo = ReadingRepo();
+      final id = await repo.save(Book(
+          title: 'ك', totalPages: 100,
+          createdAt: DateTime.now().toIso8601String()));
+      var b = (await repo.all()).firstWhere((x) => x.id == id);
+      await repo.setPage(b, 100);
+      b = (await repo.all()).firstWhere((x) => x.id == id);
+      expect(b.currentPage, 100);
+      expect(b.status, 'done');
+      expect(await repo.finishedCount(), 1);
+    });
+
+    test('GratitudeRepo: حفظ + عدد الأيام', () async {
+      final repo = GratitudeRepo();
+      await repo.add('نعمة', day: DateTime(2026, 7, 10));
+      await repo.add('نعمة تانية', day: DateTime(2026, 7, 10));
+      await repo.add('نعمة', day: DateTime(2026, 7, 11));
+      expect((await repo.recent()).length, 3);
+      expect(await repo.daysCount(), 2); // يومين مختلفين
+    });
+
+    test('HabitsRepo: تحليلات (سلسلة + التزام)', () async {
+      final repo = HabitsRepo();
+      final id = await repo.add('مشي');
+      final today = dayKey(DateTime.now());
+      await repo.toggle(id, today);
+      final stats = await repo.analytics();
+      final mine = stats.firstWhere((s) => s.habit.id == id);
+      expect(mine.streak >= 1, isTrue);
+      expect(mine.recentDone >= 1, isTrue);
     });
   });
 
