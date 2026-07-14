@@ -3,6 +3,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/backup.dart';
 import 'package:my_assistant/core/app_state.dart';
+import 'package:my_assistant/core/data_export.dart';
 import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/food_db.dart';
 import 'package:my_assistant/core/exercise_library.dart';
@@ -2932,6 +2933,34 @@ void main() {
       expect((await v2.query('meals')).length, 1);
       expect((await v2.query('occasions')).length, 1);
       await v2.close();
+    });
+  });
+
+  group('تصدير كل البيانات CSV', () {
+    test('بيبنى CSV لكل جدول فيه بيانات ويتخطى الفاضى وخزنة كلمات السر', () async {
+      // نضيف بيانات فى جدولين + صف فى خزنة كلمات السر (لازم تتستبعد).
+      await TasksRepo().save(Task(
+          title: 'مهمة, فيها فاصلة',
+          createdAt: DateTime.now().toIso8601String()));
+      await BillsRepo().save(RecurringBill(
+          name: 'كهربا', amount: 250, dayOfMonth: 10, category: 'مرافق'));
+      await PasswordsRepo().save(PasswordEntry(
+          label: 'إيميل',
+          username: 'me',
+          secret: 'sekrit',
+          createdAt: DateTime.now().toIso8601String()));
+
+      final csvs = await DataExport.buildCsvs();
+      final names = csvs.map((c) => c.name).toSet();
+      expect(names.contains('tasks'), isTrue);
+      expect(names.contains('recurring_bills'), isTrue);
+      // خزنة كلمات السر مستبعدة من التصدير الصريح.
+      expect(names.contains('passwords'), isFalse);
+
+      // أول سطر = أسماء الأعمدة؛ القيمة اللى فيها فاصلة تتحاط فى quotes.
+      final tasksCsv = csvs.firstWhere((c) => c.name == 'tasks').csv;
+      expect(tasksCsv.split('\r\n').first.contains('title'), isTrue);
+      expect(tasksCsv.contains('"مهمة, فيها فاصلة"'), isTrue);
     });
   });
 

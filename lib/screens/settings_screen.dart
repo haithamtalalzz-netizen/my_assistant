@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../core/app_state.dart';
 import '../core/ar.dart';
 import '../core/backup.dart';
+import '../core/data_export.dart';
 import '../core/db.dart';
 import '../core/evening.dart';
 import '../core/health_service.dart';
@@ -231,6 +232,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await BackupService.exportBackup();
     } on Exception catch (e) {
       dev.log('فشل تصدير النسخة الاحتياطية', error: e);
+      _toast(tr('حصلت مشكلة أثناء التصدير', 'Export failed'));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _exportData() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final n = await DataExport.exportAll();
+      _toast(tr('اتصدّر ${arNum(n)} قسم كملفات CSV',
+          'Exported ${arNum(n)} sections as CSV'));
+    } on Exception catch (e) {
+      dev.log('فشل تصدير كل البيانات', error: e);
       _toast(tr('حصلت مشكلة أثناء التصدير', 'Export failed'));
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -1051,6 +1067,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: Text(tr('هتستبدل البيانات الحالية بالكامل',
                       'Replaces all current data')),
                   onTap: _busy ? null : _restore,
+                ),
+                const Divider(height: 20),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.table_view_outlined),
+                  title: Text(tr('تصدير كل البيانات (Excel/CSV)',
+                      'Export all data (Excel/CSV)')),
+                  subtitle: Text(tr(
+                      'ملف zip فيه CSV لكل قسم — يفتح فى Excel (للأرشفة/القراءة)',
+                      'A zip with a CSV per section — opens in Excel (archive/read)')),
+                  onTap: _busy ? null : _exportData,
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
