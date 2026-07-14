@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/ar.dart';
+import 'appointments_calendar_screen.dart';
 import '../../core/l10n.dart';
 import '../../widgets/search_action.dart';
 import '../../data/appointments_repo.dart';
@@ -27,7 +28,17 @@ class ScheduleScreen extends StatelessWidget {
         drawer: drawer,
         appBar: AppBar(
           title: Text(tr('المواعيد', 'Appointments')),
-          actions: [searchAction(context)],
+          actions: [
+            searchAction(context),
+            IconButton(
+              tooltip: tr('عرض شهري', 'Month view'),
+              icon: const Icon(Icons.calendar_month_outlined),
+              onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AppointmentsCalendarScreen())),
+            ),
+          ],
           bottom: TabBar(tabs: [
             Tab(text: tr('المواعيد', 'Appointments')),
             Tab(text: tr('المناسبات', 'Occasions')),
