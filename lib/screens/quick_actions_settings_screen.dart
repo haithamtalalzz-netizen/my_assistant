@@ -31,7 +31,7 @@ List<({String key, IconData icon, String label, Color color})>
       (key: 'doc', icon: Icons.photo_camera_outlined, label: tr('صورة مستند', 'Doc photo'), color: Color(0xFF455A64)),
       (key: 'voice', icon: Icons.mic_none, label: tr('بصوتك', 'Voice'), color: Colors.blueAccent),
       (key: 'manager', icon: Icons.psychology_outlined, label: tr('اسأل مديرك', 'Manager'), color: Colors.deepPurple),
-      (key: 'appointment', icon: Icons.event_available_outlined, label: tr('موعد', 'Appointment'), color: Colors.blue),
+      (key: 'appointment', icon: Icons.event_available_outlined, label: tr('موعد', 'Event'), color: Colors.blue),
       (key: 'calendar', icon: Icons.calendar_month_outlined, label: tr('التقويم', 'Calendar'), color: Colors.cyan),
       (key: 'pharmacy', icon: Icons.local_pharmacy_outlined, label: tr('الصيدلية', 'Pharmacy'), color: Colors.purple),
     ];

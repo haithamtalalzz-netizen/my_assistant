@@ -81,6 +81,8 @@ import 'package:my_assistant/data/workout_repo.dart';
 import 'package:my_assistant/models/models.dart';
 import 'package:my_assistant/screens/schedule/appointment_form.dart';
 import 'package:my_assistant/screens/tour_screen.dart';
+import 'package:my_assistant/screens/quick_actions_settings_screen.dart';
+import 'package:my_assistant/core/l10n.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -3150,6 +3152,66 @@ void main() {
       // صنف من غير حصة -> ١٠٠ جم
       final fried = (await UsdaDb.search('مقلى')).single;
       expect(fried.defaultGrams, 100);
+    });
+  });
+
+  group('نصوص الرئيسية مش مقصوصة (عربى + إنجليزى)', () {
+    // بنقيس عرض كل نص بالفعل بـTextPainter عند نفس المقاسات اللى فى الشاشة،
+    // ونتأكد إن `FittedBox(scaleDown)` مش هيصغّر الخط لدرجة مش مقروءة.
+    double textWidth(String s, double fontSize) {
+      final tp = TextPainter(
+        text: TextSpan(text: s, style: TextStyle(fontSize: fontSize)),
+        textDirection: TextDirection.rtl,
+        maxLines: 1,
+      )..layout();
+      return tp.width;
+    }
+
+    /// نسبة التصغير اللى FittedBox هيعملها (١ = مفيش تصغير).
+    double shrink(String s, double fontSize, double available) {
+      final w = textWidth(s, fontSize);
+      return w <= available ? 1.0 : available / w;
+    }
+
+    tearDown(() => AppState.locale.value = const Locale('ar'));
+
+    test('بنود شيت الإضافة بتبان كاملة فى اللغتين (٣ فى الصف، سطرين)', () {
+      // ٣ فى الصف على أضيق شاشة شائعة (٣٢٠dp) ناقص هوامش الشيت والبند.
+      // البند بيلف على سطرين، فاللى بيحدد أقل عرض هو **أطول كلمة** مش النص كله.
+      const available = (320 - 24) / 3 - 8;
+      for (final locale in ['ar', 'en']) {
+        AppState.locale.value = Locale(locale);
+        for (final a in quickActionCatalog()) {
+          final longest = a.label
+              .split(' ')
+              .reduce((x, y) => textWidth(x, 13) >= textWidth(y, 13) ? x : y);
+          final f = shrink(longest, 13, available);
+          expect(f, greaterThan(0.8),
+              reason: 'البند «${a.label}» ($locale): أطول كلمة «$longest» '
+                  'هتتصغّر لـ${(f * 100).round()}% — يبقى مش مقروء');
+        }
+      }
+    });
+
+    test('أزرار صف الرئيسية الـ٥ بتبان كاملة فى اللغتين', () {
+      // ٥ أزرار على شاشة ٣٢٠dp ناقص هوامش الكارت — سطر واحد، فالأسماء لازم
+      // تفضل قصيرة (عشان كده «Appointments» بقت «Agenda»).
+      const available = (320 - 32) / 5 - 4;
+      for (final locale in ['ar', 'en']) {
+        AppState.locale.value = Locale(locale);
+        final labels = [
+          tr('إضافة', 'Add'),
+          tr('الفلوس', 'Money'),
+          tr('مواعيد', 'Agenda'),
+          tr('المهام', 'Tasks'),
+          tr('صوت', 'Voice'),
+        ];
+        for (final l in labels) {
+          final f = shrink(l, 11, available);
+          expect(f, greaterThan(0.8),
+              reason: 'زرار «$l» ($locale) هيتصغّر لـ${(f * 100).round()}%');
+        }
+      }
     });
   });
 

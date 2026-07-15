@@ -1957,7 +1957,9 @@ class _TodayScreenState extends State<TodayScreen> {
                 Expanded(
                   child: _actBtn(
                     icon: Icons.event_available_outlined,
-                    label: tr('المواعيد', 'Appointments'),
+                    // أسماء قصيرة: الصف ٥ أزرار فمفيش مكان لـ«Appointments»
+                    // (كانت هتتصغّر لـ٤١% = مش مقروءة).
+                    label: tr('مواعيد', 'Agenda'),
                     color: Colors.blue,
                     badge: _todayAppts.length,
                     onTap: () => _reloadAfter(() => Navigator.push(
@@ -2022,13 +2024,14 @@ class _TodayScreenState extends State<TodayScreen> {
   Widget _noCut(String text,
           {double size = 11,
           Color? color,
-          FontWeight weight = FontWeight.normal}) =>
+          FontWeight weight = FontWeight.normal,
+          int maxLines = 1}) =>
       FittedBox(
         fit: BoxFit.scaleDown,
         child: Text(
           text,
-          maxLines: 1,
-          softWrap: false,
+          maxLines: maxLines,
+          softWrap: maxLines > 1,
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: size, color: color, fontWeight: weight),
         ),
@@ -2168,10 +2171,10 @@ class _TodayScreenState extends State<TodayScreen> {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      // أطول: كل البنود تبان كويس من غير زنقة.
+      // بيطول لأعلى الشاشة تقريباً عشان البنود كلها تبان مرة واحدة.
       isScrollControlled: true,
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
+        maxHeight: MediaQuery.of(context).size.height * 0.95,
       ),
       builder: (ctx) {
         final scheme = Theme.of(ctx).colorScheme;
@@ -2204,52 +2207,65 @@ class _TodayScreenState extends State<TodayScreen> {
                   ],
                 ),
                 const SizedBox(height: 4),
+                // ٣ فى الصف — الكروت بتطلع أكبر وأوضح، والعرض متحسوب من
+                // المساحة الفعلية عشان يظبط على أى شاشة.
                 Flexible(
-                  child: SingleChildScrollView(
-                    child: Wrap(
-                      alignment: WrapAlignment.start,
-                      children: [
-                        for (final a in shown)
-                          SizedBox(
-                            width: 84,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(14),
-                              onTap: () {
-                                Navigator.pop(ctx);
-                                a.onTap();
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 8, horizontal: 2),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      width: 48,
-                                      height: 48,
-                                      decoration: BoxDecoration(
-                                        color:
-                                            a.color.withValues(alpha: 0.14),
-                                        borderRadius:
-                                            BorderRadius.circular(14),
-                                      ),
-                                      child: Icon(a.icon,
-                                          color: a.color, size: 22),
+                  child: LayoutBuilder(
+                    builder: (ctx2, box) {
+                      const perRow = 3;
+                      final w = box.maxWidth / perRow;
+                      return SingleChildScrollView(
+                        child: Wrap(
+                          alignment: WrapAlignment.start,
+                          children: [
+                            for (final a in shown)
+                              SizedBox(
+                                width: w,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: () {
+                                    Navigator.pop(ctx);
+                                    a.onTap();
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 10, horizontal: 4),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 64,
+                                          height: 64,
+                                          decoration: BoxDecoration(
+                                            color: a.color
+                                                .withValues(alpha: 0.14),
+                                            borderRadius:
+                                                BorderRadius.circular(18),
+                                          ),
+                                          child: Icon(a.icon,
+                                              color: a.color, size: 30),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        SizedBox(
+                                          // سطرين: «فاتورة اتدفعت» تتقسم بدل
+                                          // ما الخط يتصغّر لـ٥٤%.
+                                          height: 34,
+                                          width: double.infinity,
+                                          child: _noCut(a.label,
+                                              size: 13,
+                                              maxLines: 2,
+                                              color: scheme.onSurface,
+                                              weight: FontWeight.w600),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(height: 5),
-                                    SizedBox(
-                                      height: 15,
-                                      width: double.infinity,
-                                      child: _noCut(a.label,
-                                          color: scheme.onSurface),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                      ],
-                    ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
