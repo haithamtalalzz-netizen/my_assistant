@@ -21,6 +21,7 @@ import '../core/water_guard.dart';
 import '../core/weather.dart';
 import '../core/widget_bridge.dart';
 import '../data/appointments_repo.dart';
+import '../data/tasks_repo.dart';
 import '../data/bills_repo.dart';
 import '../data/debts_repo.dart';
 import '../data/docs_repo.dart';
@@ -43,6 +44,9 @@ import '../models/models.dart';
 import '../widgets/common.dart';
 import '../widgets/decorations.dart';
 import 'brain/chat_screen.dart';
+import 'emergency_view.dart';
+import 'schedule/schedule_screen.dart';
+import 'tasks/tasks_screen.dart';
 import 'brain/day_plan_screen.dart';
 import 'food/diet_plans_screen.dart';
 import 'health/cycle_screen.dart';
@@ -95,6 +99,9 @@ class _TodayScreenState extends State<TodayScreen> {
   int _water = 0;
   double? _sleep;
   List<Appointment> _todayAppts = [];
+
+  /// عدد المهام المستحقة — لبادج زرار «المهام».
+  int _dueTasks = 0;
   List<Medication> _activeMeds = [];
   Set<String> _taken = {};
   List<Habit> _habitList = [];
@@ -237,10 +244,12 @@ class _TodayScreenState extends State<TodayScreen> {
     final weekItems = await collectWeekOverview();
     // «محتاج منك دلوقتي» + عدد الصلوات (لحلقات «يومك فى سطر»).
     final attention = await collectAttention(now);
+    final dueTasks = (await TasksRepo().dueTasks(now)).length;
     final prayedCount = (await WorshipRepo().prayedToday()).length;
     if (!mounted) return;
     setState(() {
       _attention = attention;
+      _dueTasks = dueTasks;
       _prayedCount = prayedCount;
       _name = name;
       _quickOrder = quickOrder;
@@ -1919,64 +1928,287 @@ class _TodayScreenState extends State<TodayScreen> {
     }
   }
 
+  /// صف الإجراءات: المدير · ➕ إضافة (المميّز) · المواعيد · المهام · صوت
+  /// وتحتهم شريط الطوارئ. كل أزرار الإضافة اتلمّت جوه الـ➕ عشان الصفحة تفضى.
   Widget _quickActions(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    Widget tile(IconData icon, String label, Color color, VoidCallback onTap) =>
-        InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 3),
-            child: SizedBox(
-              width: 66,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(icon, color: color, size: 24),
+    final all = {for (final a in _allActions(context)) a.key: a};
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
+        child: Column(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _actBtn(
+                    icon: Icons.psychology_outlined,
+                    label: tr('المدير', 'Manager'),
+                    color: Colors.deepPurple,
+                    onTap: all['manager']?.onTap ?? () {},
                   ),
-                  const SizedBox(height: 6),
-                  Text(label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 11.5, color: scheme.onSurface)),
+                ),
+                Expanded(child: _addBtn(context)),
+                Expanded(
+                  child: _actBtn(
+                    icon: Icons.event_available_outlined,
+                    label: tr('المواعيد', 'Appointments'),
+                    color: Colors.blue,
+                    badge: _todayAppts.length,
+                    onTap: () => _reloadAfter(() => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const ScheduleScreen()))),
+                  ),
+                ),
+                Expanded(
+                  child: _actBtn(
+                    icon: Icons.checklist_outlined,
+                    label: tr('المهام', 'Tasks'),
+                    color: Colors.orange,
+                    badge: _dueTasks,
+                    onTap: () => _reloadAfter(() => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const TasksScreen()))),
+                  ),
+                ),
+                Expanded(
+                  child: _actBtn(
+                    icon: Icons.mic_none,
+                    label: tr('صوت', 'Voice'),
+                    color: Colors.blueAccent,
+                    onTap: all['voice']?.onTap ?? () {},
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _emergencyStrip(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// زرار عادى مضغوط + بادج اختيارى (٠ = مفيش بادج).
+  Widget _actBtn({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+    int badge = 0,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: color, size: 22),
+                ),
+                if (badge > 0)
+                  PositionedDirectional(
+                    top: -4,
+                    end: -4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 1),
+                      constraints: const BoxConstraints(minWidth: 18),
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: scheme.surface, width: 1.5),
+                      ),
+                      child: Text(
+                        arNum(badge),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            fontSize: 10,
+                            height: 1.3,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: scheme.onSurface)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// الزرار الرئيسى: أكبر ومليان بلون الهوية — بيفتح كل أزرار الإضافة.
+  Widget _addBtn(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: _openAddSheet,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: scheme.primary,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: scheme.primary.withValues(alpha: 0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
                 ],
               ),
+              child: Icon(Icons.add, color: scheme.onPrimary, size: 30),
+            ),
+            const SizedBox(height: 3),
+            Text(tr('إضافة', 'Add'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    color: scheme.primary)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// شريط الطوارئ — بعرض الشاشة بس رفيع (مش بياكل مساحة يومية).
+  Widget _emergencyStrip(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: double.infinity,
+      height: 44,
+      child: OutlinedButton.icon(
+        onPressed: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const EmergencyView())),
+        icon: Icon(Icons.emergency_outlined, size: 18, color: scheme.error),
+        label: Text(tr('الطوارئ', 'Emergency'),
+            style: TextStyle(
+                fontWeight: FontWeight.w800, color: scheme.error)),
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: scheme.error.withValues(alpha: 0.5)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+
+  /// شيت الإضافة: كل أزرار الإضافة بترتيب المستخدم من «خصّص الأزرار السريعة».
+  Future<void> _openAddSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        final all = {for (final a in _allActions(context)) a.key: a};
+        final shown = [
+          for (final k in _quickOrder)
+            // الخطوات اليدوى بيتخفى لما المزامنة التلقائية شغّالة.
+            if (all.containsKey(k) && !(k == 'steps' && _stepsAuto)) all[k]!
+        ];
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Text(tr('إضافة سريعة', 'Quick add'),
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w800)),
+                    const Spacer(),
+                    TextButton.icon(
+                      icon: const Icon(Icons.tune, size: 16),
+                      label: Text(tr('خصّص', 'Customize')),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _openQuickCustomize();
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Wrap(
+                      alignment: WrapAlignment.start,
+                      children: [
+                        for (final a in shown)
+                          SizedBox(
+                            width: 78,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: () {
+                                Navigator.pop(ctx);
+                                a.onTap();
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 8, horizontal: 2),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 48,
+                                      height: 48,
+                                      decoration: BoxDecoration(
+                                        color:
+                                            a.color.withValues(alpha: 0.14),
+                                        borderRadius:
+                                            BorderRadius.circular(14),
+                                      ),
+                                      child: Icon(a.icon,
+                                          color: a.color, size: 22),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(a.label,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: scheme.onSurface)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-        child: Builder(builder: (context) {
-          final all = {for (final a in _allActions(context)) a.key: a};
-          final shown = [
-            for (final k in _quickOrder)
-              // نخفي الخطوات اليدوي لما المزامنة التلقائية شغّالة (مش هيتمسح).
-              if (all.containsKey(k) && !(k == 'steps' && _stepsAuto)) all[k]!
-          ];
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final a in shown) tile(a.icon, a.label, a.color, a.onTap),
-                tile(Icons.tune, tr('خصّص', 'Customize'), scheme.outline,
-                    _openQuickCustomize),
-              ],
-            ),
-          );
-        }),
-      ),
+      },
     );
   }
 
