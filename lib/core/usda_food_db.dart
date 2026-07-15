@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 import 'app_state.dart';
+import 'food_db.dart' show FoodItem;
 
 /// صنف أكل بقيمه الغذائية الكاملة لكل ١٠٠ جم — **كل الأرقام منقولة حرفياً من
 /// USDA FoodData Central (SR Legacy، ملكية عامة)**. مفيش أى رقم متكتوب بالإيد.
@@ -85,6 +86,24 @@ class UsdaFood {
 
   /// الحصة الافتراضية بالجرام (حصة USDA أو ١٠٠ جم).
   int get defaultGrams => portionGrams ?? 100;
+
+  /// المشروبات بتتقاس بالملى، الباقى بالجرام.
+  bool get isDrink =>
+      cat.contains('مشروبات') || cat.contains('Beverages');
+
+  /// بيحوّل الصنف لـ[FoodItem] عشان يشتغل مع منتقى الأكل وتسجيل الوجبات
+  /// الموجودين — **الأرقام بتتنقل زى ما هى، مفيش أى تحويل أو تقريب**.
+  FoodItem toFoodItem() => FoodItem(
+        ar ?? en,
+        en,
+        kcal,
+        protein,
+        carbs,
+        fat,
+        unit: isDrink ? 'مل' : 'جم',
+        portion: defaultGrams.toDouble(),
+        group: cat,
+      );
 
   /// القيم لكمية معيّنة بالجرام — ضرب خطى بسيط على قيم الـ١٠٠ جم.
   UsdaNutrients forGrams(double g) {

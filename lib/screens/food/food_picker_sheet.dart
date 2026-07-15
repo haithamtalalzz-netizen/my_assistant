@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/ar.dart';
 import '../../core/food_db.dart';
 import '../../core/l10n.dart';
+import '../../core/usda_food_db.dart';
 import 'barcode_scan_screen.dart';
 
 /// نتيجة اختيار صنف من قاعدة الأكل: الاسم + الكمية + القيم الغذائية المحسوبة.
@@ -36,9 +37,22 @@ class _FoodPickerSheet extends StatefulWidget {
 class _FoodPickerSheetState extends State<_FoodPickerSheet> {
   final _search = TextEditingController();
   Timer? _debounce;
+
+  /// نتايج USDA — أرقام مرجعية (دى الأساس).
+  List<FoodItem> _usda = [];
+  bool _loadingUsda = false;
+
+  /// الأكلات المصرية المدمجة — أرقام تقديرية (USDA ماعندهاش كشرى/طعمية).
   List<FoodItem> _offline = kFoods;
   List<FoodItem> _online = [];
   bool _loadingOnline = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // نسخّن قاعدة USDA بدرى عشان أول بحث يطلع فورى.
+    UsdaDb.all();
+  }
 
   @override
   void dispose() {
@@ -51,10 +65,22 @@ class _FoodPickerSheetState extends State<_FoodPickerSheet> {
     setState(() {
       _offline = searchFoods(q);
       _online = [];
+      if (q.trim().length < 2) _usda = [];
     });
     _debounce?.cancel();
     if (q.trim().length < 2) return;
+    _searchUsda(q);
     _debounce = Timer(const Duration(milliseconds: 500), () => _fetchOnline(q));
+  }
+
+  Future<void> _searchUsda(String q) async {
+    setState(() => _loadingUsda = true);
+    final r = await UsdaDb.search(q, limit: 40);
+    if (!mounted) return;
+    setState(() {
+      _usda = [for (final f in r) f.toFoodItem()];
+      _loadingUsda = false;
+    });
   }
 
   Future<void> _fetchOnline(String q) async {
@@ -115,8 +141,34 @@ class _FoodPickerSheetState extends State<_FoodPickerSheet> {
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
+        // ١) USDA الأول — دى الأرقام المرجعية.
+        if (_loadingUsda)
+          const Padding(
+            padding: EdgeInsets.all(12),
+            child: Center(
+                child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))),
+          ),
+        if (_usda.isNotEmpty) ...[
+          _header(tr('أرقام رسمية (USDA)', 'Official (USDA)'), verified: true),
+          for (final f in _usda) _foodTile(f),
+        ],
+        // ٢) الأكلات المصرية المدمجة — أرقامها تقديرية، وبنقول كده بصراحة.
+        if (showGrouped)
+          for (final g in kFoodGroups) ...[
+            _header(g),
+            for (final f in kFoods.where((x) => x.group == g)) _foodTile(f),
+          ]
+        else if (_offline.isNotEmpty) ...[
+          _header(tr('أكلات مصرية (أرقام تقديرية)',
+              'Egyptian dishes (estimated)')),
+          for (final f in _offline) _foodTile(f),
+        ],
+        // ٣) الإنترنت (منتجات معلّبة بالباركود).
         if (_online.isNotEmpty) ...[
-          _header(tr('من الإنترنت', 'Online results')),
+          _header(tr('منتجات من الإنترنت', 'Online products')),
           for (final f in _online) _foodTile(f),
         ],
         if (_loadingOnline)
@@ -125,38 +177,43 @@ class _FoodPickerSheetState extends State<_FoodPickerSheet> {
             child: Center(child: SizedBox(
                 width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
           ),
-        if (showGrouped)
-          for (final g in kFoodGroups) ...[
-            _header(g),
-            for (final f in kFoods.where((x) => x.group == g)) _foodTile(f),
-          ]
-        else ...[
-          if (_offline.isNotEmpty) _header(tr('من القاعدة المدمجة', 'Built-in')),
-          for (final f in _offline) _foodTile(f),
-          if (_offline.isEmpty && !_loadingOnline && _online.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: Text(
-                  tr('مفيش نتيجة — جرّب اسم تاني أو سجّلها يدوي',
-                      'No match — try another name or log it manually'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Theme.of(context).colorScheme.outline),
-                ),
+        if (!showGrouped &&
+            _usda.isEmpty &&
+            _offline.isEmpty &&
+            _online.isEmpty &&
+            !_loadingOnline &&
+            !_loadingUsda)
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: Text(
+                tr('مفيش نتيجة — جرّب اسم تاني أو سجّلها يدوي',
+                    'No match — try another name or log it manually'),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Theme.of(context).colorScheme.outline),
               ),
             ),
-        ],
+          ),
       ],
     );
   }
 
-  Widget _header(String text) => Padding(
+  Widget _header(String text, {bool verified = false}) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-        child: Text(text,
-            style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 12.5,
-                color: Theme.of(context).colorScheme.primary)),
+        child: Row(
+          children: [
+            if (verified) ...[
+              Icon(Icons.verified,
+                  size: 14, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 4),
+            ],
+            Text(text,
+                style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12.5,
+                    color: Theme.of(context).colorScheme.primary)),
+          ],
+        ),
       );
 
   Widget _foodTile(FoodItem f) {

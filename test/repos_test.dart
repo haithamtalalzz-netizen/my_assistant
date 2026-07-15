@@ -3124,6 +3124,24 @@ void main() {
       expect(n.chol, closeTo(170, 0.01));
     });
 
+    test('التحويل لتسجيل الوجبات بينقل أرقام USDA زى ما هى', () async {
+      final roasted = (await UsdaDb.search('مشوى')).single;
+      final item = roasted.toFoodItem();
+      // الأرقام مانتغيرتش ولا اتقرّبت.
+      expect(item.kcal, 165);
+      expect(item.protein, 31.02);
+      expect(item.carbs, 0);
+      expect(item.fat, 3.57);
+      // الاسم العربى + الحصة من USDA.
+      expect(item.ar, 'فراخ صدور — مشوى فى الفرن');
+      expect(item.portion, 140);
+      expect(item.unit, 'جم');
+      // والحساب بالكمية زى ما بيحصل فى تسجيل الوجبة.
+      final n = item.forQty(200);
+      expect(n.kcal, closeTo(330, 0.01));
+      expect(n.protein, closeTo(62.04, 0.01));
+    });
+
     test('الحصة المنزلية بتيجى من USDA', () async {
       final roasted = (await UsdaDb.search('مشوى')).single;
       expect(roasted.portionLabel, '1 cup, chopped');
