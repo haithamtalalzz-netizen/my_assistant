@@ -45,6 +45,7 @@ import '../widgets/common.dart';
 import '../widgets/decorations.dart';
 import 'brain/chat_screen.dart';
 import 'emergency_view.dart';
+import 'money/money_screen.dart';
 import 'schedule/schedule_screen.dart';
 import 'tasks/tasks_screen.dart';
 import 'brain/day_plan_screen.dart';
@@ -1937,18 +1938,22 @@ class _TodayScreenState extends State<TodayScreen> {
         padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
         child: Column(
           children: [
+            _managerStrip(context, all['manager']?.onTap ?? () {}),
+            const SizedBox(height: 10),
+            // الترتيب (RTL: الأول = أقصى اليمين): ➕ · الفلوس · المواعيد · المهام · صوت
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Expanded(child: _addBtn(context)),
                 Expanded(
                   child: _actBtn(
-                    icon: Icons.psychology_outlined,
-                    label: tr('المدير', 'Manager'),
-                    color: Colors.deepPurple,
-                    onTap: all['manager']?.onTap ?? () {},
+                    icon: Icons.account_balance_wallet_outlined,
+                    label: tr('الفلوس', 'Money'),
+                    color: Colors.teal,
+                    onTap: () => _reloadAfter(() => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const MoneyScreen()))),
                   ),
                 ),
-                Expanded(child: _addBtn(context)),
                 Expanded(
                   child: _actBtn(
                     icon: Icons.event_available_outlined,
@@ -1988,6 +1993,46 @@ class _TodayScreenState extends State<TodayScreen> {
       ),
     );
   }
+
+  /// «اسأل مديرك» — زرار بعرض الشاشة فوق صف الإجراءات.
+  Widget _managerStrip(BuildContext context, VoidCallback onTap) {
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: double.infinity,
+      height: 46,
+      child: FilledButton.tonalIcon(
+        onPressed: onTap,
+        icon: const Icon(Icons.psychology_outlined, size: 20),
+        label: _noCut(tr('اسأل مديرك', 'Ask your manager'),
+            size: 14, weight: FontWeight.w800),
+        style: FilledButton.styleFrom(
+          backgroundColor: Colors.deepPurple.withValues(alpha: 0.14),
+          foregroundColor: scheme.brightness == Brightness.dark
+              ? Colors.deepPurple.shade200
+              : Colors.deepPurple.shade700,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+
+  /// نص مايتقصّش أبداً بأى لغة: `FittedBox` **بيصغّر الخط بدل ما يقطع**
+  /// (مهم لأن الإنجليزى أطول من العربى — «Appointments» مقابل «المواعيد»).
+  Widget _noCut(String text,
+          {double size = 11,
+          Color? color,
+          FontWeight weight = FontWeight.normal}) =>
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          text,
+          maxLines: 1,
+          softWrap: false,
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: size, color: color, fontWeight: weight),
+        ),
+      );
 
   /// زرار عادى مضغوط + بادج اختيارى (٠ = مفيش بادج).
   Widget _actBtn({
@@ -2045,11 +2090,11 @@ class _TodayScreenState extends State<TodayScreen> {
               ],
             ),
             const SizedBox(height: 5),
-            Text(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11, color: scheme.onSurface)),
+            SizedBox(
+              height: 15,
+              width: double.infinity,
+              child: _noCut(label, color: scheme.onSurface),
+            ),
           ],
         ),
       ),
@@ -2084,13 +2129,12 @@ class _TodayScreenState extends State<TodayScreen> {
               child: Icon(Icons.add, color: scheme.onPrimary, size: 30),
             ),
             const SizedBox(height: 3),
-            Text(tr('إضافة', 'Add'),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
-                    color: scheme.primary)),
+            SizedBox(
+              height: 15,
+              width: double.infinity,
+              child: _noCut(tr('إضافة', 'Add'),
+                  size: 11.5, color: scheme.primary, weight: FontWeight.w800),
+            ),
           ],
         ),
       ),
@@ -2124,6 +2168,11 @@ class _TodayScreenState extends State<TodayScreen> {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      // أطول: كل البنود تبان كويس من غير زنقة.
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
       builder: (ctx) {
         final scheme = Theme.of(ctx).colorScheme;
         final all = {for (final a in _allActions(context)) a.key: a};
@@ -2162,7 +2211,7 @@ class _TodayScreenState extends State<TodayScreen> {
                       children: [
                         for (final a in shown)
                           SizedBox(
-                            width: 78,
+                            width: 84,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(14),
                               onTap: () {
@@ -2188,13 +2237,12 @@ class _TodayScreenState extends State<TodayScreen> {
                                           color: a.color, size: 22),
                                     ),
                                     const SizedBox(height: 5),
-                                    Text(a.label,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            color: scheme.onSurface)),
+                                    SizedBox(
+                                      height: 15,
+                                      width: double.infinity,
+                                      child: _noCut(a.label,
+                                          color: scheme.onSurface),
+                                    ),
                                   ],
                                 ),
                               ),
