@@ -42,6 +42,7 @@ import 'calendar_screen.dart';
 import 'capsule_screen.dart';
 import 'challenges_screen.dart';
 import 'diary_screen.dart';
+import 'dashboard_screen.dart';
 import 'food/diet_plans_screen.dart';
 import 'food/food_card_screen.dart';
 import 'recipes_screen.dart';
@@ -199,6 +200,8 @@ class AppDrawer extends StatelessWidget {
             const SizedBox(height: 4),
             // مثبّت فوق — أكتر ٣ حاجات بتتفتح.
             top(0, Icons.home_outlined, tr('الرئيسية', 'Home')),
+            push(Icons.dashboard_outlined, tr('لوحة شاملة', 'Dashboard'),
+                const DashboardScreen()),
             push(Icons.psychology_outlined, tr('اسأل مديرك', 'Ask your manager'),
                 const ChatScreen()),
             top(1, Icons.event_note_outlined, tr('المواعيد', 'Appointments')),

@@ -3,6 +3,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/backup.dart';
 import 'package:my_assistant/core/app_state.dart';
+import 'package:my_assistant/core/dashboard_stats.dart';
 import 'package:my_assistant/core/data_export.dart';
 import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/usda_food_db.dart';
@@ -3152,6 +3153,44 @@ void main() {
       // صنف من غير حصة -> ١٠٠ جم
       final fried = (await UsdaDb.search('مقلى')).single;
       expect(fried.defaultGrams, 100);
+    });
+  });
+
+  group('اللوحة الشاملة', () {
+    test('بتطلّع أرقام حية للأقسام اللى فيها بيانات وتتخطى الفاضية', () async {
+      final now = DateTime.now();
+      // لوحة فاضية: الأقسام الاختيارية مالهاش كروت.
+      final empty = await collectDashboard(now);
+      final emptyKeys = empty.map((s) => s.key).toSet();
+      expect(emptyKeys.contains('debts'), isFalse, reason: 'مفيش ديون');
+      expect(emptyKeys.contains('subs'), isFalse, reason: 'مفيش اشتراكات');
+      // المهام كارت دايم (حتى لو صفر) عشان بند أساسى.
+      expect(emptyKeys.contains('tasks'), isTrue);
+
+      // نضيف بيانات حقيقية.
+      final iso = now.toIso8601String();
+      await DebtsRepo().add(Debt(
+          person: 'أحمد', amount: 300, direction: 'عليا', createdAt: iso));
+      await SubscriptionsRepo().save(Subscription(
+          name: 'نتفليكس', amount: 200, createdAt: iso));
+      await TasksRepo().save(Task(title: 'مهمة', createdAt: iso));
+
+      final full = await collectDashboard(now);
+      final byKey = {for (final s in full) s.key: s};
+      // الديون ظهرت بالصافى الصحيح.
+      expect(byKey.containsKey('debts'), isTrue);
+      expect(byKey['debts']!.value.contains('300'), isTrue);
+      expect(byKey['debts']!.sub, contains('عليك'));
+      // الاشتراكات ظهرت.
+      expect(byKey.containsKey('subs'), isTrue);
+      expect(byKey['subs']!.value.contains('200'), isTrue);
+      // المهام عدّت.
+      expect(byKey['tasks']!.value, arNum(1));
+      // كل كارت لازم يبقى ليه عنوان وقيمة (مفيش كارت فاضى).
+      for (final s in full) {
+        expect(s.title.trim().isNotEmpty, isTrue);
+        expect(s.value.trim().isNotEmpty, isTrue);
+      }
     });
   });
 
