@@ -3,6 +3,8 @@ import 'l10n.dart';
 /// كل عناصر الصفحة الرئيسية اللي المستخدم يقدر يظهرها/يخفيها من الإعدادات.
 /// المفاتيح ثابتة (بتتخزن)، والعرض بيستخدم [homeSectionLabel].
 const List<String> kHomeSectionKeys = [
+  'attention',
+  'glance',
   'quick_actions',
   'prayer',
   'summary',
@@ -21,6 +23,8 @@ const List<String> kHomeSectionKeys = [
 ];
 
 String homeSectionLabel(String key) => switch (key) {
+      'attention' => tr('شريط «محتاج منك دلوقتي»', '"Needs you now" strip'),
+      'glance' => tr('يومك فى سطر (حلقات التقدّم)', 'Day at a glance (rings)'),
       'quick_actions' => tr('أزرار الإضافة السريعة', 'Quick-add buttons'),
       'prayer' => tr('كارت مواعيد الصلاة', 'Prayer times card'),
       'summary' => tr('ملخص المدير', 'Manager summary'),

@@ -6,6 +6,10 @@ import 'package:my_assistant/core/app_state.dart';
 import 'package:my_assistant/core/data_export.dart';
 import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/usda_food_db.dart';
+import 'package:my_assistant/core/attention.dart';
+import 'package:my_assistant/widgets/day_glance.dart';
+import 'package:my_assistant/widgets/reorderable_sections.dart';
+import 'package:flutter/material.dart';
 import 'package:my_assistant/core/food_db.dart';
 import 'package:my_assistant/core/exercise_library.dart';
 import 'package:my_assistant/core/countries.dart';
@@ -2938,6 +2942,135 @@ void main() {
       expect((await v2.query('meals')).length, 1);
       expect((await v2.query('occasions')).length, 1);
       await v2.close();
+    });
+  });
+
+  group('الرئيسية: «محتاج منك دلوقتي»', () {
+    test('بيلمّ المتأخر من كل الأقسام ويرتّبه بالإلحاح', () async {
+      final now = DateTime(2026, 7, 15, 14, 0);
+      final iso = now.toIso8601String();
+
+      // فاتورة مستحقة (إلحاح ٠)
+      await BillsRepo().save(RecurringBill(
+          name: 'كهربا', amount: 250, dayOfMonth: 1, category: 'مرافق'));
+      // مهمة متأخرة (إلحاح ٠)
+      await TasksRepo().save(Task(
+          title: 'مهمة فاتت',
+          dueAt: now.subtract(const Duration(hours: 3)).toIso8601String(),
+          createdAt: iso));
+      // موعد بعد ٦ ساعات (إلحاح ٣ — مش قريّب)
+      await AppointmentsRepo().save(Appointment(
+          title: 'دكتور',
+          category: 'صحة',
+          when: now.add(const Duration(hours: 6))));
+      // نبات محتاج مياه (إلحاح ٦ — أقل أهمية)
+      await PlantsRepo().save(Plant(
+          name: 'نعناع',
+          waterIntervalDays: 2,
+          lastWatered: dayKey(now.subtract(const Duration(days: 5)))));
+
+      final items = await collectAttention(now);
+      expect(items, isNotEmpty);
+      // مرتّب تصاعدياً بالإلحاح: الأهم الأول.
+      for (var i = 1; i < items.length; i++) {
+        expect(items[i - 1].urgency, lessThanOrEqualTo(items[i].urgency));
+      }
+      final kinds = items.map((i) => i.kind).toList();
+      expect(kinds, contains(AttentionKind.bill));
+      expect(kinds, contains(AttentionKind.task));
+      expect(kinds, contains(AttentionKind.plant));
+      // الفاتورة والمهمة المتأخرة (٠) قبل النبات (٦).
+      expect(items.first.urgency, 0);
+      expect(items.last.kind, AttentionKind.plant);
+      // البنود اللى ليها إجراء فورى ليها نص زرار.
+      final bill = items.firstWhere((i) => i.kind == AttentionKind.bill);
+      expect(bill.actionLabel, isNotNull);
+    });
+
+    test('يوم نضيف = قايمة فاضية (شريط «كله تمام»)', () async {
+      final items = await collectAttention(DateTime(2026, 7, 15, 14));
+      expect(items, isEmpty);
+    });
+  });
+
+  group('الرئيسية: ترتيب الأقسام', () {
+    Section s(String id) => Section(id, const SizedBox.shrink());
+
+    test('بيطبّق الترتيب المحفوظ', () {
+      final ordered = applySectionOrder(
+          [s('a'), s('b'), s('c')], ['c', 'a', 'b']);
+      expect(ordered.map((x) => x.id).toList(), ['c', 'a', 'b']);
+    });
+
+    test('قسم جديد بيفضل مكانه الافتراضى مش بينطّ للآخر', () {
+      // الترتيب المحفوظ ماعندوش 'new' — لازم يفضل بعد 'a' زى ما هو.
+      final ordered =
+          applySectionOrder([s('a'), s('new'), s('b')], ['b', 'a']);
+      expect(ordered.map((x) => x.id).toList(), ['b', 'a', 'new']);
+      // ولو الترتيب المحفوظ فاضى، بيرجّع نفس الترتيب الأصلى.
+      final same = applySectionOrder([s('a'), s('b')], []);
+      expect(same.map((x) => x.id).toList(), ['a', 'b']);
+    });
+  });
+
+  group('الرئيسية: القايمة القابلة للترتيب بترسم فعلاً', () {
+    testWidgets('بترسم الهيدر والأقسام من غير أخطاء تخطيط', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: ReorderableSections(
+            storageKey: 'test_home',
+            header: const Text('الترحيب'),
+            sections: const [
+              Section('a', SizedBox(height: 80, child: Text('قسم أ'))),
+              Section('b', SizedBox(height: 80, child: Text('قسم ب'))),
+              Section('c', SizedBox(height: 80, child: Text('قسم ج'))),
+            ],
+          ),
+        ),
+      ));
+      // الترتيب بيتحمّل async -> نستنى.
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('الترحيب'), findsOneWidget);
+      expect(find.text('قسم أ'), findsOneWidget);
+      expect(find.text('قسم ج'), findsOneWidget);
+    });
+
+    testWidgets('قايمة فاضية = الهيدر لوحده من غير كراش', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: ReorderableSections(
+            storageKey: 'test_empty',
+            header: const Text('كله تمام'),
+            sections: const [],
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('كله تمام'), findsOneWidget);
+    });
+  });
+
+  group('الرئيسية: يومك فى سطر', () {
+    test('الحلقة بتحسب النسبة وتتجاهل اللى مالوش هدف', () {
+      const rings = [
+        GlanceRing(
+            icon: Icons.abc, label: 'صلوات', done: 3, total: 5, color: Colors.green),
+        GlanceRing(
+            icon: Icons.abc, label: 'مياه', done: 8, total: 8, color: Colors.blue),
+        // مفيش أدوية -> total=0 -> مش بتتعرض
+        GlanceRing(
+            icon: Icons.abc, label: 'أدوية', done: 0, total: 0, color: Colors.pink),
+      ];
+      expect(rings[0].fraction, closeTo(0.6, 0.001));
+      expect(rings[0].complete, isFalse);
+      expect(rings[1].complete, isTrue);
+      expect(rings[2].fraction, 0); // مفيش قسمة على صفر
+      // الملخص بيعدّ اللى ليها هدف بس (٢) واللى خلصت (١).
+      // ملحوظة: arNum بيرجّع أرقام لاتينية بقرار سابق فى المشروع.
+      expect(glanceSummary(rings), '1 من 2 خلصت');
     });
   });
 

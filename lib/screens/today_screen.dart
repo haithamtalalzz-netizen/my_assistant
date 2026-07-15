@@ -9,6 +9,11 @@ import '../core/app_state.dart';
 import '../core/ar.dart';
 import '../core/health_service.dart';
 import '../core/week_overview.dart';
+import '../core/attention.dart';
+import '../widgets/attention_strip.dart';
+import '../widgets/day_glance.dart';
+import '../widgets/reorderable_sections.dart';
+import '../data/worship_repo.dart';
 import '../core/l10n.dart';
 import '../core/notifications.dart';
 import '../core/prayers.dart';
@@ -113,6 +118,12 @@ class _TodayScreenState extends State<TodayScreen> {
   bool _hardDay = false;
   Set<String> _hidden = {}; // عناصر الرئيسية المخفية (من الإعدادات)
   List<WeekItem> _weekItems = [];
+
+  /// «محتاج منك دلوقتي» — كل المتأخر/المستحق من كل الأقسام.
+  List<AttentionItem> _attention = [];
+
+  /// عدد الصلوات اللى اتصلّت النهارده (لحلقة «يومك فى سطر»).
+  int _prayedCount = 0;
 
   /// عنصر الرئيسية ظاهر؟ (لكل ما هو مش مخفي من الإعدادات).
   bool _vis(String key) => !_hidden.contains(key);
@@ -224,8 +235,13 @@ class _TodayScreenState extends State<TodayScreen> {
     final dueMaintenance = await HomeMaintenanceRepo().due(now);
     final duePlants = await PlantsRepo().due(now);
     final weekItems = await collectWeekOverview();
+    // «محتاج منك دلوقتي» + عدد الصلوات (لحلقات «يومك فى سطر»).
+    final attention = await collectAttention(now);
+    final prayedCount = (await WorshipRepo().prayedToday()).length;
     if (!mounted) return;
     setState(() {
+      _attention = attention;
+      _prayedCount = prayedCount;
       _name = name;
       _quickOrder = quickOrder;
       _stepsAuto = stepsAuto;
@@ -426,102 +442,148 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
+  /// حلقات «يومك فى سطر» — بتتبنى من البيانات المحمّلة أصلاً (مفيش تحميل زيادة).
+  List<GlanceRing> _glanceRings() {
+    final expectedDoses =
+        _activeMeds.fold<int>(0, (s, m) => s + m.times.length);
+    return [
+      GlanceRing(
+        icon: Icons.mosque_outlined,
+        label: tr('صلوات', 'Prayers'),
+        done: _prayedCount,
+        total: 5,
+        color: const Color(0xFF2FA36B),
+      ),
+      GlanceRing(
+        icon: Icons.water_drop_outlined,
+        label: tr('مياه', 'Water'),
+        done: _water,
+        total: _waterGoal,
+        color: Colors.blue,
+      ),
+      GlanceRing(
+        icon: Icons.task_alt,
+        label: tr('عادات', 'Habits'),
+        done: _doneHabits.length,
+        total: _habitList.length,
+        color: Colors.deepPurple,
+      ),
+      GlanceRing(
+        icon: Icons.medication_outlined,
+        label: tr('أدوية', 'Meds'),
+        done: _taken.length.clamp(0, expectedDoses),
+        total: expectedDoses,
+        color: Colors.pink,
+      ),
+    ];
+  }
+
+  /// دوسة على حلقة -> تفتح قسمها.
+  void _onGlanceTap(GlanceRing r) {
+    if (r.label == tr('عادات', 'Habits')) {
+      widget.onGoToTab?.call(3);
+    } else if (r.label == tr('أدوية', 'Meds')) {
+      widget.onGoToTab?.call(1);
+    } else if (r.label == tr('مياه', 'Water')) {
+      // دوسة على حلقة المياه = كوباية زيادة (أسرع طريق).
+      _changeWater(1);
+    }
+  }
+
+  /// أقسام الرئيسية — القسم الفاضى **مابيتبنيش أصلاً** (بدل كارت «مفيش...»).
+  List<Section> _sections(BuildContext context) {
+    final out = <Section>[];
+    void add(String id, bool show, Widget Function() build) {
+      if (show) out.add(Section(id, build()));
+    }
+
+    add('glance', _vis('glance'),
+        () => DayGlance(rings: _glanceRings(), onTap: _onGlanceTap));
+    add('quick_actions', _vis('quick_actions'), () => _quickActions(context));
+    // الصلاة + ملخص المدير (كل واحد ليه مفتاح إظهار جوّه).
+    add('hero', _vis('prayer') || _vis('summary'),
+        () => _heroAndSummary(context));
+    add('week', _vis('week') && _weekItems.isNotEmpty,
+        () => _weekOverviewCard(context));
+    add('cycle', _vis('cycle') && _showCycleCard, () => _cycleCard(context));
+    add('weekly', _weeklyDue, () => _weeklyBanner(context));
+    add('smartwatch', _vis('smartwatch') && _hasFitnessData,
+        () => _sec(tr('من ساعتك الذكية', 'From your smartwatch'),
+            _fitnessSection(context)));
+    add('bills', _vis('bills') && _dueBills.isNotEmpty,
+        () => _sec(tr('فواتير مستحقة', 'Bills due'), _dueBillsCard(context)));
+    add(
+        'docs_expiry',
+        _vis('docs_expiry') && _expiring.isNotEmpty,
+        () => _sec(tr('مستندات محتاجة تجديد', 'Documents to renew'),
+            _expiringCard(context)));
+    add(
+        'appointments',
+        _vis('appointments') && _todayAppts.isNotEmpty,
+        () => _sec(tr("مواعيد النهارده", "Today's appointments"),
+            Column(children: [for (final a in _todayAppts) _apptTile(context, a)]),
+            trailing: _seeAll(1)));
+    add(
+        'meds',
+        _vis('meds') && _activeMeds.isNotEmpty,
+        () => _sec(tr("أدوية النهارده", "Today's medications"),
+            Column(children: _medTiles(context))));
+    add(
+        'workout',
+        _vis('workout'),
+        () => _sec(tr('التمرين', 'Workout'), _workoutCard(context),
+            trailing: TextButton(
+                onPressed: _openWorkoutPlan, child: Text(tr('الخطة', 'Plan')))));
+    add(
+        'meals',
+        _vis('meals') && (_meals.isNotEmpty || _showNutrition),
+        () => _sec(
+            tr("وجبات النهارده", "Today's meals"),
+            Column(children: [
+              for (final m in _meals) _mealTile(context, m),
+              if (_showNutrition) _nutritionCard(context),
+            ]),
+            trailing: _mealsActions(context)));
+    add(
+        'habits',
+        _vis('habits') && _habitList.isNotEmpty,
+        () => _sec(tr("عادات النهارده", "Today's habits"), _habitChips(context),
+            trailing: _seeAll(3)));
+    add('money', _vis('money'),
+        () => _sec(tr("فلوس النهارده", "Today's money"), _moneyCard(context),
+            trailing: _seeAll(2)));
+    return out;
+  }
+
+  /// قسم = عنوان + محتوى، ملفوفين فى ودجت واحدة (عشان الترتيب بالسحب).
+  Widget _sec(String title, Widget body, {Widget? trailing}) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SectionHeader(title, trailing: trailing),
+          body,
+        ],
+      );
+
   Widget _body(BuildContext context) {
+    final sections = _sections(context);
     return RefreshIndicator(
       onRefresh: _load,
-      child: ListView(
+      child: ReorderableSections(
+        storageKey: 'home',
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-        children: [
-          _header(context),
-          const SizedBox(height: 12),
-          if (_vis('quick_actions')) ...[
-            _quickActions(context),
+        sections: sections,
+        // الترحيب و«محتاج منك دلوقتي» ثابتين فوق — مش بيتحركوا.
+        header: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _header(context),
             const SizedBox(height: 12),
+            if (_vis('attention')) ...[
+              AttentionStrip(items: _attention, onChanged: _load),
+              const SizedBox(height: 12),
+            ],
           ],
-          _heroAndSummary(context),
-          const SizedBox(height: 12),
-          if (_vis('week') && _weekItems.isNotEmpty) ...[
-            _weekOverviewCard(context),
-            const SizedBox(height: 12),
-          ],
-          if (_vis('cycle') && _showCycleCard) ...[
-            _cycleCard(context),
-            const SizedBox(height: 12),
-          ],
-          if (_weeklyDue) ...[
-            _weeklyBanner(context),
-            const SizedBox(height: 12),
-          ],
-          // كارت المياه/النوم/الخطوات اتشالوا من نص الرئيسية (بطلب المستخدم).
-          // الخطوات وباقي مقاييس الساعة بتظهر في قسم «من ساعتك الذكية» تحت.
-          if (_vis('smartwatch') && _hasFitnessData) ...[
-            SectionHeader(tr('من ساعتك الذكية', 'From your smartwatch')),
-            _fitnessSection(context),
-          ],
-          if (_vis('bills') && _dueBills.isNotEmpty) ...[
-            SectionHeader(tr('فواتير مستحقة', 'Bills due')),
-            _dueBillsCard(context),
-          ],
-          if (_vis('docs_expiry') && _expiring.isNotEmpty) ...[
-            SectionHeader(tr('مستندات محتاجة تجديد', 'Documents to renew')),
-            _expiringCard(context),
-          ],
-          if (_vis('appointments')) ...[
-            SectionHeader(tr("مواعيد النهارده", "Today's appointments"),
-                trailing: _seeAll(1)),
-            if (_todayAppts.isEmpty)
-              EmptyHint(
-                  icon: Icons.event_available,
-                  text: tr('مفيش مواعيد النهارده', 'No appointments today'))
-            else
-              ..._todayAppts.map((a) => _apptTile(context, a)),
-          ],
-          if (_vis('meds')) ...[
-            SectionHeader(tr("أدوية النهارده", "Today's medications")),
-            if (_activeMeds.isEmpty)
-              EmptyHint(
-                  icon: Icons.medication_outlined,
-                  text: tr('مفيش أدوية متسجلة — ضيفها من تبويب الجدول',
-                      'No medications — add them from the Schedule tab'))
-            else
-              ..._medTiles(context),
-          ],
-          if (_vis('workout')) ...[
-            SectionHeader(tr('التمرين', 'Workout'),
-                trailing: TextButton(
-                    onPressed: _openWorkoutPlan,
-                    child: Text(tr('الخطة', 'Plan')))),
-            _workoutCard(context),
-          ],
-          if (_vis('meals')) ...[
-            SectionHeader(tr("وجبات النهارده", "Today's meals"),
-                trailing: _mealsActions(context)),
-            if (_meals.isEmpty)
-              EmptyHint(
-                  icon: Icons.restaurant_outlined,
-                  text: tr("لسه ماسجلتش وجبات النهارده",
-                      "No meals logged today yet"))
-            else
-              ..._meals.map((m) => _mealTile(context, m)),
-            if (_showNutrition) _nutritionCard(context),
-          ],
-          if (_vis('habits')) ...[
-            SectionHeader(tr("عادات النهارده", "Today's habits"),
-                trailing: _seeAll(3)),
-            if (_habitList.isEmpty)
-              EmptyHint(
-                  icon: Icons.task_alt,
-                  text: tr('لسه مفيش عادات — ابدأ بعادة واحدة بسيطة',
-                      'No habits yet — start with one simple habit'))
-            else
-              _habitChips(context),
-          ],
-          if (_vis('money')) ...[
-            SectionHeader(tr("فلوس النهارده", "Today's money"),
-                trailing: _seeAll(2)),
-            _moneyCard(context),
-          ],
-        ],
+        ),
       ),
     );
   }
