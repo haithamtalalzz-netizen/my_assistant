@@ -11,6 +11,7 @@ import '../core/ar.dart';
 import '../core/backup.dart';
 import '../core/data_export.dart';
 import '../core/proactive_insight.dart';
+import 'tour_screen.dart';
 import '../core/db.dart';
 import '../core/evening.dart';
 import '../core/health_service.dart';
@@ -242,6 +243,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// إعادة عرض الجولة التعريفية (بتقفل نفسها لما تخلص).
+  Future<void> _replayTour() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => TourScreen(onDone: () => Navigator.pop(ctx)),
+      ),
+    );
   }
 
   Future<void> _exportData() async {
@@ -772,6 +783,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'Pick what shows on Today & its order')),
                   trailing: const Icon(Icons.chevron_left),
                   onTap: _openQuickActionsSettings,
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.slideshow_outlined),
+                  title: Text(tr('شوف الجولة التعريفية', 'Replay the tour')),
+                  subtitle: Text(tr('جولة سريعة على أقسام التطبيق',
+                      'A quick tour of the app sections')),
+                  trailing: const Icon(Icons.chevron_left),
+                  onTap: _replayTour,
                 ),
                 ],
                 if (_openCat == 'general') ...[

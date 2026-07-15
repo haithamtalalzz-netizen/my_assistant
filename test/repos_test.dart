@@ -75,6 +75,7 @@ import 'package:my_assistant/data/weekly_repo.dart';
 import 'package:my_assistant/data/workout_repo.dart';
 import 'package:my_assistant/models/models.dart';
 import 'package:my_assistant/screens/schedule/appointment_form.dart';
+import 'package:my_assistant/screens/tour_screen.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -2936,6 +2937,38 @@ void main() {
       expect((await v2.query('meals')).length, 1);
       expect((await v2.query('occasions')).length, 1);
       await v2.close();
+    });
+  });
+
+  group('الجولة التعريفية', () {
+    test('الشرايح مكتملة (عنوان + شرح لكل واحدة)', () {
+      final slides = tourSlides();
+      expect(slides.length, greaterThanOrEqualTo(5));
+      for (final s in slides) {
+        expect(s.title.trim().isNotEmpty, isTrue);
+        expect(s.body.trim().isNotEmpty, isTrue);
+      }
+    });
+  });
+
+  group('البحث الموحّد الموسّع', () {
+    test('بيلاقى البنود الجديدة (مهام/تطعيمات/تحاليل/اشتراكات)', () async {
+      final now = DateTime.now().toIso8601String();
+      await TasksRepo().save(Task(title: 'مهمة الأسد', createdAt: now));
+      await VaccinationsRepo()
+          .save(Vaccination(name: 'تطعيم الأسد', createdAt: now));
+      await LabResultsRepo()
+          .save(LabResult(name: 'تحليل الأسد', value: 5, createdAt: now));
+      await SubscriptionsRepo().save(Subscription(
+          name: 'اشتراك الأسد', amount: 100, createdAt: now));
+
+      final hits = await SearchRepo().search('الأسد');
+      final kinds = hits.map((h) => h.kind).toSet();
+      expect(kinds.containsAll({'task', 'vaccination', 'lab', 'subscription'}),
+          isTrue,
+          reason: 'البحث لازم يغطى البنود الجديدة كمان');
+      // كلمة حرف واحد مابترجّعش نتايج.
+      expect(await SearchRepo().search('ا'), isEmpty);
     });
   });
 

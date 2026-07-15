@@ -180,6 +180,149 @@ class SearchRepo {
             title: r['name'] as String,
             subtitle: tr('صيانة البيت', 'Home maintenance')));
 
+    // المهام.
+    await add(
+        "SELECT title, done FROM tasks WHERE title LIKE ? OR notes LIKE ? LIMIT 10",
+        [like, like],
+        (r) => SearchHit(
+            kind: 'task',
+            title: r['title'] as String,
+            subtitle: (r['done'] as int? ?? 0) == 1
+                ? '${tr('مهمة', 'Task')} • ${tr('تمّت', 'Done')}'
+                : tr('مهمة', 'Task')));
+
+    // الاشتراكات.
+    await add(
+        "SELECT name, amount FROM subscriptions WHERE name LIKE ? OR notes LIKE ? LIMIT 10",
+        [like, like],
+        (r) => SearchHit(
+            kind: 'subscription',
+            title: r['name'] as String,
+            subtitle:
+                '${tr('اشتراك', 'Subscription')} • ${egp((r['amount'] as num).toDouble())}'));
+
+    // الأهداف.
+    await add(
+        "SELECT title FROM goals WHERE title LIKE ? OR notes LIKE ? LIMIT 10",
+        [like, like],
+        (r) => SearchHit(
+            kind: 'goal',
+            title: r['title'] as String,
+            subtitle: tr('هدف', 'Goal')));
+
+    // السيارات.
+    await add(
+        "SELECT name, plate FROM cars WHERE name LIKE ? OR plate LIKE ? OR notes LIKE ? LIMIT 10",
+        [like, like, like],
+        (r) => SearchHit(
+            kind: 'car',
+            title: r['name'] as String,
+            subtitle: '${tr('سيارة', 'Car')}'
+                '${(r['plate'] as String).isEmpty ? '' : ' • ${r['plate']}'}'));
+
+    // التجديدات.
+    await add(
+        "SELECT title, type FROM renewals WHERE title LIKE ? OR notes LIKE ? LIMIT 10",
+        [like, like],
+        (r) => SearchHit(
+            kind: 'renewal',
+            title: r['title'] as String,
+            subtitle: tr('تجديد', 'Renewal')));
+
+    // الرحلات.
+    await add(
+        "SELECT title, destination FROM trips WHERE title LIKE ? OR destination LIKE ? LIMIT 10",
+        [like, like],
+        (r) => SearchHit(
+            kind: 'trip',
+            title: r['title'] as String,
+            subtitle: '${tr('رحلة', 'Trip')}'
+                '${(r['destination'] as String).isEmpty ? '' : ' • ${r['destination']}'}'));
+
+    // الدورات التعليمية.
+    await add(
+        "SELECT title, provider FROM courses WHERE title LIKE ? OR provider LIKE ? LIMIT 10",
+        [like, like],
+        (r) => SearchHit(
+            kind: 'course',
+            title: r['title'] as String,
+            subtitle: tr('دورة', 'Course')));
+
+    // الحيوانات الأليفة.
+    await add(
+        "SELECT name, species FROM pets WHERE name LIKE ? OR species LIKE ? LIMIT 10",
+        [like, like],
+        (r) => SearchHit(
+            kind: 'pet',
+            title: r['name'] as String,
+            subtitle: tr('حيوان أليف', 'Pet')));
+
+    // التطعيمات.
+    await add(
+        "SELECT name, person FROM vaccinations WHERE name LIKE ? OR person LIKE ? LIMIT 10",
+        [like, like],
+        (r) => SearchHit(
+            kind: 'vaccination',
+            title: r['name'] as String,
+            subtitle: '${tr('تطعيم', 'Vaccine')}'
+                '${(r['person'] as String).isEmpty ? '' : ' • ${r['person']}'}'));
+
+    // مؤشرات التحاليل.
+    await add(
+        "SELECT name, value, unit FROM lab_results WHERE name LIKE ? ORDER BY date DESC LIMIT 10",
+        [like],
+        (r) => SearchHit(
+            kind: 'lab',
+            title: r['name'] as String,
+            subtitle:
+                '${tr('تحليل', 'Lab')} • ${arNum((r['value'] as num).toString())} ${r['unit']}'));
+
+    // قائمة الأمنيات.
+    await add(
+        "SELECT name FROM wishlist WHERE name LIKE ? OR note LIKE ? LIMIT 10",
+        [like, like],
+        (r) => SearchHit(
+            kind: 'wish',
+            title: r['name'] as String,
+            subtitle: tr('أمنية', 'Wish')));
+
+    // قائمة المشاهدة.
+    await add(
+        "SELECT title FROM watchlist WHERE title LIKE ? OR note LIKE ? LIMIT 10",
+        [like, like],
+        (r) => SearchHit(
+            kind: 'watch',
+            title: r['title'] as String,
+            subtitle: tr('مشاهدة', 'Watchlist')));
+
+    // الكتب.
+    await add(
+        "SELECT title, author FROM books WHERE title LIKE ? OR author LIKE ? LIMIT 10",
+        [like, like],
+        (r) => SearchHit(
+            kind: 'book',
+            title: r['title'] as String,
+            subtitle: '${tr('كتاب', 'Book')}'
+                '${(r['author'] as String).isEmpty ? '' : ' • ${r['author']}'}'));
+
+    // جرد ممتلكات البيت.
+    await add(
+        "SELECT name, location FROM home_inventory WHERE name LIKE ? OR note LIKE ? LIMIT 10",
+        [like, like],
+        (r) => SearchHit(
+            kind: 'inventory',
+            title: r['name'] as String,
+            subtitle: tr('جرد البيت', 'Home inventory')));
+
+    // نباتات البيت.
+    await add(
+        "SELECT name, location FROM plants WHERE name LIKE ? OR note LIKE ? LIMIT 10",
+        [like, like],
+        (r) => SearchHit(
+            kind: 'plant',
+            title: r['name'] as String,
+            subtitle: tr('نبات', 'Plant')));
+
     return hits;
   }
 }

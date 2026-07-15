@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../data/settings_repo.dart';
 import 'onboarding_screen.dart';
+import 'tour_screen.dart';
 
-/// بيقرر: يعرض التهيئة (أول مرة) ولا التطبيق العادي.
+/// بيقرر: يعرض التهيئة (أول مرة) → الجولة التعريفية (مرة واحدة) → التطبيق.
 class OnboardingGate extends StatefulWidget {
   final Widget child;
 
@@ -15,6 +16,7 @@ class OnboardingGate extends StatefulWidget {
 
 class _OnboardingGateState extends State<OnboardingGate> {
   bool? _onboarded;
+  bool _tourSeen = true;
 
   @override
   void initState() {
@@ -28,7 +30,13 @@ class _OnboardingGateState extends State<OnboardingGate> {
     // متعرضش التهيئة لناس بتستخدم التطبيق من قبل.
     final done = await settings.get('onboarded') == '1' ||
         (await settings.userName()).isNotEmpty;
-    if (mounted) setState(() => _onboarded = done);
+    final tour = await settings.get('tour_seen') == '1';
+    if (mounted) {
+      setState(() {
+        _onboarded = done;
+        _tourSeen = tour;
+      });
+    }
   }
 
   @override
@@ -37,8 +45,13 @@ class _OnboardingGateState extends State<OnboardingGate> {
       return const Scaffold(body: SizedBox.shrink());
     }
     if (!_onboarded!) {
-      return OnboardingScreen(
-          onDone: () => setState(() => _onboarded = true));
+      return OnboardingScreen(onDone: () {
+        setState(() => _onboarded = true);
+      });
+    }
+    // الجولة التعريفية بعد التهيئة — مرة واحدة بس (وتتعاد من الإعدادات).
+    if (!_tourSeen) {
+      return TourScreen(onDone: () => setState(() => _tourSeen = true));
     }
     return widget.child;
   }
