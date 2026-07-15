@@ -50,6 +50,42 @@ DROP_RE = re.compile(
     r'whale|seal,|sea lion|walrus|bear,|beluga|caribou|moose|muskrat|'
     r'\bswine\b)', re.I)
 
+# جولة ٢ (باختيار المستخدم): بنود تانية ما تصلحش.
+# ⚠️ اتكتبت بدقة عشان الإيجابيات الكاذبة:
+#   - «Beans, black turtle» = فاصوليا سودا مش سلاحف -> بنطلب «Turtle, green» بس
+#   - «KLONDIKE SLIM-A-BEAR» = أيس كريم مش لحم دب -> مفيش قاعدة لـbear هنا
+#   - «Turkey Pepperoni» = ديك رومى حلال -> بنستثنيه من قاعدة البيبرونى
+#   - «Vanilla extract, imitation, no alcohol» = من غير كحول -> بيفضل
+DROP2 = [
+    # بيبرونى/سلامى الخنزير — إلا لو ديك رومى
+    (re.compile(r'\b(pepperoni|salami)\b', re.I), re.compile(r'\bturkey\b', re.I)),
+    # دم
+    (re.compile(r'\bblood sausage\b|\bblood pudding\b|black pudding', re.I), None),
+    # جيلاتين ومنفحة (مصدر حيوانى مجهول) — لاحظ الجمع «Gelatins»
+    (re.compile(r'\bgelatins?\b|\brennin\b|\brennet\b', re.I), None),
+    # خلاصة فانيليا بكحول (مش «no alcohol»)
+    (re.compile(r'\bvanilla extract\b', re.I), re.compile(r'no alcohol', re.I)),
+    # خيل / ضفادع / سلاحف
+    (re.compile(r'\bhorse\b|\bdonkey\b|\bmule\b|\bfrog legs\b', re.I), None),
+    (re.compile(r'^turtle,\s*green', re.I), None),
+    # شحم بقرى
+    (re.compile(r'\bbeef tallow\b', re.I), None),
+]
+
+# اللحوم/الدواجن/الأسماك النيّئة — ما بتتاكلش نيّئة (الخضار والفاكهة النيّئة بتفضل)
+RAW_MEAT_CATS = {
+    'Beef Products', 'Poultry Products', 'Lamb, Veal, and Game Products',
+    'Finfish and Shellfish Products', 'Sausages and Luncheon Meats',
+}
+
+
+def drop2_hit(desc):
+    """هل الصنف بيقع تحت جولة الفلترة التانية؟ (مع مراعاة الاستثناءات)"""
+    for pat, keep_if in DROP2:
+        if pat.search(desc) and not (keep_if and keep_if.search(desc)):
+            return True
+    return False
+
 # ————— قاموس الأسماء (عربى) — أسماء بس، مفيش أرقام —————
 HEAD = {
     'beef': 'لحمة بقرى', 'lamb': 'ضانى', 'veal': 'بتلو', 'chicken': 'فراخ',
@@ -250,7 +286,7 @@ for r in rows('food_portion.csv'):
 cats = {r['id']: r['description'] for r in rows('food_category.csv')}
 
 print('build...')
-items, dropped = [], 0
+items, dropped, dropped2, dropped_raw = [], 0, 0, 0
 for r in rows('food.csv'):
     fid = r['fdc_id']
     n = per_food.get(fid)
@@ -261,7 +297,14 @@ for r in rows('food.csv'):
     if cat in DROP_CATS or DROP_RE.search(desc):
         dropped += 1
         continue
+    if drop2_hit(desc):
+        dropped2 += 1
+        continue
     pr = prep_of(desc)
+    # لحمة/فراخ/سمك نيّئة -> مالهاش لزمة (محدش بياكلها كده)
+    if pr == 'raw' and cat in RAW_MEAT_CATS:
+        dropped_raw += 1
+        continue
     it = {
         'id': int(fid), 'en': desc, 'cat': CAT_AR.get(cat, cat),
         'kcal': n.get('kcal', 0), 'p': n.get('protein', 0),
@@ -312,7 +355,11 @@ json.dump(final, open('usda_foods.json', 'w', encoding='utf-8'),
 size = os.path.getsize('usda_foods.json')
 with_ar = sum(1 for i in final if 'ar' in i)
 lines = [
-    f'أصناف نهائية: {len(final)}   (اتشال: {dropped}  تكرار: {len(items)-len(final)})',
+    f'أصناف نهائية: {len(final)}',
+    f'  اتشال (خنزير/خمور/قطبى): {dropped}',
+    f'  اتشال (دم/جيلاتين/منفحة/كحول/خيل/ضفادع/شحم): {dropped2}',
+    f'  اتشال (لحوم نيّئة): {dropped_raw}',
+    f'  تكرار: {len(items)-len(final)}',
     f'حجم JSON: {size/1e6:.2f} MB',
     f'ليها اسم عربى: {with_ar} ({with_ar*100//len(final)}%)',
     f'مجموعات طرق طهى: {multi}   أصناف جواها: {sum(1 for i in final if "g" in i)}',

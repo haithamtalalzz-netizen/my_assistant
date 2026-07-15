@@ -6,7 +6,8 @@ import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/usda_food_db.dart';
 
-/// دليل الأكل: بحث فى ٦٨٧٦ صنف بقيمهم الغذائية الكاملة — أرقام USDA حرفياً.
+/// دليل الأكل: بحث فى ~٦٠٠٠ صنف بقيمهم الغذائية الكاملة — أرقام USDA حرفياً.
+/// (العدد الفعلى بيتقرا من الأصل نفسه وقت التشغيل، مش متكتوب هنا.)
 class FoodCardScreen extends StatefulWidget {
   const FoodCardScreen({super.key});
 
