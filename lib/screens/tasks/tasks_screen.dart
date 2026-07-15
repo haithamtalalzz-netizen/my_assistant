@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../core/section_pdf.dart';
 import '../../data/tasks_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
@@ -77,6 +78,11 @@ class _TasksScreenState extends State<TasksScreen> {
         title: Text(tr('المهام', 'Tasks')),
         actions: [
           searchAction(context),
+          IconButton(
+            tooltip: tr('تقرير PDF', 'PDF report'),
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            onPressed: _exportPdf,
+          ),
           IconButton(
             tooltip: tr('المشاريع', 'Projects'),
             icon: const Icon(Icons.folder_outlined),
@@ -318,6 +324,27 @@ class _TasksScreenState extends State<TasksScreen> {
     }
     title.dispose();
     notes.dispose();
+  }
+
+  Future<void> _exportPdf() async {
+    await SectionPdf.share(
+      title: tr('المهام', 'Tasks'),
+      headers: [
+        tr('المهمة', 'Task'),
+        tr('الحالة', 'Status'),
+        tr('الموعد', 'Due'),
+        tr('الأولوية', 'Priority'),
+      ],
+      rows: [
+        for (final t in _tasks)
+          [
+            t.title,
+            t.done ? tr('تمّت', 'Done') : tr('مفتوحة', 'Open'),
+            t.due == null ? '' : arShortDate(t.due!),
+            _priorityLabel(t.priority),
+          ]
+      ],
+    );
   }
 
   Future<void> _manageProjects() async {

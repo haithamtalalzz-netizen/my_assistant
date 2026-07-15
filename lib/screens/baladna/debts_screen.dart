@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../core/section_pdf.dart';
 import '../../data/debts_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
@@ -130,6 +131,11 @@ class _DebtsScreenState extends State<DebtsScreen> {
               icon: const Icon(Icons.trending_down),
               onPressed: _showPayoffPlan,
             ),
+            IconButton(
+              tooltip: tr('تقرير PDF', 'PDF report'),
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              onPressed: _exportPdf,
+            ),
             searchAction(context),
           ]),
       body: _loading
@@ -185,6 +191,21 @@ class _DebtsScreenState extends State<DebtsScreen> {
         icon: const Icon(Icons.add),
         label: Text(tr('دين جديد', 'New debt')),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    await SectionPdf.share(
+      title: tr('الديون والسلف', 'Debts & loans'),
+      headers: [tr('الشخص', 'Person'), tr('المبلغ', 'Amount'), tr('النوع', 'Type')],
+      rows: [
+        for (final d in _debts)
+          [
+            d.person,
+            egp(d.amount),
+            d.direction == 'عليا' ? tr('عليك', 'You owe') : tr('ليك', 'Owed to you'),
+          ]
+      ],
     );
   }
 

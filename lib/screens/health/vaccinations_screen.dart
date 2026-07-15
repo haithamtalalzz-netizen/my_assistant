@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../core/section_pdf.dart';
 import '../../data/vaccinations_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
@@ -38,7 +39,17 @@ class _VaccinationsScreenState extends State<VaccinationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('سجل التطعيمات', 'Vaccinations'))),
+      appBar: AppBar(
+        title: Text(tr('سجل التطعيمات', 'Vaccinations')),
+        actions: [
+          if (_items.isNotEmpty)
+            IconButton(
+              tooltip: tr('تقرير PDF', 'PDF report'),
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              onPressed: _exportPdf,
+            ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -62,6 +73,27 @@ class _VaccinationsScreenState extends State<VaccinationsScreen> {
         tooltip: tr('تطعيم جديد', 'New vaccine'),
         child: const Icon(Icons.add),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    await SectionPdf.share(
+      title: tr('سجل التطعيمات', 'Vaccinations'),
+      headers: [
+        tr('التطعيم', 'Vaccine'),
+        tr('لمين', 'For'),
+        tr('التاريخ', 'Date'),
+        tr('الجرعة الجاية', 'Next dose'),
+      ],
+      rows: [
+        for (final v in _items)
+          [
+            v.name,
+            v.person,
+            v.date,
+            v.nextDue,
+          ]
+      ],
     );
   }
 

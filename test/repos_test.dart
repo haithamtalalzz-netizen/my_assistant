@@ -2939,6 +2939,23 @@ void main() {
     });
   });
 
+  group('تأجيل تذكير الموعد', () {
+    test('byId بترجّع الموعد (اللى زرار «أجّل ساعة» بيعيد جدولته)', () async {
+      final repo = AppointmentsRepo();
+      final id = await repo.save(Appointment(
+        title: 'دكتور',
+        category: 'صحة',
+        when: DateTime.now().add(const Duration(hours: 3)),
+      ));
+      final got = await repo.byId(id);
+      expect(got, isNotNull);
+      expect(got!.title, 'دكتور');
+      expect(got.done, isFalse);
+      // id مش موجود → null (الـsnooze بيقف من غير ما يكسر).
+      expect(await repo.byId(999999), isNull);
+    });
+  });
+
   group('مؤشرات التحاليل (v50)', () {
     test('ترقية v49 ← v50 بتعمل جدول التحاليل', () async {
       final v49 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,

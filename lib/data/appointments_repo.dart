@@ -13,6 +13,14 @@ class AppointmentsRepo {
     return rows.map(Appointment.fromMap).toList();
   }
 
+  /// موعد واحد بالـ id (null لو مش موجود).
+  Future<Appointment?> byId(int id) async {
+    final db = await AppDb.instance;
+    final rows =
+        await db.query('appointments', where: 'id = ?', whereArgs: [id]);
+    return rows.isEmpty ? null : Appointment.fromMap(rows.first);
+  }
+
   /// مواعيد يوم معين اللي لسه ماتمتش — لشاشة اليوم.
   Future<List<Appointment>> forDay(DateTime day) async {
     final db = await AppDb.instance;
@@ -118,6 +126,8 @@ class AppointmentsRepo {
       payload: 'appt|$id',
       actions: [
         AndroidNotificationAction('appt_done', tr('تم ✓', 'Done ✓'),
+            showsUserInterface: false, cancelNotification: true),
+        AndroidNotificationAction('appt_snooze', tr('⏰ أجّل ساعة', '⏰ +1h'),
             showsUserInterface: false, cancelNotification: true),
       ],
     );
