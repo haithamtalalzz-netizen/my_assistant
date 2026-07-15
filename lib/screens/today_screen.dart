@@ -43,6 +43,9 @@ import '../models/models.dart';
 import '../widgets/common.dart';
 import '../widgets/decorations.dart';
 import 'brain/chat_screen.dart';
+import '../core/dashboard_stats.dart';
+import '../widgets/dash_card.dart';
+import 'dashboard_screen.dart';
 import 'emergency_view.dart';
 import 'money/money_screen.dart';
 import 'schedule/schedule_screen.dart';
@@ -101,6 +104,9 @@ class _TodayScreenState extends State<TodayScreen> {
 
   /// عدد المهام المستحقة — لبادج زرار «المهام».
   int _dueTasks = 0;
+
+  /// كروت الأقسام بأرقامها الحية.
+  List<DashStat> _dash = [];
   List<Medication> _activeMeds = [];
   Set<String> _taken = {};
   List<Habit> _habitList = [];
@@ -238,11 +244,13 @@ class _TodayScreenState extends State<TodayScreen> {
     // «محتاج منك دلوقتي» + عدد الصلوات (لحلقات «يومك فى سطر»).
     final attention = await collectAttention(now);
     final dueTasks = (await TasksRepo().dueTasks(now)).length;
+    final dash = await collectDashboard(now);
     final prayedCount = (await WorshipRepo().prayedToday()).length;
     if (!mounted) return;
     setState(() {
       _attention = attention;
       _dueTasks = dueTasks;
+      _dash = dash;
       _prayedCount = prayedCount;
       _name = name;
       _quickOrder = quickOrder;
@@ -499,6 +507,8 @@ class _TodayScreenState extends State<TodayScreen> {
         () => _heroAndSummary(context));
     add('week', _vis('week') && _weekItems.isNotEmpty,
         () => _weekOverviewCard(context));
+    add('dashboard', _vis('dashboard') && _dash.isNotEmpty,
+        () => _dashboardCards(context));
     add('cycle', _vis('cycle') && _showCycleCard, () => _cycleCard(context));
     add('weekly', _weeklyDue, () => _weeklyBanner(context));
     add('smartwatch', _vis('smartwatch') && _hasFitnessData,
@@ -539,6 +549,34 @@ class _TodayScreenState extends State<TodayScreen> {
             trailing: _seeAll(3)));
     return out;
   }
+
+  /// كروت الأقسام بأرقامها الحية — جوه الرئيسية (نفس كروت اللوحة الشاملة).
+  Widget _dashboardCards(BuildContext context) => _sec(
+        tr('أقسامك', 'Your sections'),
+        GridView.builder(
+          // جوه ListView فلازم shrinkWrap + منع السكرول المتداخل.
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 1.25,
+          ),
+          itemCount: _dash.length,
+          itemBuilder: (_, i) => DashCardTile(
+            stat: _dash[i],
+            onOpen: (screen) => _reloadAfter(() => Navigator.push(
+                context, MaterialPageRoute(builder: (_) => screen))),
+          ),
+        ),
+        trailing: TextButton(
+          onPressed: () => _reloadAfter(() => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const DashboardScreen()))),
+          child: Text(tr('الكل', 'All')),
+        ),
+      );
 
   /// قسم = عنوان + محتوى، ملفوفين فى ودجت واحدة (عشان الترتيب بالسحب).
   Widget _sec(String title, Widget body, {Widget? trailing}) => Column(
