@@ -34,7 +34,6 @@ import '../data/cycle_repo.dart';
 import '../data/meals_repo.dart';
 import '../data/measurements_repo.dart';
 import '../data/meds_repo.dart';
-import '../data/money_repo.dart';
 import '../data/occasions_repo.dart';
 import '../data/settings_repo.dart';
 import '../data/wallets_repo.dart';
@@ -82,7 +81,6 @@ class _TodayScreenState extends State<TodayScreen> {
   final _appts = AppointmentsRepo();
   final _meds = MedsRepo();
   final _health = HealthRepo();
-  final _money = MoneyRepo();
   final _docs = DocsRepo();
   final _habits = HabitsRepo();
 
@@ -108,7 +106,6 @@ class _TodayScreenState extends State<TodayScreen> {
   List<Habit> _habitList = [];
   Set<int> _doneHabits = {};
   Map<int, int> _streaks = {};
-  double _todaySpend = 0;
   List<DocItem> _expiring = [];
   PrayerDay? _prayers;
   PrayerDay? _prayersTomorrow; // عشان الكارت يفضل يوري الصلاة الجاية بعد العشا
@@ -136,8 +133,6 @@ class _TodayScreenState extends State<TodayScreen> {
   /// عنصر الرئيسية ظاهر؟ (لكل ما هو مش مخفي من الإعدادات).
   bool _vis(String key) => !_hidden.contains(key);
   List<Meal> _meals = [];
-  Map<int, String> _workoutPlan = {};
-  bool _workoutDone = false;
   String? _missedWorkout;
   bool _ramadan = false;
   List<Occasion> _occasionsSoon = [];
@@ -210,7 +205,6 @@ class _TodayScreenState extends State<TodayScreen> {
     for (final h in habits) {
       streaks[h.id!] = computeStreak(await _habits.daysFor(h.id!), now);
     }
-    final spend = await _money.totalForDay(day);
     final expiring = await _docs.expiringSoon();
     final place = await resolvePlace(_settings);
     final prayers = prayerTimesFor(now, place);
@@ -234,8 +228,6 @@ class _TodayScreenState extends State<TodayScreen> {
     final hardDay = await _settings.hardDayMode();
     final hidden = await _settings.hiddenHomeSections();
     final workoutRepo = WorkoutRepo();
-    final workoutPlan = await workoutRepo.plan();
-    final workoutDone = await workoutRepo.doneOn(day);
     final missedWorkout = await workoutRepo.missedYesterdaySuggestion(now);
     final ramadan = await _settings.ramadanMode();
     final occasionsSoon = await OccasionsRepo().upcomingWithinWindow(now);
@@ -264,7 +256,6 @@ class _TodayScreenState extends State<TodayScreen> {
       _habitList = habits;
       _doneHabits = doneHabits;
       _streaks = streaks;
-      _todaySpend = spend;
       _expiring = expiring;
       _prayers = prayers;
       _prayersTomorrow = prayersTomorrow;
@@ -283,8 +274,6 @@ class _TodayScreenState extends State<TodayScreen> {
       _hidden = hidden;
       _weekItems = weekItems;
       _meals = meals;
-      _workoutPlan = workoutPlan;
-      _workoutDone = workoutDone;
       _missedWorkout = missedWorkout;
       _ramadan = ramadan;
       _occasionsSoon = occasionsSoon;
@@ -420,11 +409,6 @@ class _TodayScreenState extends State<TodayScreen> {
     });
   }
 
-  Future<void> _quickExpense() async {
-    final added = await showQuickExpenseSheet(context);
-    if (added == true && mounted) await _load();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -539,12 +523,6 @@ class _TodayScreenState extends State<TodayScreen> {
         () => _sec(tr("أدوية النهارده", "Today's medications"),
             Column(children: _medTiles(context))));
     add(
-        'workout',
-        _vis('workout'),
-        () => _sec(tr('التمرين', 'Workout'), _workoutCard(context),
-            trailing: TextButton(
-                onPressed: _openWorkoutPlan, child: Text(tr('الخطة', 'Plan')))));
-    add(
         'meals',
         _vis('meals') && (_meals.isNotEmpty || _showNutrition),
         () => _sec(
@@ -559,9 +537,6 @@ class _TodayScreenState extends State<TodayScreen> {
         _vis('habits') && _habitList.isNotEmpty,
         () => _sec(tr("عادات النهارده", "Today's habits"), _habitChips(context),
             trailing: _seeAll(3)));
-    add('money', _vis('money'),
-        () => _sec(tr("فلوس النهارده", "Today's money"), _moneyCard(context),
-            trailing: _seeAll(2)));
     return out;
   }
 
@@ -2547,69 +2522,6 @@ class _TodayScreenState extends State<TodayScreen> {
     if (mounted) await _load();
   }
 
-  Widget _workoutCard(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final todayWorkout = _workoutPlan[DateTime.now().weekday];
-    if (todayWorkout != null) {
-      return Card(
-        margin: EdgeInsets.zero,
-        child: ListTile(
-          leading: Icon(Icons.fitness_center,
-              color: _workoutDone ? scheme.primary : scheme.outline),
-          title: Text(todayWorkout),
-          subtitle: Text(_workoutDone
-              ? tr('اتعمل — عاش!', 'Done — nice!')
-              : tr('لسه ماتعملش', 'Not done yet')),
-          trailing: FilledButton.tonal(
-            onPressed: () async {
-              await WorkoutRepo().setDone(_today, !_workoutDone,
-                  title: todayWorkout);
-              if (mounted) await _load();
-            },
-            child: Text(_workoutDone ? tr('اتعمل ✓', 'Done ✓') : tr('تم؟', 'Done?')),
-          ),
-        ),
-      );
-    }
-    if (_missedWorkout != null) {
-      return _attentionCard(
-        child: ListTile(
-          leading: Icon(Icons.fitness_center, color: scheme.tertiary),
-          title: Text(
-              tr('تمرين امبارح ($_missedWorkout) فاتك',
-                  "Yesterday's workout ($_missedWorkout) was missed")),
-          trailing: FilledButton(
-            style: _amberButtonStyle,
-            onPressed: () async {
-              await WorkoutRepo()
-                  .setDone(_today, true, title: _missedWorkout!);
-              if (mounted) await _load();
-            },
-            child: Text(tr('اعمله النهارده', 'Do it today')),
-          ),
-        ),
-      );
-    }
-    if (_workoutPlan.isEmpty) {
-      return Card(
-        margin: EdgeInsets.zero,
-        child: ListTile(
-          leading: Icon(Icons.fitness_center, color: scheme.outline),
-          title: Text(tr('لسه مفيش خطة تمرين', 'No workout plan yet')),
-          trailing: TextButton(
-              onPressed: _openWorkoutPlan, child: Text(tr('حددها', 'Set it'))),
-        ),
-      );
-    }
-    return Card(
-      margin: EdgeInsets.zero,
-      child: ListTile(
-        leading: Icon(Icons.self_improvement, color: scheme.outline),
-        title: Text(tr('النهارده راحة', 'Rest day today')),
-      ),
-    );
-  }
-
   Widget _mealsActions(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -3103,38 +3015,6 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
-  Widget _moneyCard(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(tr("مصاريف النهارده", "Today's spending"),
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.outline)),
-                  Text(egp(_todaySpend),
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w700)),
-                ],
-              ),
-            ),
-            FilledButton.icon(
-              onPressed: _quickExpense,
-              icon: const Icon(Icons.add),
-              label: Text(tr('سجل مصروف', 'Log expense')),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 /// عدّاد تنازلي حي (HH:MM:SS) بيتحدّث كل ثانية — widget مستقل عشان يعيد بناء

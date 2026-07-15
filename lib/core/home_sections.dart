@@ -16,10 +16,8 @@ const List<String> kHomeSectionKeys = [
   'docs_expiry',
   'appointments',
   'meds',
-  'workout',
   'meals',
   'habits',
-  'money',
 ];
 
 String homeSectionLabel(String key) => switch (key) {
@@ -36,9 +34,7 @@ String homeSectionLabel(String key) => switch (key) {
       'docs_expiry' => tr('مستندات محتاجة تجديد', 'Documents to renew'),
       'appointments' => tr('مواعيد النهارده', "Today's appointments"),
       'meds' => tr('أدوية النهارده', "Today's medications"),
-      'workout' => tr('التمرين', 'Workout'),
       'meals' => tr('وجبات النهارده', "Today's meals"),
       'habits' => tr('عادات النهارده', "Today's habits"),
-      'money' => tr('فلوس النهارده', "Today's money"),
       _ => key,
     };
