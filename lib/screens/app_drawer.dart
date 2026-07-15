@@ -43,6 +43,7 @@ import 'capsule_screen.dart';
 import 'challenges_screen.dart';
 import 'diary_screen.dart';
 import 'food/diet_plans_screen.dart';
+import 'food/food_card_screen.dart';
 import 'recipes_screen.dart';
 import 'brain/charts_screen.dart';
 import 'brain/chat_screen.dart';
@@ -291,6 +292,9 @@ class AppDrawer extends StatelessWidget {
                 tr('النظام الغذائي', 'Nutrition'),
                 accent: Colors.green,
                 [
+                  GroupHubItem(Icons.menu_book_outlined,
+                      tr('دليل الأكل', 'Food guide'),
+                      screen: const FoodCardScreen()),
                   GroupHubItem(Icons.restaurant_menu,
                       tr('الأنظمة الغذائية', 'Diet plans'),
                       screen: const DietPlansScreen()),

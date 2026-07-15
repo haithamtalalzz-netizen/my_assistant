@@ -5,6 +5,7 @@ import 'package:my_assistant/core/backup.dart';
 import 'package:my_assistant/core/app_state.dart';
 import 'package:my_assistant/core/data_export.dart';
 import 'package:my_assistant/core/db.dart';
+import 'package:my_assistant/core/usda_food_db.dart';
 import 'package:my_assistant/core/food_db.dart';
 import 'package:my_assistant/core/exercise_library.dart';
 import 'package:my_assistant/core/countries.dart';
@@ -2937,6 +2938,67 @@ void main() {
       expect((await v2.query('meals')).length, 1);
       expect((await v2.query('occasions')).length, 1);
       await v2.close();
+    });
+  });
+
+  group('قاعدة الأكل USDA', () {
+    // عيّنة بنفس شكل الأصل الحقيقى (assets/food/usda_foods.json).
+    const sample = '''[
+      {"id":1,"en":"Chicken, breast, meat only, cooked, roasted","ar":"فراخ صدور — مشوى فى الفرن",
+       "cat":"دواجن","kcal":165,"p":31.02,"c":0,"f":3.57,"chol":85,"sodium":74,"prep":"roasted","g":7,
+       "pl":"1 cup, chopped","pg":140},
+      {"id":2,"en":"Chicken, breast, meat only, cooked, fried","ar":"فراخ صدور — مقلى",
+       "cat":"دواجن","kcal":187,"p":33.44,"c":0.51,"f":4.71,"prep":"fried","g":7},
+      {"id":3,"en":"Chicken, breast, meat only, cooked, stewed","ar":"فراخ صدور — مسبّك",
+       "cat":"دواجن","kcal":151,"p":28.98,"c":0,"f":3.03,"prep":"stewed","g":7},
+      {"id":4,"en":"Apples, raw, with skin","ar":"تفاح — نيّئ","cat":"فواكه وعصائر",
+       "kcal":52,"p":0.26,"c":13.81,"f":0.17,"fiber":2.4,"sugar":10.39}
+    ]''';
+
+    setUp(() => UsdaDb.loadForTests(sample));
+    tearDown(UsdaDb.reset);
+
+    test('البحث بالعربى والإنجليزى (ومع اختلاف الهمزات)', () async {
+      expect((await UsdaDb.search('فراخ')).length, 3);
+      // البحث بيتجاهل الهمزة: «تفاح» و«الأ/ا».
+      expect((await UsdaDb.search('تفاح')).single.id, 4);
+      expect((await UsdaDb.search('chicken')).length, 3);
+      // حرف واحد مابيرجّعش نتايج.
+      expect(await UsdaDb.search('ف'), isEmpty);
+    });
+
+    test('طرق الطهى: نفس الصنف بيرجّع بدائله مرتّبة بالسعرات', () async {
+      final fried = (await UsdaDb.search('مقلى')).single;
+      final variants = await UsdaDb.variants(fried);
+      // مسبّك ١٥١ < مشوى ١٦٥ < مقلى ١٨٧ — أرقام USDA الحقيقية.
+      expect(variants.map((v) => v.kcal).toList(), [151, 165, 187]);
+      expect(variants.map((v) => v.prep).toList(),
+          ['stewed', 'roasted', 'fried']);
+      // صنف من غير مجموعة مالوش بدائل.
+      final apple = (await UsdaDb.search('تفاح')).single;
+      expect(await UsdaDb.variants(apple), isEmpty);
+    });
+
+    test('الحساب بالكمية خطى وبيحافظ على أرقام USDA', () async {
+      final roasted = (await UsdaDb.search('مشوى')).single;
+      expect(roasted.kcal, 165); // ١٠٠ جم = قيمة USDA زى ما هى
+      final n = roasted.forGrams(200);
+      expect(n.kcal, closeTo(330, 0.01));
+      expect(n.protein, closeTo(62.04, 0.01));
+      // العناصر اللى USDA ماعندهاش قيمة ليها بتفضل null — مش صفر مخترع.
+      expect(roasted.fiber, isNull);
+      expect(n.fiber, isNull);
+      expect(n.chol, closeTo(170, 0.01));
+    });
+
+    test('الحصة المنزلية بتيجى من USDA', () async {
+      final roasted = (await UsdaDb.search('مشوى')).single;
+      expect(roasted.portionLabel, '1 cup, chopped');
+      expect(roasted.portionGrams, 140);
+      expect(roasted.defaultGrams, 140);
+      // صنف من غير حصة -> ١٠٠ جم
+      final fried = (await UsdaDb.search('مقلى')).single;
+      expect(fried.defaultGrams, 100);
     });
   });
 
