@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/backup.dart';
 import 'package:my_assistant/core/app_state.dart';
+import 'package:my_assistant/core/contextual_tips.dart';
 import 'package:my_assistant/core/day_close.dart';
 import 'package:my_assistant/core/kcal_balance.dart';
 import 'package:my_assistant/core/morning_brief.dart';
@@ -3424,6 +3425,69 @@ void main() {
       const k2 =
           KcalBalance(days: [('d1', 1800)], goal: 0, weightWeeklyRate: null);
       expect(k2.dailyBalance, isNull);
+    });
+  });
+
+  group('ذكاء محلى — تحاليل وتطعيمات وأطباق واقتراحات سياقية', () {
+    test('«آخر سكر صائم كام» بيجاوب من التحاليل المتسجلة + الاتجاه', () async {
+      final repo = LabResultsRepo();
+      await repo.save(const LabResult(
+          name: 'سكر صائم', value: 110, unit: 'mg/dL', date: '2026-06-01',
+          refLow: '70', refHigh: '100', createdAt: 'x'));
+      await repo.save(const LabResult(
+          name: 'سكر صائم', value: 95, unit: 'mg/dL', date: '2026-07-01',
+          refLow: '70', refHigh: '100', createdAt: 'x'));
+      final r = await LocalBrain.answer('آخر سكر صائم كام؟');
+      expect(r.handled, true);
+      expect(r.text, contains('سكر صائم'));
+      expect(r.text, contains(arNum('95')), reason: 'آخر قيمة');
+      expect(r.text, contains(tr('نازل', 'Down')), reason: 'الاتجاه عن اللى قبلها');
+      // «تحاليلي» العامة بترجّع القائمة.
+      final all = await LocalBrain.answer('تحاليلي');
+      expect(all.handled, true);
+      expect(all.text, contains('سكر صائم'));
+    });
+
+    test('«التطعيمات» بيرجّع آخر جرعة والجرعات الجاية', () async {
+      final due = dayKey(DateTime.now().add(const Duration(days: 3)));
+      await VaccinationsRepo().save(Vaccination(
+          name: 'تيتانوس', person: 'أنا', date: '2026-01-10',
+          nextDue: due, createdAt: 'x'));
+      final r = await LocalBrain.answer('التطعيمات');
+      expect(r.handled, true);
+      expect(r.text, contains('تيتانوس'));
+      expect(r.text, contains(due));
+    });
+
+    test('«الكشرى فيه كام سعرة» بيحسب من أرقام USDA الحقيقية', () async {
+      UsdaDb.reset();
+      UsdaDb.loadForTests(
+          File('assets/food/usda_foods.json').readAsStringSync());
+      final r = await LocalBrain.answer('الكشرى فيه كام سعرة؟');
+      expect(r.handled, true);
+      expect(r.text, contains('كشرى'));
+      expect(r.text, contains(tr('سعرات', 'Calories')));
+      expect(r.text, contains(tr('بروتين', 'Protein')));
+      UsdaDb.reset();
+    });
+
+    test('الاقتراحات السياقية: فاتورة مستحقة + تحليل خارج النطاق', () async {
+      final now = DateTime.now();
+      await BillsRepo().save(RecurringBill(
+          name: 'الكهربا', amount: 300, dayOfMonth: now.day.clamp(1, 28)));
+      await LabResultsRepo().save(const LabResult(
+          name: 'فيتامين د', value: 12, unit: 'ng/mL', date: '2026-07-01',
+          refLow: '30', refHigh: '100', createdAt: 'x'));
+      final tips = await contextualTips(at: now);
+      expect(tips.any((t) => t.contains('الكهربا')), true,
+          reason: 'الفاتورة المستحقة تظهر');
+      expect(tips.any((t) => t.contains(tr('خارج النطاق', 'out of range'))),
+          true);
+      expect(tips.length, lessThanOrEqualTo(3));
+      // بتتحقن فى الموجز الصباحى (من غير الإيموجى).
+      final brief = await buildMorningBrief();
+      expect(brief, contains('الكهربا'));
+      expect(brief.contains('🧾'), false, reason: 'الإيموجى بيتشال للـTTS');
     });
   });
 

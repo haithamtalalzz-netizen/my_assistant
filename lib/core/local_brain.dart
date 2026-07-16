@@ -13,6 +13,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../data/docs_repo.dart';
 import '../data/gameya_repo.dart';
+import '../data/lab_results_repo.dart';
+import '../data/vaccinations_repo.dart';
 import '../data/gym_repo.dart';
 import '../data/habits_repo.dart';
 import '../data/inbox_repo.dart';
@@ -45,6 +47,8 @@ import '../data/courses_repo.dart';
 import '../data/fasting_repo.dart';
 import '../models/models.dart';
 import 'ar.dart';
+import 'egyptian_dishes.dart';
+import 'usda_food_db.dart';
 import 'week_overview.dart';
 import 'insights.dart';
 import 'l10n.dart';
@@ -367,6 +371,23 @@ class LocalBrain {
     if (_has(t, ['مستنداتي', 'مستندات', 'بطاقتي', 'رخصتي', 'رخصه', 'جواز', 'وثايق', 'وثيقه', 'شهاده'])) {
       return (text: await _docs(t), handled: true);
     }
+
+    // التحاليل الطبية («تحاليلي» / «آخر تحليل سكر»).
+    if (_has(t, ['تحاليل', 'تحليل', 'المعمل', 'نتايج المعمل'])) {
+      return (text: await _labs(t), handled: true);
+    }
+    // اسم تحليل مخزّن جوه السؤال («آخر سكر صائم كام؟») حتى من غير كلمة تحليل.
+    final labAns = await _labByStoredName(t);
+    if (labAns != null) return (text: labAns, handled: true);
+
+    // التطعيمات («آخر تطعيم» / «التطعيمات الجاية»).
+    if (_has(t, ['تطعيم', 'تطعيمات', 'لقاح', 'اللقاحات'])) {
+      return (text: await _vaccinations(), handled: true);
+    }
+
+    // سعرات طبق جاهز («الكشرى فيه كام سعرة؟») — أرقام USDA المحسوبة.
+    final dishAns = await _dishInfo(t);
+    if (dishAns != null) return (text: dishAns, handled: true);
 
     // الصلاة — كل المواعيد لو طلبها، وإلا الجاية بس.
     if (_has(t, ['الصلوات', 'مواعيد الصلاه', 'كل الصلوات', 'اوقات الصلاه'])) {
@@ -1950,6 +1971,17 @@ class LocalBrain {
       alerts.add(tr('اطمن على: ${relatives.map((r) => r.name).take(3).join('، ')}',
           'Check on: ${relatives.map((r) => r.name).take(3).join(', ')}'));
     }
+    // ذكاء محلى: تطعيمات قرّبت + تحاليل خارج النطاق.
+    final vax = await VaccinationsRepo().dueSoon(days: 7);
+    if (vax.isNotEmpty) {
+      alerts.add(tr('تطعيمات قرّبت: ${vax.map((v) => v.name).take(2).join('، ')}',
+          'Vaccinations due: ${vax.map((v) => v.name).take(2).join(', ')}'));
+    }
+    final outLabs = await LabResultsRepo().outOfRangeCount();
+    if (outLabs > 0) {
+      alerts.add(tr('${arNum(outLabs)} نتيجة تحاليل خارج النطاق',
+          '${arNum(outLabs)} lab results out of range'));
+    }
     if (alerts.isNotEmpty) {
       b.writeln(tr('⚠️ محتاج تاخد بالك:', '⚠️ Needs attention:'));
       for (final a in alerts) {
@@ -2208,6 +2240,8 @@ class LocalBrain {
           '• «إزاي نومي؟» / «ضغطي اتحسن؟» / «الجو النهاردة؟»\n'
           '• «ذكّرني بكرة بالدوا» (بيضيف تذكير)\n'
           '• «أوفر ولا مبذّر؟» / «الضمانات» / «التحدي» / «الوارد»\n'
+          '• «تحاليلي» / «آخر سكر صائم كام؟» / «التطعيمات»\n'
+          '• «الكشرى فيه كام سعرة؟» (أرقام USDA محسوبة)\n'
           '• «اديني نصيحة من أرقامي»',
       "I'm your manager — I answer straight from your data, on-device (no internet). "
           'Try asking:\n'
@@ -2222,7 +2256,160 @@ class LocalBrain {
           '• "How\'s my sleep?" / "Is my blood pressure better?" / "Today\'s weather?"\n'
           '• "Remind me tomorrow about my meds" (adds a reminder)\n'
           '• "Am I saving or overspending?" / "Warranties" / "Inbox"\n'
+          '• "My labs" / "Latest fasting glucose?" / "Vaccinations"\n'
+          '• "How many calories in koshary?" (computed USDA numbers)\n'
           '• "Give me advice from my numbers"');
+
+  // ---- التحاليل والتطعيمات والأطباق (مرحلة الذكاء المحلى) ----
+
+  /// «تحاليلي» — آخر نتيجة لكل تحليل + عدد الخارج عن النطاق.
+  static Future<String> _labs(String t) async {
+    // لو السؤال فيه اسم تحليل مخزّن → تفاصيله هى الأنسب.
+    final byName = await _labByStoredName(t);
+    if (byName != null) return byName;
+    final latest = await LabResultsRepo().latestPerName();
+    if (latest.isEmpty) {
+      return tr('مفيش تحاليل متسجلة لسه. سجّلها من الصحة ← التحاليل الطبية.',
+          'No lab results yet. Log them in Health → Lab results.');
+    }
+    final b = StringBuffer(tr('آخر نتايج تحاليلك:', 'Your latest lab results:'));
+    b.writeln();
+    for (final r in latest.take(8)) {
+      final unit = r.unit.isEmpty ? '' : ' ${r.unit}';
+      final flag = r.outOfRange ? ' ⚠️' : ' ✓';
+      b.writeln('• ${r.name}: ${arNum(_fmtNum(r.value))}$unit'
+          '${r.date.isEmpty ? '' : ' (${r.date})'}$flag');
+    }
+    final out = latest.where((r) => r.outOfRange).length;
+    if (out > 0) {
+      b.writeln(tr('⚠️ ${arNum(out)} نتيجة خارج النطاق — راجعها مع دكتورك.',
+          '⚠️ ${arNum(out)} out of range — review with your doctor.'));
+    }
+    return b.toString().trimRight();
+  }
+
+  /// لو السؤال فيه اسم تحليل متسجّل فعلًا («آخر سكر صائم كام؟») — آخر
+  /// قيمة + الاتجاه عن اللى قبلها + النطاق. بيرجّع null لو مفيش اسم مطابق.
+  static Future<String?> _labByStoredName(String t) async {
+    final repo = LabResultsRepo();
+    String? best;
+    for (final n in await repo.names()) {
+      final norm = _norm(n);
+      if (norm.length < 3) continue;
+      if (t.contains(norm) && (best == null || n.length > best.length)) {
+        best = n;
+      }
+    }
+    if (best == null) return null;
+    final list = await repo.forName(best); // تصاعدى بالتاريخ
+    if (list.isEmpty) return null;
+    final last = list.last;
+    final unit = last.unit.isEmpty ? '' : ' ${last.unit}';
+    final b = StringBuffer(tr(
+        'آخر «$best»: ${arNum(_fmtNum(last.value))}$unit'
+        '${last.date.isEmpty ? '' : ' يوم ${last.date}'}',
+        'Latest "$best": ${arNum(_fmtNum(last.value))}$unit'
+        '${last.date.isEmpty ? '' : ' on ${last.date}'}'));
+    if (last.refLow.isNotEmpty || last.refHigh.isNotEmpty) {
+      b.write(tr(' — النطاق ${last.refLow.isEmpty ? '—' : arNum(last.refLow)}'
+              ' إلى ${last.refHigh.isEmpty ? '—' : arNum(last.refHigh)}',
+          ' — range ${last.refLow.isEmpty ? '—' : arNum(last.refLow)}'
+              ' to ${last.refHigh.isEmpty ? '—' : arNum(last.refHigh)}'));
+      b.write(last.outOfRange ? ' ⚠️' : ' ✓');
+    }
+    if (list.length >= 2) {
+      final prev = list[list.length - 2];
+      final diff = last.value - prev.value;
+      if (diff != 0) {
+        b.write(tr(
+            '. ${diff < 0 ? 'نازل' : 'طالع'} ${arNum(_fmtNum(diff.abs()))} عن قياس ${prev.date.isEmpty ? 'اللى فات' : prev.date}.',
+            '. ${diff < 0 ? 'Down' : 'Up'} ${arNum(_fmtNum(diff.abs()))} vs ${prev.date.isEmpty ? 'previous' : prev.date}.'));
+      }
+    }
+    return b.toString();
+  }
+
+  /// «التطعيمات» — آخر جرعة متاخدة + الجرعات الجاية.
+  static Future<String> _vaccinations() async {
+    final repo = VaccinationsRepo();
+    final all = await repo.all();
+    if (all.isEmpty) {
+      return tr('مفيش تطعيمات متسجلة. سجّلها من الصحة ← التطعيمات.',
+          'No vaccinations logged. Add them in Health → Vaccinations.');
+    }
+    final b = StringBuffer();
+    final taken = [for (final v in all) if (v.date.isNotEmpty) v]
+      ..sort((a, c) => c.date.compareTo(a.date));
+    if (taken.isNotEmpty) {
+      final v = taken.first;
+      final who = v.person.isEmpty ? '' : ' (${v.person})';
+      b.writeln(tr('آخر تطعيم: «${v.name}»$who يوم ${v.date}.',
+          'Last vaccination: "${v.name}"$who on ${v.date}.'));
+    }
+    final upcoming = [for (final v in all) if (v.nextDue.isNotEmpty) v]
+      ..sort((a, c) => a.nextDue.compareTo(c.nextDue));
+    if (upcoming.isEmpty) {
+      b.writeln(tr('ومفيش جرعات جاية متسجلة.', 'No upcoming doses logged.'));
+    } else {
+      b.writeln(tr('الجرعات الجاية:', 'Upcoming doses:'));
+      for (final v in upcoming.take(4)) {
+        final who = v.person.isEmpty ? '' : ' (${v.person})';
+        b.writeln('• ${v.name}$who — ${v.nextDue}');
+      }
+    }
+    return b.toString().trimRight();
+  }
+
+  /// سؤال عن سعرات طبق جاهز — بيدوّر على اسم طبق جوه السؤال ويحسبه من
+  /// أرقام USDA (مايخترعش رقم: مكوّن ناقص = مفيش إجابة).
+  static Future<String?> _dishInfo(String t) async {
+    if (!_has(t, [
+      'سعر', 'سعرات', 'كالوري', 'بروتين', 'كارب', 'دهون', 'قيمه غذائيه',
+      'فيه كام', 'فيها كام'
+    ])) {
+      return null;
+    }
+    EgyptianDish? best;
+    for (final d in kEgyptianDishes) {
+      final name = _norm(d.ar);
+      if (t.contains(name) && (best == null || d.ar.length > best.ar.length)) {
+        best = d;
+      }
+    }
+    if (best == null) return null;
+    final UsdaNutrients? n;
+    try {
+      n = await dishNutrients(best);
+    } on Exception catch (_) {
+      return null; // الأصل مش متاح — نسيب السؤال يتساب لباقى المعالجات.
+    }
+    if (n == null) return null;
+    final grams =
+        best.parts.fold<double>(0, (s, p) => s + p.grams).round();
+    final b = StringBuffer(tr(
+        '«${best.ar}» (طبق ~${arNum(grams)} جم، محسوب من أرقام USDA):',
+        '"${best.ar}" (~${arNum(grams)} g plate, computed from USDA):'));
+    b.writeln();
+    b.writeln(tr('• سعرات: ${arNum(n.kcal.round())}',
+        '• Calories: ${arNum(n.kcal.round())}'));
+    b.writeln(tr('• بروتين: ${arNum(n.protein.round())} جم',
+        '• Protein: ${arNum(n.protein.round())} g'));
+    b.writeln(tr('• كارب: ${arNum(n.carbs.round())} جم',
+        '• Carbs: ${arNum(n.carbs.round())} g'));
+    b.writeln(tr('• دهون: ${arNum(n.fat.round())} جم',
+        '• Fat: ${arNum(n.fat.round())} g'));
+    if (n.fiber != null) {
+      b.writeln(tr('• ألياف: ${arNum(n.fiber!.round())} جم',
+          '• Fiber: ${arNum(n.fiber!.round())} g'));
+    }
+    b.writeln(tr('(القيم للمكوّنات دى بالظبط — طريقتك فى الطبخ بتفرق.)',
+        '(Values for these exact ingredients — your cooking may differ.)'));
+    return b.toString().trimRight();
+  }
+
+  /// تنسيق رقم من غير أصفار زايدة (١٢٣ / ٥.٦).
+  static String _fmtNum(double v) =>
+      v % 1 == 0 ? v.toInt().toString() : v.toStringAsFixed(1);
 
   // ---- أدوات مساعدة ----
 

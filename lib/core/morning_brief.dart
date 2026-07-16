@@ -2,6 +2,7 @@ import '../data/appointments_repo.dart';
 import '../data/settings_repo.dart';
 import '../data/tasks_repo.dart';
 import 'ar.dart';
+import 'contextual_tips.dart';
 import 'l10n.dart';
 import 'prayers.dart';
 import 'weather.dart';
@@ -54,6 +55,15 @@ Future<String> buildMorningBrief([DateTime? at]) async {
         'And ${arNum(due)} tasks due.'));
   }
 
+  // اقتراحات سياقية (فواتير مستحقة/تطعيمات/مناسبات) — جملتين على الأكتر
+  // عشان الموجز الصوتى مايطولش.
+  try {
+    final tips = await contextualTips(at: now, max: 2);
+    parts.addAll([for (final tip in tips) _stripEmoji(tip)]);
+  } on Exception catch (_) {
+    // الموجز يكمل من غيرها.
+  }
+
   // الطقس (كاش يومى، مجانى بدون مفتاح).
   try {
     final w = await WeatherService.today();
@@ -65,3 +75,7 @@ Future<String> buildMorningBrief([DateTime? at]) async {
   parts.add(tr('يوم سعيد إن شاء الله.', 'Have a great day.'));
   return parts.join(' ');
 }
+
+/// بيشيل الإيموجى من أول الجملة — الـTTS بينطقها غريب.
+String _stripEmoji(String s) =>
+    s.replaceFirst(RegExp('^[^a-zA-Z0-9؀-ۿ]+'), '').trim();
