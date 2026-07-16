@@ -5,6 +5,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/backup.dart';
 import 'package:my_assistant/core/app_state.dart';
+import 'package:my_assistant/core/day_close.dart';
+import 'package:my_assistant/core/morning_brief.dart';
 import 'package:my_assistant/core/dashboard_stats.dart';
 import 'package:my_assistant/core/data_export.dart';
 import 'package:my_assistant/core/db.dart';
@@ -3159,6 +3161,77 @@ void main() {
       // صنف من غير حصة -> ١٠٠ جم
       final fried = (await UsdaDb.search('مقلى')).single;
       expect(fried.defaultGrams, 100);
+    });
+  });
+
+  group('قفل اليوم', () {
+    test('بيجمع الناقص وبيقل مع التسجيل', () async {
+      final now = DateTime.now();
+      final day = dayKey(now);
+      // عادة + ٣ صلوات + شوية مياه.
+      final hid = await HabitsRepo().add('قراءة');
+      for (var i = 0; i < 3; i++) {
+        await WorshipRepo().togglePrayer(now, i, true);
+      }
+      await HealthRepo().setWaterMl(day, 500);
+      await SettingsRepo().setWaterGoalMl(2000);
+
+      final s1 = await collectDayClose(now);
+      expect(s1.missedPrayers, [3, 4]);
+      expect(s1.remainingWaterMl, 1500);
+      expect(s1.pendingHabits.length, 1);
+      expect(s1.allDone, isFalse);
+      // ٢ صلاة + ١ عادة + ١ مياه = ٤ بنود.
+      expect(s1.pendingCount, 4);
+
+      // نقفل كل حاجة.
+      await WorshipRepo().togglePrayer(now, 3, true);
+      await WorshipRepo().togglePrayer(now, 4, true);
+      await HabitsRepo().toggle(hid, day);
+      await HealthRepo().setWaterMl(day, 2000);
+      final s2 = await collectDayClose(now);
+      expect(s2.allDone, isTrue);
+      expect(s2.pendingCount, 0);
+    });
+  });
+
+  group('الموجز الصباحى', () {
+    test('بيبنى نص فيه التحية والمواعيد والمهام', () async {
+      final now = DateTime.now();
+      await SettingsRepo().set('user_name', 'أحمد');
+      await AppointmentsRepo().save(Appointment(
+          title: 'دكتور',
+          category: 'صحة',
+          when: DateTime(now.year, now.month, now.day, 23, 50)));
+      await TasksRepo().save(
+          Task(title: 'مهمة', dueAt: now.toIso8601String(),
+              createdAt: now.toIso8601String()));
+      final brief = await buildMorningBrief(now);
+      expect(brief, contains('أحمد'));
+      expect(brief, contains('دكتور'));
+      expect(brief, contains('مهمة مستحقة'));
+      expect(brief.trim().isNotEmpty, isTrue);
+    });
+  });
+
+  group('مفضّلة الوجبات', () {
+    test('frequentMeals بترتّب بالتكرار وlastMeal بترجّع الأحدث', () async {
+      final repo = MealsRepo();
+      // «فول» ×٣ و«كشرى» ×١.
+      for (var i = 0; i < 3; i++) {
+        await repo.add(Meal(
+            day: '2026-07-1${i + 1}', slot: 'فطار', description: 'فول',
+            calories: 300));
+      }
+      await repo.add(Meal(
+          day: '2026-07-16', slot: 'غدا', description: 'كشرى', calories: 711));
+      final freq = await repo.frequentMeals(limit: 5);
+      expect(freq.first.description, 'فول');
+      expect(freq.map((m) => m.description).toSet(), {'فول', 'كشرى'});
+      // آخر وجبة = الكشرى (الأحدث id) بقيمها.
+      final last = await repo.lastMeal();
+      expect(last!.description, 'كشرى');
+      expect(last.calories, 711);
     });
   });
 

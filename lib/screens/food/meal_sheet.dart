@@ -44,6 +44,33 @@ class _MealFormState extends State<_MealForm> {
   void initState() {
     super.initState();
     _initSlots();
+    _loadFrequent();
+  }
+
+  List<Meal> _frequent = [];
+  Meal? _last;
+
+  Future<void> _loadFrequent() async {
+    final f = await MealsRepo().frequentMeals(limit: 6);
+    final last = await MealsRepo().lastMeal();
+    if (mounted) {
+      setState(() {
+        _frequent = f;
+        _last = last;
+      });
+    }
+  }
+
+  /// بيملى الفورم من وجبة سابقة (مفضّلة أو آخر وجبة) — بقيمها زى ما هى.
+  void _fillFrom(Meal m) {
+    setState(() {
+      _description.text = m.description;
+      _calories.text = m.calories == null ? '' : m.calories!.round().toString();
+      _protein = m.protein;
+      _carbs = m.carbs;
+      _fat = m.fat;
+      _grams = m.grams;
+    });
   }
 
   Future<void> _initSlots() async {
@@ -147,6 +174,40 @@ class _MealFormState extends State<_MealForm> {
                 ),
             ],
           ),
+          // المفضّلة: الأكتر تسجيلاً + «سجّل تانى» — بيملّوا الفورم بضغطة.
+          if (_frequent.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 36,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  if (_last != null)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: ActionChip(
+                        avatar: const Icon(Icons.replay, size: 15),
+                        label: Text(tr('سجّل تانى', 'Log again')),
+                        onPressed: () => _fillFrom(_last!),
+                      ),
+                    ),
+                  for (final m in _frequent)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: ActionChip(
+                        avatar: const Text('⭐', style: TextStyle(fontSize: 12)),
+                        label: Text(
+                            m.description.length > 22
+                                ? '${m.description.substring(0, 22)}…'
+                                : m.description,
+                            style: const TextStyle(fontSize: 12)),
+                        onPressed: () => _fillFrom(m),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,

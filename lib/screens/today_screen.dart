@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:hijri/hijri_calendar.dart';
 
 import '../core/app_state.dart';
@@ -44,8 +46,11 @@ import '../widgets/common.dart';
 import '../widgets/decorations.dart';
 import 'brain/chat_screen.dart';
 import '../core/dashboard_stats.dart';
+import '../core/day_close.dart';
+import '../core/morning_brief.dart';
 import '../widgets/dash_card.dart';
 import 'dashboard_screen.dart';
+import 'day_close_screen.dart';
 import 'emergency_view.dart';
 import 'health/health_hub_screen.dart';
 import 'food/food_card_screen.dart';
@@ -114,6 +119,9 @@ class _TodayScreenState extends State<TodayScreen> {
 
   /// كروت الأقسام بأرقامها الحية.
   List<DashStat> _dash = [];
+
+  /// حالة «قفل اليوم» — بتتجمّع مساءً بس (بعد ٦م).
+  DayCloseStatus? _dayClose;
 
   /// اختصارات صف الإجراءات (٤) — من اختيار المستخدم، محفوظة فى الإعدادات.
   List<String> _shortcutKeys = _defaultShortcuts;
@@ -258,12 +266,15 @@ class _TodayScreenState extends State<TodayScreen> {
     final dueTasks = (await TasksRepo().dueTasks(now)).length;
     final dash = await collectDashboard(now);
     final shortcutsRaw = await SettingsRepo().get('home_shortcuts') ?? '';
+    // «قفل اليوم» بيظهر مساءً بس — مانحمّلوش الصبح.
+    final dayClose = now.hour >= 18 ? await collectDayClose(now) : null;
     final prayedCount = (await WorshipRepo().prayedToday()).length;
     if (!mounted) return;
     setState(() {
       _attention = attention;
       _dueTasks = dueTasks;
       _dash = dash;
+      _dayClose = dayClose;
       final sc = shortcutsRaw.split(',').where((e) => e.isNotEmpty).toList();
       _shortcutKeys = sc.isEmpty ? _defaultShortcuts : sc;
       _prayedCount = prayedCount;
@@ -587,10 +598,41 @@ class _TodayScreenState extends State<TodayScreen> {
         _vis('habits') && _habitList.isNotEmpty,
         () => _sec(tr("عادات النهارده", "Today's habits"), _habitChips(context),
             trailing: _seeAll(3)));
+    // «اقفل يومك» — مساءً ولو فيه ناقص بس.
+    add(
+        'day_close',
+        _vis('day_close') && _dayClose != null && !_dayClose!.allDone,
+        () => _dayCloseStrip(context));
     // كروت الأقسام بأرقامها — فى الأسفل (آخر قسم).
     add('dashboard', _vis('dashboard') && _dash.isNotEmpty,
         () => _dashboardCards(context));
     return out;
+  }
+
+  /// شريط «اقفل يومك» المسائى — بيوّرى عدد الناقص ويفتح شاشة قفل اليوم.
+  Widget _dayCloseStrip(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final n = _dayClose?.pendingCount ?? 0;
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: FilledButton.tonalIcon(
+        onPressed: () => _reloadAfter(() => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const DayCloseScreen()))),
+        icon: const Text('🌙', style: TextStyle(fontSize: 18)),
+        label: Text(
+          tr('اقفل يومك — فاضل ${arNum(n)} بند',
+              'Close your day — ${arNum(n)} left'),
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        style: FilledButton.styleFrom(
+          backgroundColor: scheme.tertiaryContainer,
+          foregroundColor: scheme.onTertiaryContainer,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+    );
   }
 
   /// كروت الأقسام بأرقامها الحية — جوه الرئيسية (نفس كروت اللوحة الشاملة).
@@ -1831,19 +1873,27 @@ class _TodayScreenState extends State<TodayScreen> {
                     ),
                 ]),
                 const SizedBox(height: 4),
-                Align(
-                  alignment: AlignmentDirectional.centerEnd,
-                  child: TextButton.icon(
-                    icon: const Icon(Icons.tune, size: 15),
-                    label: Text(tr('حدّد الإجمالى', 'Set total')),
-                    onPressed: () async {
-                      final ml = await _askMl(ctx, initial: _waterMl);
-                      if (ml != null) {
-                        await _setWaterMl(ml);
-                        setSheet(() {});
-                      }
-                    },
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // تعديل مياه يوم فائت (نفس نمط الصلاة والعادات).
+                    TextButton.icon(
+                      icon: const Icon(Icons.edit_calendar_outlined, size: 15),
+                      label: Text(tr('يوم فائت', 'Past day')),
+                      onPressed: () => _editPastWater(ctx),
+                    ),
+                    TextButton.icon(
+                      icon: const Icon(Icons.tune, size: 15),
+                      label: Text(tr('حدّد الإجمالى', 'Set total')),
+                      onPressed: () async {
+                        final ml = await _askMl(ctx, initial: _waterMl);
+                        if (ml != null) {
+                          await _setWaterMl(ml);
+                          setSheet(() {});
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1851,6 +1901,94 @@ class _TodayScreenState extends State<TodayScreen> {
         },
       ),
     );
+  }
+
+  /// تعديل مياه يوم فائت: تنقّل بين الأيام + تحديد الإجمالى بالملى ليومه.
+  Future<void> _editPastWater(BuildContext ctx) async {
+    var day = DateTime.now().subtract(const Duration(days: 1));
+    await showModalBottomSheet<void>(
+      context: ctx,
+      showDragHandle: true,
+      builder: (c2) => StatefulBuilder(
+        builder: (c2, setSheet) {
+          final today = DateTime.now();
+          final atYesterday =
+              dayKey(day) == dayKey(today.subtract(const Duration(days: 1)));
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(tr('مياه يوم فائت', 'Past-day water'),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w800)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right),
+                        onPressed: today.difference(day).inDays >= 30
+                            ? null
+                            : () => setSheet(() =>
+                                day = day.subtract(const Duration(days: 1))),
+                      ),
+                      Text(arFullDate(day),
+                          style:
+                              const TextStyle(fontWeight: FontWeight.w700)),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left),
+                        onPressed: atYesterday
+                            ? null
+                            : () => setSheet(
+                                () => day = day.add(const Duration(days: 1))),
+                      ),
+                    ],
+                  ),
+                  FutureBuilder<int>(
+                    key: ValueKey(dayKey(day)),
+                    future: _health.waterMlOn(dayKey(day)),
+                    builder: (_, snap) {
+                      final ml = snap.data ?? 0;
+                      return Column(children: [
+                        Text('${arNum(ml)} ${tr('مل', 'mL')}',
+                            style: const TextStyle(
+                                fontSize: 22, fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, children: [
+                          for (final add in const [250, 500])
+                            ActionChip(
+                              avatar: const Icon(Icons.add, size: 15),
+                              label:
+                                  Text('${arNum(add)} ${tr('مل', 'mL')}'),
+                              onPressed: () async {
+                                await _health.addWaterMl(dayKey(day), add);
+                                setSheet(() {});
+                              },
+                            ),
+                          ActionChip(
+                            avatar: const Icon(Icons.edit, size: 14),
+                            label: Text(tr('حدّد', 'Set')),
+                            onPressed: () async {
+                              final v = await _askMl(c2, initial: ml);
+                              if (v != null) {
+                                await _health.setWaterMl(dayKey(day), v);
+                                setSheet(() {});
+                              }
+                            },
+                          ),
+                        ]),
+                      ]);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    if (mounted) await _load();
   }
 
   /// إدخال كمية بالملى (رقم).
@@ -2117,7 +2255,24 @@ class _TodayScreenState extends State<TodayScreen> {
         padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
         child: Column(
           children: [
-            _managerStrip(context, all['manager']?.onTap ?? () {}),
+            Row(children: [
+              Expanded(
+                  child:
+                      _managerStrip(context, all['manager']?.onTap ?? () {})),
+              const SizedBox(width: 8),
+              // موجز صباحى صوتى — بيقرا يومك بالـTTS.
+              SizedBox(
+                width: 46,
+                height: 46,
+                child: IconButton.filledTonal(
+                  tooltip: tr('اسمع موجز يومك', 'Hear your day brief'),
+                  icon: Icon(
+                      _speaking ? Icons.stop : Icons.volume_up_outlined,
+                      size: 20),
+                  onPressed: _speakBrief,
+                ),
+              ),
+            ]),
             const SizedBox(height: 10),
             // ➕ أول اليمين، وبعده الاختصارات المختارة.
             Row(
@@ -2177,6 +2332,31 @@ class _TodayScreenState extends State<TodayScreen> {
     final keys = result.isEmpty ? _defaultShortcuts : result;
     await SettingsRepo().set('home_shortcuts', keys.join(','));
     if (mounted) setState(() => _shortcutKeys = keys);
+  }
+
+  FlutterTts? _tts;
+  bool _speaking = false;
+
+  /// بيقرا الموجز الصباحى صوتياً (أو يوقفه لو شغّال).
+  Future<void> _speakBrief() async {
+    try {
+      if (_speaking) {
+        await _tts?.stop();
+        if (mounted) setState(() => _speaking = false);
+        return;
+      }
+      setState(() => _speaking = true);
+      final text = await buildMorningBrief();
+      _tts ??= FlutterTts();
+      await _tts!.setLanguage(AppState.isEnglish ? 'en-US' : 'ar');
+      _tts!.setCompletionHandler(() {
+        if (mounted) setState(() => _speaking = false);
+      });
+      await _tts!.speak(text);
+    } on Exception catch (e) {
+      dev.log('فشل الموجز الصوتى', error: e);
+      if (mounted) setState(() => _speaking = false);
+    }
   }
 
   /// «اسأل مديرك» — زرار بعرض الشاشة فوق صف الإجراءات.

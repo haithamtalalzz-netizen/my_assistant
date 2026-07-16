@@ -195,13 +195,98 @@ class _HabitsScreenState extends State<HabitsScreen> {
     if (mounted) await _load();
   }
 
+  /// تعديل عادات يوم فائت — نفس نمط الصلاة: تنقّل بين الأيام + شيبس بتتسجّل
+  /// فى يومها (بتتحسب فى السلاسل لأن السلسلة بتتقرا من السجل).
+  Future<void> _editPastDay() async {
+    var day = DateTime.now().subtract(const Duration(days: 1));
+    final repo = HabitsRepo();
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final today = DateTime.now();
+          final atYesterday =
+              dayKey(day) == dayKey(today.subtract(const Duration(days: 1)));
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(tr('تعديل عادات يوم فائت', 'Edit past-day habits'),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w800)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right),
+                        onPressed: today.difference(day).inDays >= 30
+                            ? null
+                            : () => setSheet(() =>
+                                day = day.subtract(const Duration(days: 1))),
+                      ),
+                      Text(arFullDate(day),
+                          style:
+                              const TextStyle(fontWeight: FontWeight.w700)),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left),
+                        onPressed: atYesterday
+                            ? null
+                            : () => setSheet(
+                                () => day = day.add(const Duration(days: 1))),
+                      ),
+                    ],
+                  ),
+                  FutureBuilder<Set<int>>(
+                    key: ValueKey(dayKey(day)),
+                    future: repo.doneOn(dayKey(day)),
+                    builder: (_, snap) {
+                      final done = snap.data ?? {};
+                      return Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final h in _habits)
+                            if (h.id != null)
+                              FilterChip(
+                                label: Text(h.name),
+                                selected: done.contains(h.id),
+                                onSelected: (_) async {
+                                  await repo.toggle(h.id!, dayKey(day));
+                                  setSheet(() {});
+                                },
+                              ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    if (mounted) await _load();
+  }
+
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       drawer: widget.drawer,
       appBar: AppBar(
           title: Text(tr('العادات', 'Habits')),
-          actions: [searchAction(context)]),
+          actions: [
+            IconButton(
+              tooltip: tr('تعديل يوم فائت', 'Edit a past day'),
+              icon: const Icon(Icons.edit_calendar_outlined),
+              onPressed: _editPastDay,
+            ),
+            searchAction(context),
+          ]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

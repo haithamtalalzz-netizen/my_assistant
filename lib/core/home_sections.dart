@@ -19,6 +19,7 @@ const List<String> kHomeSectionKeys = [
   'meds',
   'meals',
   'habits',
+  'day_close',
 ];
 
 String homeSectionLabel(String key) => switch (key) {
@@ -38,5 +39,6 @@ String homeSectionLabel(String key) => switch (key) {
       'meds' => tr('أدوية النهارده', "Today's medications"),
       'meals' => tr('وجبات النهارده', "Today's meals"),
       'habits' => tr('عادات النهارده', "Today's habits"),
+      'day_close' => tr('قفل اليوم (مساءً)', 'Close the day (evening)'),
       _ => key,
     };

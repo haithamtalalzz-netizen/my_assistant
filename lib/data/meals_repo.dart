@@ -37,6 +37,26 @@ String mealSlotLabel(String s) => switch (s) {
     };
 
 class MealsRepo {
+  /// الوجبات الأكتر تسجيلاً (آخر نسخة من كل وصف بقيمها) — للمفضّلة.
+  Future<List<Meal>> frequentMeals({int limit = 8}) async {
+    final db = await AppDb.instance;
+    final rows = await db.rawQuery("""
+      SELECT m.* FROM meals m
+      JOIN (SELECT description, COUNT(*) c, MAX(id) mid FROM meals
+            GROUP BY description ORDER BY c DESC, mid DESC LIMIT ?) f
+        ON m.id = f.mid
+      ORDER BY f.c DESC
+    """, [limit]);
+    return rows.map(Meal.fromMap).toList();
+  }
+
+  /// آخر وجبة اتسجّلت (لزرار «سجّل تانى»).
+  Future<Meal?> lastMeal() async {
+    final db = await AppDb.instance;
+    final rows = await db.query('meals', orderBy: 'id DESC', limit: 1);
+    return rows.isEmpty ? null : Meal.fromMap(rows.first);
+  }
+
   Future<List<Meal>> forDay(String day) async {
     final db = await AppDb.instance;
     final rows =
