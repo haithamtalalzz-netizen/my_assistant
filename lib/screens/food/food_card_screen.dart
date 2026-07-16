@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../core/egyptian_dishes.dart';
 import '../../core/usda_food_db.dart';
 
 /// دليل الأكل: بحث فى ~٦٠٠٠ صنف بقيمهم الغذائية الكاملة — أرقام USDA حرفياً.
@@ -20,6 +21,7 @@ class _FoodCardScreenState extends State<FoodCardScreen> {
   Timer? _debounce;
   bool _searching = false;
   List<UsdaFood> _results = [];
+  List<EgyptianDish> _dishes = [];
   int _total = 0;
 
   @override
@@ -47,6 +49,7 @@ class _FoodCardScreenState extends State<FoodCardScreen> {
     if (q.trim().length < 2) {
       setState(() {
         _results = [];
+        _dishes = [];
         _searching = false;
       });
       return;
@@ -55,6 +58,7 @@ class _FoodCardScreenState extends State<FoodCardScreen> {
     final r = await UsdaDb.search(q);
     if (!mounted) return;
     setState(() {
+      _dishes = searchDishes(q);
       _results = r;
       _searching = false;
     });
@@ -94,13 +98,22 @@ class _FoodCardScreenState extends State<FoodCardScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : _ctrl.text.trim().length < 2
                     ? _intro(scheme)
-                    : _results.isEmpty
+                    : (_results.isEmpty && _dishes.isEmpty)
                         ? Center(
                             child: Text(tr('مفيش نتائج', 'No results'),
                                 style: TextStyle(color: scheme.outline)))
-                        : ListView.builder(
-                            itemCount: _results.length,
-                            itemBuilder: (_, i) => _row(_results[i], scheme),
+                        : ListView(
+                            children: [
+                              // الأكلات المصرية المحسوبة الأول.
+                              if (_dishes.isNotEmpty) ...[
+                                _sectionHeader(
+                                    tr('أكلات مصرية (محسوبة من USDA)',
+                                        'Egyptian dishes (computed from USDA)'),
+                                    scheme),
+                                for (final d in _dishes) _dishRow(d, scheme),
+                              ],
+                              for (final f in _results) _row(f, scheme),
+                            ],
                           ),
           ),
         ],
@@ -132,6 +145,43 @@ class _FoodCardScreenState extends State<FoodCardScreen> {
           ),
         ],
       );
+
+  Widget _sectionHeader(String text, ColorScheme scheme) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+        child: Row(
+          children: [
+            Icon(Icons.calculate_outlined, size: 14, color: scheme.primary),
+            const SizedBox(width: 4),
+            Text(text,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: scheme.primary)),
+          ],
+        ),
+      );
+
+  Widget _dishRow(EgyptianDish d, ColorScheme scheme) {
+    return ListTile(
+      leading: const Text('🍽', style: TextStyle(fontSize: 22)),
+      title: Text(d.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: FutureBuilder<UsdaNutrients?>(
+        future: dishNutrients(d),
+        builder: (_, snap) {
+          final n = snap.data;
+          if (n == null) {
+            return Text(tr('طبق ~${arNum(d.servingGrams.round())} جم',
+                'plate ~${arNum(d.servingGrams.round())} g'));
+          }
+          return Text(
+              tr('${arNum(n.kcal.round())} سعرة/طبق · محسوبة من مكوّناتها',
+                  '${arNum(n.kcal.round())} kcal/plate · computed from ingredients'));
+        },
+      ),
+      trailing: const Icon(Icons.chevron_left),
+      onTap: () => showDishCard(context, d),
+    );
+  }
 
   Widget _row(UsdaFood f, ColorScheme scheme) {
     final p = prepLabel(f.prep);
@@ -443,4 +493,154 @@ class _FoodCardBodyState extends State<_FoodCardBody> {
       ),
     );
   }
+}
+
+/// كارت أكلة مصرية: القيم المحسوبة + تفصيل المكوّنات (كل مكوّن برقم USDA بتاعه)
+/// + منزلق «كام طبق» + سطر يوضّح إن السعرات **محسوبة** مش مكتوبة.
+Future<void> showDishCard(BuildContext context, EgyptianDish dish) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (_) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.8,
+      maxChildSize: 0.95,
+      builder: (_, sc) => _DishCardBody(dish: dish, scroll: sc),
+    ),
+  );
+}
+
+class _DishCardBody extends StatefulWidget {
+  final EgyptianDish dish;
+  final ScrollController scroll;
+  const _DishCardBody({required this.dish, required this.scroll});
+
+  @override
+  State<_DishCardBody> createState() => _DishCardBodyState();
+}
+
+class _DishCardBodyState extends State<_DishCardBody> {
+  double _plates = 1;
+  UsdaNutrients? _n;
+  List<({String name, double grams})> _parts = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final n = await dishNutrients(widget.dish);
+    final all = await UsdaDb.all();
+    final byId = {for (final f in all) f.id: f};
+    final parts = <({String name, double grams})>[];
+    for (final p in widget.dish.parts) {
+      final f = byId[p.fdcId];
+      if (f != null) parts.add((name: f.name, grams: p.grams));
+    }
+    if (!mounted) return;
+    setState(() {
+      _n = n;
+      _parts = parts;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final n = _n;
+    return ListView(
+      controller: widget.scroll,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      children: [
+        Text('🍽 ${widget.dish.name}',
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 10),
+        // كام طبق
+        Row(children: [
+          Text(tr('الكمية: ${arNum(_plates.toStringAsFixed(_plates == _plates.roundToDouble() ? 0 : 1))} طبق',
+              'Amount: ${arNum(_plates.toStringAsFixed(_plates == _plates.roundToDouble() ? 0 : 1))} plate')),
+          Expanded(
+            child: Slider(
+              value: _plates,
+              min: 0.5,
+              max: 4,
+              divisions: 7,
+              label: _plates.toStringAsFixed(1),
+              onChanged: (v) => setState(() => _plates = v),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 6),
+        if (n != null) _bigRow(scheme, n, _plates),
+        const SizedBox(height: 18),
+        Text(tr('المكوّنات (لطبق واحد)', 'Ingredients (one plate)'),
+            style: const TextStyle(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 6),
+        for (final p in _parts)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(
+              children: [
+                Expanded(child: Text(p.name)),
+                Text('${arNum(p.grams.round())} ${tr('جم', 'g')}',
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+        const SizedBox(height: 16),
+        Row(children: [
+          Icon(Icons.info_outline, size: 14, color: scheme.outline),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              tr('السعرات **محسوبة** بجمع مكوّنات الطبق بأرقام USDA — مش مكتوبة بالإيد. الأوزان تقديرية لطبق نموذجى وممكن تختلف حسب طريقة تحضيرك.',
+                  'Calories are **computed** by summing the plate ingredients using USDA numbers — not hand-typed. Weights are estimates for a typical plate and vary by your recipe.'),
+              style: TextStyle(fontSize: 10.5, color: scheme.outline),
+            ),
+          ),
+        ]),
+      ],
+    );
+  }
+
+  Widget _bigRow(ColorScheme scheme, UsdaNutrients n, double m) => Row(
+        children: [
+          _box(scheme, tr('سعرات', 'Calories'), n.kcal * m, '', scheme.primary),
+          _box(scheme, tr('بروتين', 'Protein'), n.protein * m, tr('جم', 'g'),
+              Colors.blue),
+          _box(scheme, tr('كارب', 'Carbs'), n.carbs * m, tr('جم', 'g'),
+              Colors.orange),
+          _box(scheme, tr('دهون', 'Fat'), n.fat * m, tr('جم', 'g'),
+              Colors.redAccent),
+        ],
+      );
+
+  Widget _box(ColorScheme scheme, String label, double v, String unit, Color c) =>
+      Expanded(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: c.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              Text(arNum(v < 10 ? v.toStringAsFixed(1) : v.round().toString()),
+                  style: TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w900, color: c)),
+              Text(unit.isEmpty ? label : '$label ($unit)',
+                  style: const TextStyle(fontSize: 10)),
+            ],
+          ),
+        ),
+      );
 }

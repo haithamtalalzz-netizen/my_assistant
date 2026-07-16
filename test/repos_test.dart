@@ -7,6 +7,7 @@ import 'package:my_assistant/core/dashboard_stats.dart';
 import 'package:my_assistant/core/data_export.dart';
 import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/usda_food_db.dart';
+import 'package:my_assistant/core/egyptian_dishes.dart';
 import 'package:my_assistant/core/attention.dart';
 import 'package:my_assistant/widgets/day_glance.dart';
 import 'package:my_assistant/widgets/reorderable_sections.dart';
@@ -3153,6 +3154,59 @@ void main() {
       // صنف من غير حصة -> ١٠٠ جم
       final fried = (await UsdaDb.search('مقلى')).single;
       expect(fried.defaultGrams, 100);
+    });
+  });
+
+  group('الأكلات المصرية (محسوبة من USDA)', () {
+    // عيّنة أصل صغيرة بمكوّنات كشرى — نفس شكل الأصل الحقيقى.
+    const sample = '''[
+      {"id":168880,"en":"Rice, white, medium-grain, enriched, cooked","ar":"رز أبيض",
+       "cat":"حبوب ومكرونة","kcal":130,"p":2.38,"c":28.59,"f":0.21},
+      {"id":169737,"en":"Pasta, cooked, enriched, without added salt","ar":"مكرونة",
+       "cat":"حبوب ومكرونة","kcal":158,"p":5.8,"c":30.86,"f":0.93},
+      {"id":172421,"en":"Lentils, cooked, boiled, without salt","ar":"عدس مسلوق",
+       "cat":"بقوليات","kcal":116,"p":9.02,"c":20.13,"f":0.38,"fiber":7.9},
+      {"id":173800,"en":"Chickpeas, canned","ar":"حمص","cat":"بقوليات",
+       "kcal":139,"p":7.05,"c":22.5,"f":2.83},
+      {"id":170054,"en":"Tomato products, canned, sauce","ar":"صلصة طماطم",
+       "cat":"خضار","kcal":24,"p":1.2,"c":5.3,"f":0.3},
+      {"id":170000,"en":"Onions, raw","ar":"بصل — نيّئ","cat":"خضار",
+       "kcal":40,"p":1.1,"c":9.34,"f":0.1},
+      {"id":171411,"en":"Oil, soybean","ar":"زيت نباتى","cat":"دهون وزيوت",
+       "kcal":884,"p":0,"c":0,"f":100}
+    ]''';
+
+    setUp(() => UsdaDb.loadForTests(sample));
+    tearDown(UsdaDb.reset);
+
+    test('كشرى بتتحسب من مكوّناته بأرقام USDA (مش مكتوبة بالإيد)', () async {
+      final koshari =
+          kEgyptianDishes.firstWhere((d) => d.ar == 'كشرى');
+      final n = await dishNutrients(koshari);
+      expect(n, isNotNull);
+      // الحساب اليدوى المتوقّع من نفس الأرقام (٧١١ سعرة تقريباً).
+      expect(n!.kcal, closeTo(711, 3));
+      // البروتين والكارب برضه محسوبين.
+      expect(n.protein, greaterThan(20));
+      expect(n.carbs, greaterThan(100));
+      // الألياف اتجمعت من العدس (المكوّن الوحيد اللى ليه fiber).
+      expect(n.fiber, isNotNull);
+      expect(n.fiber, greaterThan(0));
+    });
+
+    test('لو مكوّن مفقود بترجّع null (مايخترعش رقم)', () async {
+      // أصل ناقص فيه الرز بس.
+      UsdaDb.loadForTests(
+          '[{"id":168880,"en":"Rice","cat":"","kcal":130,"p":2,"c":28,"f":0}]');
+      final koshari = kEgyptianDishes.firstWhere((d) => d.ar == 'كشرى');
+      expect(await dishNutrients(koshari), isNull);
+    });
+
+    test('البحث بيلاقى الأكلة بالعربى', () {
+      expect(searchDishes('كشرى').isNotEmpty, isTrue);
+      expect(searchDishes('كشري').isNotEmpty, isTrue); // بالياء برضه
+      expect(searchDishes('فول').any((d) => d.ar == 'فول مدمس'), isTrue);
+      expect(searchDishes('حاجة مش موجودة'), isEmpty);
     });
   });
 
