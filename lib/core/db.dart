@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 50,
+      version: 51,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -313,6 +313,10 @@ class AppDb {
       for (final ddl in _v50Tables) {
         await db.execute(ddl);
       }
+    }
+    if (oldV < 51 && newV >= 51) {
+      // المياه بالملى بدل عدد الأكواب.
+      await _safeAddColumn(db, 'water_logs', 'ml', 'INTEGER NOT NULL DEFAULT 0');
     }
   }
 
@@ -1229,7 +1233,8 @@ class AppDb {
     batch.execute('''
       CREATE TABLE water_logs(
         day TEXT PRIMARY KEY,
-        glasses INTEGER NOT NULL DEFAULT 0
+        glasses INTEGER NOT NULL DEFAULT 0,
+        ml INTEGER NOT NULL DEFAULT 0
       )''');
     batch.execute('''
       CREATE TABLE sleep_logs(

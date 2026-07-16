@@ -584,11 +584,14 @@ void main() {
   group('الإعدادات', () {
     test('قيم افتراضية وقيم متخزنة', () async {
       final repo = SettingsRepo();
+      // هدف المياه بقى بالملى (الافتراضى ٢٠٠٠ = ٨ أكواب توافقياً).
       expect(await repo.waterGoal(), 8);
+      expect(await repo.waterGoalMl(), 2000);
       expect(await repo.monthlyBudget(), 0);
-      await repo.set('water_goal', '10');
+      await repo.setWaterGoalMl(2500);
       await repo.set('monthly_budget', '5000');
-      expect(await repo.waterGoal(), 10);
+      expect(await repo.waterGoalMl(), 2500);
+      expect(await repo.waterGoal(), 10); // ٢٥٠٠ ÷ ٢٥٠
       expect(await repo.monthlyBudget(), 5000);
     });
 
@@ -3156,6 +3159,66 @@ void main() {
       // صنف من غير حصة -> ١٠٠ جم
       final fried = (await UsdaDb.search('مقلى')).single;
       expect(fried.defaultGrams, 100);
+    });
+  });
+
+  group('المياه بالملى (v51)', () {
+    test('ترقية v50 ← v51 بتضيف عمود ml وبتحافظ على الأكواب القديمة', () async {
+      final v50 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      // جدول بالشكل القديم (glasses بس) + بيانات قديمة.
+      await v50.execute(
+          'CREATE TABLE water_logs(day TEXT PRIMARY KEY, glasses INTEGER NOT NULL DEFAULT 0)');
+      await v50.insert('water_logs', {'day': '2026-07-10', 'glasses': 6});
+      await AppDb.upgradeSchema(v50, 50, 51);
+      // العمود اتضاف والبيانات القديمة فضلت.
+      final row = (await v50.query('water_logs')).first;
+      expect(row['glasses'], 6);
+      expect(row['ml'], 0);
+      await v50.close();
+    });
+
+    test('HealthRepo: تسجيل بالملى + توافق الأكواب + تحويل القديم', () async {
+      final repo = HealthRepo();
+      const day = '2026-07-16';
+      // إضافة بالملى.
+      expect(await repo.addWaterMl(day, 300), 300);
+      expect(await repo.addWaterMl(day, 250), 550);
+      // القراءة بالأكواب (توافق) = ٥٥٠/٢٥٠ مقرّبة.
+      expect(await repo.waterOn(day), 2);
+      // تحديد الإجمالى مباشرة.
+      expect(await repo.setWaterMl(day, 1200), 1200);
+      expect(await repo.waterMlOn(day), 1200);
+      // بيانات قديمة (أكواب من غير ml) بتتحوّل ×٢٥٠.
+      final db = await AppDb.instance;
+      await db.insert('water_logs', {'day': '2026-07-01', 'glasses': 4, 'ml': 0},
+          conflictAlgorithm: ConflictAlgorithm.replace);
+      expect(await repo.waterMlOn('2026-07-01'), 1000);
+      // الهدف بالملى + توافقه بالأكواب.
+      await SettingsRepo().setWaterGoalMl(2500);
+      expect(await SettingsRepo().waterGoalMl(), 2500);
+      expect(await SettingsRepo().waterGoal(), 10);
+    });
+  });
+
+  group('تعديل صلوات يوم فائت', () {
+    test('صلاة اتسجّلت بأثر رجعى بتتحسب فى سلسلة الأيام الكاملة', () async {
+      final repo = WorshipRepo();
+      final today = DateTime.now();
+      final yesterday = today.subtract(const Duration(days: 1));
+      // النهارده كامل، وامبارح ناقص العشا (اتصلّت بعد ١٢ وما اتسجّلتش).
+      for (var i = 0; i < 5; i++) {
+        await repo.togglePrayer(today, i, true);
+      }
+      for (var i = 0; i < 4; i++) {
+        await repo.togglePrayer(yesterday, i, true);
+      }
+      expect(await repo.fullDaysStreak(), 1, reason: 'امبارح لسه ناقص');
+      // التعديل بأثر رجعى — زى شيت «تعديل يوم فائت».
+      await repo.togglePrayer(yesterday, 4, true);
+      expect((await repo.prayedOn(yesterday)).length, 5);
+      expect(await repo.fullDaysStreak(), 2,
+          reason: 'العشا اتسجّلت فى يومها فاليومين بقوا كاملين');
     });
   });
 

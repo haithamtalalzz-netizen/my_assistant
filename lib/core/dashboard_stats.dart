@@ -129,20 +129,20 @@ Future<List<DashStat>> collectDashboard([DateTime? at]) async {
     );
   });
 
-  // ————— الصحة (مياه + آخر وزن) —————
+  // ————— الصحة (مياه بالملى + آخر وزن) —————
   await add('health', () async {
-    final water = await HealthRepo().waterOn(day);
-    final goal = await SettingsRepo().waterGoal();
+    final ml = await HealthRepo().waterMlOn(day);
+    final goalMl = await SettingsRepo().waterGoalMl();
     final weights = await MeasurementsRepo().recent(limit: 1, type: 'وزن');
     final w = weights.isEmpty ? null : weights.first.value;
     return DashStat(
       key: 'health',
       title: tr('الصحة', 'Health'),
-      value: '${arNum(water)}/${arNum(goal)}',
+      value: '${arNum(ml)}/${arNum(goalMl)}',
       sub: w == null
-          ? tr('كوب مياه النهارده', 'cups of water today')
-          : tr('كوب مياه · الوزن ${arNum(w.toStringAsFixed(1))} كجم',
-              'cups · weight ${arNum(w.toStringAsFixed(1))} kg'),
+          ? tr('مل مياه النهارده', 'mL water today')
+          : tr('مل مياه · الوزن ${arNum(w.toStringAsFixed(1))} كجم',
+              'mL water · weight ${arNum(w.toStringAsFixed(1))} kg'),
     );
   });
 

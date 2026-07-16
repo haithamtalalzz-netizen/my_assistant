@@ -4,22 +4,46 @@ import '../core/db.dart';
 import '../models/models.dart';
 
 class HealthRepo {
-  Future<int> waterOn(String day) async {
+  /// الكوباية الافتراضية = ٢٥٠ مل (للتوافق مع البيانات القديمة والدوال بالأكواب).
+  static const int cupMl = 250;
+
+  /// المياه بالملى ليوم — بيرجّع عمود `ml`، ولو صفر وفيه أكواب قديمة (glasses)
+  /// بيحوّلها (× ٢٥٠) عشان البيانات القديمة ماتضيعش.
+  Future<int> waterMlOn(String day) async {
     final db = await AppDb.instance;
-    final rows = await db.query('water_logs', where: 'day = ?', whereArgs: [day]);
+    final rows =
+        await db.query('water_logs', where: 'day = ?', whereArgs: [day]);
     if (rows.isEmpty) return 0;
-    return rows.first['glasses'] as int;
+    final ml = (rows.first['ml'] as int? ?? 0);
+    if (ml > 0) return ml;
+    final glasses = (rows.first['glasses'] as int? ?? 0);
+    return glasses * cupMl;
   }
 
-  /// يزود/يقلل عداد المياه ويرجع القيمة الجديدة.
-  Future<int> addWater(String day, int delta) async {
-    final db = await AppDb.instance;
-    final current = await waterOn(day);
-    final next = (current + delta).clamp(0, 99);
-    await db.insert('water_logs', {'day': day, 'glasses': next},
-        conflictAlgorithm: ConflictAlgorithm.replace);
-    return next;
+  /// يزود/يقلل المياه بالملى ويرجّع الإجمالى الجديد.
+  Future<int> addWaterMl(String day, int deltaMl) async {
+    final next = (await waterMlOn(day) + deltaMl).clamp(0, 20000);
+    return setWaterMl(day, next);
   }
+
+  /// يحدّد المياه بالملى لليوم مباشرة.
+  Future<int> setWaterMl(String day, int ml) async {
+    final db = await AppDb.instance;
+    final v = ml.clamp(0, 20000);
+    // نحدّث الأكواب كمان (round) عشان الدوال القديمة تفضل شغّالة.
+    await db.insert('water_logs',
+        {'day': day, 'ml': v, 'glasses': (v / cupMl).round()},
+        conflictAlgorithm: ConflictAlgorithm.replace);
+    return v;
+  }
+
+  /// عدد الأكواب (توافق) = المياه بالملى ÷ ٢٥٠.
+  Future<int> waterOn(String day) async =>
+      (await waterMlOn(day) / cupMl).round();
+
+  /// يزود/يقلل بالأكواب (توافق) — بيحوّلها لملى.
+  Future<int> addWater(String day, int delta) async =>
+      (await addWaterMl(day, delta * cupMl) / cupMl).round();
 
   Future<double?> sleepOn(String day) async {
     final db = await AppDb.instance;

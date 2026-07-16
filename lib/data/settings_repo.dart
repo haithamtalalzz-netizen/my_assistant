@@ -18,8 +18,14 @@ class SettingsRepo {
 
   Future<String> userName() async => await get('user_name') ?? '';
 
-  Future<int> waterGoal() async =>
-      int.tryParse(await get('water_goal') ?? '') ?? 8;
+  /// هدف المياه اليومى بالملى (الافتراضى ٢٠٠٠ مل = ٢ لتر).
+  Future<int> waterGoalMl() async =>
+      int.tryParse(await get('water_goal_ml') ?? '') ?? 2000;
+  Future<void> setWaterGoalMl(int ml) async =>
+      set('water_goal_ml', '${ml.clamp(250, 10000)}');
+
+  /// الهدف بالأكواب (توافق) = الهدف بالملى ÷ ٢٥٠.
+  Future<int> waterGoal() async => (await waterGoalMl() / 250).round();
 
   /// هدف السعرات اليومي (0 = مش محدد).
   Future<int> calorieGoal() async =>

@@ -327,10 +327,109 @@ class _PrayerScreenState extends State<PrayerScreen> {
                   ),
                 ],
               ),
+            // تعديل يوم فائت — عشان صلاة اتصلّت قبل ١٢ بالليل وماتسجّلتش
+            // (اليوم بيقلب) تتقدر تتسجّل فى يومها الصح وتتحسب فى السلسلة.
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton.icon(
+                onPressed: _editPastDay,
+                icon: const Icon(Icons.edit_calendar_outlined,
+                    size: 15, color: Colors.white70),
+                label: Text(tr('تعديل يوم فائت', 'Edit a past day'),
+                    style:
+                        const TextStyle(color: Colors.white70, fontSize: 12)),
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  /// شيت تعديل صلوات يوم سابق: تنقّل بين الأيام + ٥ شيبس بتتسجّل فى يومها.
+  Future<void> _editPastDay() async {
+    var day = DateTime.now().subtract(const Duration(days: 1));
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final today = DateTime.now();
+          final atYesterday = dayKey(day) ==
+              dayKey(today.subtract(const Duration(days: 1)));
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(tr('تعديل صلوات يوم فائت', 'Edit past-day prayers'),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 4),
+                  // تنقّل بين الأيام (لحد ٣٠ يوم ورا، ومايوصلش للنهارده).
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right),
+                        onPressed: today.difference(day).inDays >= 30
+                            ? null
+                            : () => setSheet(() => day =
+                                day.subtract(const Duration(days: 1))),
+                      ),
+                      Text(arFullDate(day),
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left),
+                        onPressed: atYesterday
+                            ? null
+                            : () => setSheet(
+                                () => day = day.add(const Duration(days: 1))),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  FutureBuilder<Set<int>>(
+                    // مفتاح باليوم عشان الـFuture يتبنى تانى مع كل تنقّل.
+                    key: ValueKey(dayKey(day)),
+                    future: _repo.prayedOn(day),
+                    builder: (_, snap) {
+                      final done = snap.data ?? {};
+                      return Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (var i = 0; i < kPrayerNames.length; i++)
+                            FilterChip(
+                              label: Text(prayerNameLabel(i)),
+                              selected: done.contains(i),
+                              onSelected: (v) async {
+                                await _repo.togglePrayer(day, i, v);
+                                setSheet(() {});
+                              },
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    tr('التعديل بيتسجّل فى يومه وبيتحسب فى السلسلة 🔥',
+                        'Edits are saved to that day and count in the streak 🔥'),
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(ctx).colorScheme.outline),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    // السلسلة والعدّادات بتتحدث بعد القفل.
+    if (mounted) await _load();
   }
 
   Widget _prayerRow(int i, int nextIdx) {

@@ -49,7 +49,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _contactPhone = TextEditingController();
   final _geminiKey = TextEditingController();
   bool _geminiSendHealth = true;
-  int _waterGoal = 8;
+  int _waterGoalMl = 2000;
   bool _appLock = false;
   bool _prayerNotifs = true;
   bool _healthSync = false;
@@ -78,7 +78,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _load() async {
     final name = await _settings.userName();
-    final goal = await _settings.waterGoal();
+    final goalMl = await _settings.waterGoalMl();
     final budget = await _settings.monthlyBudget();
     final appLock = await _settings.appLockEnabled();
     final prayerNotifs = await _settings.prayerNotificationsEnabled();
@@ -107,7 +107,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _catOrder =
           catOrder.split(',').where((e) => e.isNotEmpty).toList();
       _name.text = name;
-      _waterGoal = goal;
+      _waterGoalMl = goalMl;
       _budget.text = budget > 0 ? budget.toStringAsFixed(0) : '';
       _appLock = appLock;
       _prayerNotifs = prayerNotifs;
@@ -157,7 +157,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// يحفظ الحقول المجمّعة — بيتنادى عند الرجوع من أي صفحة فئة.
   Future<void> _persist() async {
     await _settings.set('user_name', _name.text.trim());
-    await _settings.set('water_goal', '$_waterGoal');
+    await _settings.setWaterGoalMl(_waterGoalMl);
     final budget = parseNumber(_budget.text);
     await _settings.set(
         'monthly_budget', budget == null || budget <= 0 ? '' : '$budget');
@@ -799,16 +799,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Row(
                   children: [
                     Expanded(
-                        child: Text(tr('هدف المياه اليومي (كوباية)',
-                            'Daily water goal (glasses)'))),
+                        child: Text(tr('هدف المياه اليومي',
+                            'Daily water goal'))),
                     DropdownButton<int>(
-                      value: _waterGoal,
+                      value: const [1000, 1500, 2000, 2500, 3000, 3500, 4000]
+                              .contains(_waterGoalMl)
+                          ? _waterGoalMl
+                          : 2000,
                       items: [
-                        for (var i = 4; i <= 15; i++)
-                          DropdownMenuItem(value: i, child: Text(arNum(i))),
+                        for (final ml in const [
+                          1000, 1500, 2000, 2500, 3000, 3500, 4000
+                        ])
+                          DropdownMenuItem(
+                              value: ml,
+                              child: Text(tr(
+                                  '${arNum((ml / 1000).toStringAsFixed(ml % 1000 == 0 ? 0 : 1))} لتر ($ml مل)',
+                                  '${arNum((ml / 1000).toStringAsFixed(ml % 1000 == 0 ? 0 : 1))} L ($ml mL)'))),
                       ],
                       onChanged: (v) =>
-                          setState(() => _waterGoal = v ?? _waterGoal),
+                          setState(() => _waterGoalMl = v ?? _waterGoalMl),
                     ),
                   ],
                 ),

@@ -103,6 +103,9 @@ class _TodayScreenState extends State<TodayScreen> {
 
   int _waterGoal = 8;
   int _water = 0;
+  // المياه بالملى (الدقيقة) — الحلقة بتفضل بالأكواب المضغوطة، والشيت بالملى.
+  int _waterMl = 0;
+  int _waterGoalMl = 2000;
   double? _sleep;
   List<Appointment> _todayAppts = [];
 
@@ -173,6 +176,8 @@ class _TodayScreenState extends State<TodayScreen> {
     final stepsAuto = await _settings.healthSyncEnabled();
     final goal = await _settings.waterGoal();
     final water = await _health.waterOn(day);
+    final waterMl = await _health.waterMlOn(day);
+    final waterGoalMl = await _settings.waterGoalMl();
     var sleep = await _health.sleepOn(day);
     int? steps;
     int? calories;
@@ -267,6 +272,8 @@ class _TodayScreenState extends State<TodayScreen> {
       _stepsAuto = stepsAuto;
       _waterGoal = goal;
       _water = water;
+      _waterMl = waterMl;
+      _waterGoalMl = waterGoalMl;
       _sleep = sleep;
       _todayAppts = appts;
       _activeMeds = meds;
@@ -391,6 +398,31 @@ class _TodayScreenState extends State<TodayScreen> {
     unawaited(WaterGuard.ensureScheduled());
   }
 
+  /// يزود/يقلل المياه بالملى ويحدّث الحالة (المصدر الأساسى دلوقتى).
+  Future<void> _changeWaterMl(int deltaMl) async {
+    HapticFeedback.selectionClick();
+    final next = await _health.addWaterMl(_today, deltaMl);
+    if (mounted) {
+      setState(() {
+        _waterMl = next;
+        _water = (next / 250).round();
+      });
+    }
+    unawaited(WidgetBridge.push());
+    unawaited(WaterGuard.ensureScheduled());
+  }
+
+  Future<void> _setWaterMl(int ml) async {
+    final next = await _health.setWaterMl(_today, ml);
+    if (mounted) {
+      setState(() {
+        _waterMl = next;
+        _water = (next / 250).round();
+      });
+    }
+    unawaited(WidgetBridge.push());
+  }
+
   Future<void> _openVoice() async {
     final logged = await showVoiceSheet(context);
     if (logged == true && mounted) await _load();
@@ -497,8 +529,8 @@ class _TodayScreenState extends State<TodayScreen> {
     } else if (r.label == tr('أدوية', 'Meds')) {
       widget.onGoToTab?.call(1);
     } else if (r.label == tr('مياه', 'Water')) {
-      // دوسة على حلقة المياه = كوباية زيادة (أسرع طريق).
-      _changeWater(1);
+      // دوسة على حلقة المياه = تفتح شيت المياه (تحديد الملى بالظبط).
+      _openWaterSheet();
     }
   }
 
@@ -570,10 +602,10 @@ class _TodayScreenState extends State<TodayScreen> {
           physics: const NeverScrollableScrollPhysics(),
           padding: EdgeInsets.zero,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
+            crossAxisCount: 3,
             mainAxisSpacing: 8,
             crossAxisSpacing: 8,
-            childAspectRatio: 1.25,
+            childAspectRatio: 0.82,
           ),
           itemCount: _dash.length,
           itemBuilder: (_, i) => DashCardTile(
@@ -1717,7 +1749,9 @@ class _TodayScreenState extends State<TodayScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) {
           final scheme = Theme.of(ctx).colorScheme;
-          final frac = _waterGoal > 0 ? _water / _waterGoal : 0.0;
+          final frac = _waterGoalMl > 0 ? _waterMl / _waterGoalMl : 0.0;
+          String litres(int ml) => (ml / 1000).toStringAsFixed(
+              ml % 1000 == 0 ? 0 : (ml % 100 == 0 ? 1 : 2));
           return Padding(
             padding: EdgeInsets.only(
               left: 24,
@@ -1738,36 +1772,78 @@ class _TodayScreenState extends State<TodayScreen> {
                 ]),
                 const SizedBox(height: 16),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('${arNum(_water)} / ${arNum(_waterGoal)}',
+                          // الإجمالى بالملى + الهدف باللتر بالظبط.
+                          Text('${arNum(_waterMl)} ${tr('مل', 'mL')}',
                               style: Theme.of(ctx)
                                   .textTheme
                                   .headlineSmall
                                   ?.copyWith(fontWeight: FontWeight.w800)),
-                          const SizedBox(height: 10),
-                          Row(children: [
-                            _roundBtn(Icons.remove, scheme,
-                                _water == 0
-                                    ? null
-                                    : () async {
-                                        await _changeWater(-1);
-                                        setSheet(() {});
-                                      }),
-                            const SizedBox(width: 12),
-                            _roundBtn(Icons.add, scheme, () async {
-                              await _changeWater(1);
-                              setSheet(() {});
-                            }, filled: true),
-                          ]),
+                          Text(
+                              tr('من ${arNum(litres(_waterGoalMl))} لتر '
+                                  '(${arNum(_waterGoalMl)} مل)',
+                                  'of ${arNum(litres(_waterGoalMl))} L '
+                                  '(${arNum(_waterGoalMl)} mL)'),
+                              style: TextStyle(
+                                  fontSize: 12, color: scheme.onSurfaceVariant)),
                         ],
                       ),
                     ),
-                    WaterGlass(fraction: frac),
+                    WaterGlass(fraction: frac.clamp(0.0, 1.0)),
                   ],
+                ),
+                const SizedBox(height: 14),
+                // أزرار سريعة بمقادير شائعة.
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  for (final ml in const [100, 200, 250, 500])
+                    ActionChip(
+                      avatar: const Icon(Icons.add, size: 16),
+                      label: Text('${arNum(ml)} ${tr('مل', 'mL')}'),
+                      onPressed: () async {
+                        await _changeWaterMl(ml);
+                        setSheet(() {});
+                      },
+                    ),
+                  ActionChip(
+                    avatar: const Icon(Icons.edit, size: 15),
+                    label: Text(tr('كمية', 'Custom')),
+                    onPressed: () async {
+                      final ml = await _askMl(ctx);
+                      if (ml != null) {
+                        await _changeWaterMl(ml);
+                        setSheet(() {});
+                      }
+                    },
+                  ),
+                  if (_waterMl > 0)
+                    ActionChip(
+                      avatar: const Icon(Icons.remove, size: 16),
+                      label: Text('${arNum(250)} ${tr('مل', 'mL')}'),
+                      onPressed: () async {
+                        await _changeWaterMl(-250);
+                        setSheet(() {});
+                      },
+                    ),
+                ]),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: TextButton.icon(
+                    icon: const Icon(Icons.tune, size: 15),
+                    label: Text(tr('حدّد الإجمالى', 'Set total')),
+                    onPressed: () async {
+                      final ml = await _askMl(ctx, initial: _waterMl);
+                      if (ml != null) {
+                        await _setWaterMl(ml);
+                        setSheet(() {});
+                      }
+                    },
+                  ),
                 ),
               ],
             ),
@@ -1775,6 +1851,34 @@ class _TodayScreenState extends State<TodayScreen> {
         },
       ),
     );
+  }
+
+  /// إدخال كمية بالملى (رقم).
+  Future<int?> _askMl(BuildContext ctx, {int? initial}) async {
+    final c = TextEditingController(text: initial == null ? '' : '$initial');
+    final v = await showDialog<int>(
+      context: ctx,
+      builder: (d) => AlertDialog(
+        title: Text(tr('الكمية بالملى', 'Amount in mL')),
+        content: TextField(
+          controller: c,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: InputDecoration(hintText: tr('مثال: ٣٠٠', 'e.g. 300')),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(d),
+              child: Text(tr('إلغاء', 'Cancel'))),
+          FilledButton(
+              onPressed: () =>
+                  Navigator.pop(d, (parseNumber(c.text) ?? 0).round()),
+              child: Text(tr('تمام', 'OK'))),
+        ],
+      ),
+    );
+    c.dispose();
+    return (v == null || v <= 0) ? null : v;
   }
 
   /// شباك النوم — اختيار عدد الساعات بالشيبس زي كارت النوم.
