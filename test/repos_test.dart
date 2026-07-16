@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/ar.dart';
@@ -3206,7 +3208,28 @@ void main() {
       expect(searchDishes('كشرى').isNotEmpty, isTrue);
       expect(searchDishes('كشري').isNotEmpty, isTrue); // بالياء برضه
       expect(searchDishes('فول').any((d) => d.ar == 'فول مدمس'), isTrue);
+      expect(searchDishes('محشى').length, greaterThanOrEqualTo(3)); // ورق/كرنب/فلفل
       expect(searchDishes('حاجة مش موجودة'), isEmpty);
+    });
+
+    test('كل fdcId فى كل الوصفات موجود فى الأصل المشحون الحقيقى', () async {
+      // مايستعملش loadForTests — بيقرا assets/food/usda_foods.json الفعلى.
+      UsdaDb.reset();
+      final raw = File('assets/food/usda_foods.json').readAsStringSync();
+      final ids = {
+        for (final m in jsonDecode(raw) as List) (m as Map)['id'] as int
+      };
+      final missing = <String>[];
+      for (final dish in kEgyptianDishes) {
+        for (final part in dish.parts) {
+          if (!ids.contains(part.fdcId)) {
+            missing.add('${dish.ar} → ${part.fdcId}');
+          }
+        }
+      }
+      expect(missing, isEmpty,
+          reason: 'مكوّنات مش موجودة فى القاعدة (هتخلى الأكلة ترجّع null): '
+              '${missing.join(", ")}');
     });
   });
 

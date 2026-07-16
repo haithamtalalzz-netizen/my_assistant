@@ -148,6 +148,99 @@ const List<EgyptianDish> kEgyptianDishes = [
       DishPart(171411, 10), // زيت
     ],
   ),
+  // —— زيادة (2026-07-16): مكوّناتها كلها اتأكّدت فى الأصل المشحون ——
+  EgyptianDish(
+    ar: 'محشى ورق عنب',
+    en: 'Stuffed grape leaves',
+    servingGrams: 250,
+    parts: [
+      DishPart(168575, 120), // ورق عنب
+      DishPart(168880, 90), // رز
+      DishPart(170000, 25), // بصل
+      DishPart(170416, 8), // بقدونس
+      DishPart(171411, 15), // زيت
+    ],
+  ),
+  EgyptianDish(
+    ar: 'محشى كرنب',
+    en: 'Stuffed cabbage',
+    servingGrams: 250,
+    parts: [
+      DishPart(169975, 110), // كرنب
+      DishPart(168880, 90), // رز
+      DishPart(170000, 20), // بصل
+      DishPart(170457, 20), // طماطم
+      DishPart(171411, 15), // زيت
+    ],
+  ),
+  EgyptianDish(
+    ar: 'محشى فلفل',
+    en: 'Stuffed peppers',
+    servingGrams: 260,
+    parts: [
+      DishPart(170108, 110), // فلفل
+      DishPart(168880, 90), // رز
+      DishPart(171800, 40), // لحمة مفرومة
+      DishPart(170000, 15), // بصل
+      DishPart(171411, 12), // زيت
+    ],
+  ),
+  EgyptianDish(
+    ar: 'بامية بالزيت',
+    en: 'Okra in oil',
+    servingGrams: 250,
+    parts: [
+      DishPart(169261, 180), // بامية مطبوخة
+      DishPart(170054, 60), // صلصة
+      DishPart(170000, 20), // بصل
+      DishPart(171411, 18), // زيت
+    ],
+  ),
+  EgyptianDish(
+    ar: 'بامية باللحمة',
+    en: 'Okra with beef',
+    servingGrams: 320,
+    parts: [
+      DishPart(169261, 170), // بامية
+      DishPart(171800, 90), // لحمة مفرومة/مكعبات
+      DishPart(170054, 60), // صلصة
+      DishPart(171411, 15), // زيت
+    ],
+  ),
+  EgyptianDish(
+    ar: 'بط مشوى',
+    en: 'Roast duck',
+    servingGrams: 200,
+    parts: [
+      DishPart(172411, 180), // بط (لحم بس، مشوى)
+    ],
+  ),
+  EgyptianDish(
+    ar: 'فراخ مشوية (ربع فرخة)',
+    en: 'Grilled chicken (quarter)',
+    servingGrams: 250,
+    parts: [
+      DishPart(171450, 230), // فراخ بالجلد مشوية
+    ],
+  ),
+  EgyptianDish(
+    ar: 'ضانى مطبوخ',
+    en: 'Cooked lamb',
+    servingGrams: 180,
+    parts: [
+      DishPart(172544, 160), // ضانى مفروم مطبوخ
+    ],
+  ),
+  EgyptianDish(
+    ar: 'سلطة زبادى بالخيار',
+    en: 'Yogurt-cucumber salad',
+    servingGrams: 180,
+    parts: [
+      DishPart(171284, 150), // زبادى كامل الدسم
+      DishPart(170000, 10), // ثوم/بصل (تقريب)
+      DishPart(171413, 5), // زيت زيتون
+    ],
+  ),
 ];
 
 /// بحث فى الأكلات المصرية بالعربى أو الإنجليزى (تطبيع الهمزات).
