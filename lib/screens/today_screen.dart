@@ -517,8 +517,6 @@ class _TodayScreenState extends State<TodayScreen> {
         () => _heroAndSummary(context));
     add('week', _vis('week') && _weekItems.isNotEmpty,
         () => _weekOverviewCard(context));
-    add('dashboard', _vis('dashboard') && _dash.isNotEmpty,
-        () => _dashboardCards(context));
     add('cycle', _vis('cycle') && _showCycleCard, () => _cycleCard(context));
     add('weekly', _weeklyDue, () => _weeklyBanner(context));
     add('smartwatch', _vis('smartwatch') && _hasFitnessData,
@@ -557,6 +555,9 @@ class _TodayScreenState extends State<TodayScreen> {
         _vis('habits') && _habitList.isNotEmpty,
         () => _sec(tr("عادات النهارده", "Today's habits"), _habitChips(context),
             trailing: _seeAll(3)));
+    // كروت الأقسام بأرقامها — فى الأسفل (آخر قسم).
+    add('dashboard', _vis('dashboard') && _dash.isNotEmpty,
+        () => _dashboardCards(context));
     return out;
   }
 
