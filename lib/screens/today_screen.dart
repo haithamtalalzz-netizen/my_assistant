@@ -47,6 +47,10 @@ import '../core/dashboard_stats.dart';
 import '../widgets/dash_card.dart';
 import 'dashboard_screen.dart';
 import 'emergency_view.dart';
+import 'health/health_hub_screen.dart';
+import 'food/food_card_screen.dart';
+import 'gym/gym_screen.dart';
+
 import 'money/money_screen.dart';
 import 'schedule/schedule_screen.dart';
 import 'tasks/tasks_screen.dart';
@@ -107,6 +111,9 @@ class _TodayScreenState extends State<TodayScreen> {
 
   /// كروت الأقسام بأرقامها الحية.
   List<DashStat> _dash = [];
+
+  /// اختصارات صف الإجراءات (٤) — من اختيار المستخدم، محفوظة فى الإعدادات.
+  List<String> _shortcutKeys = _defaultShortcuts;
   List<Medication> _activeMeds = [];
   Set<String> _taken = {};
   List<Habit> _habitList = [];
@@ -245,12 +252,15 @@ class _TodayScreenState extends State<TodayScreen> {
     final attention = await collectAttention(now);
     final dueTasks = (await TasksRepo().dueTasks(now)).length;
     final dash = await collectDashboard(now);
+    final shortcutsRaw = await SettingsRepo().get('home_shortcuts') ?? '';
     final prayedCount = (await WorshipRepo().prayedToday()).length;
     if (!mounted) return;
     setState(() {
       _attention = attention;
       _dueTasks = dueTasks;
       _dash = dash;
+      final sc = shortcutsRaw.split(',').where((e) => e.isNotEmpty).toList();
+      _shortcutKeys = sc.isEmpty ? _defaultShortcuts : sc;
       _prayedCount = prayedCount;
       _name = name;
       _quickOrder = quickOrder;
@@ -1942,10 +1952,61 @@ class _TodayScreenState extends State<TodayScreen> {
     }
   }
 
-  /// صف الإجراءات: المدير · ➕ إضافة (المميّز) · المواعيد · المهام · صوت
+  /// كتالوج اختصارات الصف — المستخدم بيختار منها ٤ ويرتّبهم (زى «خصّص الأزرار»).
+  /// كل اختصار: مفتاح + أيقونة + اسم (قصير عشان مايتقصّش) + الفتح + مصدر البادج.
+  List<({
+    String key,
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+    int badge,
+  })> _shortcutCatalog(BuildContext context) {
+    final all = {for (final a in _allActions(context)) a.key: a};
+    void open(Widget s) =>
+        _reloadAfter(() => Navigator.push(context, MaterialPageRoute(builder: (_) => s)));
+    return [
+      (key: 'money', icon: Icons.account_balance_wallet_outlined,
+          label: tr('الفلوس', 'Money'), color: Colors.teal,
+          onTap: () => open(const MoneyScreen()), badge: 0),
+      (key: 'agenda', icon: Icons.event_available_outlined,
+          label: tr('مواعيد', 'Agenda'), color: Colors.blue,
+          onTap: () => open(const ScheduleScreen()), badge: _todayAppts.length),
+      (key: 'tasks', icon: Icons.checklist_outlined,
+          label: tr('المهام', 'Tasks'), color: Colors.orange,
+          onTap: () => open(const TasksScreen()), badge: _dueTasks),
+      (key: 'voice', icon: Icons.mic_none, label: tr('صوت', 'Voice'),
+          color: Colors.blueAccent, onTap: all['voice']?.onTap ?? () {}, badge: 0),
+      (key: 'health', icon: Icons.favorite_outline, label: tr('الصحة', 'Health'),
+          color: Colors.pink, onTap: () => open(const HealthHubScreen()), badge: 0),
+      (key: 'prayer', icon: Icons.mosque_outlined, label: tr('الصلاة', 'Prayer'),
+          color: const Color(0xFF2FA36B), onTap: () => open(const PrayerScreen()),
+          badge: 0),
+      (key: 'food', icon: Icons.restaurant_menu_outlined,
+          label: tr('الأكل', 'Food'), color: Colors.deepOrange,
+          onTap: () => open(const FoodCardScreen()), badge: 0),
+      (key: 'dashboard', icon: Icons.dashboard_outlined,
+          label: tr('لوحة', 'Board'), color: Colors.indigo,
+          onTap: () => open(const DashboardScreen()), badge: 0),
+      (key: 'gym', icon: Icons.fitness_center, label: tr('رياضة', 'Gym'),
+          color: Colors.green, onTap: () => open(const GymScreen()), badge: 0),
+    ];
+  }
+
+  static const List<String> _defaultShortcuts = [
+    'money', 'agenda', 'tasks', 'voice'
+  ];
+
+  /// صف الإجراءات: المدير · ➕ إضافة (المميّز) · [٤ اختصارات قابلة للتخصيص]
   /// وتحتهم شريط الطوارئ. كل أزرار الإضافة اتلمّت جوه الـ➕ عشان الصفحة تفضى.
   Widget _quickActions(BuildContext context) {
     final all = {for (final a in _allActions(context)) a.key: a};
+    final catalog = {for (final s in _shortcutCatalog(context)) s.key: s};
+    // أول ٤ من اختيار المستخدم (اللى لسه موجود فى الكتالوج).
+    final chosen = [
+      for (final k in _shortcutKeys)
+        if (catalog.containsKey(k)) catalog[k]!
+    ].take(4).toList();
     return Card(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
@@ -1953,60 +2014,64 @@ class _TodayScreenState extends State<TodayScreen> {
           children: [
             _managerStrip(context, all['manager']?.onTap ?? () {}),
             const SizedBox(height: 10),
-            // الترتيب (RTL: الأول = أقصى اليمين): ➕ · الفلوس · المواعيد · المهام · صوت
+            // ➕ أول اليمين، وبعده الاختصارات المختارة.
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(child: _addBtn(context)),
-                Expanded(
-                  child: _actBtn(
-                    icon: Icons.account_balance_wallet_outlined,
-                    label: tr('الفلوس', 'Money'),
-                    color: Colors.teal,
-                    onTap: () => _reloadAfter(() => Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const MoneyScreen()))),
+                for (final s in chosen)
+                  Expanded(
+                    child: _actBtn(
+                      icon: s.icon,
+                      label: s.label,
+                      color: s.color,
+                      badge: s.badge,
+                      onTap: s.onTap,
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: _actBtn(
-                    icon: Icons.event_available_outlined,
-                    // أسماء قصيرة: الصف ٥ أزرار فمفيش مكان لـ«Appointments»
-                    // (كانت هتتصغّر لـ٤١% = مش مقروءة).
-                    label: tr('مواعيد', 'Agenda'),
-                    color: Colors.blue,
-                    badge: _todayAppts.length,
-                    onTap: () => _reloadAfter(() => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const ScheduleScreen()))),
-                  ),
-                ),
-                Expanded(
-                  child: _actBtn(
-                    icon: Icons.checklist_outlined,
-                    label: tr('المهام', 'Tasks'),
-                    color: Colors.orange,
-                    badge: _dueTasks,
-                    onTap: () => _reloadAfter(() => Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const TasksScreen()))),
-                  ),
-                ),
-                Expanded(
-                  child: _actBtn(
-                    icon: Icons.mic_none,
-                    label: tr('صوت', 'Voice'),
-                    color: Colors.blueAccent,
-                    onTap: all['voice']?.onTap ?? () {},
-                  ),
-                ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
+            // زرار صغير لتخصيص الاختصارات الـ٤.
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton.icon(
+                onPressed: _customizeShortcuts,
+                icon: const Icon(Icons.tune, size: 15),
+                label: Text(tr('تخصيص الاختصارات', 'Customize shortcuts'),
+                    style: const TextStyle(fontSize: 12)),
+                style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero),
+              ),
+            ),
             _emergencyStrip(context),
           ],
         ),
       ),
     );
+  }
+
+  /// شاشة اختيار وترتيب الاختصارات الـ٤ (بتستخدم نفس شاشة «خصّص الأزرار»).
+  Future<void> _customizeShortcuts() async {
+    final catalog = _shortcutCatalog(context);
+    final result = await Navigator.push<List<String>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuickActionsSettingsScreen(
+          all: [
+            for (final s in catalog)
+              (key: s.key, icon: s.icon, label: s.label)
+          ],
+          enabledOrder: _shortcutKeys,
+        ),
+      ),
+    );
+    if (result == null) return;
+    // على الأقل واحد؛ لو فضّى نرجع للافتراضى.
+    final keys = result.isEmpty ? _defaultShortcuts : result;
+    await SettingsRepo().set('home_shortcuts', keys.join(','));
+    if (mounted) setState(() => _shortcutKeys = keys);
   }
 
   /// «اسأل مديرك» — زرار بعرض الشاشة فوق صف الإجراءات.
