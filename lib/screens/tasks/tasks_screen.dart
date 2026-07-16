@@ -7,6 +7,7 @@ import '../../data/tasks_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 import '../../widgets/search_action.dart';
+import 'focus_screen.dart';
 
 /// المهام والمشاريع — قوائم مهام بأولويات ومواعيد، مجمّعة فى مشاريع.
 class TasksScreen extends StatefulWidget {
@@ -23,11 +24,21 @@ String _priorityLabel(int p) => switch (p) {
       _ => tr('عادية', 'Normal'),
     };
 
+String _repeatLabel(String rule) => switch (rule) {
+      'daily' => tr('يومى', 'Daily'),
+      'weekly' => tr('أسبوعى', 'Weekly'),
+      'monthly' => tr('شهرى', 'Monthly'),
+      _ => tr('بدون', 'None'),
+    };
+
 class _TasksScreenState extends State<TasksScreen> {
   final _repo = TasksRepo();
   bool _loading = true;
   List<Project> _projects = [];
   List<Task> _tasks = [];
+
+  /// تقدّم التشيك-ليست: task_id → (متعمل، إجمالى).
+  Map<int, (int, int)> _subs = {};
 
   /// null = الكل، -1 = بدون مشروع، غير كده = id المشروع.
   int? _filter;
@@ -41,10 +52,12 @@ class _TasksScreenState extends State<TasksScreen> {
   Future<void> _load() async {
     final projects = await _repo.projects();
     final tasks = await _repo.tasks(projectId: _filter);
+    final subs = await _repo.subtaskProgressAll();
     if (!mounted) return;
     setState(() {
       _projects = projects;
       _tasks = tasks;
+      _subs = subs;
       _loading = false;
     });
   }
@@ -78,6 +91,12 @@ class _TasksScreenState extends State<TasksScreen> {
         title: Text(tr('المهام', 'Tasks')),
         actions: [
           searchAction(context),
+          IconButton(
+            tooltip: tr('جلسة تركيز', 'Focus session'),
+            icon: const Icon(Icons.timer_outlined),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const FocusScreen())),
+          ),
           IconButton(
             tooltip: tr('تقرير PDF', 'PDF report'),
             icon: const Icon(Icons.picture_as_pdf_outlined),
@@ -153,9 +172,13 @@ class _TasksScreenState extends State<TasksScreen> {
 
   Widget _taskTile(Task t, ColorScheme scheme) {
     final pName = _projectName(t.projectId);
+    final prog = _subs[t.id];
     final subtitle = <String>[
       ?pName,
       if (t.due != null) arDateTime(t.due!),
+      if (t.repeatRule.isNotEmpty) '🔁 ${_repeatLabel(t.repeatRule)}',
+      if (prog != null && prog.$2 > 0)
+        '☑ ${arNum(prog.$1)}/${arNum(prog.$2)}',
     ].join('  •  ');
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 3),
@@ -188,10 +211,24 @@ class _TasksScreenState extends State<TasksScreen> {
             PopupMenuButton<String>(
               onSelected: (v) {
                 if (v == 'edit') _taskForm(t);
+                if (v == 'subtasks') _subtasksSheet(t);
+                if (v == 'focus') {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => FocusScreen(
+                              taskId: t.id, taskTitle: t.title)));
+                }
                 if (v == 'delete') _delete(t);
               },
               itemBuilder: (_) => [
                 PopupMenuItem(value: 'edit', child: Text(tr('تعديل', 'Edit'))),
+                PopupMenuItem(
+                    value: 'subtasks',
+                    child: Text(tr('☑ مهام فرعية', '☑ Subtasks'))),
+                PopupMenuItem(
+                    value: 'focus',
+                    child: Text(tr('🍅 جلسة تركيز', '🍅 Focus session'))),
                 PopupMenuItem(value: 'delete', child: Text(tr('حذف', 'Delete'))),
               ],
             ),
@@ -207,6 +244,7 @@ class _TasksScreenState extends State<TasksScreen> {
     final notes = TextEditingController(text: task?.notes ?? '');
     var priority = task?.priority ?? 1;
     var projectId = task?.projectId ?? (_filter != null && _filter! > 0 ? _filter : null);
+    var repeatRule = task?.repeatRule ?? '';
     DateTime? due = task?.due;
 
     final saved = await showDialog<bool>(
@@ -243,6 +281,22 @@ class _TasksScreenState extends State<TasksScreen> {
                       label: Text(_priorityLabel(p)),
                       selected: priority == p,
                       onSelected: (_) => setD(() => priority = p),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // التكرار: المهمة المتكررة بتترحّل لموعدها الجاى بدل ما تتقفل.
+              Text(tr('التكرار', 'Repeat'),
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (final r in const ['', 'daily', 'weekly', 'monthly'])
+                    ChoiceChip(
+                      label: Text(_repeatLabel(r)),
+                      selected: repeatRule == r,
+                      onSelected: (_) => setD(() => repeatRule = r),
                     ),
                 ],
               ),
@@ -318,12 +372,110 @@ class _TasksScreenState extends State<TasksScreen> {
         priority: priority,
         done: task?.done ?? false,
         doneAt: task?.doneAt,
+        repeatRule: repeatRule,
         createdAt: task?.createdAt ?? DateTime.now().toIso8601String(),
       ));
       if (mounted) await _load();
     }
     title.dispose();
     notes.dispose();
+  }
+
+  /// شيت المهام الفرعية — تشيك-ليست جوه المهمة: إضافة/تعليم/حذف.
+  Future<void> _subtasksSheet(Task t) async {
+    final input = TextEditingController();
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              bottom: 20 + MediaQuery.of(ctx).viewInsets.bottom),
+          child: FutureBuilder<List<Subtask>>(
+            future: _repo.subtasks(t.id!),
+            builder: (_, snap) {
+              final subs = snap.data ?? const <Subtask>[];
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(t.title,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 8),
+                  if (subs.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                          tr('قسّم المهمة لخطوات صغيرة تتعلّم عليها.',
+                              'Break the task into small steps.'),
+                          style: TextStyle(
+                              color: Theme.of(ctx).colorScheme.outline)),
+                    ),
+                  for (final s in subs)
+                    CheckboxListTile(
+                      dense: true,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      value: s.done,
+                      title: Text(s.title,
+                          style: TextStyle(
+                              decoration: s.done
+                                  ? TextDecoration.lineThrough
+                                  : null)),
+                      secondary: IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 20),
+                        onPressed: () async {
+                          await _repo.deleteSubtask(s.id!);
+                          setSheet(() {});
+                        },
+                      ),
+                      onChanged: (v) async {
+                        await _repo.setSubtaskDone(s.id!, v ?? false);
+                        setSheet(() {});
+                      },
+                    ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: input,
+                          decoration: InputDecoration(
+                              hintText: tr('خطوة جديدة…', 'New step…'),
+                              isDense: true),
+                          onSubmitted: (v) async {
+                            if (v.trim().isEmpty) return;
+                            await _repo.addSubtask(t.id!, v.trim());
+                            input.clear();
+                            setSheet(() {});
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: () async {
+                          final v = input.text.trim();
+                          if (v.isEmpty) return;
+                          await _repo.addSubtask(t.id!, v);
+                          input.clear();
+                          setSheet(() {});
+                        },
+                        child: Text(tr('إضافة', 'Add')),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    input.dispose();
+    if (mounted) await _load();
   }
 
   Future<void> _exportPdf() async {

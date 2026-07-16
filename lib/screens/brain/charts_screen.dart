@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
 import '../../core/db.dart';
+import '../../core/kcal_balance.dart';
 import '../../core/l10n.dart';
 import '../../widgets/search_action.dart';
 import '../../data/measurements_repo.dart';
@@ -26,6 +27,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
   List<(int, double)> _water = [];
   List<(String, double)> _monthTotals = [];
   List<Measurement> _weights = [];
+  KcalBalance? _kcal;
 
   @override
   void initState() {
@@ -107,6 +109,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
             .reversed
             .toList();
 
+    final kcal = await collectKcalBalance();
+
     if (!mounted) return;
     setState(() {
       _sleep = sleep;
@@ -115,6 +119,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
       _water = water;
       _monthTotals = monthTotals;
       _weights = weights;
+      _kcal = kcal;
       _loading = false;
     });
   }
@@ -347,6 +352,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                       ],
                     )),
                   ),
+                if (_kcal != null) _kcalCard(context, _kcal!),
                 if (_weights.length >= 2)
                   _chartCard(
                     context,
@@ -392,6 +398,84 @@ class _ChartsScreenState extends State<ChartsScreen> {
         onPressed: _logWeight,
         icon: const Icon(Icons.monitor_weight_outlined),
         label: Text(tr('سجل وزنك', 'Log weight')),
+      ),
+    );
+  }
+
+  /// ميزان السعرات: متوسط الأكل المتسجّل مقابل الهدف + معدل الوزن الفعلى.
+  /// كله من بيانات المستخدم — مفيش أرقام مخترعة.
+  Widget _kcalCard(BuildContext context, KcalBalance k) {
+    final scheme = Theme.of(context).colorScheme;
+    final logged = k.loggedDays.length;
+    final balance = k.dailyBalance;
+    final rate = k.weightWeeklyRate;
+    if (logged == 0 && rate == null) return const SizedBox.shrink();
+    String fmt1(double v) =>
+        arNum(v.abs() % 1 == 0 ? v.abs().toInt() : v.abs().toStringAsFixed(1));
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Text('⚖️', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 8),
+              Text(tr('ميزان السعرات — آخر ٧ أيام', 'Calorie balance — 7 days'),
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
+            ]),
+            const SizedBox(height: 8),
+            if (logged > 0)
+              Text(
+                tr(
+                    'متوسط أكلك المتسجّل: ${arNum(k.avgIntake.round())} سعر/يوم (على ${arNum(logged)} أيام متسجّلة)',
+                    'Avg logged intake: ${arNum(k.avgIntake.round())} kcal/day (${arNum(logged)} logged days)'),
+                style: const TextStyle(fontSize: 13),
+              ),
+            if (balance != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  balance <= 0
+                      ? tr(
+                          'عجز ${arNum(balance.abs().round())} سعر/يوم عن هدفك (${arNum(k.goal)})',
+                          'Deficit ${arNum(balance.abs().round())} kcal/day vs goal (${arNum(k.goal)})')
+                      : tr(
+                          'فائض ${arNum(balance.round())} سعر/يوم فوق هدفك (${arNum(k.goal)})',
+                          'Surplus ${arNum(balance.round())} kcal/day above goal (${arNum(k.goal)})'),
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: balance <= 0 ? Colors.green : Colors.orange),
+                ),
+              )
+            else if (logged > 0 && k.goal <= 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  tr('حدّد هدف سعرات يومى من خطط الدايت عشان أحسبلك العجز/الفائض.',
+                      'Set a daily calorie goal in diet plans to compute deficit/surplus.'),
+                  style: TextStyle(fontSize: 12.5, color: scheme.outline),
+                ),
+              ),
+            if (rate != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  rate == 0
+                      ? tr('وزنك ثابت حسب قياساتك.',
+                          'Your weight is stable per your logs.')
+                      : tr(
+                          'وزنك ${rate < 0 ? 'بينزل' : 'بيزيد'} بمعدل ~${fmt1(rate)} كجم/أسبوع من قياساتك.',
+                          'Weight ${rate < 0 ? 'down' : 'up'} ~${fmt1(rate)} kg/week from your logs.'),
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      color: rate < 0 ? Colors.green : scheme.outline),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

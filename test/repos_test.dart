@@ -6,6 +6,7 @@ import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/backup.dart';
 import 'package:my_assistant/core/app_state.dart';
 import 'package:my_assistant/core/day_close.dart';
+import 'package:my_assistant/core/kcal_balance.dart';
 import 'package:my_assistant/core/morning_brief.dart';
 import 'package:my_assistant/core/dashboard_stats.dart';
 import 'package:my_assistant/core/data_export.dart';
@@ -3271,6 +3272,158 @@ void main() {
       await SettingsRepo().setWaterGoalMl(2500);
       expect(await SettingsRepo().waterGoalMl(), 2500);
       expect(await SettingsRepo().waterGoal(), 10);
+    });
+  });
+
+  group('تعميق المهام والعادات (v52)', () {
+    test('ترقية v51 ← v52 بتضيف الأعمدة والجداول الجديدة', () async {
+      final v51 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      // جداول بالشكل القديم (قبل repeat_rule / target_per_day / count).
+      await v51.execute(
+          'CREATE TABLE tasks(id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          "project_id INTEGER, title TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '', "
+          'due_at TEXT, priority INTEGER NOT NULL DEFAULT 1, '
+          'done INTEGER NOT NULL DEFAULT 0, done_at TEXT, created_at TEXT NOT NULL)');
+      await v51.execute(
+          'CREATE TABLE habits(id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'name TEXT NOT NULL, archived INTEGER NOT NULL DEFAULT 0, '
+          'created_at TEXT NOT NULL)');
+      await v51.execute(
+          'CREATE TABLE habit_logs(habit_id INTEGER NOT NULL, day TEXT NOT NULL, '
+          'PRIMARY KEY(habit_id, day))');
+      await v51.insert('habits', {'name': 'قراءة', 'created_at': '2026-07-01'});
+      await v51.insert('habit_logs', {'habit_id': 1, 'day': '2026-07-01'});
+      await AppDb.upgradeSchema(v51, 51, 52);
+      // الأعمدة الجديدة بقيمها الافتراضية والبيانات القديمة سليمة.
+      final h = (await v51.query('habits')).first;
+      expect(h['target_per_day'], 1);
+      final l = (await v51.query('habit_logs')).first;
+      expect(l['count'], 1);
+      // الجداول الجديدة اتعملت وبتقبل صفوف.
+      await v51.insert('subtasks', {'task_id': 1, 'title': 'خطوة'});
+      await v51.insert('focus_sessions',
+          {'minutes': 25, 'day': '2026-07-16', 'created_at': 'x'});
+      await v51.close();
+    });
+
+    test('nextOccurrence: يومى/أسبوعى/شهرى + اللحاق بموعد فات', () {
+      final base = DateTime(2026, 7, 10, 9);
+      final now = DateTime(2026, 7, 16, 8);
+      expect(TasksRepo.nextOccurrence(base, 'daily', now),
+          DateTime(2026, 7, 16, 9));
+      expect(TasksRepo.nextOccurrence(base, 'weekly', now),
+          DateTime(2026, 7, 17, 9));
+      expect(TasksRepo.nextOccurrence(base, 'monthly', now),
+          DateTime(2026, 8, 10, 9));
+    });
+
+    test('مهمة متكررة: تمامها بيرحّلها لموعدها الجاى ومش بيقفلها', () async {
+      final repo = TasksRepo();
+      final due = DateTime.now().add(const Duration(hours: 2));
+      final id = await repo.save(Task(
+          title: 'رياضة',
+          dueAt: due.toIso8601String(),
+          repeatRule: 'daily',
+          createdAt: DateTime.now().toIso8601String()));
+      // مهمة فرعية متعلّمة — المفروض ترجع فاضية للدورة الجاية.
+      final sid = await repo.addSubtask(id, 'إحماء');
+      await repo.setSubtaskDone(sid, true);
+      await repo.setDone(id, true);
+      final t = (await repo.tasks()).firstWhere((x) => x.id == id);
+      expect(t.done, false, reason: 'المتكررة بتترحّل مش بتتقفل');
+      expect(t.due!.isAfter(due), true);
+      expect((await repo.subtasks(id)).single.done, false);
+      // المهمة العادية بتتقفل عادى.
+      final id2 = await repo.save(
+          Task(title: 'مرة واحدة', createdAt: DateTime.now().toIso8601String()));
+      await repo.setDone(id2, true);
+      expect((await repo.tasks()).firstWhere((x) => x.id == id2).done, true);
+    });
+
+    test('المهام الفرعية: إضافة/تعليم/تقدّم/بتتمسح مع المهمة', () async {
+      final repo = TasksRepo();
+      final id = await repo.save(
+          Task(title: 'مشروع', createdAt: DateTime.now().toIso8601String()));
+      await repo.addSubtask(id, 'أ');
+      final b = await repo.addSubtask(id, 'ب');
+      await repo.setSubtaskDone(b, true);
+      expect(await repo.subtaskProgress(id), (1, 2));
+      expect((await repo.subtaskProgressAll())[id], (1, 2));
+      await repo.delete(id);
+      expect(await repo.subtasks(id), isEmpty);
+    });
+
+    test('جلسات التركيز بتتجمع باليوم', () async {
+      final repo = TasksRepo();
+      await repo.logFocus(minutes: 25);
+      await repo.logFocus(minutes: 15);
+      expect(await repo.focusMinutesOn(dayKey(DateTime.now())), 40);
+    });
+
+    test('عادة معدودة: اليوم بيتحسب لما العدّاد يوصل للهدف بس', () async {
+      final repo = HabitsRepo();
+      final id = await repo.add('مياه دوا', targetPerDay: 3);
+      final day = dayKey(DateTime.now());
+      expect(await repo.increment(id, day), 1);
+      expect(await repo.increment(id, day), 2);
+      expect((await repo.doneOn(day)).contains(id), false,
+          reason: '٢ من ٣ لسه مش متعملة');
+      expect(await repo.increment(id, day), 3);
+      expect((await repo.doneOn(day)).contains(id), true);
+      expect((await repo.daysFor(id)).contains(day), true,
+          reason: 'اليوم الكامل بيتحسب فى السلسلة');
+      // النقصان بيرجعها ناقصة.
+      expect(await repo.decrement(id, day), 2);
+      expect((await repo.daysFor(id)).contains(day), false);
+      // markDone بيكمّلها على طول (زى شاشة قفل اليوم).
+      await repo.markDone(id, day);
+      expect(await repo.countOn(id, day), 3);
+      // العادة العادية (هدف ١) شغالة toggle زى ما هى.
+      final id2 = await repo.add('قراءة');
+      expect(await repo.toggle(id2, day), true);
+      expect((await repo.doneOn(day)).contains(id2), true);
+    });
+
+    test('إحصائية صلاة الشهر: عدّ لكل صلاة + الأيام الكاملة + النسبة', () async {
+      final repo = WorshipRepo();
+      // يومين كاملين + يوم فيه الفجر بس، والشهر عدّى منه ١٠ أيام.
+      for (var d = 1; d <= 2; d++) {
+        for (var p = 0; p < 5; p++) {
+          await repo.togglePrayer(DateTime(2026, 7, d), p, true);
+        }
+      }
+      await repo.togglePrayer(DateTime(2026, 7, 3), 0, true);
+      final m = await repo.monthlyPrayerStats(DateTime(2026, 7, 10));
+      expect(m.perPrayer[0], 3, reason: 'الفجر اتسجّل ٣ مرات');
+      expect(m.perPrayer[4], 2);
+      expect(m.fullDays, 2);
+      expect(m.totalLogged, 11);
+      expect(m.elapsedDays, 10);
+      expect(m.percent, 22, reason: '١١ من ٥٠ صلاة ممكنة');
+    });
+
+    test('ميزان السعرات: متوسط الأيام المتسجّلة بس + العجز عن الهدف', () {
+      const k = KcalBalance(
+        days: [
+          ('d1', 1800),
+          ('d2', 0),
+          ('d3', 2200),
+          ('d4', 0),
+          ('d5', 2000),
+          ('d6', 0),
+          ('d7', 0),
+        ],
+        goal: 2200,
+        weightWeeklyRate: -0.5,
+      );
+      expect(k.loggedDays.length, 3, reason: 'يوم من غير تسجيل مش «صفر أكل»');
+      expect(k.avgIntake, 2000);
+      expect(k.dailyBalance, -200);
+      // من غير هدف مفيش حكم عجز/فائض.
+      const k2 =
+          KcalBalance(days: [('d1', 1800)], goal: 0, weightWeeklyRate: null);
+      expect(k2.dailyBalance, isNull);
     });
   });
 

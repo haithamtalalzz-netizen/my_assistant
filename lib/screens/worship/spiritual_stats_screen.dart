@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../core/prayers.dart';
 import '../../data/worship_repo.dart';
 
 /// إحصائية روحية أسبوعية — صلاة/أذكار/سنن/صيام/ختمة خلال آخر 7 أيام.
@@ -15,6 +16,7 @@ class SpiritualStatsScreen extends StatefulWidget {
 class _SpiritualStatsScreenState extends State<SpiritualStatsScreen> {
   final _repo = WorshipRepo();
   SpiritualWeek? _week;
+  MonthPrayerStats? _month;
   int _prayerStreak = 0;
   int _dhikrStreak = 0;
 
@@ -26,11 +28,13 @@ class _SpiritualStatsScreenState extends State<SpiritualStatsScreen> {
 
   Future<void> _load() async {
     final w = await _repo.weeklyStats();
+    final m = await _repo.monthlyPrayerStats();
     final ps = await _repo.fullDaysStreak();
     final ds = await _repo.dhikrStreak();
     if (!mounted) return;
     setState(() {
       _week = w;
+      _month = m;
       _prayerStreak = ps;
       _dhikrStreak = ds;
     });
@@ -78,6 +82,8 @@ class _SpiritualStatsScreenState extends State<SpiritualStatsScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
+                if (_month != null) _monthCard(context, _month!),
+                const SizedBox(height: 16),
                 Card(
                   child: Column(
                     children: [
@@ -103,6 +109,82 @@ class _SpiritualStatsScreenState extends State<SpiritualStatsScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  /// كارت الشهر: نسبة الالتزام + عدد مرات كل صلاة على أيام الشهر اللى عدّت.
+  Widget _monthCard(BuildContext context, MonthPrayerStats m) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text('🗓', style: TextStyle(fontSize: 18)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                      tr('صلاة ${arMonth(DateTime.now())}',
+                          'Prayers — ${arMonth(DateTime.now())}'),
+                      style: const TextStyle(fontWeight: FontWeight.w800)),
+                ),
+                Text('${arNum(m.percent)}٪',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        color: m.percent >= 80
+                            ? Colors.green
+                            : scheme.primary)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              tr('${arNum(m.fullDays)} يوم كامل من ${arNum(m.elapsedDays)}',
+                  '${arNum(m.fullDays)} full days of ${arNum(m.elapsedDays)}'),
+              style: TextStyle(fontSize: 12.5, color: scheme.outline),
+            ),
+            const SizedBox(height: 10),
+            for (var i = 0; i < 5; i++) ...[
+              Row(
+                children: [
+                  SizedBox(
+                      width: 64,
+                      child: Text(prayerNameLabel(i),
+                          style: const TextStyle(
+                              fontSize: 12.5, fontWeight: FontWeight.w600))),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: m.elapsedDays == 0
+                            ? 0
+                            : (m.perPrayer[i] / m.elapsedDays)
+                                .clamp(0.0, 1.0),
+                        minHeight: 8,
+                        backgroundColor: scheme.surfaceContainerHighest,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 52,
+                    child: Text(
+                      '${arNum(m.perPrayer[i])}/${arNum(m.elapsedDays)}',
+                      style:
+                          TextStyle(fontSize: 11.5, color: scheme.outline),
+                      textAlign: TextAlign.end,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+            ],
+          ],
+        ),
+      ),
     );
   }
 

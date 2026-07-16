@@ -1841,25 +1841,33 @@ class Habit {
   final int? id;
   final String name;
   final bool archived;
+
+  /// كام مرة فى اليوم عشان تتحسب متعملة (١ = عادة عادية).
+  final int targetPerDay;
   final String createdAt;
 
   const Habit({
     this.id,
     required this.name,
     this.archived = false,
+    this.targetPerDay = 1,
     required this.createdAt,
   });
+
+  bool get counted => targetPerDay > 1;
 
   factory Habit.fromMap(Map<String, Object?> m) => Habit(
         id: m['id'] as int?,
         name: m['name'] as String,
         archived: (m['archived'] as int? ?? 0) == 1,
+        targetPerDay: (m['target_per_day'] as int?) ?? 1,
         createdAt: m['created_at'] as String,
       );
 
   Map<String, Object?> toMap() => {
         'name': name,
         'archived': archived ? 1 : 0,
+        'target_per_day': targetPerDay,
         'created_at': createdAt,
       };
 }
@@ -1910,6 +1918,10 @@ class Task {
   final int priority;
   final bool done;
   final String? doneAt;
+
+  /// '' مافيش تكرار، أو daily / weekly / monthly — لما تخلص بتترحّل
+  /// لموعدها الجاى بدل ما تتقفل.
+  final String repeatRule;
   final String createdAt;
 
   const Task({
@@ -1921,6 +1933,7 @@ class Task {
     this.priority = 1,
     this.done = false,
     this.doneAt,
+    this.repeatRule = '',
     required this.createdAt,
   });
 
@@ -1937,6 +1950,7 @@ class Task {
         priority: (m['priority'] as int?) ?? 1,
         done: (m['done'] as int? ?? 0) == 1,
         doneAt: m['done_at'] as String?,
+        repeatRule: m['repeat_rule'] as String? ?? '',
         createdAt: m['created_at'] as String,
       );
 
@@ -1948,7 +1962,36 @@ class Task {
         'priority': priority,
         'done': done ? 1 : 0,
         'done_at': doneAt,
+        'repeat_rule': repeatRule,
         'created_at': createdAt,
+      };
+}
+
+/// مهمة فرعية جوه مهمة (تشيك-ليست).
+class Subtask {
+  final int? id;
+  final int taskId;
+  final String title;
+  final bool done;
+
+  const Subtask({
+    this.id,
+    required this.taskId,
+    required this.title,
+    this.done = false,
+  });
+
+  factory Subtask.fromMap(Map<String, Object?> m) => Subtask(
+        id: m['id'] as int?,
+        taskId: m['task_id'] as int,
+        title: m['title'] as String,
+        done: (m['done'] as int? ?? 0) == 1,
+      );
+
+  Map<String, Object?> toMap() => {
+        'task_id': taskId,
+        'title': title,
+        'done': done ? 1 : 0,
       };
 }
 

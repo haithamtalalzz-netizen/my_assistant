@@ -37,10 +37,15 @@ class HabitsRepo {
     return rows.map(Habit.fromMap).toList();
   }
 
-  Future<int> add(String name) async {
+  Future<int> add(String name, {int targetPerDay = 1}) async {
     final db = await AppDb.instance;
-    return db.insert('habits',
-        Habit(name: name, createdAt: dayKey(DateTime.now())).toMap());
+    return db.insert(
+        'habits',
+        Habit(
+                name: name,
+                targetPerDay: targetPerDay < 1 ? 1 : targetPerDay,
+                createdAt: dayKey(DateTime.now()))
+            .toMap());
   }
 
   Future<void> archive(int id) async {
@@ -54,25 +59,100 @@ class HabitsRepo {
     await db.delete('habit_logs', where: 'habit_id = ?', whereArgs: [id]);
   }
 
-  /// آخر أيام إنجاز للعادة كمفاتيح YYYY-MM-DD.
+  /// آخر أيام إنجاز للعادة كمفاتيح YYYY-MM-DD — العادة المعدودة (هدف > ١)
+  /// يومها بيتحسب لما العدّاد يوصل للهدف.
   Future<Set<String>> daysFor(int habitId, {int limit = 400}) async {
     final db = await AppDb.instance;
-    final rows = await db.query('habit_logs',
-        where: 'habit_id = ?',
-        whereArgs: [habitId],
-        orderBy: 'day DESC',
-        limit: limit);
+    final rows = await db.rawQuery(
+        'SELECT l.day FROM habit_logs l JOIN habits h ON h.id = l.habit_id '
+        'WHERE l.habit_id = ? AND l.count >= h.target_per_day '
+        'ORDER BY l.day DESC LIMIT ?',
+        [habitId, limit]);
     return rows.map((r) => r['day'] as String).toSet();
   }
 
-  /// العادات المتعملة في يوم معين.
+  /// العادات المتعملة في يوم معين (وصلت لهدفها اليومى).
   Future<Set<int>> doneOn(String day) async {
     final db = await AppDb.instance;
-    final rows = await db.query('habit_logs', where: 'day = ?', whereArgs: [day]);
+    final rows = await db.rawQuery(
+        'SELECT l.habit_id FROM habit_logs l JOIN habits h ON h.id = l.habit_id '
+        'WHERE l.day = ? AND l.count >= h.target_per_day',
+        [day]);
     return rows.map((r) => r['habit_id'] as int).toSet();
   }
 
+  /// عدّاد عادة فى يوم (٠ لو مفيش تسجيل).
+  Future<int> countOn(int habitId, String day) async {
+    final db = await AppDb.instance;
+    final rows = await db.query('habit_logs',
+        columns: ['count'],
+        where: 'habit_id = ? AND day = ?',
+        whereArgs: [habitId, day]);
+    return rows.isEmpty ? 0 : (rows.first['count'] as num).toInt();
+  }
+
+  /// عدّادات كل العادات فى يوم — استعلام واحد لشاشة العادات.
+  Future<Map<int, int>> countsOn(String day) async {
+    final db = await AppDb.instance;
+    final rows = await db
+        .query('habit_logs', where: 'day = ?', whereArgs: [day]);
+    return {
+      for (final r in rows)
+        r['habit_id'] as int: (r['count'] as num?)?.toInt() ?? 1
+    };
+  }
+
+  /// يزوّد عدّاد اليوم بواحد (للعادات المعدودة) ويرجع العدّاد الجديد.
+  Future<int> increment(int habitId, String day) async {
+    final db = await AppDb.instance;
+    final current = await countOn(habitId, day);
+    final next = current + 1;
+    if (current == 0) {
+      await db.insert(
+          'habit_logs', {'habit_id': habitId, 'day': day, 'count': next});
+    } else {
+      await db.update('habit_logs', {'count': next},
+          where: 'habit_id = ? AND day = ?', whereArgs: [habitId, day]);
+    }
+    await StreakGuard.ensureScheduled();
+    return next;
+  }
+
+  /// ينقص عدّاد اليوم بواحد — صفر بيمسح الصف.
+  Future<int> decrement(int habitId, String day) async {
+    final db = await AppDb.instance;
+    final current = await countOn(habitId, day);
+    if (current <= 1) {
+      await db.delete('habit_logs',
+          where: 'habit_id = ? AND day = ?', whereArgs: [habitId, day]);
+      return 0;
+    }
+    await db.update('habit_logs', {'count': current - 1},
+        where: 'habit_id = ? AND day = ?', whereArgs: [habitId, day]);
+    return current - 1;
+  }
+
+  /// يعلّم اليوم متعمل بالكامل (بيوصّل العدّاد للهدف) — لشاشة قفل اليوم.
+  Future<void> markDone(int habitId, String day) async {
+    final db = await AppDb.instance;
+    final rows = await db.query('habits',
+        columns: ['target_per_day'], where: 'id = ?', whereArgs: [habitId]);
+    final target =
+        rows.isEmpty ? 1 : ((rows.first['target_per_day'] as num?)?.toInt() ?? 1);
+    final current = await countOn(habitId, day);
+    if (current >= target) return;
+    if (current == 0) {
+      await db.insert(
+          'habit_logs', {'habit_id': habitId, 'day': day, 'count': target});
+    } else {
+      await db.update('habit_logs', {'count': target},
+          where: 'habit_id = ? AND day = ?', whereArgs: [habitId, day]);
+    }
+    await StreakGuard.ensureScheduled();
+  }
+
   /// يقلب حالة اليوم ويرجع الحالة الجديدة — وبيعيد حساب تنبيه حماية السلاسل.
+  /// (للعادات العادية هدفها ١؛ المعدودة استخدم increment/decrement.)
   Future<bool> toggle(int habitId, String day) async {
     final db = await AppDb.instance;
     final deleted = await db.delete('habit_logs',
@@ -81,7 +161,8 @@ class HabitsRepo {
     if (deleted > 0) {
       result = false;
     } else {
-      await db.insert('habit_logs', {'habit_id': habitId, 'day': day});
+      await db.insert(
+          'habit_logs', {'habit_id': habitId, 'day': day, 'count': 1});
       result = true;
     }
     await StreakGuard.ensureScheduled();

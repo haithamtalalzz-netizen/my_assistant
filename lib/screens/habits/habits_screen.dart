@@ -24,6 +24,9 @@ class _HabitsScreenState extends State<HabitsScreen> {
   Map<int, Set<String>> _days = {};
   Map<int, int> _streaks = {};
 
+  /// عدّادات النهارده (للعادات المعدودة).
+  Map<int, int> _counts = {};
+
   String get _today => dayKey(DateTime.now());
 
   @override
@@ -42,24 +45,56 @@ class _HabitsScreenState extends State<HabitsScreen> {
       days[h.id!] = d;
       streaks[h.id!] = computeStreak(d, now);
     }
+    final counts = await _repo.countsOn(_today);
     if (!mounted) return;
     setState(() {
       _habits = habits;
       _days = days;
       _streaks = streaks;
+      _counts = counts;
       _loading = false;
     });
   }
 
-  Future<void> _toggleDay(Habit h, String day) async {
-    HapticFeedback.selectionClick();
-    await _repo.toggle(h.id!, day);
+  Future<void> _refreshHabit(Habit h) async {
     final d = await _repo.daysFor(h.id!);
+    final counts = await _repo.countsOn(_today);
     if (!mounted) return;
     setState(() {
       _days[h.id!] = d;
       _streaks[h.id!] = computeStreak(d, DateTime.now());
+      _counts = counts;
     });
+  }
+
+  /// ضغطة على يوم: العادة العادية بتتقلب؛ المعدودة بتتعمل بالكامل أو بتتشال
+  /// (اليوم الفائت مالوش عدّاد جزئى منطقى — يا اتعملت يا لأ).
+  Future<void> _toggleDay(Habit h, String day) async {
+    HapticFeedback.selectionClick();
+    if (h.counted) {
+      final done = (_days[h.id] ?? const <String>{}).contains(day);
+      if (done) {
+        await _repo.toggle(h.id!, day); // بيمسح الصف
+      } else {
+        await _repo.markDone(h.id!, day);
+      }
+    } else {
+      await _repo.toggle(h.id!, day);
+    }
+    await _refreshHabit(h);
+  }
+
+  /// زر النهارده للعادة المعدودة: بيزوّد العدّاد بواحد.
+  Future<void> _incrementToday(Habit h) async {
+    HapticFeedback.selectionClick();
+    await _repo.increment(h.id!, _today);
+    await _refreshHabit(h);
+  }
+
+  Future<void> _decrementToday(Habit h) async {
+    HapticFeedback.selectionClick();
+    await _repo.decrement(h.id!, _today);
+    await _refreshHabit(h);
   }
 
   /// عدد أيام الإنجاز في آخر ٧ أيام (بما فيها النهارده).
@@ -129,53 +164,76 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
   Future<void> _addHabit() async {
     final controller = TextEditingController();
+    var target = 1;
     final saved = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
           scrollable: true,
-        title: Text(tr('عادة جديدة', 'New habit')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: InputDecoration(
-                  labelText: tr('اسم العادة (مثلًا: قراءة ١٠ صفحات)',
-                      'Habit name (e.g. read 10 pages)')),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final s in _suggestions)
-                  if (!_habits.any((h) => h.name == s))
-                    ActionChip(
-                      label: Text(s),
+          title: Text(tr('عادة جديدة', 'New habit')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                autofocus: true,
+                decoration: InputDecoration(
+                    labelText: tr('اسم العادة (مثلًا: قراءة ١٠ صفحات)',
+                        'Habit name (e.g. read 10 pages)')),
+              ),
+              const SizedBox(height: 12),
+              // كام مرة فى اليوم؟ (١ = عادة عادية بعلامة صح واحدة)
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(tr('كام مرة فى اليوم؟', 'Times per day?'),
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (final n in const [1, 2, 3, 5, 8])
+                    ChoiceChip(
+                      label: Text(arNum(n)),
+                      selected: target == n,
                       visualDensity: VisualDensity.compact,
-                      onPressed: () {
-                        controller.text = s;
-                        Navigator.pop(ctx, true);
-                      },
+                      onSelected: (_) => setDlg(() => target = n),
                     ),
-              ],
-            ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final s in _suggestions)
+                    if (!_habits.any((h) => h.name == s))
+                      ActionChip(
+                        label: Text(s),
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () {
+                          controller.text = s;
+                          Navigator.pop(ctx, true);
+                        },
+                      ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(tr('إلغاء', 'Cancel'))),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(tr('إضافة', 'Add'))),
           ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(tr('إلغاء', 'Cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(tr('إضافة', 'Add'))),
-        ],
       ),
     );
     final name = controller.text.trim();
     if (saved == true && name.isNotEmpty) {
-      await _repo.add(name);
+      await _repo.add(name, targetPerDay: target);
       if (mounted) await _load();
     }
     controller.dispose();
@@ -253,8 +311,14 @@ class _HabitsScreenState extends State<HabitsScreen> {
                               FilterChip(
                                 label: Text(h.name),
                                 selected: done.contains(h.id),
-                                onSelected: (_) async {
-                                  await repo.toggle(h.id!, dayKey(day));
+                                onSelected: (sel) async {
+                                  // المعدودة: اختيارها بيعملها بالكامل،
+                                  // وإلغاؤها بيمسح اليوم.
+                                  if (sel && h.counted) {
+                                    await repo.markDone(h.id!, dayKey(day));
+                                  } else {
+                                    await repo.toggle(h.id!, dayKey(day));
+                                  }
                                   setSheet(() {});
                                 },
                               ),
@@ -375,12 +439,37 @@ class _HabitsScreenState extends State<HabitsScreen> {
             Row(
               children: [
                 Expanded(child: _weekStrip(context, h)),
-                FilledButton.tonal(
-                  onPressed: () => _toggleDay(h, _today),
-                  child: Text(doneToday
-                      ? tr('اتعملت ✓', 'Done ✓')
-                      : tr('تم النهارده؟', 'Done today?')),
-                ),
+                if (h.counted)
+                  // عادة معدودة: عدّاد N/الهدف + زرار − و +.
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(Icons.remove_circle_outline, size: 20),
+                      onPressed: (_counts[h.id] ?? 0) > 0
+                          ? () => _decrementToday(h)
+                          : null,
+                    ),
+                    Text(
+                      '${arNum(_counts[h.id] ?? 0)}/${arNum(h.targetPerDay)}',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: doneToday
+                              ? Colors.green
+                              : Theme.of(context).colorScheme.primary),
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(Icons.add_circle, size: 22),
+                      onPressed: () => _incrementToday(h),
+                    ),
+                  ])
+                else
+                  FilledButton.tonal(
+                    onPressed: () => _toggleDay(h, _today),
+                    child: Text(doneToday
+                        ? tr('اتعملت ✓', 'Done ✓')
+                        : tr('تم النهارده؟', 'Done today?')),
+                  ),
               ],
             ),
           ],

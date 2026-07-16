@@ -51,6 +51,11 @@ class _MoneyScreenState extends State<MoneyScreen> {
   double _budget = 0;
   double _debtNet = 0;
 
+  /// مقارنة بالشهر اللى فات + اتجاه آخر ٦ شهور.
+  double _prevTotal = 0;
+  double _prevIncome = 0;
+  List<(String, double)> _sixMonths = [];
+
   bool get _isCurrentMonth {
     final now = DateTime.now();
     return _month.year == now.year && _month.month == now.month;
@@ -81,6 +86,18 @@ class _MoneyScreenState extends State<MoneyScreen> {
     final incomeTotal =
         await incomeRepo.totalForMonth(_month.year, _month.month);
     final recurringIncome = await incomeRepo.allRecurring();
+    // الشهر السابق + آخر ٦ شهور (للمقارنة والاتجاه).
+    final prev = DateTime(_month.year, _month.month - 1);
+    final prevTotal = await _repo.totalForMonth(prev.year, prev.month);
+    final prevIncome = await incomeRepo.totalForMonth(prev.year, prev.month);
+    final six = <(String, double)>[];
+    for (var i = 5; i >= 0; i--) {
+      final m = DateTime(_month.year, _month.month - i);
+      six.add((
+        arMonthShort(m),
+        await _repo.totalForMonth(m.year, m.month),
+      ));
+    }
     if (!mounted) return;
     setState(() {
       _expenses = expenses;
@@ -93,6 +110,9 @@ class _MoneyScreenState extends State<MoneyScreen> {
       _incomeTotal = incomeTotal;
       _recurringIncome = recurringIncome;
       _debtNet = owedToMe - iOwe;
+      _prevTotal = prevTotal;
+      _prevIncome = prevIncome;
+      _sixMonths = six;
       _loading = false;
     });
   }
@@ -372,6 +392,8 @@ class _MoneyScreenState extends State<MoneyScreen> {
                   _netCard(context),
                   const SizedBox(height: 8),
                   _budgetCard(context),
+                  const SizedBox(height: 8),
+                  _compareCard(context),
                   SectionHeader(tr('الدخل', 'Income'),
                       trailing: TextButton(
                           onPressed: _addIncome,
@@ -461,6 +483,95 @@ class _MoneyScreenState extends State<MoneyScreen> {
             tooltip: tr('الشهر اللي جاي', 'Next month'),
             icon: const Icon(Icons.chevron_left)),
       ],
+    );
+  }
+
+  /// مقارنة بالشهر اللى فات + شريط اتجاه آخر ٦ شهور.
+  Widget _compareCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final diff = _total - _prevTotal;
+    final pct = _prevTotal <= 0 ? null : (diff / _prevTotal * 100);
+    final up = diff > 0; // صرف أكتر = وحش (أحمر)
+    final maxSpend = _sixMonths.fold<double>(
+        1, (m, e) => e.$2 > m ? e.$2 : m);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text('📊', style: TextStyle(fontSize: 18)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(tr('مقارنة بالشهر اللى فات', 'vs last month'),
+                      style: const TextStyle(fontWeight: FontWeight.w800)),
+                ),
+                if (_prevTotal > 0 || _total > 0)
+                  Text(
+                    pct == null
+                        ? '—'
+                        : '${up ? '▲' : '▼'} ${arNum(pct.abs().round())}٪',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        color: up ? scheme.error : Colors.green),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              tr(
+                  'مصروف الشهر ده ${egp(_total)} — الشهر اللى فات ${egp(_prevTotal)}'
+                  '${_prevIncome > 0 ? ' (دخله ${egp(_prevIncome)})' : ''}',
+                  'This month ${egp(_total)} — last month ${egp(_prevTotal)}'
+                  '${_prevIncome > 0 ? ' (income ${egp(_prevIncome)})' : ''}'),
+              style: TextStyle(fontSize: 12.5, color: scheme.outline),
+            ),
+            const SizedBox(height: 10),
+            // شريط آخر ٦ شهور — أعمدة نسبية بسيطة.
+            SizedBox(
+              height: 64,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (final (label, v) in _sixMonths)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 3),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Container(
+                              height: maxSpend <= 0
+                                  ? 2
+                                  : (44 * (v / maxSpend)).clamp(2, 44),
+                              decoration: BoxDecoration(
+                                color: scheme.primary.withValues(
+                                    alpha: v == _total &&
+                                            label == _sixMonths.last.$1
+                                        ? 0.9
+                                        : 0.45),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(label,
+                                  style: TextStyle(
+                                      fontSize: 10, color: scheme.outline)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

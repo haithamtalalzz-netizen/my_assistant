@@ -49,6 +49,7 @@ String arFullDate(DateTime d) =>
     _west(DateFormat('EEEE d MMMM y', _dl()).format(d));
 String arShortDate(DateTime d) => _west(DateFormat('d MMM y', _dl()).format(d));
 String arMonth(DateTime d) => _west(DateFormat('MMMM y', _dl()).format(d));
+String arMonthShort(DateTime d) => _west(DateFormat('MMM', _dl()).format(d));
 String arTime(DateTime d) => _west(DateFormat('h:mm a', _dl()).format(d));
 String arDateTime(DateTime d) => '${arShortDate(d)} · ${arTime(d)}';
 

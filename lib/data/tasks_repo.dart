@@ -1,3 +1,4 @@
+import '../core/ar.dart';
 import '../core/db.dart';
 import '../core/l10n.dart';
 import '../core/notifications.dart';
@@ -80,6 +81,24 @@ class TasksRepo {
 
   Future<void> setDone(int id, bool done) async {
     final db = await AppDb.instance;
+    if (done) {
+      // مهمة متكررة: بدل ما تتقفل، بتترحّل لموعدها الجاى وتفضل مفتوحة.
+      final rows =
+          await db.query('tasks', where: 'id = ?', whereArgs: [id], limit: 1);
+      if (rows.isNotEmpty) {
+        final t = Task.fromMap(rows.first);
+        if (t.repeatRule.isNotEmpty) {
+          final next = nextOccurrence(t.due ?? DateTime.now(), t.repeatRule);
+          await db.update('tasks', {'due_at': next.toIso8601String()},
+              where: 'id = ?', whereArgs: [id]);
+          // المهام الفرعية بتترجع فاضية للدورة الجاية.
+          await db.update('subtasks', {'done': 0},
+              where: 'task_id = ?', whereArgs: [id]);
+          await _reschedule(t.copyWithId(id).copyWithDue(next));
+          return;
+        }
+      }
+    }
     await db.update(
         'tasks',
         {
@@ -91,9 +110,106 @@ class TasksRepo {
     if (done) await Notifications.cancel(Notifications.taskNotifId(id));
   }
 
+  /// الموعد الجاى لقاعدة تكرار — لو الموعد فات بيترحّل لأقرب مستقبل
+  /// (عشان مهمة متأخرة أسبوع ماتطلعش بموعد لسه فات برضه).
+  static DateTime nextOccurrence(DateTime from, String rule,
+      [DateTime? now]) {
+    final ref = now ?? DateTime.now();
+    var d = from;
+    DateTime step(DateTime x) => switch (rule) {
+          'daily' => x.add(const Duration(days: 1)),
+          'weekly' => x.add(const Duration(days: 7)),
+          'monthly' => DateTime(x.year, x.month + 1, x.day, x.hour, x.minute),
+          _ => x.add(const Duration(days: 1)),
+        };
+    d = step(d);
+    var guard = 0;
+    while (d.isBefore(ref) && guard < 1200) {
+      d = step(d);
+      guard++;
+    }
+    return d;
+  }
+
+  // ---- المهام الفرعية ----
+
+  Future<List<Subtask>> subtasks(int taskId) async {
+    final db = await AppDb.instance;
+    final rows = await db.query('subtasks',
+        where: 'task_id = ?', whereArgs: [taskId], orderBy: 'done, id');
+    return rows.map(Subtask.fromMap).toList();
+  }
+
+  Future<int> addSubtask(int taskId, String title) async {
+    final db = await AppDb.instance;
+    return db.insert('subtasks', Subtask(taskId: taskId, title: title).toMap());
+  }
+
+  Future<void> setSubtaskDone(int id, bool done) async {
+    final db = await AppDb.instance;
+    await db.update('subtasks', {'done': done ? 1 : 0},
+        where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> deleteSubtask(int id) async {
+    final db = await AppDb.instance;
+    await db.delete('subtasks', where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// تقدّم التشيك-ليست لكل المهام مرة واحدة: task_id → (متعمل، إجمالى).
+  Future<Map<int, (int, int)>> subtaskProgressAll() async {
+    final db = await AppDb.instance;
+    final rows = await db.rawQuery(
+        'SELECT task_id, COUNT(*) AS total, COALESCE(SUM(done), 0) AS done '
+        'FROM subtasks GROUP BY task_id');
+    return {
+      for (final r in rows)
+        (r['task_id'] as int): (
+          (r['done'] as num).toInt(),
+          (r['total'] as num).toInt()
+        )
+    };
+  }
+
+  /// (المتعمل، الإجمالى) لمهمة — للتشيك-ليست على كارت المهمة.
+  Future<(int, int)> subtaskProgress(int taskId) async {
+    final db = await AppDb.instance;
+    final rows = await db.rawQuery(
+        'SELECT COUNT(*) AS total, COALESCE(SUM(done), 0) AS done '
+        'FROM subtasks WHERE task_id = ?',
+        [taskId]);
+    return (
+      (rows.first['done'] as num).toInt(),
+      (rows.first['total'] as num).toInt()
+    );
+  }
+
+  // ---- جلسات التركيز (بومودورو) ----
+
+  Future<void> logFocus({int? taskId, required int minutes}) async {
+    final db = await AppDb.instance;
+    await db.insert('focus_sessions', {
+      'task_id': taskId,
+      'minutes': minutes,
+      'day': dayKey(DateTime.now()),
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  /// إجمالى دقايق التركيز فى يوم.
+  Future<int> focusMinutesOn(String day) async {
+    final db = await AppDb.instance;
+    final rows = await db.rawQuery(
+        'SELECT COALESCE(SUM(minutes), 0) AS m FROM focus_sessions '
+        'WHERE day = ?',
+        [day]);
+    return (rows.first['m'] as num).toInt();
+  }
+
   Future<void> delete(int id) async {
     final db = await AppDb.instance;
     await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
+    await db.delete('subtasks', where: 'task_id = ?', whereArgs: [id]);
     await Notifications.cancel(Notifications.taskNotifId(id));
   }
 
@@ -127,6 +243,20 @@ extension _TaskCopy on Task {
         priority: priority,
         done: done,
         doneAt: doneAt,
+        repeatRule: repeatRule,
+        createdAt: createdAt,
+      );
+
+  Task copyWithDue(DateTime due) => Task(
+        id: id,
+        projectId: projectId,
+        title: title,
+        notes: notes,
+        dueAt: due.toIso8601String(),
+        priority: priority,
+        done: false,
+        doneAt: doneAt,
+        repeatRule: repeatRule,
         createdAt: createdAt,
       );
 }

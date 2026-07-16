@@ -115,8 +115,10 @@ class _DayCloseScreenState extends State<DayCloseScreen> {
                         avatar: const Icon(Icons.check, size: 16),
                         label: Text(h.name),
                         onPressed: () async {
+                          // markDone بيوصّل العدّاد للهدف — يشتغل للعادة
+                          // العادية والمعدودة.
                           await HabitsRepo()
-                              .toggle(h.id!, dayKey(DateTime.now()));
+                              .markDone(h.id!, dayKey(DateTime.now()));
                           await _load();
                         },
                       ),

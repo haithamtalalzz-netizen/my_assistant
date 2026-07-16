@@ -49,6 +49,33 @@ class WorshipRepo {
     }
   }
 
+  /// إحصائية الشهر: عدد مرات كل صلاة (٠=فجر..٤=عشا) + الأيام الكاملة +
+  /// نسبة الالتزام على الأيام اللى عدّت من الشهر. [at] للاختبار.
+  Future<MonthPrayerStats> monthlyPrayerStats([DateTime? at]) async {
+    final now = at ?? DateTime.now();
+    final prefix =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+    final db = await AppDb.instance;
+    final rows = await db.rawQuery(
+        'SELECT prayer, COUNT(*) AS c FROM prayer_log WHERE day LIKE ? '
+        'GROUP BY prayer',
+        ['$prefix%']);
+    final perPrayer = List<int>.filled(5, 0);
+    for (final r in rows) {
+      final p = r['prayer'] as int;
+      if (p >= 0 && p < 5) perPrayer[p] = (r['c'] as num).toInt();
+    }
+    final fullRows = await db.rawQuery(
+        'SELECT day, COUNT(*) AS c FROM prayer_log WHERE day LIKE ? '
+        'GROUP BY day HAVING c >= 5',
+        ['$prefix%']);
+    return MonthPrayerStats(
+      perPrayer: perPrayer,
+      fullDays: fullRows.length,
+      elapsedDays: now.day,
+    );
+  }
+
   /// عدد الأيام المتتالية اللى اتصلّى فيها الخمس صلوات كاملة (بينتهى عند اليوم).
   Future<int> fullDaysStreak() async {
     final db = await AppDb.instance;
@@ -348,6 +375,31 @@ class WorshipDay {
       fasted ||
       quranPages > 0 ||
       wird > 0;
+}
+
+/// إحصائية صلاة شهرية.
+class MonthPrayerStats {
+  /// عدد مرات كل صلاة فى الشهر (٠=فجر .. ٤=عشا).
+  final List<int> perPrayer;
+
+  /// أيام الخمس صلوات كاملة.
+  final int fullDays;
+
+  /// كام يوم عدّى من الشهر (مقام النسبة).
+  final int elapsedDays;
+
+  const MonthPrayerStats({
+    required this.perPrayer,
+    required this.fullDays,
+    required this.elapsedDays,
+  });
+
+  int get totalLogged => perPrayer.fold(0, (s, c) => s + c);
+
+  /// نسبة الالتزام ٠..١٠٠ على الأيام اللى عدّت.
+  int get percent => elapsedDays <= 0
+      ? 0
+      : (totalLogged / (elapsedDays * 5) * 100).clamp(0, 100).round();
 }
 
 /// ملخّص أسبوعى روحى.

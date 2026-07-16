@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 51,
+      version: 52,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -318,7 +318,41 @@ class AppDb {
       // المياه بالملى بدل عدد الأكواب.
       await _safeAddColumn(db, 'water_logs', 'ml', 'INTEGER NOT NULL DEFAULT 0');
     }
+    if (oldV < 52 && newV >= 52) {
+      // تعميق المهام والعادات: مهام فرعية + تكرار + جلسات تركيز (بومودورو)
+      // + عادات معدودة (N مرات فى اليوم).
+      await _safeAddColumn(
+          db, 'tasks', 'repeat_rule', "TEXT NOT NULL DEFAULT ''");
+      await _safeAddColumn(
+          db, 'habits', 'target_per_day', 'INTEGER NOT NULL DEFAULT 1');
+      await _safeAddColumn(
+          db, 'habit_logs', 'count', 'INTEGER NOT NULL DEFAULT 1');
+      for (final ddl in _v52Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// مهام فرعية + جلسات تركيز (بومودورو).
+  static const List<String> _v52Tables = [
+    '''
+      CREATE TABLE subtasks(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        done INTEGER NOT NULL DEFAULT 0
+      )''',
+    'CREATE INDEX idx_subtasks_task ON subtasks(task_id)',
+    '''
+      CREATE TABLE focus_sessions(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id INTEGER,
+        minutes INTEGER NOT NULL,
+        day TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )''',
+    'CREATE INDEX idx_focus_day ON focus_sessions(day)',
+  ];
 
   /// مؤشرات التحاليل الطبية (نتيجة تحليل بقيمة ووحدة ونطاق طبيعى + تاريخ).
   static const List<String> _v50Tables = [
@@ -591,6 +625,7 @@ class AppDb {
         priority INTEGER NOT NULL DEFAULT 1,
         done INTEGER NOT NULL DEFAULT 0,
         done_at TEXT,
+        repeat_rule TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL
       )''',
     'CREATE INDEX idx_tasks_project ON tasks(project_id)',
@@ -1264,12 +1299,14 @@ class AppDb {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         archived INTEGER NOT NULL DEFAULT 0,
+        target_per_day INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL
       )''');
     batch.execute('''
       CREATE TABLE habit_logs(
         habit_id INTEGER NOT NULL,
         day TEXT NOT NULL,
+        count INTEGER NOT NULL DEFAULT 1,
         PRIMARY KEY(habit_id, day)
       )''');
     batch.execute('''
@@ -1405,6 +1442,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v50Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v52Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);
