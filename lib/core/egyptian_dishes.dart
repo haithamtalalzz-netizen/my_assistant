@@ -241,6 +241,251 @@ const List<EgyptianDish> kEgyptianDishes = [
       DishPart(171413, 5), // زيت زيتون
     ],
   ),
+
+  // ============ دفعة شاملة (2026-07-16) — أطباق رئيسية ============
+  EgyptianDish(
+    ar: 'رقاق باللحمة',
+    en: 'Roqaq with meat',
+    servingGrams: 300,
+    parts: [
+      DishPart(172791, 120), // عجينة رقاق (فيلو)
+      DishPart(171800, 100), // لحمة مفرومة
+      DishPart(171265, 60), // لبن
+      DishPart(173410, 20), // سمنة
+    ],
+  ),
+  EgyptianDish(
+    ar: 'فتة باللحمة',
+    en: 'Fatta with meat',
+    servingGrams: 400,
+    parts: [
+      DishPart(168880, 150), // رز
+      DishPart(174915, 60), // عيش محمّص
+      DishPart(171800, 90), // لحمة
+      DishPart(169230, 5), // توم
+      DishPart(172237, 8), // خل
+      DishPart(170054, 50), // صلصة
+    ],
+  ),
+  EgyptianDish(
+    ar: 'كبدة اسكندرانى',
+    en: 'Alexandrian liver',
+    servingGrams: 200,
+    parts: [
+      DishPart(168626, 150), // كبدة بقرى مطبوخة
+      DishPart(171411, 20), // زيت
+      DishPart(170108, 20), // فلفل
+      DishPart(169230, 6), // توم
+    ],
+  ),
+  EgyptianDish(
+    ar: 'طعمية (فلافل)',
+    en: 'Taameya (falafel)',
+    servingGrams: 150,
+    parts: [
+      DishPart(175205, 110), // فول نيّئ (مطحون)
+      DishPart(170416, 10), // بقدونس
+      DishPart(169997, 8), // كزبرة خضرا
+      DishPart(169230, 5), // توم
+      DishPart(171411, 25), // زيت القلى
+    ],
+  ),
+  EgyptianDish(
+    ar: 'بيصارة',
+    en: 'Bisara',
+    servingGrams: 250,
+    parts: [
+      DishPart(173753, 200), // فول مطبوخ
+      DishPart(170416, 10), // بقدونس
+      DishPart(169230, 5), // توم
+      DishPart(171413, 12), // زيت
+    ],
+  ),
+  EgyptianDish(
+    ar: 'مكرونة بشاميل',
+    en: 'Pasta béchamel',
+    servingGrams: 350,
+    parts: [
+      DishPart(169737, 180), // مكرونة
+      DishPart(171800, 80), // لحمة مفرومة
+      DishPart(171265, 80), // لبن
+      DishPart(168894, 15), // دقيق
+      DishPart(173410, 20), // سمنة
+    ],
+  ),
+  EgyptianDish(
+    ar: 'صيادية',
+    en: 'Sayadeya (fish rice)',
+    servingGrams: 350,
+    parts: [
+      DishPart(168880, 180), // رز
+      DishPart(175177, 120), // سمك بلطى
+      DishPart(170000, 30), // بصل
+      DishPart(171411, 15), // زيت
+    ],
+  ),
+  EgyptianDish(
+    ar: 'سمك بلطى مشوى',
+    en: 'Grilled tilapia',
+    servingGrams: 200,
+    parts: [
+      DishPart(175177, 180), // بلطى
+    ],
+  ),
+  EgyptianDish(
+    ar: 'جمبرى بالتوم',
+    en: 'Garlic shrimp',
+    servingGrams: 200,
+    parts: [
+      DishPart(175180, 160), // جمبرى مطبوخ
+      DishPart(169230, 8), // توم
+      DishPart(171413, 15), // زيت زيتون
+    ],
+  ),
+  EgyptianDish(
+    ar: 'محشى باذنجان',
+    en: 'Stuffed eggplant',
+    servingGrams: 250,
+    parts: [
+      DishPart(169228, 110), // باذنجان
+      DishPart(168880, 90), // رز
+      DishPart(171800, 40), // لحمة
+      DishPart(170000, 15), // بصل
+      DishPart(171411, 12), // زيت
+    ],
+  ),
+  EgyptianDish(
+    ar: 'مسقعة',
+    en: 'Musaqaa (eggplant)',
+    servingGrams: 280,
+    parts: [
+      DishPart(169229, 150), // باذنجان مطبوخ
+      DishPart(170054, 70), // صلصة
+      DishPart(170108, 30), // فلفل
+      DishPart(171411, 20), // زيت
+    ],
+  ),
+  EgyptianDish(
+    ar: 'بطاطس بالصلصة',
+    en: 'Potato in tomato sauce',
+    servingGrams: 280,
+    parts: [
+      DishPart(170028, 180), // بطاطس
+      DishPart(170054, 70), // صلصة
+      DishPart(170000, 20), // بصل
+      DishPart(171411, 15), // زيت
+    ],
+  ),
+  EgyptianDish(
+    ar: 'شكشوكة',
+    en: 'Shakshouka',
+    servingGrams: 200,
+    parts: [
+      DishPart(173423, 100), // بيض
+      DishPart(170457, 50), // طماطم
+      DishPart(170108, 25), // فلفل
+      DishPart(170000, 15), // بصل
+      DishPart(171411, 10), // زيت
+    ],
+  ),
+  EgyptianDish(
+    ar: 'حواوشى',
+    en: 'Hawawshi',
+    servingGrams: 250,
+    parts: [
+      DishPart(174915, 110), // عيش
+      DishPart(171800, 100), // لحمة مفرومة
+      DishPart(170000, 20), // بصل
+      DishPart(170108, 15), // فلفل
+    ],
+  ),
+  EgyptianDish(
+    ar: 'بيض بالبسطرمة',
+    en: 'Eggs with basterma',
+    servingGrams: 150,
+    parts: [
+      DishPart(173423, 100), // بيض
+      DishPart(170204, 35), // بسطرمة (لحمة مجففة)
+      DishPart(173410, 10), // سمنة
+    ],
+  ),
+  EgyptianDish(
+    ar: 'سلطة بلدى',
+    en: 'Baladi salad',
+    servingGrams: 200,
+    parts: [
+      DishPart(170457, 90), // طماطم
+      DishPart(169225, 70), // خيار
+      DishPart(170000, 15), // بصل
+      DishPart(171413, 8), // زيت زيتون
+      DishPart(167747, 10), // عصير لمون
+    ],
+  ),
+
+  // ============ حلويات ============
+  EgyptianDish(
+    ar: 'أرز باللبن',
+    en: 'Rice pudding',
+    servingGrams: 250,
+    parts: [
+      DishPart(168880, 90), // رز
+      DishPart(171265, 140), // لبن
+      DishPart(169655, 25), // سكر
+    ],
+  ),
+  EgyptianDish(
+    ar: 'مهلبية',
+    en: 'Muhallabia',
+    servingGrams: 200,
+    parts: [
+      DishPart(171265, 160), // لبن
+      DishPart(169698, 15), // نشا
+      DishPart(169655, 25), // سكر
+    ],
+  ),
+  EgyptianDish(
+    ar: 'بسبوسة',
+    en: 'Basbousa',
+    servingGrams: 120,
+    parts: [
+      DishPart(169715, 50), // سميد
+      DishPart(169655, 35), // سكر
+      DishPart(173410, 20), // سمنة
+      DishPart(171284, 20), // زبادى
+    ],
+  ),
+  EgyptianDish(
+    ar: 'بليلة',
+    en: 'Belila (wheat pudding)',
+    servingGrams: 250,
+    parts: [
+      DishPart(170287, 100), // قمح/برغل مطبوخ
+      DishPart(171265, 120), // لبن
+      DishPart(169655, 25), // سكر
+    ],
+  ),
+  EgyptianDish(
+    ar: 'أم على',
+    en: 'Om Ali',
+    servingGrams: 280,
+    parts: [
+      DishPart(172791, 80), // عجينة/فيلو
+      DishPart(171265, 150), // لبن
+      DishPart(169655, 20), // سكر
+      DishPart(170187, 15), // عين جمل
+      DishPart(168164, 15), // زبيب
+    ],
+  ),
+  EgyptianDish(
+    ar: 'كريم كراميل',
+    en: 'Crème caramel',
+    servingGrams: 150,
+    parts: [
+      DishPart(173423, 60), // بيض
+      DishPart(171265, 70), // لبن
+      DishPart(169655, 20), // سكر
+    ],
+  ),
 ];
 
 /// بحث فى الأكلات المصرية بالعربى أو الإنجليزى (تطبيع الهمزات).
