@@ -6,6 +6,8 @@ import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/egyptian_dishes.dart';
 import '../../core/usda_food_db.dart';
+import '../../data/meals_repo.dart';
+import '../../models/models.dart';
 
 /// دليل الأكل: بحث فى ~٦٠٠٠ صنف بقيمهم الغذائية الكاملة — أرقام USDA حرفياً.
 /// (العدد الفعلى بيتقرا من الأصل نفسه وقت التشغيل، مش متكتوب هنا.)
@@ -325,6 +327,24 @@ class _FoodCardBodyState extends State<_FoodCardBody> {
         const SizedBox(height: 8),
         _macroBar(scheme, n),
         const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            icon: const Icon(Icons.restaurant, size: 18),
+            label: Text(tr('سجّلها كوجبة النهاردة', 'Log as a meal today')),
+            onPressed: () async {
+              final ok = await logAsMeal(context,
+                  name: '${_food.name} (${arNum(_grams.round())}${tr('جم', 'g')})',
+                  grams: _grams,
+                  kcal: n.kcal,
+                  protein: n.protein,
+                  carbs: n.carbs,
+                  fat: n.fat);
+              if (ok && context.mounted) Navigator.pop(context);
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
         _nutRow(tr('ألياف', 'Fiber'), n.fiber, 'جم', 'g'),
         _nutRow(tr('سكريات', 'Sugars'), n.sugar, 'جم', 'g'),
         _nutRow(tr('دهون مشبعة', 'Saturated fat'), n.sat, 'جم', 'g'),
@@ -580,6 +600,25 @@ class _DishCardBodyState extends State<_DishCardBody> {
         ]),
         const SizedBox(height: 6),
         if (n != null) _bigRow(scheme, n, _plates),
+        const SizedBox(height: 12),
+        if (n != null)
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              icon: const Icon(Icons.restaurant, size: 18),
+              label: Text(tr('سجّلها كوجبة النهاردة', 'Log as a meal today')),
+              onPressed: () async {
+                final ok = await logAsMeal(context,
+                    name: widget.dish.name,
+                    grams: widget.dish.servingGrams * _plates,
+                    kcal: n.kcal * _plates,
+                    protein: n.protein * _plates,
+                    carbs: n.carbs * _plates,
+                    fat: n.fat * _plates);
+                if (ok && context.mounted) Navigator.pop(context);
+              },
+            ),
+          ),
         const SizedBox(height: 18),
         Text(tr('المكوّنات (لطبق واحد)', 'Ingredients (one plate)'),
             style: const TextStyle(fontWeight: FontWeight.w800)),
@@ -643,4 +682,64 @@ class _DishCardBodyState extends State<_DishCardBody> {
           ),
         ),
       );
+}
+
+/// يسجّل الأكلة كوجبة النهاردة — بيسأل عن الوجبة (فطار/غدا/عشا/سناك) وبيحفظ
+/// القيم المحسوبة. مشترك بين كارت الصنف وكارت الطبق.
+Future<bool> logAsMeal(
+  BuildContext context, {
+  required String name,
+  required double grams,
+  required double kcal,
+  required double protein,
+  required double carbs,
+  required double fat,
+}) async {
+  final slot = await showModalBottomSheet<String>(
+    context: context,
+    showDragHandle: true,
+    builder: (ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(tr('سجّلها فى أنهى وجبة؟', 'Log to which meal?'),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          ),
+          for (final s in kMealSlots)
+            ListTile(
+              leading: Text(
+                switch (s) {
+                  'فطار' => '🌅',
+                  'غدا' => '🍽',
+                  'عشا' => '🌙',
+                  _ => '🍎',
+                },
+                style: const TextStyle(fontSize: 20),
+              ),
+              title: Text(mealSlotLabel(s)),
+              onTap: () => Navigator.pop(ctx, s),
+            ),
+        ],
+      ),
+    ),
+  );
+  if (slot == null) return false;
+  await MealsRepo().add(Meal(
+    day: dayKey(DateTime.now()),
+    slot: slot,
+    description: name,
+    calories: kcal,
+    protein: protein,
+    carbs: carbs,
+    fat: fat,
+    grams: grams,
+  ));
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr('اتسجّلت فى ${mealSlotLabel(slot)} ✓',
+            'Logged to ${mealSlotLabel(slot)} ✓'))));
+  }
+  return true;
 }

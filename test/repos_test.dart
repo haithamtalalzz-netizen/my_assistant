@@ -3204,6 +3204,32 @@ void main() {
       expect(await dishNutrients(koshari), isNull);
     });
 
+    test('تسجيل طبق كوجبة بينقل القيم المحسوبة زى ما هى', () async {
+      // نبنى وجبة بنفس اللى بيعمله زرار «سجّلها كوجبة» — القيم من dishNutrients.
+      final koshari = kEgyptianDishes.firstWhere((d) => d.ar == 'كشرى');
+      final n = await dishNutrients(koshari);
+      expect(n, isNotNull);
+      const plates = 2.0;
+      await MealsRepo().add(Meal(
+        day: '2026-07-16',
+        slot: 'غدا',
+        description: koshari.ar,
+        calories: n!.kcal * plates,
+        protein: n.protein * plates,
+        carbs: n.carbs * plates,
+        fat: n.fat * plates,
+        grams: koshari.servingGrams * plates,
+      ));
+      final meals = await MealsRepo().forDay('2026-07-16');
+      expect(meals.length, 1);
+      // القيمة المسجّلة = المحسوبة × عدد الأطباق (١٤٢٢ ≈ ٧١١×٢).
+      expect(meals.first.calories, closeTo(711 * 2, 6));
+      expect(meals.first.description, 'كشرى');
+      // وبتتجمّع فى إجمالى اليوم.
+      final tot = await MealsRepo().dayNutrients('2026-07-16');
+      expect(tot.kcal, closeTo(711 * 2, 6));
+    });
+
     test('البحث بيلاقى الأكلة بالعربى', () {
       expect(searchDishes('كشرى').isNotEmpty, isTrue);
       expect(searchDishes('كشري').isNotEmpty, isTrue); // بالياء برضه
