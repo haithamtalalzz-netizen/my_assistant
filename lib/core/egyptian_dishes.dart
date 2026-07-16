@@ -9,7 +9,7 @@ class DishPart {
   const DishPart(this.fdcId, this.grams);
 }
 
-/// أكلة مصرية = اسم + وصفة (مكوّنات بأوزانها). السعرات **محسوبة** من USDA،
+/// طبق جاهز (مصرى أو عالمى) = اسم + وصفة (مكوّنات بأوزانها). السعرات **محسوبة** من USDA،
 /// مش مكتوبة بالإيد — فتفضل موثوقة زى باقى الدليل.
 class EgyptianDish {
   final String ar;
@@ -486,6 +486,149 @@ const List<EgyptianDish> kEgyptianDishes = [
       DishPart(169655, 20), // سكر
     ],
   ),
+
+  // ============ أكلات عالمية (2026-07-16) — نفس المبدأ ============
+  // — شامى / شرق أوسطى —
+  EgyptianDish(ar: 'حمص بالطحينة', en: 'Hummus', servingGrams: 200, parts: [
+    DishPart(173757, 120), DishPart(168604, 30), DishPart(169230, 5),
+    DishPart(167747, 12), DishPart(171413, 15),
+  ]),
+  EgyptianDish(ar: 'تبولة', en: 'Tabbouleh', servingGrams: 200, parts: [
+    DishPart(170287, 80), DishPart(170416, 40), DishPart(170457, 40),
+    DishPart(170000, 10), DishPart(167747, 12), DishPart(171413, 12),
+  ]),
+  EgyptianDish(ar: 'فتوش', en: 'Fattoush', servingGrams: 220, parts: [
+    DishPart(169247, 80), DishPart(170457, 60), DishPart(169225, 50),
+    DishPart(174915, 30), DishPart(171413, 10), DishPart(167747, 8),
+  ]),
+  EgyptianDish(ar: 'مجدرة', en: 'Mujaddara', servingGrams: 300, parts: [
+    DishPart(172421, 120), DishPart(168880, 120), DishPart(170000, 30),
+    DishPart(171411, 15),
+  ]),
+  EgyptianDish(ar: 'متبل باذنجان', en: 'Mutabbal', servingGrams: 180, parts: [
+    DishPart(169229, 120), DishPart(168604, 30), DishPart(169230, 5),
+    DishPart(171413, 12),
+  ]),
+  EgyptianDish(ar: 'شاورما فراخ', en: 'Chicken shawarma', servingGrams: 300,
+      parts: [
+    DishPart(171477, 130), DishPart(174915, 90), DishPart(168604, 25),
+    DishPart(170457, 30),
+  ]),
+  EgyptianDish(ar: 'شاورما لحمة', en: 'Beef shawarma', servingGrams: 300,
+      parts: [
+    DishPart(171800, 120), DishPart(174915, 90), DishPart(170000, 20),
+    DishPart(168604, 25),
+  ]),
+  EgyptianDish(ar: 'شيش طاووق', en: 'Shish taouk', servingGrams: 200, parts: [
+    DishPart(171477, 160), DishPart(171284, 30), DishPart(169230, 6),
+  ]),
+  EgyptianDish(ar: 'منسف', en: 'Mansaf', servingGrams: 400, parts: [
+    DishPart(168880, 180), DishPart(172544, 120), DishPart(171284, 80),
+  ]),
+  // — خليجى / هندى —
+  EgyptianDish(ar: 'كبسة فراخ', en: 'Chicken kabsa', servingGrams: 400, parts: [
+    DishPart(168880, 180), DishPart(171450, 130), DishPart(170054, 50),
+    DishPart(170000, 30),
+  ]),
+  EgyptianDish(ar: 'برياني فراخ', en: 'Chicken biryani', servingGrams: 400,
+      parts: [
+    DishPart(168878, 180), DishPart(171477, 120), DishPart(171284, 50),
+    DishPart(170000, 30), DishPart(171411, 15),
+  ]),
+  EgyptianDish(ar: 'دال عدس', en: 'Lentil dal', servingGrams: 250, parts: [
+    DishPart(172421, 180), DishPart(170000, 25), DishPart(170457, 30),
+    DishPart(171411, 12),
+  ]),
+  // — إيطالى —
+  EgyptianDish(ar: 'سباجيتى بولونيز', en: 'Spaghetti bolognese',
+      servingGrams: 350, parts: [
+    DishPart(169737, 200), DishPart(171800, 80), DishPart(170054, 60),
+    DishPart(171247, 10),
+  ]),
+  EgyptianDish(ar: 'لازانيا', en: 'Lasagna', servingGrams: 350, parts: [
+    DishPart(169737, 180), DishPart(171800, 80), DishPart(170054, 60),
+    DishPart(170845, 40),
+  ]),
+  EgyptianDish(ar: 'بيتزا مارجريتا', en: 'Margherita pizza', servingGrams: 250,
+      parts: [
+    DishPart(174915, 120), DishPart(170845, 60), DishPart(170054, 50),
+  ]),
+  EgyptianDish(ar: 'ريزوتو مشروم', en: 'Mushroom risotto', servingGrams: 300,
+      parts: [
+    DishPart(168880, 180), DishPart(168537, 60), DishPart(171247, 15),
+    DishPart(173410, 20),
+  ]),
+  // — مكسيكى —
+  EgyptianDish(ar: 'تاكو دجاج', en: 'Chicken tacos', servingGrams: 200, parts: [
+    DishPart(175036, 60), DishPart(171477, 80), DishPart(169247, 25),
+    DishPart(170457, 25), DishPart(173414, 20),
+  ]),
+  EgyptianDish(ar: 'بوريتو فاصوليا', en: 'Bean burrito', servingGrams: 300,
+      parts: [
+    DishPart(167535, 80), DishPart(175194, 90), DishPart(168880, 80),
+    DishPart(173414, 30),
+  ]),
+  EgyptianDish(ar: 'جواكامولى', en: 'Guacamole', servingGrams: 150, parts: [
+    DishPart(171705, 110), DishPart(170457, 25), DishPart(170000, 10),
+    DishPart(167747, 8),
+  ]),
+  // — آسيوى —
+  EgyptianDish(ar: 'أرز مقلى بالخضار', en: 'Veg fried rice', servingGrams: 300,
+      parts: [
+    DishPart(168880, 180), DishPart(173423, 50), DishPart(170393, 30),
+    DishPart(174277, 15), DishPart(171411, 15),
+  ]),
+  EgyptianDish(ar: 'نودلز بالخضار', en: 'Veg noodles', servingGrams: 300,
+      parts: [
+    DishPart(169737, 180), DishPart(168510, 70), DishPart(174277, 15),
+    DishPart(171411, 15),
+  ]),
+  EgyptianDish(ar: 'سلمون مشوى', en: 'Grilled salmon', servingGrams: 200,
+      parts: [
+    DishPart(172001, 180), DishPart(174277, 10),
+  ]),
+  // — غربى / فطار —
+  EgyptianDish(ar: 'برجر لحمة بالجبنة', en: 'Cheeseburger', servingGrams: 280,
+      parts: [
+    DishPart(174031, 110), DishPart(172796, 70), DishPart(169247, 20),
+    DishPart(170457, 25), DishPart(173414, 25),
+  ]),
+  EgyptianDish(ar: 'سلطة سيزر بالفراخ', en: 'Chicken Caesar salad',
+      servingGrams: 280, parts: [
+    DishPart(169247, 120), DishPart(171477, 90), DishPart(171247, 15),
+    DishPart(171413, 20),
+  ]),
+  EgyptianDish(ar: 'أومليت بالجبنة', en: 'Cheese omelet', servingGrams: 150,
+      parts: [
+    DishPart(173423, 110), DishPart(173414, 25), DishPart(173410, 10),
+  ]),
+  EgyptianDish(ar: 'شوفان بالحليب والموز', en: 'Oatmeal with milk & banana',
+      servingGrams: 300, parts: [
+    DishPart(173904, 50), DishPart(171265, 180), DishPart(173944, 60),
+    DishPart(169640, 15),
+  ]),
+  EgyptianDish(ar: 'زبادى يونانى بالتوت', en: 'Greek yogurt with berries',
+      servingGrams: 200, parts: [
+    DishPart(171304, 140), DishPart(171711, 40), DishPart(169640, 12),
+    DishPart(170187, 10),
+  ]),
+  EgyptianDish(ar: 'سموذى موز وفراولة', en: 'Banana-strawberry smoothie',
+      servingGrams: 300, parts: [
+    DishPart(173944, 100), DishPart(167762, 80), DishPart(171265, 120),
+    DishPart(169640, 10),
+  ]),
+  EgyptianDish(ar: 'ساندوتش تونة', en: 'Tuna sandwich', servingGrams: 220,
+      parts: [
+    DishPart(174915, 100), DishPart(171988, 90), DishPart(169247, 25),
+  ]),
+  EgyptianDish(ar: 'فراخ مع بروكلى', en: 'Chicken & broccoli', servingGrams: 300,
+      parts: [
+    DishPart(171477, 150), DishPart(168510, 130), DishPart(171413, 15),
+  ]),
+  EgyptianDish(ar: 'سلطة كينوا', en: 'Quinoa salad', servingGrams: 250, parts: [
+    DishPart(168917, 150), DishPart(170457, 50), DishPart(169225, 40),
+    DishPart(171413, 12), DishPart(167747, 10),
+  ]),
 ];
 
 /// بحث فى الأكلات المصرية بالعربى أو الإنجليزى (تطبيع الهمزات).

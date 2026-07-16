@@ -107,8 +107,8 @@ class _FoodCardScreenState extends State<FoodCardScreen> {
                               // الأكلات المصرية المحسوبة الأول.
                               if (_dishes.isNotEmpty) ...[
                                 _sectionHeader(
-                                    tr('أكلات مصرية (محسوبة من USDA)',
-                                        'Egyptian dishes (computed from USDA)'),
+                                    tr('أطباق جاهزة (محسوبة من USDA)',
+                                        'Prepared dishes (computed from USDA)'),
                                     scheme),
                                 for (final d in _dishes) _dishRow(d, scheme),
                               ],
