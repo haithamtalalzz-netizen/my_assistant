@@ -5,6 +5,7 @@ import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../widgets/search_action.dart';
 import '../../data/meals_repo.dart';
+import '../../data/settings_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 
@@ -17,11 +18,15 @@ class ShoppingListScreen extends StatefulWidget {
 
 class _ShoppingListScreenState extends State<ShoppingListScreen> {
   final _repo = MealsRepo();
+  final _settings = SettingsRepo();
   final _input = TextEditingController();
   bool _loading = true;
   List<ShoppingItem> _items = [];
   String _addCat = kShoppingCategories.first;
   double _total = 0;
+
+  /// ترتيب الممرات المحفوظ (ترتيب سوبرماركت المستخدم).
+  List<String> _aisleOrder = kShoppingCategories;
 
   @override
   void initState() {
@@ -38,12 +43,84 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
   Future<void> _load() async {
     final items = await _repo.shoppingItems();
     final total = await _repo.shoppingTotal();
+    final order =
+        orderedShoppingCategories(await _settings.cardOrder('shopping_aisles'));
     if (!mounted) return;
     setState(() {
       _items = items;
       _total = total;
+      _aisleOrder = order;
       _loading = false;
     });
+  }
+
+  /// ترتيب الممرات: يسحب المستخدم التصنيفات لترتيب سوبرماركت بتاعه، وتتحفظ.
+  Future<void> _editAisleOrder() async {
+    final order = List<String>.from(_aisleOrder);
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(tr('ترتيب ممرات السوبرماركت', 'Supermarket aisle order'),
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 2),
+              Text(
+                  tr('رتّب التصنيفات زى ما بتمشى فى السوبر — القائمة هتتبع ترتيبك',
+                      'Order categories to match your store — the list will follow'),
+                  style: TextStyle(
+                      fontSize: 12, color: Theme.of(ctx).colorScheme.outline)),
+              const SizedBox(height: 8),
+              Flexible(
+                child: ReorderableListView(
+                  shrinkWrap: true,
+                  buildDefaultDragHandles: true,
+                  // onReorderItem بيظبط الـindex لوحده (بعكس onReorder المهجورة).
+                  onReorderItem: (oldI, newI) => setSheet(() {
+                    order.insert(newI, order.removeAt(oldI));
+                  }),
+                  children: [
+                    for (final c in order)
+                      ListTile(
+                        key: ValueKey(c),
+                        dense: true,
+                        leading: const Icon(Icons.drag_handle),
+                        title: Text(shoppingCategoryLabel(c)),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(children: [
+                TextButton(
+                  onPressed: () async {
+                    await _settings.set('order.shopping_aisles', '');
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (mounted) await _load();
+                  },
+                  child: Text(tr('الترتيب الافتراضى', 'Default order')),
+                ),
+                const Spacer(),
+                FilledButton(
+                  onPressed: () async {
+                    await _settings.setCardOrder('shopping_aisles', order);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (mounted) await _load();
+                  },
+                  child: Text(tr('حفظ', 'Save')),
+                ),
+              ]),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _add() async {
@@ -220,8 +297,8 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
           .add(it);
     }
     final order = [
-      ...kShoppingCategories,
-      ...byCat.keys.where((k) => !kShoppingCategories.contains(k)),
+      ..._aisleOrder,
+      ...byCat.keys.where((k) => !_aisleOrder.contains(k)),
     ];
     final widgets = <Widget>[];
     for (final cat in order) {
@@ -333,6 +410,11 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
         title: Text(tr('قائمة التسوق', 'Shopping list')),
         actions: [
           searchAction(context),
+          IconButton(
+            tooltip: tr('ترتيب الممرات', 'Aisle order'),
+            icon: const Icon(Icons.reorder),
+            onPressed: _editAisleOrder,
+          ),
           IconButton(
             tooltip: tr('الأساسيات', 'Staples'),
             icon: const Icon(Icons.repeat),

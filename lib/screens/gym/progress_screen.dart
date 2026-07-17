@@ -85,11 +85,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       'Log your weight, measurements & a photo periodically — track your change'))
               : RefreshIndicator(
                   onRefresh: _load,
-                  child: ListView.builder(
+                  child: ListView(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
-                    itemCount: _entries.length + 1,
-                    itemBuilder: (context, i) =>
-                        i == 0 ? _summaryCard(context) : _entryCard(context, i - 1),
+                    children: [
+                      _summaryCard(context),
+                      _comparisonCard(context),
+                      for (var i = 0; i < _entries.length; i++)
+                        _entryCard(context, i),
+                    ],
                   ),
                 ),
       floatingActionButton: FloatingActionButton(
@@ -151,6 +154,129 @@ class _ProgressScreenState extends State<ProgressScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// مقارنة «قبل / بعد» تلقائية: أقدم صورة مقابل أحدث صورة + فرق الوزن
+  /// والأيام بينهم. بتظهر لوحدها لما يبقى فيه صورتين على الأقل.
+  Widget _comparisonCard(BuildContext context) {
+    // الأحدث أول فى _entries. أحدث سجل بصورة + أقدم سجل بصورة.
+    BodyProgress? latest;
+    for (final e in _entries) {
+      if (e.photo.isNotEmpty) {
+        latest = e;
+        break;
+      }
+    }
+    BodyProgress? first;
+    for (final e in _entries.reversed) {
+      if (e.photo.isNotEmpty) {
+        first = e;
+        break;
+      }
+    }
+    if (first == null || latest == null || first.id == latest.id) {
+      return const SizedBox.shrink();
+    }
+    final scheme = Theme.of(context).colorScheme;
+    final d1 = DateTime.parse(first.day);
+    final d2 = DateTime.parse(latest.day);
+    final days = d2.difference(d1).inDays;
+    final wChange = (first.weight != null && latest.weight != null)
+        ? latest.weight! - first.weight!
+        : null;
+    String fmt(double v) =>
+        arNum(v % 1 == 0 ? v.toInt() : v.toStringAsFixed(1));
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Text('📸', style: TextStyle(fontSize: 16)),
+              const SizedBox(width: 6),
+              Text(tr('قبل / بعد', 'Before / after'),
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
+              const Spacer(),
+              if (days > 0)
+                Text(tr('فرق ${arNum(days)} يوم', '${arNum(days)} days apart'),
+                    style: TextStyle(fontSize: 12, color: scheme.outline)),
+            ]),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _comparePane(context, first, tr('قبل', 'Before'))),
+                const SizedBox(width: 8),
+                Expanded(child: _comparePane(context, latest, tr('بعد', 'After'))),
+              ],
+            ),
+            if (wChange != null && wChange != 0) ...[
+              const SizedBox(height: 8),
+              Center(
+                child: Text(
+                  wChange < 0
+                      ? tr('نزلت ${fmt(wChange.abs())} كجم 💪',
+                          'Down ${fmt(wChange.abs())} kg 💪')
+                      : tr('زودت ${fmt(wChange.abs())} كجم',
+                          'Up ${fmt(wChange.abs())} kg'),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: wChange < 0 ? Colors.green : scheme.error),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _comparePane(BuildContext context, BodyProgress e, String tag) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Stack(
+            children: [
+              AspectRatio(
+                aspectRatio: 3 / 4,
+                child: Image.file(File(e.photo),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) =>
+                        Container(color: scheme.surfaceContainerHighest)),
+              ),
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(tag,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(arShortDate(DateTime.parse(e.day)),
+            style: TextStyle(fontSize: 11, color: scheme.outline)),
+        if (e.weight != null)
+          Text(
+              '${arNum(e.weight! % 1 == 0 ? e.weight!.toInt() : e.weight!.toStringAsFixed(1))} ${tr('كجم', 'kg')}',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+      ],
     );
   }
 

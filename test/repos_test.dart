@@ -3309,6 +3309,24 @@ void main() {
     });
   });
 
+  group('ترتيب ممرات التسوق (orderedShoppingCategories)', () {
+    test('بيحترم ترتيب المستخدم وبيضيف الناقص فى الآخر', () {
+      // المستخدم رتّب ٣ بس؛ الباقى المفروض يتحط بعدهم بترتيبه الأصلى.
+      final r = orderedShoppingCategories(['لحوم', 'خضار وفاكهة', 'ألبان']);
+      expect(r.take(3).toList(), ['لحوم', 'خضار وفاكهة', 'ألبان']);
+      expect(r.toSet(), kShoppingCategories.toSet(),
+          reason: 'مفيش تصنيف بيختفى');
+      expect(r.length, kShoppingCategories.length);
+    });
+    test('قيمة غلط أو فاضية → الترتيب الافتراضى', () {
+      expect(orderedShoppingCategories([]), kShoppingCategories);
+      // تصنيف مش موجود بيتجاهل.
+      final r = orderedShoppingCategories(['حاجة مش موجودة', 'بقالة']);
+      expect(r.first, 'بقالة');
+      expect(r.length, kShoppingCategories.length);
+    });
+  });
+
   group('ملخّص التحاليل الشهرى + إحصائيات الصلاة', () {
     test('ملخّص الشهر: العدد + خارج النطاق + اتحسّن/ساء', () async {
       final repo = LabResultsRepo();

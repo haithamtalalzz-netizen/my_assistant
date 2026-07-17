@@ -24,6 +24,15 @@ String shoppingCategoryLabel(String c) => switch (c) {
       'أخرى' => tr('أخرى', 'Other'),
       _ => c,
     };
+/// يرتّب تصنيفات التسوق حسب ترتيب المستخدم المحفوظ (ممرات السوبرماركت
+/// بتاعه)، وبيضيف أى تصنيف جديد مش موجود فى الترتيب فى آخره — فمفيش تصنيف
+/// بيختفى. طبقة نقية عشان تتختبر.
+List<String> orderedShoppingCategories(List<String> savedOrder) {
+  final valid = [for (final c in savedOrder) if (kShoppingCategories.contains(c)) c];
+  final rest = [for (final c in kShoppingCategories) if (!valid.contains(c)) c];
+  return [...valid, ...rest];
+}
+
 const List<String> kRamadanMealSlots = ['سحور', 'فطار', 'سناك'];
 
 /// عرض نوع الوجبة بالإنجليزي مع إبقاء القيمة المخزّنة عربي.
