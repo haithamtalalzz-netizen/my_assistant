@@ -71,6 +71,8 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       final items = _buyLaterTab
           ? await _repo.buyLaterItems()
           : await _repo.shoppingItems(listId: _activeListId);
+      logInfo('تسوق: تحميل قائمة=$_activeListId لاحقاً=$_buyLaterTab '
+          'قوائم=${lists.length} → ${items.length} صنف');
       final total =
           _buyLaterTab ? 0.0 : await _repo.shoppingTotal(listId: _activeListId);
       final order = orderedShoppingCategories(
@@ -106,8 +108,11 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
   Future<void> _add() async {
     final name = _input.text.trim();
     if (name.isEmpty) return;
-    await _repo.addShoppingItem(name,
+    logInfo('تسوق: إضافة "$name" → قائمة=$_activeListId '
+        'لاحقاً=$_buyLaterTab فئة=$_addCat');
+    final id = await _repo.addShoppingItem(name,
         category: _addCat, listId: _activeListId, buyLater: _buyLaterTab);
+    logInfo('تسوق: اتضاف id=$id');
     _input.clear();
     await _load();
   }
