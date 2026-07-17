@@ -12,7 +12,9 @@ import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/screens/diagnostics_screen.dart';
 import 'package:my_assistant/data/habits_repo.dart';
+import 'package:my_assistant/data/meals_repo.dart';
 import 'package:my_assistant/screens/day_close_screen.dart';
+import 'package:my_assistant/screens/food/shopping_list_screen.dart';
 import 'package:my_assistant/screens/habits/habits_screen.dart';
 import 'package:my_assistant/screens/tasks/focus_screen.dart';
 import 'package:my_assistant/widgets/reorderable_sections.dart';
@@ -127,6 +129,48 @@ void main() {
     await tester.drag(find.byType(ReorderableSections), const Offset(0, -2200));
     await tester.pumpAndSettle();
     expect(built.contains('bottom'), true, reason: 'اتبنى بعد ما اتمرّر ليه');
+  });
+
+  testWidgets('قائمة التسوق: بعد ترقية v52→v53، الإضافة على قائمة غير الأولى',
+      (tester) async {
+    // نعيد إنتاج مسار المستخدم بالظبط: DB اتعملها ترقية (مش createSchema)،
+    // فالقوائم الافتراضية اتعملت عبر الـmigration + صنف قديم اتنقل.
+    AppDb.reset();
+    await db.close();
+    db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath,
+        options: OpenDatabaseOptions(singleInstance: false));
+    await db.execute(
+        'CREATE TABLE shopping_items(id INTEGER PRIMARY KEY AUTOINCREMENT, '
+        'name TEXT NOT NULL, checked INTEGER NOT NULL DEFAULT 0, '
+        "category TEXT NOT NULL DEFAULT '', price REAL NOT NULL DEFAULT 0, "
+        'created_at TEXT NOT NULL)');
+    // الشاشة بتقرا الإعدادات (ترتيب الممرات) — لازم الجدول موجود زى الجهاز.
+    await db.execute(
+        'CREATE TABLE settings(key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+    await db.insert('shopping_items', {'name': 'رز', 'created_at': 'x'});
+    await AppDb.upgradeSchema(db, 52, 53);
+    AppDb.useForTests(db);
+
+    await tester.pumpWidget(_app(const ShoppingListScreen()));
+    await tester.pumpAndSettle();
+    // اختار «هدايا» (قائمة افتراضية من الترقية، مش الأولى) وضيف عليها.
+    await tester.tap(find.text('🎁 هدايا'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'شنطة');
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.add));
+    await tester.pumpAndSettle();
+    expect(find.text('شنطة'), findsOneWidget,
+        reason: 'الصنف المضاف على قائمة غير-أولى لازم يظهر');
+  });
+
+  testWidgets('قائمة التسوق: تنصيب جديد بيزرع القوائم الافتراضية',
+      (tester) async {
+    // createSchema (تنصيب جديد) المفروض يزرع الـ٥ قوائم — عشان المستخدم
+    // الجديد يلاقى قوائم جاهزة مايقدرش يضيف من غيرها.
+    final lists = await MealsRepo().shoppingLists();
+    expect(lists.length, 5);
+    expect(lists.first.name, 'سوبرماركت');
+    expect(lists.any((l) => l.name == 'هدايا'), true);
   });
 
   testWidgets('شاشة العادات: العادة المعدودة ليها عدّاد −/+ بيشتغل',

@@ -3309,6 +3309,48 @@ void main() {
     });
   });
 
+  group('علاج التسوق (v53→v54 idempotent)', () {
+    test('ترقية v53 ناقصة (من غير buy_later) بتتصلّح فى v54', () async {
+      final db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      // نحاكى جهاز عالق على v53 من غير الأعمدة الجديدة ومن غير قوائم.
+      await db.execute(
+          'CREATE TABLE shopping_items(id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'name TEXT NOT NULL, checked INTEGER NOT NULL DEFAULT 0, '
+          "category TEXT NOT NULL DEFAULT '', price REAL NOT NULL DEFAULT 0, "
+          'created_at TEXT NOT NULL)');
+      await db.insert('shopping_items', {'name': 'رز', 'created_at': 'x'});
+      await AppDb.upgradeSchema(db, 53, 54);
+      // العمود اتضاف والقوائم اتزرعت والصنف اتنقل.
+      final cols = await db.rawQuery('PRAGMA table_info(shopping_items)');
+      expect(cols.any((c) => c['name'] == 'buy_later'), true);
+      final lists = await db.query('shopping_lists');
+      expect(lists.length, 5);
+      final item = (await db.query('shopping_items')).first;
+      expect(item['list_id'], isNotNull);
+      await db.close();
+    });
+
+    test('v54 مبيكرّرش القوائم لو موجودة', () async {
+      final db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await db.execute('CREATE TABLE shopping_items('
+          'id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, '
+          'checked INTEGER NOT NULL DEFAULT 0, list_id INTEGER, '
+          'buy_later INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)');
+      await db.execute('CREATE TABLE shopping_lists('
+          'id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, '
+          "emoji TEXT NOT NULL DEFAULT '🛒', "
+          'sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)');
+      await db.insert('shopping_lists',
+          {'name': 'قائمتى', 'sort_order': 0, 'created_at': 'x'});
+      await AppDb.upgradeSchema(db, 53, 54);
+      // فيه قائمة بالفعل → مايزرعش الافتراضيات فوقها.
+      expect((await db.query('shopping_lists')).length, 1);
+      await db.close();
+    });
+  });
+
   group('قائمة تسوق شاملة (v53)', () {
     test('ترقية v52 ← v53: قوائم افتراضية + نقل البنود القديمة', () async {
       final v52 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,

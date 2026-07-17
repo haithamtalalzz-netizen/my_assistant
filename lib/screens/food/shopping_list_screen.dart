@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../core/log.dart';
 import '../../widgets/search_action.dart';
 import '../../data/meals_repo.dart';
 import '../../data/money_repo.dart';
@@ -55,32 +56,42 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
   }
 
   Future<void> _load() async {
-    final lists = await _repo.shoppingLists();
-    // أول تحميل: اختار أول قائمة.
-    if (_activeListId == null && !_buyLaterTab && lists.isNotEmpty) {
-      _activeListId = lists.first.id;
+    try {
+      final lists = await _repo.shoppingLists();
+      // أول تحميل: اختار أول قائمة.
+      if (_activeListId == null && !_buyLaterTab && lists.isNotEmpty) {
+        _activeListId = lists.first.id;
+      }
+      // لو القائمة النشطة اتمسحت.
+      if (!_buyLaterTab &&
+          _activeListId != null &&
+          !lists.any((l) => l.id == _activeListId)) {
+        _activeListId = lists.isEmpty ? null : lists.first.id;
+      }
+      final items = _buyLaterTab
+          ? await _repo.buyLaterItems()
+          : await _repo.shoppingItems(listId: _activeListId);
+      final total =
+          _buyLaterTab ? 0.0 : await _repo.shoppingTotal(listId: _activeListId);
+      final order = orderedShoppingCategories(
+          await _settings.cardOrder('shopping_aisles'));
+      if (!mounted) return;
+      setState(() {
+        _lists = lists;
+        _items = items;
+        _total = total;
+        _aisleOrder = order;
+        _loading = false;
+      });
+    } on Exception catch (e, st) {
+      // مايتركش الشاشة معلّقة على لودينج لو استعلام فشل — بيتسجّل ويظهر تنبيه.
+      logError('فشل تحميل قائمة التسوق', e, st);
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr('حصلت مشكلة فى تحميل القائمة — جرّب تقفل وتفتح',
+              'Problem loading the list — try reopening'))));
     }
-    // لو القائمة النشطة اتمسحت.
-    if (!_buyLaterTab &&
-        _activeListId != null &&
-        !lists.any((l) => l.id == _activeListId)) {
-      _activeListId = lists.isEmpty ? null : lists.first.id;
-    }
-    final items = _buyLaterTab
-        ? await _repo.buyLaterItems()
-        : await _repo.shoppingItems(listId: _activeListId);
-    final total =
-        _buyLaterTab ? 0.0 : await _repo.shoppingTotal(listId: _activeListId);
-    final order =
-        orderedShoppingCategories(await _settings.cardOrder('shopping_aisles'));
-    if (!mounted) return;
-    setState(() {
-      _lists = lists;
-      _items = items;
-      _total = total;
-      _aisleOrder = order;
-      _loading = false;
-    });
   }
 
   void _selectList(int? id, {bool buyLater = false}) {

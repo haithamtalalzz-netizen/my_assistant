@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 53,
+      version: 54,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -333,6 +333,8 @@ class AppDb {
     }
     if (oldV < 53 && newV >= 53) {
       // قائمة تسوق شاملة: قوائم متعددة + كمية/مكان/أولوية/«أشتري لاحقاً».
+      // كله idempotent (IF NOT EXISTS + _safeAddColumn) عشان الترقية ماتوقعش
+      // لو أى جزء اتعمل قبل كده — فالأعمدة بتتضاف كلها ومفيش ترقية نصّها.
       for (final ddl in _v53Tables) {
         await db.execute(ddl);
       }
@@ -345,37 +347,62 @@ class AppDb {
           db, 'shopping_items', 'priority', 'INTEGER NOT NULL DEFAULT 0');
       await _safeAddColumn(
           db, 'shopping_items', 'buy_later', 'INTEGER NOT NULL DEFAULT 0');
-      // قوائم افتراضية + نقل البنود القديمة لقائمة «سوبرماركت».
-      final now = DateTime.now().toIso8601String();
-      const defaults = [
-        ['سوبرماركت', '🛒'],
-        ['صيدلية', '💊'],
-        ['ملابس', '👕'],
-        ['أدوات منزل', '🔧'],
-        ['هدايا', '🎁'],
-      ];
-      var sort = 0;
-      int? firstId;
-      for (final d in defaults) {
-        final id = await db.insert('shopping_lists', {
-          'name': d[0],
-          'emoji': d[1],
-          'sort_order': sort++,
-          'created_at': now,
-        });
-        firstId ??= id;
-      }
-      if (firstId != null) {
-        await db.update('shopping_items', {'list_id': firstId},
-            where: 'list_id IS NULL');
-      }
+      await _seedDefaultShoppingLists(db);
+    }
+    if (oldV < 54 && newV >= 54) {
+      // علاج idempotent: لو أى مستخدم عنده v53 ناقص (عمود مش موجود أو قوائم
+      // ماتزرعتش من ترقية اتقطعت) — نعيد الضبط. كله بيتخطّى لو تمام.
+      await db.execute('CREATE TABLE IF NOT EXISTS shopping_lists('
+          "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, "
+          "emoji TEXT NOT NULL DEFAULT '🛒', "
+          'sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)');
+      await _safeAddColumn(db, 'shopping_items', 'list_id', 'INTEGER');
+      await _safeAddColumn(
+          db, 'shopping_items', 'qty', "TEXT NOT NULL DEFAULT ''");
+      await _safeAddColumn(
+          db, 'shopping_items', 'place', "TEXT NOT NULL DEFAULT ''");
+      await _safeAddColumn(
+          db, 'shopping_items', 'priority', 'INTEGER NOT NULL DEFAULT 0');
+      await _safeAddColumn(
+          db, 'shopping_items', 'buy_later', 'INTEGER NOT NULL DEFAULT 0');
+      await _seedDefaultShoppingLists(db);
+    }
+  }
+
+  /// يزرع القوائم الافتراضية (مرة واحدة) + بينقل البنود من غير قائمة لأول
+  /// قائمة. آمن يتنادى من الترقية ومن createSchema — بيتخطّى لو فيه قوائم.
+  static Future<void> _seedDefaultShoppingLists(Database db) async {
+    final rows = await db.rawQuery('SELECT COUNT(*) c FROM shopping_lists');
+    if (((rows.first['c'] as num?)?.toInt() ?? 0) > 0) return;
+    final now = DateTime.now().toIso8601String();
+    const defaults = [
+      ['سوبرماركت', '🛒'],
+      ['صيدلية', '💊'],
+      ['ملابس', '👕'],
+      ['أدوات منزل', '🔧'],
+      ['هدايا', '🎁'],
+    ];
+    var sort = 0;
+    int? firstId;
+    for (final d in defaults) {
+      final id = await db.insert('shopping_lists', {
+        'name': d[0],
+        'emoji': d[1],
+        'sort_order': sort++,
+        'created_at': now,
+      });
+      firstId ??= id;
+    }
+    if (firstId != null) {
+      await db.update('shopping_items', {'list_id': firstId},
+          where: 'list_id IS NULL');
     }
   }
 
   /// قوائم التسوق المتعددة (سوبرماركت/صيدلية/ملابس...).
   static const List<String> _v53Tables = [
     '''
-      CREATE TABLE shopping_lists(
+      CREATE TABLE IF NOT EXISTS shopping_lists(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         emoji TEXT NOT NULL DEFAULT '🛒',
@@ -1507,6 +1534,9 @@ class AppDb {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);
+    // تنصيب جديد: نزرع القوائم الافتراضية عشان المستخدم يلاقى قوائم جاهزة
+    // (الترقية بتعملها للمستخدمين القدامى؛ دى للتنصيب الجديد).
+    await _seedDefaultShoppingLists(db);
   }
 
   /// للاختبارات فقط: يركّب قاعدة في الذاكرة بدل الملف.
