@@ -11,6 +11,7 @@
 - **الاقتراحات** (`core/suggestions.dart`): «مديرك بيقترح» قواعد فوق الرؤى → بريفينج العقل + الموجز الصباحى.
 - **البنية**: `Section.builder` كسول (الأقسام تحت الطى مابتتبنيش لحد ما تتمرّر) + تست ودجت بيثبتها.
 - **⚠️ `Section(id, child)` بقى مش `const`** (بيلفّ الودجت فى closure) — أى `const Section(...)` فى الكود لازم يشيل الـconst.
+- **⚠️ CI/نشر الويب**: خطوة `deploy-pages` فشلت فجأة فى ٦ ثوانى (الـbuild كان بينجح) — العلامة النمطية إن GitHub Pages اتوقّف تفعيله. **الحل**: `enablement: true` على `actions/configure-pages@v5` (commit `8174c14`) — بيفعّله عبر الـAPI، idempotent. الـrun #121 رجع أخضر. لو حصل تانى → تأكد Settings ← Pages ← Source = «GitHub Actions». **تذكرة**: GitHub بيبعت إيميل عند الفشل بس، مش النجاح — للتأكيد بصّ على صفحة Actions مباشرة.
 
 ---
 
