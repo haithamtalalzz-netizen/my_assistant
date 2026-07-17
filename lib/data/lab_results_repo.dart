@@ -30,6 +30,27 @@ const List<LabTestSpec> kCommonLabTests = [
   LabTestSpec('فيتامين B12', 'pg/mL', '200', '900'),
 ];
 
+/// ملخّص التحاليل فى شهر.
+class LabMonthSummary {
+  final int logged;
+  final int outOfRange;
+
+  /// تحاليل رجعت للنطاق الطبيعى بعد ما كانت بره.
+  final List<String> improved;
+
+  /// تحاليل خرجت عن النطاق بعد ما كانت طبيعية.
+  final List<String> worsened;
+
+  const LabMonthSummary({
+    required this.logged,
+    required this.outOfRange,
+    required this.improved,
+    required this.worsened,
+  });
+
+  bool get isEmpty => logged == 0;
+}
+
 /// مؤشرات التحاليل الطبية — نتائج بقيمها ونطاقاتها لتتبّع الاتجاه عبر الزمن.
 class LabResultsRepo {
   Future<List<LabResult>> all() async {
@@ -70,6 +91,42 @@ class LabResultsRepo {
   Future<int> outOfRangeCount() async {
     final latest = await latestPerName();
     return latest.where((r) => r.outOfRange).length;
+  }
+
+  /// ملخّص شهرى: كام تحليل اتسجّل الشهر ده، كام خارج النطاق، وإيه اللى
+  /// اتحسّن/ساء عن آخر قياس قبله. [at] للاختبار.
+  Future<LabMonthSummary> monthSummary([DateTime? at]) async {
+    final now = at ?? DateTime.now();
+    final prefix =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+    final all = await this.all(); // مرتّبة بالاسم ثم التاريخ تنازلياً
+    final thisMonth = [for (final r in all) if (r.date.startsWith(prefix)) r];
+
+    final improved = <String>[];
+    final worsened = <String>[];
+    for (final r in thisMonth) {
+      // القياس اللى قبله مباشرةً لنفس التحليل (أى تاريخ أقدم).
+      final older = [
+        for (final o in all)
+          if (o.name == r.name && o.date.compareTo(r.date) < 0) o
+      ];
+      if (older.isEmpty) continue;
+      older.sort((a, b) => b.date.compareTo(a.date));
+      final prev = older.first;
+      // «اتحسّن» = خرج من النطاق ودخله، أو فضل جوه وقرب من النص.
+      if (prev.outOfRange && !r.outOfRange) {
+        improved.add(r.name);
+      } else if (!prev.outOfRange && r.outOfRange) {
+        worsened.add(r.name);
+      }
+    }
+
+    return LabMonthSummary(
+      logged: thisMonth.length,
+      outOfRange: thisMonth.where((r) => r.outOfRange).length,
+      improved: improved,
+      worsened: worsened,
+    );
   }
 
   Future<int> save(LabResult r) async {

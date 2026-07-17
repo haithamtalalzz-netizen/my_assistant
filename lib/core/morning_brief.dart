@@ -1,10 +1,12 @@
 import '../data/appointments_repo.dart';
+import '../data/insights_repo.dart';
 import '../data/settings_repo.dart';
 import '../data/tasks_repo.dart';
 import 'ar.dart';
 import 'contextual_tips.dart';
 import 'l10n.dart';
 import 'prayers.dart';
+import 'suggestions.dart';
 import 'weather.dart';
 
 /// بيبنى نص الموجز الصباحى (للقراءة الصوتية أو العرض) — جُمل قصيرة مناسبة
@@ -60,6 +62,14 @@ Future<String> buildMorningBrief([DateTime? at]) async {
   try {
     final tips = await contextualTips(at: now, max: 2);
     parts.addAll([for (final tip in tips) _stripEmoji(tip)]);
+  } on Exception catch (_) {
+    // الموجز يكمل من غيرها.
+  }
+
+  // «مديرك بيقترح» — أقوى اقتراح سياقى فوق بيانات الرؤى (نوم/مصاريف/عادات).
+  try {
+    final sugg = buildSuggestions(await InsightsRepo().assemble(now: now));
+    if (sugg.isNotEmpty) parts.add(sugg.first.text);
   } on Exception catch (_) {
     // الموجز يكمل من غيرها.
   }

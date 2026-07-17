@@ -561,8 +561,10 @@ class _TodayScreenState extends State<TodayScreen> {
   /// أقسام الرئيسية — القسم الفاضى **مابيتبنيش أصلاً** (بدل كارت «مفيش...»).
   List<Section> _sections(BuildContext context) {
     final out = <Section>[];
+    // كسول: المحتوى بيتبنى وقت ما القسم يوصل للشاشة بس (Section.builder) —
+    // فالأقسام تحت الطى مابتتبنيش مع كل فتحة، بس شرط الإظهار بيتقيّم دلوقتى.
     void add(String id, bool show, Widget Function() build) {
-      if (show) out.add(Section(id, build()));
+      if (show) out.add(Section.builder(id, (_) => build()));
     }
 
     add('glance', _vis('glance'),

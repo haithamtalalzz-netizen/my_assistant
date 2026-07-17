@@ -52,8 +52,10 @@ import 'usda_food_db.dart';
 import 'week_overview.dart';
 import 'insights.dart';
 import 'l10n.dart';
+import 'log.dart';
 import 'notifications.dart';
 import 'prayers.dart';
+import 'suggestions.dart';
 import 'weather.dart';
 
 /// نتيجة سؤال: النص + هل اتعامل معاه محليًا ولا لأ.
@@ -1987,6 +1989,16 @@ class LocalBrain {
       for (final a in alerts) {
         b.writeln('• $a');
       }
+    }
+    // «مديرك بيقترح» — قاعدة واحدة (الأقوى) فوق بيانات الرؤى.
+    try {
+      final sugg = buildSuggestions(await InsightsRepo().assemble(now: now));
+      if (sugg.isNotEmpty) {
+        b.writeln(tr('💡 مديرك بيقترح: ${sugg.first.text}',
+            '💡 Your manager suggests: ${sugg.first.text}'));
+      }
+    } on Exception catch (e) {
+      logError('فشل توليد الاقتراح السياقى', e);
     }
     return b.toString().trim();
   }

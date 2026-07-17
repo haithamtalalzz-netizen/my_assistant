@@ -9,6 +9,7 @@ import 'package:my_assistant/core/contextual_tips.dart';
 import 'package:my_assistant/core/day_close.dart';
 import 'package:my_assistant/core/kcal_balance.dart';
 import 'package:my_assistant/core/log.dart';
+import 'package:my_assistant/core/money_trends.dart';
 import 'package:my_assistant/core/morning_brief.dart';
 import 'package:my_assistant/core/dashboard_stats.dart';
 import 'package:my_assistant/core/data_export.dart';
@@ -28,6 +29,7 @@ import 'package:my_assistant/data/activity_repo.dart';
 import 'package:my_assistant/data/cycle_repo.dart';
 import 'package:my_assistant/core/day_planner.dart';
 import 'package:my_assistant/core/insights.dart';
+import 'package:my_assistant/core/suggestions.dart';
 import 'package:my_assistant/core/local_brain.dart';
 import 'package:my_assistant/core/ocr.dart';
 import 'package:my_assistant/core/prayers.dart';
@@ -3034,10 +3036,10 @@ void main() {
           body: ReorderableSections(
             storageKey: 'test_home',
             header: const Text('الترحيب'),
-            sections: const [
-              Section('a', SizedBox(height: 80, child: Text('قسم أ'))),
-              Section('b', SizedBox(height: 80, child: Text('قسم ب'))),
-              Section('c', SizedBox(height: 80, child: Text('قسم ج'))),
+            sections: [
+              Section('a', const SizedBox(height: 80, child: Text('قسم أ'))),
+              Section('b', const SizedBox(height: 80, child: Text('قسم ب'))),
+              Section('c', const SizedBox(height: 80, child: Text('قسم ج'))),
             ],
           ),
         ),
@@ -3274,6 +3276,140 @@ void main() {
       await SettingsRepo().setWaterGoalMl(2500);
       expect(await SettingsRepo().waterGoalMl(), 2500);
       expect(await SettingsRepo().waterGoal(), 10);
+    });
+  });
+
+  group('اقتراحات مديرك (core/suggestions.dart)', () {
+    DailyMetrics dm(int i, {double? sleep, double spend = 0, int water = 0}) =>
+        DailyMetrics(day: '2026-07-${(i + 1).toString().padLeft(2, '0')}',
+            sleep: sleep, spend: spend, water: water);
+
+    test('نوم قل + مصاريف زادت = اقتراح بأعلى وزن', () {
+      // أسبوع أول: نوم كويس ومصروف قليل. أسبوع تانى: نوم أقل ومصروف أعلى.
+      final days = [
+        for (var i = 0; i < 7; i++) dm(i, sleep: 8, spend: 50),
+        for (var i = 7; i < 14; i++) dm(i, sleep: 6, spend: 200),
+      ];
+      final sugg = buildSuggestions(InsightData(days: days));
+      expect(sugg, isNotEmpty);
+      expect(sugg.first.text, contains(tr('نومك قلّ', 'Sleep is down')));
+      expect(sugg.first.weight, 3.0, reason: 'القاعدة المركّبة أعلى وزن');
+    });
+
+    test('أقل من أسبوعين بيانات = مفيش اقتراحات', () {
+      final days = [for (var i = 0; i < 5; i++) dm(i, sleep: 7)];
+      expect(buildSuggestions(InsightData(days: days)), isEmpty);
+    });
+
+    test('كله ثابت = مفيش اقتراحات', () {
+      final days = [
+        for (var i = 0; i < 14; i++) dm(i, sleep: 7, spend: 100, water: 8)
+      ];
+      expect(buildSuggestions(InsightData(days: days)), isEmpty);
+    });
+  });
+
+  group('ملخّص التحاليل الشهرى + إحصائيات الصلاة', () {
+    test('ملخّص الشهر: العدد + خارج النطاق + اتحسّن/ساء', () async {
+      final repo = LabResultsRepo();
+      // فيتامين د كان بره النطاق فى يونيو ورجع طبيعى فى يوليو → اتحسّن.
+      await repo.save(const LabResult(
+          name: 'فيتامين د', value: 12, unit: 'ng/mL', date: '2026-06-01',
+          refLow: '30', refHigh: '100', createdAt: 'x'));
+      await repo.save(const LabResult(
+          name: 'فيتامين د', value: 45, unit: 'ng/mL', date: '2026-07-01',
+          refLow: '30', refHigh: '100', createdAt: 'x'));
+      // السكر كان طبيعى وخرج عن النطاق فى يوليو → ساء.
+      await repo.save(const LabResult(
+          name: 'سكر صائم', value: 90, unit: 'mg/dL', date: '2026-06-02',
+          refLow: '70', refHigh: '100', createdAt: 'x'));
+      await repo.save(const LabResult(
+          name: 'سكر صائم', value: 130, unit: 'mg/dL', date: '2026-07-02',
+          refLow: '70', refHigh: '100', createdAt: 'x'));
+
+      final m = await repo.monthSummary(DateTime(2026, 7, 15));
+      expect(m.logged, 2, reason: 'اتنين بس فى يوليو');
+      expect(m.outOfRange, 1);
+      expect(m.improved, ['فيتامين د']);
+      expect(m.worsened, ['سكر صائم']);
+      // شهر مافيهوش تحاليل.
+      final empty = await repo.monthSummary(DateTime(2026, 5, 15));
+      expect(empty.isEmpty, true);
+    });
+
+    test('أكتر صلاة بتفوت + أفضل أسبوع', () async {
+      final repo = WorshipRepo();
+      // الأسبوع الأول: ٧ أيام كاملة. الأسبوع التانى: الفجر بس.
+      for (var d = 1; d <= 7; d++) {
+        for (var p = 0; p < 5; p++) {
+          await repo.togglePrayer(DateTime(2026, 7, d), p, true);
+        }
+      }
+      for (var d = 8; d <= 14; d++) {
+        await repo.togglePrayer(DateTime(2026, 7, d), 0, true);
+      }
+      final m = await repo.monthlyPrayerStats(DateTime(2026, 7, 14));
+      // الفجر ١٤، والباقى ٧ → أكتر صلاة بتفوت = واحدة من غير الفجر.
+      expect(m.perPrayer[0], 14);
+      expect(m.mostMissed, isNot(0), reason: 'الفجر أكترهم تسجيلاً');
+      expect(m.mostMissedCount, 7, reason: '١٤ يوم عدّوا − ٧ اتسجّلت');
+      expect(m.bestWeekIndex, 0, reason: 'الأسبوع الأول ٣٥ صلاة');
+      expect(m.bestWeekCount, 35);
+
+      // كلهم متساويين → مافيش صلاة «أكتر بتفوت».
+      final repo2 = WorshipRepo();
+      for (var p = 0; p < 5; p++) {
+        await repo2.togglePrayer(DateTime(2026, 8, 1), p, true);
+      }
+      final m2 = await repo2.monthlyPrayerStats(DateTime(2026, 8, 1));
+      expect(m2.mostMissed, isNull);
+    });
+  });
+
+  group('تحليلات الفلوس (core/money_trends.dart)', () {
+    test('مقارنة الفئات: مرتّبة بأكبر فرق + جديد/وقف + نسبة', () async {
+      final repo = MoneyRepo();
+      // الشهر اللى فات.
+      await repo.add(Expense(amount: 100, category: 'أكل', day: '2026-06-05'));
+      await repo.add(
+          Expense(amount: 500, category: 'مواصلات', day: '2026-06-10'));
+      await repo.add(Expense(amount: 80, category: 'فواتير', day: '2026-06-11'));
+      // الشهر ده: الأكل زاد شوية، المواصلات نزلت كتير، فواتير وقفت،
+      // وفئة جديدة ظهرت.
+      await repo.add(Expense(amount: 150, category: 'أكل', day: '2026-07-05'));
+      await repo.add(
+          Expense(amount: 100, category: 'مواصلات', day: '2026-07-10'));
+      await repo.add(Expense(amount: 300, category: 'صحة', day: '2026-07-12'));
+
+      final deltas = await MoneyTrends.categoryDeltas(2026, 7);
+      // الترتيب بأكبر فرق مطلق: مواصلات (−٤٠٠) ثم صحة (+٣٠٠) ثم أكل (+٥٠).
+      expect(deltas.first.category, 'مواصلات');
+      expect(deltas.first.diff, -400);
+      expect(deltas.first.percent, -80);
+      expect(deltas[1].category, 'صحة');
+      expect(deltas[1].isNew, true, reason: 'مكانتش موجودة الشهر اللى فات');
+      expect(deltas[1].percent, isNull, reason: 'مافيش أساس نحسب عليه نسبة');
+      final food = deltas.firstWhere((d) => d.category == 'أكل');
+      expect(food.diff, 50);
+      final bills = deltas.firstWhere((d) => d.category == 'فواتير');
+      expect(bills.stopped, true, reason: 'اتصرف الشهر اللى فات ومش دلوقتى');
+    });
+
+    test('ترند الرصيد: الصافى التراكمى بيكشف الأكل من الرصيد', () async {
+      final money = MoneyRepo();
+      final income = IncomeRepo();
+      // شهر بيوفّر وشهر بيصرف أكتر من دخله.
+      await income.add(Income(amount: 1000, source: 'مرتب', day: '2026-06-01'));
+      await money.add(Expense(amount: 400, category: 'أكل', day: '2026-06-05'));
+      await income.add(Income(amount: 1000, source: 'مرتب', day: '2026-07-01'));
+      await money.add(Expense(amount: 1500, category: 'أكل', day: '2026-07-05'));
+
+      final flow = await MoneyTrends.monthlyFlow(2026, 7, count: 2);
+      expect(flow.length, 2);
+      expect(flow.first.net, 600, reason: 'يونيو: ١٠٠٠ − ٤٠٠');
+      expect(flow.last.net, -500, reason: 'يوليو: ١٠٠٠ − ١٥٠٠');
+      final cum = MoneyTrends.cumulativeNet(flow);
+      expect(cum, [600, 100], reason: 'التراكمى بيقل — بياكل من رصيده');
     });
   });
 

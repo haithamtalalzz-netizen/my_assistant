@@ -146,6 +146,21 @@ class _SpiritualStatsScreenState extends State<SpiritualStatsScreen> {
                   '${arNum(m.fullDays)} full days of ${arNum(m.elapsedDays)}'),
               style: TextStyle(fontSize: 12.5, color: scheme.outline),
             ),
+            // أكتر صلاة بتفوت + أفضل أسبوع — الخلاصة العملية من الأرقام تحت.
+            if (m.mostMissed != null) ...[
+              const SizedBox(height: 8),
+              _line('⚠️',
+                  tr('أكتر صلاة بتفوتك: ${prayerNameLabel(m.mostMissed!)} (${arNum(m.mostMissedCount)} مرة)',
+                      'Most missed: ${prayerNameLabel(m.mostMissed!)} (${arNum(m.mostMissedCount)}×)'),
+                  scheme.error),
+            ],
+            if (m.bestWeekIndex != null) ...[
+              const SizedBox(height: 4),
+              _line('🏅',
+                  tr('أفضل أسبوع: أيام ${arNum(m.bestWeekIndex! * 7 + 1)}–${arNum(m.bestWeekIndex! * 7 + 7)} (${arNum(m.bestWeekCount)} صلاة)',
+                      'Best week: days ${arNum(m.bestWeekIndex! * 7 + 1)}–${arNum(m.bestWeekIndex! * 7 + 7)} (${arNum(m.bestWeekCount)} prayers)'),
+                  Colors.green),
+            ],
             const SizedBox(height: 10),
             for (var i = 0; i < 5; i++) ...[
               Row(
@@ -187,6 +202,16 @@ class _SpiritualStatsScreenState extends State<SpiritualStatsScreen> {
       ),
     );
   }
+
+  Widget _line(String emoji, String text, Color color) => Row(children: [
+        Text(emoji, style: const TextStyle(fontSize: 13)),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(text,
+              style: TextStyle(
+                  fontSize: 12.5, fontWeight: FontWeight.w600, color: color)),
+        ),
+      ]);
 
   Widget _stat(String emoji, String label, String value, Color color) {
     return Container(

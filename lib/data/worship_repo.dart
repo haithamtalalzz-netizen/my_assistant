@@ -50,7 +50,7 @@ class WorshipRepo {
   }
 
   /// إحصائية الشهر: عدد مرات كل صلاة (٠=فجر..٤=عشا) + الأيام الكاملة +
-  /// نسبة الالتزام على الأيام اللى عدّت من الشهر. [at] للاختبار.
+  /// نسبة الالتزام على الأيام اللى عدّت من الشهر + أفضل أسبوع. [at] للاختبار.
   Future<MonthPrayerStats> monthlyPrayerStats([DateTime? at]) async {
     final now = at ?? DateTime.now();
     final prefix =
@@ -69,10 +69,32 @@ class WorshipRepo {
         'SELECT day, COUNT(*) AS c FROM prayer_log WHERE day LIKE ? '
         'GROUP BY day HAVING c >= 5',
         ['$prefix%']);
+
+    // أفضل أسبوع: بنقسم أيام الشهر لأسابيع (١-٧، ٨-١٤، …) ونجمع كل صلاة
+    // اتسجّلت فيها — بنعدّ الأسابيع اللى عدّت بس.
+    final dayRows = await db.rawQuery(
+        'SELECT day, COUNT(*) AS c FROM prayer_log WHERE day LIKE ? '
+        'GROUP BY day',
+        ['$prefix%']);
+    final weekCounts = List<int>.filled(5, 0);
+    for (final r in dayRows) {
+      final d = DateTime.tryParse(r['day'] as String);
+      if (d == null) continue;
+      final w = ((d.day - 1) ~/ 7).clamp(0, 4);
+      weekCounts[w] += (r['c'] as num).toInt();
+    }
+    final elapsedWeeks = ((now.day - 1) ~/ 7) + 1;
+    var bestWeek = 0;
+    for (var i = 1; i < elapsedWeeks && i < 5; i++) {
+      if (weekCounts[i] > weekCounts[bestWeek]) bestWeek = i;
+    }
+
     return MonthPrayerStats(
       perPrayer: perPrayer,
       fullDays: fullRows.length,
       elapsedDays: now.day,
+      bestWeekIndex: weekCounts[bestWeek] > 0 ? bestWeek : null,
+      bestWeekCount: weekCounts[bestWeek],
     );
   }
 
@@ -388,10 +410,18 @@ class MonthPrayerStats {
   /// كام يوم عدّى من الشهر (مقام النسبة).
   final int elapsedDays;
 
+  /// أفضل أسبوع فى الشهر (٠ = أيام ١-٧) — null لو مفيش أى تسجيل.
+  final int? bestWeekIndex;
+
+  /// عدد الصلوات فى أفضل أسبوع.
+  final int bestWeekCount;
+
   const MonthPrayerStats({
     required this.perPrayer,
     required this.fullDays,
     required this.elapsedDays,
+    this.bestWeekIndex,
+    this.bestWeekCount = 0,
   });
 
   int get totalLogged => perPrayer.fold(0, (s, c) => s + c);
@@ -400,6 +430,25 @@ class MonthPrayerStats {
   int get percent => elapsedDays <= 0
       ? 0
       : (totalLogged / (elapsedDays * 5) * 100).clamp(0, 100).round();
+
+  /// رقم الصلاة الأكتر فواتًا (الأقل تسجيلاً) — null لو مفيش أى تسجيل أو
+  /// لو كلهم متساويين (مافيش «أكتر واحدة بتفوت» ساعتها).
+  int? get mostMissed {
+    if (totalLogged == 0) return null;
+    var min = 0;
+    for (var i = 1; i < 5; i++) {
+      if (perPrayer[i] < perPrayer[min]) min = i;
+    }
+    // كلهم زى بعض → مافيش صلاة مميزة بالفوات.
+    if (perPrayer.every((c) => c == perPrayer[min])) return null;
+    return min;
+  }
+
+  /// كام مرة فاتت الصلاة الأكتر فواتًا (على الأيام اللى عدّت).
+  int get mostMissedCount {
+    final p = mostMissed;
+    return p == null ? 0 : (elapsedDays - perPrayer[p]).clamp(0, elapsedDays);
+  }
 }
 
 /// ملخّص أسبوعى روحى.

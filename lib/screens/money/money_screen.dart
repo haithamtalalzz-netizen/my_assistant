@@ -6,6 +6,7 @@ import '../../core/l10n.dart';
 import '../../widgets/search_action.dart';
 import '../../core/month_summary.dart';
 import '../../core/money_export.dart';
+import '../../core/money_trends.dart';
 import '../../core/ocr.dart';
 import '../../data/bills_repo.dart';
 import '../../data/debts_repo.dart';
@@ -54,6 +55,10 @@ class _MoneyScreenState extends State<MoneyScreen> {
   double _prevIncome = 0;
   List<(String, double)> _sixMonths = [];
 
+  /// مقارنة كل فئة + تدفّق الشهور (للرصيد التراكمى).
+  List<CategoryDelta> _deltas = [];
+  List<MonthFlow> _flow = [];
+
   bool get _isCurrentMonth {
     final now = DateTime.now();
     return _month.year == now.year && _month.month == now.month;
@@ -96,8 +101,12 @@ class _MoneyScreenState extends State<MoneyScreen> {
         await _repo.totalForMonth(m.year, m.month),
       ));
     }
+    final deltas = await MoneyTrends.categoryDeltas(_month.year, _month.month);
+    final flow = await MoneyTrends.monthlyFlow(_month.year, _month.month);
     if (!mounted) return;
     setState(() {
+      _deltas = deltas;
+      _flow = flow;
       _expenses = expenses;
       _byCategory = byCat;
       _categoryBudgets = catBudgets;
@@ -391,6 +400,12 @@ class _MoneyScreenState extends State<MoneyScreen> {
                   _budgetCard(context),
                   const SizedBox(height: 8),
                   _compareCard(context),
+                  const SizedBox(height: 8),
+                  _categoryDeltaCard(context),
+                  const SizedBox(height: 8),
+                  _balanceTrendCard(context),
+                  const SizedBox(height: 8),
+                  _whereCard(context),
                   SectionHeader(tr('الدخل', 'Income'),
                       trailing: TextButton(
                           onPressed: _addIncome,
@@ -566,6 +581,267 @@ class _MoneyScreenState extends State<MoneyScreen> {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// «إيه اللى اتغيّر؟» — الفئات مرتّبة بأكبر فرق عن الشهر اللى فات.
+  Widget _categoryDeltaCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    // بنعرض اللى اتغير فعلًا بس (فرق ≥ ١ جنيه) — الباقى ضوضاء.
+    final shown = [for (final d in _deltas) if (d.diff.abs() >= 1) d].take(5);
+    if (shown.isEmpty) return const SizedBox.shrink();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Text('🔀', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 8),
+              Text(tr('إيه اللى اتغيّر عن الشهر اللى فات؟',
+                  'What changed vs last month?'),
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
+            ]),
+            const SizedBox(height: 10),
+            for (final d in shown) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(children: [
+                  Icon(d.diff > 0 ? Icons.arrow_upward : Icons.arrow_downward,
+                      size: 14,
+                      color: d.diff > 0 ? scheme.error : Colors.green),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(expenseCategoryLabel(d.category),
+                        style: const TextStyle(fontSize: 13)),
+                  ),
+                  Text(
+                    d.isNew
+                        ? tr('جديد', 'new')
+                        : d.stopped
+                            ? tr('وقف', 'stopped')
+                            : d.percent == null
+                                ? '—'
+                                : '${arNum(d.percent!.abs().round())}٪',
+                    style: TextStyle(fontSize: 12, color: scheme.outline),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 92,
+                    child: Text(
+                      '${d.diff > 0 ? '+' : '−'}${egp(d.diff.abs())}',
+                      textAlign: TextAlign.end,
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: d.diff > 0 ? scheme.error : Colors.green),
+                    ),
+                  ),
+                ]),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// ترند الرصيد: الصافى التراكمى عبر آخر ٦ شهور — بيوضّح لو بتاكل من رصيدك.
+  Widget _balanceTrendCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    if (_flow.isEmpty) return const SizedBox.shrink();
+    final cum = MoneyTrends.cumulativeNet(_flow);
+    final hasData = _flow.any((f) => f.income > 0 || f.spent > 0);
+    if (!hasData) return const SizedBox.shrink();
+    final maxAbs = cum.fold<double>(1, (m, v) => v.abs() > m ? v.abs() : m);
+    final last = cum.last;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Text('📈', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(tr('ترند الرصيد (صافى تراكمى)',
+                    'Balance trend (cumulative net)'),
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+              ),
+              Text(egp(last),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: last >= 0 ? Colors.green : scheme.error)),
+            ]),
+            const SizedBox(height: 4),
+            Text(
+              last >= 0
+                  ? tr('بتوفّر على مدى الشهور دى.', 'You are net positive.')
+                  : tr('بتاكل من رصيدك على مدى الشهور دى.',
+                      'You are running a deficit over these months.'),
+              style: TextStyle(fontSize: 12, color: scheme.outline),
+            ),
+            const SizedBox(height: 10),
+            // أعمدة فوق/تحت خط الصفر.
+            SizedBox(
+              height: 76,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  for (var i = 0; i < _flow.length; i++)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 3),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // النص العلوى = العمود الموجب.
+                            SizedBox(
+                              height: 28,
+                              child: Align(
+                                alignment: Alignment.bottomCenter,
+                                child: Container(
+                                  height: cum[i] > 0
+                                      ? (26 * (cum[i] / maxAbs)).clamp(2, 26)
+                                      : 0,
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withValues(alpha: 0.7),
+                                    borderRadius: const BorderRadius.vertical(
+                                        top: Radius.circular(3)),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Container(height: 1, color: scheme.outlineVariant),
+                            SizedBox(
+                              height: 28,
+                              child: Align(
+                                alignment: Alignment.topCenter,
+                                child: Container(
+                                  height: cum[i] < 0
+                                      ? (26 * (cum[i].abs() / maxAbs))
+                                          .clamp(2, 26)
+                                      : 0,
+                                  decoration: BoxDecoration(
+                                    color: scheme.error.withValues(alpha: 0.7),
+                                    borderRadius: const BorderRadius.vertical(
+                                        bottom: Radius.circular(3)),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(_flow[i].label,
+                                  style: TextStyle(
+                                      fontSize: 10, color: scheme.outline)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// «فين فلوسى؟» — تدفّق مبسّط: الدخل ← الفئات بعرض متناسب مع نصيبها.
+  /// (Sankey حقيقى محتاج مكتبة؛ ده بيوصّل نفس المعنى بويدجتس عادية.)
+  Widget _whereCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    if (_byCategory.isEmpty || _total <= 0) return const SizedBox.shrink();
+    final entries = _byCategory.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final top = entries.take(6).toList();
+    final rest = entries.skip(6).fold<double>(0, (s, e) => s + e.value);
+    final base = _incomeTotal > 0 ? _incomeTotal : _total;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Text('🔎', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(tr('فين فلوسى؟', 'Where did my money go?'),
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ]),
+            const SizedBox(height: 4),
+            Text(
+              _incomeTotal > 0
+                  ? tr('من ${egp(_incomeTotal)} دخل، اتصرف ${egp(_total)}',
+                      'Of ${egp(_incomeTotal)} income, ${egp(_total)} spent')
+                  : tr('إجمالى المصروف ${egp(_total)}',
+                      'Total spent ${egp(_total)}'),
+              style: TextStyle(fontSize: 12, color: scheme.outline),
+            ),
+            const SizedBox(height: 10),
+            for (final e in top) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(children: [
+                  SizedBox(
+                    width: 74,
+                    child: Text(expenseCategoryLabel(e.key),
+                        style: const TextStyle(fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: (e.value / base).clamp(0.0, 1.0),
+                        minHeight: 10,
+                        backgroundColor: scheme.surfaceContainerHighest,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 78,
+                    child: Text(egp(e.value),
+                        textAlign: TextAlign.end,
+                        style: const TextStyle(fontSize: 11.5)),
+                  ),
+                ]),
+              ),
+            ],
+            if (rest > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  tr('+ ${egp(rest)} فى فئات تانية', '+ ${egp(rest)} in others'),
+                  style: TextStyle(fontSize: 11.5, color: scheme.outline),
+                ),
+              ),
+            if (_incomeTotal > _total)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(children: [
+                  const Text('💚', style: TextStyle(fontSize: 14)),
+                  const SizedBox(width: 6),
+                  Text(
+                    tr('فضل ${egp(_incomeTotal - _total)} من دخل الشهر',
+                        '${egp(_incomeTotal - _total)} left from this month'),
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ]),
+              ),
           ],
         ),
       ),

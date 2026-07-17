@@ -32,6 +32,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
   final _repo = LabResultsRepo();
   bool _loading = true;
   List<LabResult> _latest = [];
+  LabMonthSummary? _month;
 
   @override
   void initState() {
@@ -41,9 +42,11 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
 
   Future<void> _load() async {
     final latest = await _repo.latestPerName();
+    final month = await _repo.monthSummary();
     if (!mounted) return;
     setState(() {
       _latest = latest;
+      _month = month;
       _loading = false;
     });
   }
@@ -68,7 +71,11 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
                     ])
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(12, 8, 12, 90),
-                      children: [for (final r in _latest) _tile(r, scheme)],
+                      children: [
+                        if (_month != null && !_month!.isEmpty)
+                          _monthCard(context, _month!),
+                        for (final r in _latest) _tile(r, scheme),
+                      ],
                     ),
             ),
       floatingActionButton: FloatingActionButton(
@@ -78,6 +85,69 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
       ),
     );
   }
+
+  /// ملخّص الشهر — بيقول اللى اتغيّر، مش بس أرقام.
+  Widget _monthCard(BuildContext context, LabMonthSummary m) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Text('🗓', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                    tr('ملخّص ${arMonth(DateTime.now())}',
+                        'Summary — ${arMonth(DateTime.now())}'),
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+              ),
+              Text(
+                tr('${arNum(m.logged)} تحليل', '${arNum(m.logged)} results'),
+                style: TextStyle(fontSize: 12, color: scheme.outline),
+              ),
+            ]),
+            const SizedBox(height: 6),
+            if (m.outOfRange > 0)
+              _sumLine('⚠️',
+                  tr('${arNum(m.outOfRange)} خارج النطاق الطبيعى',
+                      '${arNum(m.outOfRange)} out of range'),
+                  scheme.error)
+            else
+              _sumLine('✓', tr('كلها داخل النطاق الطبيعى', 'All in range'),
+                  Colors.green),
+            if (m.improved.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              _sumLine('📈',
+                  tr('اتحسّن: ${m.improved.join('، ')}',
+                      'Improved: ${m.improved.join(', ')}'),
+                  Colors.green),
+            ],
+            if (m.worsened.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              _sumLine('📉',
+                  tr('خرج عن النطاق: ${m.worsened.join('، ')}',
+                      'Went out of range: ${m.worsened.join(', ')}'),
+                  scheme.error),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sumLine(String emoji, String text, Color color) => Row(children: [
+        Text(emoji, style: const TextStyle(fontSize: 13)),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(text,
+              style: TextStyle(
+                  fontSize: 12.5, fontWeight: FontWeight.w600, color: color)),
+        ),
+      ]);
 
   Widget _tile(LabResult r, ColorScheme scheme) {
     final color = _statusColor(r.status, scheme);

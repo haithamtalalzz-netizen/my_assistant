@@ -2,11 +2,20 @@ import 'package:flutter/material.dart';
 
 import '../data/settings_repo.dart';
 
-/// قسم واحد فى صفحة قابلة للترتيب: [id] ثابت (للحفظ) + [child] المحتوى.
+/// قسم واحد فى صفحة قابلة للترتيب: [id] ثابت (للحفظ) + المحتوى.
+///
+/// المحتوى بيتبنى بـ[builder] **كسول** — القايمة (`ListView.builder`) بتنادى
+/// الـbuilder وقت ما القسم يوصل للشاشة بس، فالأقسام تحت الطى مابتتبنيش لحد
+/// ما تتمرّر ليها. `Section(id, widget)` القديم لسه شغّال (بيلفّ الودجت).
 class Section {
   final String id;
-  final Widget child;
-  const Section(this.id, this.child);
+  final WidgetBuilder builder;
+
+  const Section.builder(this.id, this.builder);
+
+  /// شكل قديم: ودجت جاهز (بيتبنى فورًا). فضّل `Section.builder` للأقسام
+  /// التقيلة تحت الطى.
+  Section(this.id, Widget child) : builder = ((_) => child);
 }
 
 /// بيرتّب [sections] حسب [order] المحفوظ — أى قسم جديد (مش فى الترتيب المحفوظ)
@@ -101,12 +110,13 @@ class _ReorderableSectionsState extends State<ReorderableSections> {
         setState(() => _order = ids);
         _settings.setCardOrder(widget.storageKey, ids);
       },
-      itemBuilder: (_, i) => ReorderableDelayedDragStartListener(
+      itemBuilder: (ctx, i) => ReorderableDelayedDragStartListener(
         key: ValueKey(ordered[i].id),
         index: i,
         child: Padding(
           padding: EdgeInsets.only(bottom: widget.gap),
-          child: ordered[i].child,
+          // كسول: المحتوى بيتبنى هنا وقت ما القسم يوصل للشاشة بس.
+          child: ordered[i].builder(ctx),
         ),
       ),
     );
