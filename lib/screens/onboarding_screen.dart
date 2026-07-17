@@ -49,6 +49,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ValueListenableBuilder على اللغة عشان اختيار اللغة يبدّل كل نصوص
+    // الشاشة لحظيًا من غير ما نستنى إعادة بناء أعلى.
+    return ValueListenableBuilder(
+      valueListenable: AppState.locale,
+      builder: (context, _, _) => _buildBody(context),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: SafeArea(
@@ -57,6 +66,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           child: Column(
             children: [
               const Spacer(),
+              // اختيار اللغة أول حاجة — عربى/English، بيبدّل فورًا.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: SegmentedButton<String>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(value: 'ar', label: Text('العربية')),
+                    ButtonSegment(value: 'en', label: Text('English')),
+                  ],
+                  selected: {AppState.isEnglish ? 'en' : 'ar'},
+                  onSelectionChanged: (s) => AppState.setLanguage(s.first),
+                ),
+              ),
+              const SizedBox(height: 16),
               Icon(Icons.auto_awesome, size: 64, color: scheme.primary),
               const SizedBox(height: 16),
               Text(tr('أهلًا بيك في مساعدي', 'Welcome to My Assistant'),
