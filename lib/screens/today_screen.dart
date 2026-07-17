@@ -174,6 +174,8 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Future<void> _load() async {
+    // قياس زمن فتح الرئيسية — بيتسجّل فى اللوج لمتابعة الأداء.
+    final sw = Stopwatch()..start();
     final now = DateTime.now();
     final day = dayKey(now);
     final name = await _settings.userName();
@@ -186,42 +188,9 @@ class _TodayScreenState extends State<TodayScreen> {
     final water = await _health.waterOn(day);
     final waterMl = await _health.waterMlOn(day);
     final waterGoalMl = await _settings.waterGoalMl();
-    var sleep = await _health.sleepOn(day);
-    int? steps;
-    int? calories;
-    int? restingHr;
-    double? distanceKm;
-    if (await _settings.healthSyncEnabled()) {
-      steps = await HealthService.stepsToday();
-      // بنخزن الخطوات يوميًا عشان الرؤى وتقرير الدكتور.
-      if (steps != null && steps > 0) {
-        await MeasurementsRepo().upsertSteps(day, steps);
-      }
-      // مقاييس الساعة الذكية (كلها best-effort — أي واحدة مش متاحة ترجع null).
-      calories = await HealthService.activeCaloriesToday();
-      restingHr = await HealthService.restingHeartRate();
-      distanceKm = await HealthService.distanceTodayKm();
-      // بنخزن السعرات والمسافة يوميًا عشان الرؤى وتقرير الدكتور.
-      await MeasurementsRepo()
-          .upsertFitness(day, calories: calories, distanceKm: distanceKm);
-      // لو الساعة سجّلت تمرين النهارده، نعلّم تمرين اليوم «اتعمل» تلقائيًا.
-      final gymWorkouts = await HealthService.workoutsToday();
-      if (gymWorkouts != null && gymWorkouts > 0) {
-        final wRepo = WorkoutRepo();
-        if (!await wRepo.doneOn(day)) {
-          final planTitle = (await wRepo.plan())[now.weekday] ?? '';
-          await wRepo.setDone(day, true, title: planTitle);
-        }
-      }
-      if (sleep == null) {
-        // النوم بييجي تلقائيًا من Health Connect لو مفيش تسجيل يدوي.
-        final auto = await HealthService.lastNightSleepHours();
-        if (auto != null) {
-          await _health.setSleep(day, auto);
-          sleep = auto;
-        }
-      }
-    }
+    final sleep = await _health.sleepOn(day);
+    // مزامنة Health Connect (قنوات نظام بطيئة) اتأجلت لبعد أول رسمة —
+    // بتحدّث الخطوات/السعرات/النوم بـsetState خاص بيها لما توصل.
     final appts = await _appts.forDay(now);
     final meds = await _meds.all(activeOnly: true);
     final taken = await _meds.takenOn(day);
@@ -297,10 +266,6 @@ class _TodayScreenState extends State<TodayScreen> {
       _prayersTomorrow = prayersTomorrow;
       _weeklyDue = weeklyDue;
       _chronic = chronic;
-      _steps = steps;
-      _calories = calories;
-      _restingHr = restingHr;
-      _distanceKm = distanceKm;
       _calorieGoal = calorieGoal;
       _proteinTarget = proteinTarget;
       _carbsTarget = carbsTarget;
@@ -319,9 +284,57 @@ class _TodayScreenState extends State<TodayScreen> {
       _editingSleep = false;
       _loading = false;
     });
+    sw.stop();
+    dev.log('فتح الرئيسية: ${sw.elapsedMilliseconds}ms');
     unawaited(WidgetBridge.push());
     // الطقس best-effort — بيتحدث لوحده لما يوصل من غير ما يعطل الشاشة.
     unawaited(_loadWeather());
+    // مزامنة الصحة بعد أول رسمة — أبطأ جزء فى التحميل القديم.
+    if (stepsAuto) unawaited(_syncHealth(day, now));
+  }
+
+  /// مزامنة Health Connect (خطوات/سعرات/نبض/مسافة/نوم/تمرين) — بتشتغل بعد
+  /// ما الشاشة تترسم عشان قنوات النظام البطيئة ماتعطّلش فتح الرئيسية.
+  Future<void> _syncHealth(String day, DateTime now) async {
+    try {
+      final steps = await HealthService.stepsToday();
+      // بنخزن الخطوات يوميًا عشان الرؤى وتقرير الدكتور.
+      if (steps != null && steps > 0) {
+        await MeasurementsRepo().upsertSteps(day, steps);
+      }
+      // مقاييس الساعة الذكية (كلها best-effort — أي واحدة مش متاحة ترجع null).
+      final calories = await HealthService.activeCaloriesToday();
+      final restingHr = await HealthService.restingHeartRate();
+      final distanceKm = await HealthService.distanceTodayKm();
+      // بنخزن السعرات والمسافة يوميًا عشان الرؤى وتقرير الدكتور.
+      await MeasurementsRepo()
+          .upsertFitness(day, calories: calories, distanceKm: distanceKm);
+      // لو الساعة سجّلت تمرين النهارده، نعلّم تمرين اليوم «اتعمل» تلقائيًا.
+      final gymWorkouts = await HealthService.workoutsToday();
+      if (gymWorkouts != null && gymWorkouts > 0) {
+        final wRepo = WorkoutRepo();
+        if (!await wRepo.doneOn(day)) {
+          final planTitle = (await wRepo.plan())[now.weekday] ?? '';
+          await wRepo.setDone(day, true, title: planTitle);
+        }
+      }
+      double? autoSleep;
+      if (_sleep == null) {
+        // النوم بييجي تلقائيًا من Health Connect لو مفيش تسجيل يدوي.
+        autoSleep = await HealthService.lastNightSleepHours();
+        if (autoSleep != null) await _health.setSleep(day, autoSleep);
+      }
+      if (!mounted) return;
+      setState(() {
+        _steps = steps ?? _steps;
+        _calories = calories ?? _calories;
+        _restingHr = restingHr ?? _restingHr;
+        _distanceKm = distanceKm ?? _distanceKm;
+        if (autoSleep != null) _sleep = autoSleep;
+      });
+    } on Exception catch (e, st) {
+      dev.log('فشل مزامنة الصحة', error: e, stackTrace: st);
+    }
   }
 
   Future<void> _loadWeather() async {

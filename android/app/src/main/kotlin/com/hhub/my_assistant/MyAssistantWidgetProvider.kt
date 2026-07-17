@@ -49,6 +49,23 @@ class MyAssistantWidgetProvider : HomeWidgetProvider() {
                         Uri.parse("myassistant://water/add")
                     )
                 )
+                // زرارين بيفتحوا التطبيق على شيت الوجبة / شاشة المهام.
+                setOnClickPendingIntent(
+                    R.id.widget_meal_add,
+                    HomeWidgetLaunchIntent.getActivity(
+                        context,
+                        MainActivity::class.java,
+                        Uri.parse("myassistant://open/meal")
+                    )
+                )
+                setOnClickPendingIntent(
+                    R.id.widget_task_add,
+                    HomeWidgetLaunchIntent.getActivity(
+                        context,
+                        MainActivity::class.java,
+                        Uri.parse("myassistant://open/tasks")
+                    )
+                )
             }
             appWidgetManager.updateAppWidget(widgetId, views)
         }

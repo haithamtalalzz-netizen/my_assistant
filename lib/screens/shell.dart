@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:quick_actions/quick_actions.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
@@ -17,8 +18,10 @@ import 'docs/doc_form.dart';
 import 'docs/docs_screen.dart';
 import 'habits/habits_screen.dart';
 import 'money/money_screen.dart';
+import 'food/meal_sheet.dart';
 import 'money/quick_expense_sheet.dart';
 import 'schedule/schedule_screen.dart';
+import 'tasks/tasks_screen.dart';
 import 'today_screen.dart';
 import 'voice/voice_sheet.dart';
 
@@ -32,6 +35,7 @@ class Shell extends StatefulWidget {
 class _ShellState extends State<Shell> {
   int _index = 0;
   StreamSubscription<List<SharedMediaFile>>? _shareSub;
+  StreamSubscription<Uri?>? _widgetSub;
 
   @override
   void initState() {
@@ -39,13 +43,36 @@ class _ShellState extends State<Shell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initQuickActions();
       _initSharing();
+      _initWidgetLaunch();
     });
   }
 
   @override
   void dispose() {
     _shareSub?.cancel();
+    _widgetSub?.cancel();
     super.dispose();
+  }
+
+  /// زرارات الويدجت اللى بتفتح التطبيق (وجبة/مهام) — بتوصل كـURI:
+  /// myassistant://open/meal أو myassistant://open/tasks.
+  void _initWidgetLaunch() {
+    if (kIsWeb) return;
+    HomeWidget.initiallyLaunchedFromHomeWidget().then(_handleWidgetUri);
+    _widgetSub = HomeWidget.widgetClicked.listen(_handleWidgetUri);
+  }
+
+  Future<void> _handleWidgetUri(Uri? uri) async {
+    if (uri == null || !mounted || uri.host != 'open') return;
+    final target = uri.pathSegments.isEmpty ? '' : uri.pathSegments.first;
+    switch (target) {
+      case 'meal':
+        await showMealSheet(context);
+      case 'tasks':
+        await Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const TasksScreen()));
+    }
+    if (mounted) setState(() {}); // تحديث بيانات الشاشة بعد الرجوع
   }
 
   /// استقبال المشاركة من التطبيقات التانية: صورة → مستند، نص → صندوق الوارد.
