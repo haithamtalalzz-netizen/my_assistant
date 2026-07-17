@@ -24,6 +24,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
   final _repo = MealsRepo();
   final _settings = SettingsRepo();
   final _input = TextEditingController();
+  final _inputFocus = FocusNode();
   bool _loading = true;
   List<ShoppingList> _lists = [];
 
@@ -45,6 +46,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
   @override
   void dispose() {
     _input.dispose();
+    _inputFocus.dispose();
     super.dispose();
   }
 
@@ -71,8 +73,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       final items = _buyLaterTab
           ? await _repo.buyLaterItems()
           : await _repo.shoppingItems(listId: _activeListId);
-      logInfo('تسوق: تحميل قائمة=$_activeListId لاحقاً=$_buyLaterTab '
-          'قوائم=${lists.length} → ${items.length} صنف');
       final total =
           _buyLaterTab ? 0.0 : await _repo.shoppingTotal(listId: _activeListId);
       final order = orderedShoppingCategories(
@@ -107,15 +107,22 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
   Future<void> _add() async {
     final name = _input.text.trim();
-    // أول سطر خالص عشان نعرف: الزرار اتضغط ولا لأ، والنص إيه.
-    logInfo('تسوق: _add اتنادت، النص="$name" قائمة=$_activeListId '
-        'لاحقاً=$_buyLaterTab');
-    if (name.isEmpty) return;
-    final id = await _repo.addShoppingItem(name,
+    if (name.isEmpty) {
+      // بدل ما الزرار يعمل حاجة صامتة (فيبان مش شغّال) — نوجّه المستخدم
+      // ونرجّع التركيز للخانة عشان يكتب.
+      _inputFocus.requestFocus();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          duration: const Duration(seconds: 2),
+          content: Text(tr('اكتب اسم الصنف فى الخانة الأول',
+              'Type an item name in the field first'))));
+      return;
+    }
+    await _repo.addShoppingItem(name,
         category: _addCat, listId: _activeListId, buyLater: _buyLaterTab);
-    logInfo('تسوق: اتضاف id=$id لقائمة=$_activeListId');
     _input.clear();
     await _load();
+    // نسيب التركيز فى الخانة عشان تكتب الصنف اللى بعده على طول.
+    if (mounted) _inputFocus.requestFocus();
   }
 
   /// تعديل/إضافة صنف بكل الحقول (اسم/كمية/تصنيف/مكان/سعر/أولوية/لاحقاً/قائمة).
@@ -848,6 +855,13 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                       Expanded(
                         child: TextField(
                           controller: _input,
+                          focusNode: _inputFocus,
+                          // إيقاف الاقتراحات/التصحيح بيمنع «النص المعلّق» فى
+                          // كيبورد سامسونج/العربى اللى كان بيخلّى الخانة تتقرا
+                          // فاضية وقت الضغط على «+».
+                          autocorrect: false,
+                          enableSuggestions: false,
+                          textInputAction: TextInputAction.done,
                           decoration: InputDecoration(
                               labelText: _buyLaterTab
                                   ? tr('حاجة أشتريها لاحقاً',
