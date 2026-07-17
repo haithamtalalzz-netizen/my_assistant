@@ -107,12 +107,13 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
   Future<void> _add() async {
     final name = _input.text.trim();
+    // أول سطر خالص عشان نعرف: الزرار اتضغط ولا لأ، والنص إيه.
+    logInfo('تسوق: _add اتنادت، النص="$name" قائمة=$_activeListId '
+        'لاحقاً=$_buyLaterTab');
     if (name.isEmpty) return;
-    logInfo('تسوق: إضافة "$name" → قائمة=$_activeListId '
-        'لاحقاً=$_buyLaterTab فئة=$_addCat');
     final id = await _repo.addShoppingItem(name,
         category: _addCat, listId: _activeListId, buyLater: _buyLaterTab);
-    logInfo('تسوق: اتضاف id=$id');
+    logInfo('تسوق: اتضاف id=$id لقائمة=$_activeListId');
     _input.clear();
     await _load();
   }
