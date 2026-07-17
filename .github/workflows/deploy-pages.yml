@@ -49,7 +49,12 @@ jobs:
           REPO_NAME="${GITHUB_REPOSITORY#*/}"
           flutter build web --release --pwa-strategy=none --no-web-resources-cdn --base-href "/$REPO_NAME/"
 
+      # enablement: true بيفعّل GitHub Pages أوتوماتيك عبر الـAPI لو مش مفعّل —
+      # بيحل فشل خطوة النشر السريع (deploy-pages بيقع فى ثوانى لو Pages مش
+      # مضبوط على "GitHub Actions"). idempotent: لو مفعّل أصلاً مبيعملش حاجة.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
