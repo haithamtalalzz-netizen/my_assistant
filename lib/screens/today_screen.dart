@@ -285,7 +285,9 @@ class _TodayScreenState extends State<TodayScreen> {
       _loading = false;
     });
     sw.stop();
-    dev.log('فتح الرئيسية: ${sw.elapsedMilliseconds}ms');
+    // debugPrint مش dev.log — الأخير بيتلغى تمامًا فى بناء الـrelease (بيروح
+    // للـVM service اللى مش موجود)، والقياس ده لازم يبان على الجهاز الحقيقى.
+    debugPrint('فتح الرئيسية: ${sw.elapsedMilliseconds}ms');
     unawaited(WidgetBridge.push());
     // الطقس best-effort — بيتحدث لوحده لما يوصل من غير ما يعطل الشاشة.
     unawaited(_loadWeather());
