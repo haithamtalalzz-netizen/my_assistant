@@ -84,15 +84,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               const SizedBox(height: 16),
               // النوع (ذكر / أنثى) — بيفعّل بند الدورة الشهرية للإناث.
               SegmentedButton<String>(
+                // من غير إيموجى: الإيموجى كان بيتحط جنب «ذكر» فتبان الكلمة
+                // متقطّعة (ذ مايتوصلش بالحرف اللى بعده أصلاً فى العربى).
                 segments: [
                   ButtonSegment(
-                      value: 'male',
-                      icon: const Text('👨'),
-                      label: Text(tr('ذكر', 'Male'))),
+                      value: 'male', label: Text(tr('ذكر', 'Male'))),
                   ButtonSegment(
-                      value: 'female',
-                      icon: const Text('👩'),
-                      label: Text(tr('أنثى', 'Female'))),
+                      value: 'female', label: Text(tr('أنثى', 'Female'))),
                 ],
                 selected: _gender.isEmpty ? {} : {_gender},
                 emptySelectionAllowed: true,

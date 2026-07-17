@@ -141,15 +141,12 @@ class _AccountScreenState extends State<AccountScreen> {
                 ),
                 const SizedBox(height: 8),
                 SegmentedButton<String>(
+                  // من غير إيموجى (كان بيقطّع كلمة «ذكر») — زى شاشة الترحيب.
                   segments: [
                     ButtonSegment(
-                        value: 'male',
-                        icon: const Text('👨'),
-                        label: Text(tr('ذكر', 'Male'))),
+                        value: 'male', label: Text(tr('ذكر', 'Male'))),
                     ButtonSegment(
-                        value: 'female',
-                        icon: const Text('👩'),
-                        label: Text(tr('أنثى', 'Female'))),
+                        value: 'female', label: Text(tr('أنثى', 'Female'))),
                   ],
                   selected: _gender.isEmpty ? {} : {_gender},
                   emptySelectionAllowed: true,
