@@ -1633,12 +1633,59 @@ class CycleDay {
       };
 }
 
+/// قائمة تسوق مسمّاة (سوبرماركت/صيدلية/ملابس...) — تجمّع البنود.
+class ShoppingList {
+  final int? id;
+  final String name;
+  final String emoji;
+  final int sortOrder;
+  final String createdAt;
+
+  const ShoppingList({
+    this.id,
+    required this.name,
+    this.emoji = '🛒',
+    this.sortOrder = 0,
+    required this.createdAt,
+  });
+
+  factory ShoppingList.fromMap(Map<String, Object?> m) => ShoppingList(
+        id: m['id'] as int?,
+        name: m['name'] as String,
+        emoji: m['emoji'] as String? ?? '🛒',
+        sortOrder: (m['sort_order'] as int?) ?? 0,
+        createdAt: m['created_at'] as String,
+      );
+
+  Map<String, Object?> toMap() => {
+        'name': name,
+        'emoji': emoji,
+        'sort_order': sortOrder,
+        'created_at': createdAt,
+      };
+}
+
 class ShoppingItem {
   final int? id;
   final String name;
   final bool checked;
   final String category;
   final double price;
+
+  /// القائمة اللى الصنف تابع ليها (null = من غير قائمة/قديم).
+  final int? listId;
+
+  /// كمية حرة نصية (مثلًا «٢ كيلو» / «٣ علب»).
+  final String qty;
+
+  /// مكان الشراء (اختيارى — مفيد لقوائم زى الهدايا).
+  final String place;
+
+  /// ٠ عادى · ١ مهم/عاجل (للفرز فى «أشتري لاحقاً»).
+  final int priority;
+
+  /// ١ = مؤجّل (قائمة الشراء طويلة الأمد، مش القائمة النشطة).
+  final bool buyLater;
   final String createdAt;
 
   const ShoppingItem({
@@ -1647,6 +1694,11 @@ class ShoppingItem {
     this.checked = false,
     this.category = '',
     this.price = 0,
+    this.listId,
+    this.qty = '',
+    this.place = '',
+    this.priority = 0,
+    this.buyLater = false,
     required this.createdAt,
   });
 
@@ -1656,6 +1708,11 @@ class ShoppingItem {
         checked: (m['checked'] as int? ?? 0) == 1,
         category: m['category'] as String? ?? '',
         price: (m['price'] as num?)?.toDouble() ?? 0,
+        listId: m['list_id'] as int?,
+        qty: m['qty'] as String? ?? '',
+        place: m['place'] as String? ?? '',
+        priority: (m['priority'] as int?) ?? 0,
+        buyLater: (m['buy_later'] as int? ?? 0) == 1,
         createdAt: m['created_at'] as String,
       );
 
@@ -1664,6 +1721,11 @@ class ShoppingItem {
         'checked': checked ? 1 : 0,
         'category': category,
         'price': price,
+        'list_id': listId,
+        'qty': qty,
+        'place': place,
+        'priority': priority,
+        'buy_later': buyLater ? 1 : 0,
         'created_at': createdAt,
       };
 }

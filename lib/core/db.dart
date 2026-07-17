@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 52,
+      version: 53,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -331,7 +331,58 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 53 && newV >= 53) {
+      // قائمة تسوق شاملة: قوائم متعددة + كمية/مكان/أولوية/«أشتري لاحقاً».
+      for (final ddl in _v53Tables) {
+        await db.execute(ddl);
+      }
+      await _safeAddColumn(db, 'shopping_items', 'list_id', 'INTEGER');
+      await _safeAddColumn(
+          db, 'shopping_items', 'qty', "TEXT NOT NULL DEFAULT ''");
+      await _safeAddColumn(
+          db, 'shopping_items', 'place', "TEXT NOT NULL DEFAULT ''");
+      await _safeAddColumn(
+          db, 'shopping_items', 'priority', 'INTEGER NOT NULL DEFAULT 0');
+      await _safeAddColumn(
+          db, 'shopping_items', 'buy_later', 'INTEGER NOT NULL DEFAULT 0');
+      // قوائم افتراضية + نقل البنود القديمة لقائمة «سوبرماركت».
+      final now = DateTime.now().toIso8601String();
+      const defaults = [
+        ['سوبرماركت', '🛒'],
+        ['صيدلية', '💊'],
+        ['ملابس', '👕'],
+        ['أدوات منزل', '🔧'],
+        ['هدايا', '🎁'],
+      ];
+      var sort = 0;
+      int? firstId;
+      for (final d in defaults) {
+        final id = await db.insert('shopping_lists', {
+          'name': d[0],
+          'emoji': d[1],
+          'sort_order': sort++,
+          'created_at': now,
+        });
+        firstId ??= id;
+      }
+      if (firstId != null) {
+        await db.update('shopping_items', {'list_id': firstId},
+            where: 'list_id IS NULL');
+      }
+    }
   }
+
+  /// قوائم التسوق المتعددة (سوبرماركت/صيدلية/ملابس...).
+  static const List<String> _v53Tables = [
+    '''
+      CREATE TABLE shopping_lists(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        emoji TEXT NOT NULL DEFAULT '🛒',
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      )''',
+  ];
 
   /// مهام فرعية + جلسات تركيز (بومودورو).
   static const List<String> _v52Tables = [
@@ -1192,6 +1243,11 @@ class AppDb {
         checked INTEGER NOT NULL DEFAULT 0,
         category TEXT NOT NULL DEFAULT '',
         price REAL NOT NULL DEFAULT 0,
+        list_id INTEGER,
+        qty TEXT NOT NULL DEFAULT '',
+        place TEXT NOT NULL DEFAULT '',
+        priority INTEGER NOT NULL DEFAULT 0,
+        buy_later INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL
       )''',
     '''
@@ -1445,6 +1501,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v52Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v53Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);

@@ -101,15 +101,79 @@ class MealsRepo {
 
   // ---- قائمة التسوق ----
 
-  Future<List<ShoppingItem>> shoppingItems() async {
+  // ---- قوائم التسوق المتعددة ----
+
+  Future<List<ShoppingList>> shoppingLists() async {
     final db = await AppDb.instance;
     final rows =
-        await db.query('shopping_items', orderBy: 'checked, id DESC');
+        await db.query('shopping_lists', orderBy: 'sort_order, id');
+    return rows.map(ShoppingList.fromMap).toList();
+  }
+
+  Future<int> addShoppingList(String name, {String emoji = '🛒'}) async {
+    final db = await AppDb.instance;
+    final maxRow = await db
+        .rawQuery('SELECT COALESCE(MAX(sort_order), -1) m FROM shopping_lists');
+    final next = ((maxRow.first['m'] as num?)?.toInt() ?? -1) + 1;
+    return db.insert('shopping_lists', {
+      'name': name,
+      'emoji': emoji,
+      'sort_order': next,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<void> renameShoppingList(int id,
+      {String? name, String? emoji}) async {
+    final db = await AppDb.instance;
+    final data = <String, Object?>{};
+    if (name != null) data['name'] = name;
+    if (emoji != null) data['emoji'] = emoji;
+    if (data.isEmpty) return;
+    await db.update('shopping_lists', data, where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// يمسح القائمة وبنودها.
+  Future<void> deleteShoppingList(int id) async {
+    final db = await AppDb.instance;
+    await db.delete('shopping_items', where: 'list_id = ?', whereArgs: [id]);
+    await db.delete('shopping_lists', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ---- بنود التسوق ----
+
+  /// بنود قائمة معيّنة (النشطة، مش المؤجّلة). [listId] = null → كل البنود.
+  Future<List<ShoppingItem>> shoppingItems({int? listId}) async {
+    final db = await AppDb.instance;
+    final where = ['buy_later = 0'];
+    final args = <Object?>[];
+    if (listId != null) {
+      where.add('list_id = ?');
+      args.add(listId);
+    }
+    final rows = await db.query('shopping_items',
+        where: where.join(' AND '),
+        whereArgs: args.isEmpty ? null : args,
+        orderBy: 'checked, id DESC');
+    return rows.map(ShoppingItem.fromMap).toList();
+  }
+
+  /// قائمة «أشتري لاحقاً» (المؤجّلة) عبر كل القوائم، الأهم الأول.
+  Future<List<ShoppingItem>> buyLaterItems() async {
+    final db = await AppDb.instance;
+    final rows = await db.query('shopping_items',
+        where: 'buy_later = 1', orderBy: 'priority DESC, id DESC');
     return rows.map(ShoppingItem.fromMap).toList();
   }
 
   Future<int> addShoppingItem(String name,
-      {String category = '', double price = 0}) async {
+      {String category = '',
+      double price = 0,
+      int? listId,
+      String qty = '',
+      String place = '',
+      int priority = 0,
+      bool buyLater = false}) async {
     final db = await AppDb.instance;
     return db.insert(
         'shopping_items',
@@ -117,17 +181,34 @@ class MealsRepo {
           name: name,
           category: category,
           price: price,
+          listId: listId,
+          qty: qty,
+          place: place,
+          priority: priority,
+          buyLater: buyLater,
           createdAt: DateTime.now().toIso8601String(),
         ).toMap());
   }
 
   Future<void> updateShoppingItem(int id,
-      {String? name, String? category, double? price}) async {
+      {String? name,
+      String? category,
+      double? price,
+      int? listId,
+      String? qty,
+      String? place,
+      int? priority,
+      bool? buyLater}) async {
     final db = await AppDb.instance;
     final data = <String, Object?>{};
     if (name != null) data['name'] = name;
     if (category != null) data['category'] = category;
     if (price != null) data['price'] = price;
+    if (listId != null) data['list_id'] = listId;
+    if (qty != null) data['qty'] = qty;
+    if (place != null) data['place'] = place;
+    if (priority != null) data['priority'] = priority;
+    if (buyLater != null) data['buy_later'] = buyLater ? 1 : 0;
     if (data.isEmpty) return;
     await db.update('shopping_items', data, where: 'id = ?', whereArgs: [id]);
   }
@@ -148,11 +229,14 @@ class MealsRepo {
     await db.delete('shopping_items', where: 'checked = 1');
   }
 
-  /// إجمالي أسعار العناصر اللى لسه ماتشالتش.
-  Future<double> shoppingTotal() async {
+  /// إجمالي أسعار العناصر اللى لسه ماتشالتش (لقائمة معيّنة أو الكل).
+  Future<double> shoppingTotal({int? listId}) async {
     final db = await AppDb.instance;
     final r = await db.rawQuery(
-        'SELECT COALESCE(SUM(price),0) t FROM shopping_items WHERE checked = 0');
+        'SELECT COALESCE(SUM(price),0) t FROM shopping_items '
+        'WHERE checked = 0 AND buy_later = 0'
+        '${listId != null ? ' AND list_id = ?' : ''}',
+        listId != null ? [listId] : null);
     return (r.first['t'] as num).toDouble();
   }
 
@@ -179,19 +263,66 @@ class MealsRepo {
   }
 
   /// يضيف كل الأساسيات لقائمة التسوق (اللى مش موجودة بالفعل غير متشالة).
-  Future<int> addStaplesToList() async {
+  Future<int> addStaplesToList({int? listId}) async {
     final staplesList = await staples();
-    final existing = (await shoppingItems())
+    final existing = (await shoppingItems(listId: listId))
         .where((i) => !i.checked)
         .map((i) => i.name)
         .toSet();
     var added = 0;
     for (final s in staplesList) {
       if (!existing.contains(s.name)) {
-        await addShoppingItem(s.name, category: s.category);
+        await addShoppingItem(s.name, category: s.category, listId: listId);
         added++;
       }
     }
     return added;
   }
+
+  /// يضيف مجموعة أصناف من قالب لقائمة — بيتخطّى اللى موجود بالفعل.
+  Future<int> addTemplateToList(List<String> names, {int? listId}) async {
+    final existing = (await shoppingItems(listId: listId))
+        .where((i) => !i.checked)
+        .map((i) => i.name)
+        .toSet();
+    var added = 0;
+    for (final n in names) {
+      if (n.trim().isEmpty || existing.contains(n)) continue;
+      await addShoppingItem(n, listId: listId);
+      added++;
+    }
+    return added;
+  }
+}
+
+/// قوالب جاهزة (اسم القالب → أصناف نموذجية) — بضغطة تتضاف للقائمة.
+const Map<String, List<String>> kShoppingTemplates = {
+  'مستلزمات مدرسة': [
+    'كشاكيل', 'أقلام', 'ألوان', 'حقيبة', 'أدوات هندسية', 'مقلمة', 'كراسات'
+  ],
+  'عزومة': [
+    'فراخ', 'لحمة', 'رز', 'خضار سلطة', 'مشروبات', 'حلويات', 'فاكهة', 'عيش'
+  ],
+  'سفر/رحلة': [
+    'معجون وفرشة', 'شاحن', 'أدوية شخصية', 'مناديل', 'كريم شمس', 'محبس/كمامة',
+    'ملابس', 'سناكس'
+  ],
+  'رمضان': [
+    'تمر', 'ياميش', 'عصائر', 'مكرونة', 'رز', 'زيت', 'سكر', 'دقيق', 'فراخ',
+    'لحمة'
+  ],
+  'مستلزمات بيبى': [
+    'حفاضات', 'مناديل مبللة', 'لبن', 'كريم', 'شامبو أطفال', 'ببرونة'
+  ],
+};
+
+/// فئة المصروف المناسبة لقائمة تسوق (للربط بالميزانية) — بالاسم.
+String expenseCategoryForList(String listName) {
+  if (listName.contains('سوبر') ||
+      listName.contains('بقالة') ||
+      listName.contains('أكل')) {
+    return 'أكل';
+  }
+  if (listName.contains('صيدلية') || listName.contains('دوا')) return 'صحة';
+  return 'تسوق';
 }

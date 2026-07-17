@@ -3309,6 +3309,68 @@ void main() {
     });
   });
 
+  group('قائمة تسوق شاملة (v53)', () {
+    test('ترقية v52 ← v53: قوائم افتراضية + نقل البنود القديمة', () async {
+      final v52 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      // shopping_items بالشكل القديم + صنف قديم من غير list_id.
+      await v52.execute(
+          'CREATE TABLE shopping_items(id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'name TEXT NOT NULL, checked INTEGER NOT NULL DEFAULT 0, '
+          "category TEXT NOT NULL DEFAULT '', price REAL NOT NULL DEFAULT 0, "
+          'created_at TEXT NOT NULL)');
+      await v52.insert('shopping_items', {'name': 'رز', 'created_at': 'x'});
+      await AppDb.upgradeSchema(v52, 52, 53);
+      // القوائم الافتراضية اتعملت.
+      final lists = await v52.query('shopping_lists', orderBy: 'sort_order');
+      expect(lists.length, 5);
+      expect(lists.first['name'], 'سوبرماركت');
+      // الصنف القديم اتنقل لأول قائمة (سوبرماركت).
+      final item = (await v52.query('shopping_items')).first;
+      expect(item['list_id'], lists.first['id']);
+      expect(item['buy_later'], 0);
+      await v52.close();
+    });
+
+    test('القوائم والبنود: فلترة بالقائمة + «أشتري لاحقاً»', () async {
+      final repo = MealsRepo();
+      final superId = await repo.addShoppingList('سوبرماركت', emoji: '🛒');
+      final pharmId = await repo.addShoppingList('صيدلية', emoji: '💊');
+      await repo.addShoppingItem('رز', listId: superId);
+      await repo.addShoppingItem('بندول', listId: pharmId);
+      await repo.addShoppingItem('تليفزيون',
+          listId: superId, buyLater: true, priority: 1, price: 5000);
+
+      // بنود كل قائمة (النشطة بس، من غير المؤجّل).
+      expect((await repo.shoppingItems(listId: superId)).length, 1);
+      expect((await repo.shoppingItems(listId: pharmId)).single.name, 'بندول');
+      // «أشتري لاحقاً» عبر كل القوائم.
+      final later = await repo.buyLaterItems();
+      expect(later.single.name, 'تليفزيون');
+      expect(later.single.priority, 1);
+      // إجمالى القائمة مبيحسبش المؤجّل.
+      expect(await repo.shoppingTotal(listId: superId), 0);
+    });
+
+    test('القوالب بتضيف الأصناف وبتتخطّى المكرر', () async {
+      final repo = MealsRepo();
+      final id = await repo.addShoppingList('عزومة');
+      final names = kShoppingTemplates['عزومة']!;
+      final n1 = await repo.addTemplateToList(names, listId: id);
+      expect(n1, names.length);
+      // مرة تانية → صفر (كله موجود).
+      final n2 = await repo.addTemplateToList(names, listId: id);
+      expect(n2, 0);
+    });
+
+    test('ربط الميزانية: فئة المصروف حسب القائمة', () {
+      expect(expenseCategoryForList('سوبرماركت'), 'أكل');
+      expect(expenseCategoryForList('صيدلية'), 'صحة');
+      expect(expenseCategoryForList('ملابس'), 'تسوق');
+      expect(expenseCategoryForList('إلكترونيات'), 'تسوق');
+    });
+  });
+
   group('ترتيب ممرات التسوق (orderedShoppingCategories)', () {
     test('بيحترم ترتيب المستخدم وبيضيف الناقص فى الآخر', () {
       // المستخدم رتّب ٣ بس؛ الباقى المفروض يتحط بعدهم بترتيبه الأصلى.
