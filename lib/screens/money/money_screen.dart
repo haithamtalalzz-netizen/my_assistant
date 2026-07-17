@@ -1,5 +1,3 @@
-import 'dart:developer' as dev;
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -232,7 +230,6 @@ class _MoneyScreenState extends State<MoneyScreen> {
       return;
     }
     final total = extractReceiptTotal(text);
-    dev.log('OCR receipt total: $total');
     if (total == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(tr('ملقتش إجمالي واضح — سجله يدوي',

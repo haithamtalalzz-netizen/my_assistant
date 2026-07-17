@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:developer' as dev;
+import '../core/log.dart';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -285,9 +285,7 @@ class _TodayScreenState extends State<TodayScreen> {
       _loading = false;
     });
     sw.stop();
-    // debugPrint مش dev.log — الأخير بيتلغى تمامًا فى بناء الـrelease (بيروح
-    // للـVM service اللى مش موجود)، والقياس ده لازم يبان على الجهاز الحقيقى.
-    debugPrint('فتح الرئيسية: ${sw.elapsedMilliseconds}ms');
+    logInfo('فتح الرئيسية: ${sw.elapsedMilliseconds}ms');
     unawaited(WidgetBridge.push());
     // الطقس best-effort — بيتحدث لوحده لما يوصل من غير ما يعطل الشاشة.
     unawaited(_loadWeather());
@@ -335,7 +333,7 @@ class _TodayScreenState extends State<TodayScreen> {
         if (autoSleep != null) _sleep = autoSleep;
       });
     } on Exception catch (e, st) {
-      dev.log('فشل مزامنة الصحة', error: e, stackTrace: st);
+      logError('فشل مزامنة الصحة', e, st);
     }
   }
 
@@ -2369,7 +2367,7 @@ class _TodayScreenState extends State<TodayScreen> {
       });
       await _tts!.speak(text);
     } on Exception catch (e) {
-      dev.log('فشل الموجز الصوتى', error: e);
+      logError('فشل الموجز الصوتى', e);
       if (mounted) setState(() => _speaking = false);
     }
   }

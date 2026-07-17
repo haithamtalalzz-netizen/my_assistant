@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as dev;
+import 'log.dart';
 
 import 'package:http/http.dart' as http;
 
@@ -96,7 +96,7 @@ class WeatherService {
           }));
       return WeatherToday(max.toDouble(), min.toDouble(), code.toInt());
     } on Exception catch (e) {
-      dev.log('فشل جلب الطقس', error: e);
+      logError('فشل جلب الطقس', e);
       return null;
     }
   }

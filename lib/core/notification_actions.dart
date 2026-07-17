@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:developer' as dev;
+import 'log.dart';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -50,7 +50,7 @@ Future<void> handleNotificationResponse(NotificationResponse response) async {
     }
     await WidgetBridge.push();
   } on Exception catch (e, st) {
-    dev.log('فشل تنفيذ زرار الإشعار ($action)', error: e, stackTrace: st);
+    logError('فشل تنفيذ زرار الإشعار ($action)', e, st);
   }
 }
 

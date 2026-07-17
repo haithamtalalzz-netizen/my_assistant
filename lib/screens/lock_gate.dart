@@ -1,4 +1,4 @@
-import 'dart:developer' as dev;
+import '../core/log.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -81,7 +81,7 @@ class _LockGateState extends State<LockGate> with WidgetsBindingObserver {
         _pausedAt = null;
       }
     } on PlatformException catch (e) {
-      dev.log('فشلت محاولة فتح القفل', error: e);
+      logError('فشلت محاولة فتح القفل', e);
     }
   }
 

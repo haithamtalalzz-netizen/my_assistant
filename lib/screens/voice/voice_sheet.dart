@@ -1,4 +1,4 @@
-import 'dart:developer' as dev;
+import '../../core/log.dart';
 
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
@@ -72,7 +72,7 @@ class _VoiceSheetState extends State<_VoiceSheet> {
             setState(() => _listening = false);
           }
         },
-        onError: (e) => dev.log('خطأ في التعرف الصوتي: ${e.errorMsg}'),
+        onError: (e) => logInfo('خطأ في التعرف الصوتي: ${e.errorMsg}'),
       );
       if (!ok) {
         if (mounted) setState(() => _unavailable = true);
@@ -80,7 +80,7 @@ class _VoiceSheetState extends State<_VoiceSheet> {
       }
       await _listen();
     } on Exception catch (e) {
-      dev.log('فشلت تهيئة التعرف الصوتي', error: e);
+      logError('فشلت تهيئة التعرف الصوتي', e);
       if (mounted) setState(() => _unavailable = true);
     }
   }

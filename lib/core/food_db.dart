@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:developer' as dev;
+import 'log.dart';
 
 import 'package:http/http.dart' as http;
 
@@ -305,7 +305,7 @@ Future<List<FoodItem>> searchOpenFoodFacts(String query) async {
     }
     return out;
   } on Exception catch (e) {
-    dev.log('فشل بحث Open Food Facts', error: e);
+    logError('فشل بحث Open Food Facts', e);
     return [];
   }
 }

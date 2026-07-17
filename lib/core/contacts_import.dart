@@ -1,4 +1,4 @@
-import 'dart:developer' as dev;
+import 'log.dart';
 
 import 'package:flutter_contacts/flutter_contacts.dart';
 
@@ -38,7 +38,7 @@ class ContactsImport {
       }
       return added;
     } on Exception catch (e) {
-      dev.log('فشل استيراد أعياد الميلاد', error: e);
+      logError('فشل استيراد أعياد الميلاد', e);
       return null;
     }
   }

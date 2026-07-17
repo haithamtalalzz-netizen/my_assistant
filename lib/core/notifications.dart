@@ -1,4 +1,4 @@
-import 'dart:developer' as dev;
+import 'log.dart';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -130,7 +130,7 @@ class Notifications {
         final name = await FlutterTimezone.getLocalTimezone();
         tz.setLocalLocation(tz.getLocation(name));
       } on Exception catch (e) {
-        dev.log('فشل تحديد المنطقة الزمنية، هنستخدم القاهرة', error: e);
+        logError('فشل تحديد المنطقة الزمنية، هنستخدم القاهرة', e);
         tz.setLocalLocation(tz.getLocation('Africa/Cairo'));
       }
       await _plugin.initialize(
@@ -148,8 +148,7 @@ class Notifications {
       await android?.requestExactAlarmsPermission();
       _ready = true;
     } on Exception catch (e, st) {
-      dev.log('فشلت تهيئة الإشعارات — التطبيق هيكمل من غيرها',
-          error: e, stackTrace: st);
+      logError('فشلت تهيئة الإشعارات — التطبيق هيكمل من غيرها', e, st);
     }
   }
 
@@ -175,7 +174,7 @@ class Notifications {
           payload: payload,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle);
     } on PlatformException catch (e) {
-      dev.log('فشل التنبيه الدقيق #$id — هنجرب غير دقيق', error: e);
+      logError('فشل التنبيه الدقيق #$id — هنجرب غير دقيق', e);
       await _plugin.zonedSchedule(id, title, body, at, details,
           payload: payload,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle);
@@ -202,7 +201,7 @@ class Notifications {
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.time);
     } on PlatformException catch (e) {
-      dev.log('فشل التنبيه اليومي الدقيق #$id — هنجرب غير دقيق', error: e);
+      logError('فشل التنبيه اليومي الدقيق #$id — هنجرب غير دقيق', e);
       await _plugin.zonedSchedule(id, title, body, at, details,
           payload: payload,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -235,7 +234,7 @@ class Notifications {
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime);
     } on PlatformException catch (e) {
-      dev.log('فشل التنبيه الشهري الدقيق #$id — هنجرب غير دقيق', error: e);
+      logError('فشل التنبيه الشهري الدقيق #$id — هنجرب غير دقيق', e);
       await _plugin.zonedSchedule(id, title, body, at, details,
           payload: payload,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -263,7 +262,7 @@ class Notifications {
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime);
     } on PlatformException catch (e) {
-      dev.log('فشل التنبيه الأسبوعي الدقيق #$id — هنجرب غير دقيق', error: e);
+      logError('فشل التنبيه الأسبوعي الدقيق #$id — هنجرب غير دقيق', e);
       await _plugin.zonedSchedule(id, title, body, at, _details,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime);
@@ -316,7 +315,7 @@ class Notifications {
         enableVibration: vibrate,
       ));
     } on Exception catch (e) {
-      dev.log('فشل ضبط قناة الإشعارات', error: e);
+      logError('فشل ضبط قناة الإشعارات', e);
     }
   }
 }

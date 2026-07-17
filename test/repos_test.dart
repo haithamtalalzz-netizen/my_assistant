@@ -8,6 +8,7 @@ import 'package:my_assistant/core/app_state.dart';
 import 'package:my_assistant/core/contextual_tips.dart';
 import 'package:my_assistant/core/day_close.dart';
 import 'package:my_assistant/core/kcal_balance.dart';
+import 'package:my_assistant/core/log.dart';
 import 'package:my_assistant/core/morning_brief.dart';
 import 'package:my_assistant/core/dashboard_stats.dart';
 import 'package:my_assistant/core/data_export.dart';
@@ -3273,6 +3274,29 @@ void main() {
       await SettingsRepo().setWaterGoalMl(2500);
       expect(await SettingsRepo().waterGoalMl(), 2500);
       expect(await SettingsRepo().waterGoal(), 10);
+    });
+  });
+
+  group('تسجيل الأخطاء (core/log.dart)', () {
+    test('logError/logInfo بيعدّوا على debugPrint بعلامات ثابتة', () {
+      // الاعتراض ده بيثبت المسار: الدالتين بتنادوا debugPrint فعلًا (وده
+      // اللى اتأكد على الجهاز إنه بيوصل logcat فى الريليز — عكس dev.log).
+      final captured = <String>[];
+      final original = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        if (message != null) captured.add(message);
+      };
+      try {
+        logInfo('فتح الرئيسية: 100ms');
+        logError('فشل جلب الطقس', Exception('boom'));
+      } finally {
+        debugPrint = original;
+      }
+      expect(captured.length, 2);
+      expect(captured[0], 'ℹ️ فتح الرئيسية: 100ms');
+      expect(captured[1], startsWith('❌ فشل جلب الطقس: '),
+          reason: 'العلامة ثابتة عشان الـgrep');
+      expect(captured[1], contains('boom'), reason: 'الاستثناء نفسه بيتطبع');
     });
   });
 

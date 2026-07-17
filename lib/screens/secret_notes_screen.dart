@@ -1,4 +1,4 @@
-import 'dart:developer' as dev;
+import '../core/log.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -41,7 +41,7 @@ class _SecretNotesScreenState extends State<SecretNotesScreen> {
         options: const AuthenticationOptions(stickyAuth: true),
       );
     } on PlatformException catch (e) {
-      dev.log('فشل فتح الخزنة السرية', error: e);
+      logError('فشل فتح الخزنة السرية', e);
     }
     if (!mounted) return;
     if (ok) {

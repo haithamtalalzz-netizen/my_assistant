@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:developer' as dev;
+import '../core/log.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -226,7 +226,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ? tr('القفل بالبصمة اتفعّل', 'Biometric lock enabled')
           : tr('القفل اتلغى', 'Lock disabled'));
     } on PlatformException catch (e) {
-      dev.log('فشل تغيير حالة القفل', error: e);
+      logError('فشل تغيير حالة القفل', e);
       _toast(tr('حصلت مشكلة في البصمة — جرب تاني',
           'Biometric error — try again'));
     }
@@ -238,7 +238,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       await BackupService.exportBackup();
     } on Exception catch (e) {
-      dev.log('فشل تصدير النسخة الاحتياطية', error: e);
+      logError('فشل تصدير النسخة الاحتياطية', e);
       _toast(tr('حصلت مشكلة أثناء التصدير', 'Export failed'));
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -263,7 +263,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _toast(tr('اتصدّر ${arNum(n)} قسم كملفات CSV',
           'Exported ${arNum(n)} sections as CSV'));
     } on Exception catch (e) {
-      dev.log('فشل تصدير كل البيانات', error: e);
+      logError('فشل تصدير كل البيانات', e);
       _toast(tr('حصلت مشكلة أثناء التصدير', 'Export failed'));
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -291,7 +291,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } on FormatException catch (e) {
       _toast(e.message);
     } on Exception catch (e) {
-      dev.log('فشلت الاستعادة', error: e);
+      logError('فشلت الاستعادة', e);
       _toast(tr('حصلت مشكلة أثناء الاستعادة', 'Restore failed'));
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -1204,7 +1204,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _toast(tr('اتضافت $count عنصر تجريبي — اقفل وافتح التطبيق',
           'Added $count demo items — restart the app'));
     } on Exception catch (e) {
-      dev.log('فشل توليد البيانات التجريبية', error: e);
+      logError('فشل توليد البيانات التجريبية', e);
       if (mounted) _toast(tr('حصلت مشكلة', 'Something went wrong'));
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -1234,7 +1234,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _toast(tr('اتمسح — اقفل وافتح التطبيق', 'Done — restart the app'));
       }
     } on Exception catch (e) {
-      dev.log('فشل المسح', error: e);
+      logError('فشل المسح', e);
       if (mounted) _toast(tr('حصلت مشكلة', 'Something went wrong'));
     } finally {
       if (mounted) setState(() => _busy = false);

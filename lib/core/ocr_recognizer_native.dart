@@ -1,4 +1,4 @@
-import 'dart:developer' as dev;
+import 'log.dart';
 
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
@@ -9,7 +9,7 @@ Future<String?> recognizeFromPath(String path) async {
     final result = await recognizer.processImage(InputImage.fromFilePath(path));
     return result.text;
   } on Exception catch (e) {
-    dev.log('فشلت قراءة الصورة', error: e);
+    logError('فشلت قراءة الصورة', e);
     return null;
   } finally {
     await recognizer.close();

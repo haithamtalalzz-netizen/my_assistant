@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:developer' as dev;
+import 'log.dart';
 
 import 'package:http/http.dart' as http;
 
@@ -56,7 +56,9 @@ class GeminiClient {
             .timeout(const Duration(seconds: 45));
         if (response.statusCode == 404) continue; // موديل اتشال — جرب اللي بعده
         if (response.statusCode != 200) {
-          dev.log('Gemini $model رجع ${response.statusCode}: ${response.body}');
+          // الـstatus بس — الـbody فيه رد Gemini اللى ممكن يرجّع فيه سياق
+          // المستخدم الصحى اللى اتبعت، وده مايتكتبش فى logcat.
+          logInfo('Gemini $model رجع ${response.statusCode}');
           if (response.statusCode == 429) {
             return 'الحصة المجانية اتستهلكت مؤقتًا — جرب تاني بعد دقيقة.';
           }
@@ -71,7 +73,7 @@ class GeminiClient {
         final text = (parts.first as Map)['text'] as String?;
         if (text != null && text.trim().isNotEmpty) return text.trim();
       } on Exception catch (e) {
-        dev.log('فشل نداء Gemini ($model)', error: e);
+        logError('فشل نداء Gemini ($model)', e);
       }
     }
     return 'معرفتش أوصل للخدمة — اتأكد من النت والمفتاح وجرب تاني.';

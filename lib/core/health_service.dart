@@ -1,4 +1,4 @@
-import 'dart:developer' as dev;
+import 'log.dart';
 import 'dart:io' show Platform;
 
 import 'package:health/health.dart';
@@ -47,7 +47,7 @@ class HealthService {
       if (Platform.isIOS) return true;
       return await _health.isHealthConnectAvailable();
     } on Exception catch (e) {
-      dev.log('Health Connect مش متاح', error: e);
+      logError('Health Connect مش متاح', e);
       return false;
     }
   }
@@ -62,7 +62,7 @@ class HealthService {
         permissions: [for (final _ in types) HealthDataAccess.READ],
       );
     } on Exception catch (e) {
-      dev.log('فشل طلب أذونات الصحة', error: e);
+      logError('فشل طلب أذونات الصحة', e);
       return false;
     }
   }
@@ -73,7 +73,7 @@ class HealthService {
       final now = DateTime.now();
       return await _health.getTotalStepsInInterval(dateOnly(now), now);
     } on Exception catch (e) {
-      dev.log('فشل قراءة الخطوات', error: e);
+      logError('فشل قراءة الخطوات', e);
       return null;
     }
   }
@@ -113,7 +113,7 @@ class HealthService {
       final clean = _health.removeDuplicates(points);
       return clean.isEmpty ? null : clean.length;
     } on Exception catch (e) {
-      dev.log('فشل قراءة التمارين', error: e);
+      logError('فشل قراءة التمارين', e);
       return null;
     }
   }
@@ -139,7 +139,7 @@ class HealthService {
       // نقرب لأقرب نص ساعة — كفاية للعرض والنصايح.
       return (hours * 2).roundToDouble() / 2;
     } on Exception catch (e) {
-      dev.log('فشل قراءة النوم', error: e);
+      logError('فشل قراءة النوم', e);
       return null;
     }
   }
@@ -165,7 +165,7 @@ class HealthService {
       }
       return sum;
     } on Exception catch (e) {
-      dev.log('فشل قراءة $type', error: e);
+      logError('فشل قراءة $type', e);
       return null;
     }
   }
@@ -184,7 +184,7 @@ class HealthService {
       points.sort((a, b) => a.dateTo.compareTo(b.dateTo));
       return _numeric(points.last);
     } on Exception catch (e) {
-      dev.log('فشل قراءة $type', error: e);
+      logError('فشل قراءة $type', e);
       return null;
     }
   }

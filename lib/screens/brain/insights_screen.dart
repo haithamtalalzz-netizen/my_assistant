@@ -1,4 +1,4 @@
-import 'dart:developer' as dev;
+import '../../core/log.dart';
 
 import 'package:flutter/material.dart';
 
@@ -77,7 +77,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
               try {
                 await DoctorReport.generateAndShare();
               } on Exception catch (e) {
-                dev.log('فشل توليد التقرير', error: e);
+                logError('فشل توليد التقرير', e);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Text(tr('حصلت مشكلة في توليد التقرير',

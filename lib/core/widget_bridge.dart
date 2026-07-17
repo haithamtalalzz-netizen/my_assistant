@@ -1,4 +1,4 @@
-import 'dart:developer' as dev;
+import 'log.dart';
 
 import 'package:home_widget/home_widget.dart';
 
@@ -79,7 +79,7 @@ class WidgetBridge {
       await HomeWidget.updateWidget(
           name: provider, qualifiedAndroidName: qualifiedProvider);
     } on Exception catch (e, st) {
-      dev.log('فشل تحديث الويدجت', error: e, stackTrace: st);
+      logError('فشل تحديث الويدجت', e, st);
     }
   }
 }
@@ -95,6 +95,6 @@ Future<void> widgetInteractivityCallback(Uri? uri) async {
       await WaterGuard.ensureScheduled();
     }
   } on Exception catch (e, st) {
-    dev.log('فشل تنفيذ ضغطة الويدجت', error: e, stackTrace: st);
+    logError('فشل تنفيذ ضغطة الويدجت', e, st);
   }
 }

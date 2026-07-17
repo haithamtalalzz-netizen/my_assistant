@@ -1,4 +1,4 @@
-import 'dart:developer' as dev;
+import '../core/log.dart';
 
 import 'package:flutter/material.dart';
 
@@ -68,7 +68,7 @@ class ReportsHubScreen extends StatelessWidget {
               try {
                 await MonthReport.generateAndShare(now.year, now.month);
               } on Exception catch (e) {
-                dev.log('فشل تقرير الشهر', error: e);
+                logError('فشل تقرير الشهر', e);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Text(
@@ -91,7 +91,7 @@ class ReportsHubScreen extends StatelessWidget {
               try {
                 await DoctorReport.generateAndShare();
               } on Exception catch (e) {
-                dev.log('فشل تقرير الدكتور', error: e);
+                logError('فشل تقرير الدكتور', e);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Text(

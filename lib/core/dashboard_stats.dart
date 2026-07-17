@@ -1,4 +1,4 @@
-import 'dart:developer' as dev;
+import 'log.dart';
 
 import '../data/debts_repo.dart';
 import '../data/docs_repo.dart';
@@ -56,7 +56,7 @@ Future<List<DashStat>> collectDashboard([DateTime? at]) async {
       final s = await build();
       if (s != null) out.add(s);
     } on Exception catch (e) {
-      dev.log('فشل كارت اللوحة «$key»', error: e);
+      logError('فشل كارت اللوحة «$key»', e);
     }
   }
 

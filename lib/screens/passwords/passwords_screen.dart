@@ -1,4 +1,4 @@
-import 'dart:developer' as dev;
+import '../../core/log.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -40,7 +40,7 @@ class _PasswordsScreenState extends State<PasswordsScreen> {
         options: const AuthenticationOptions(stickyAuth: true),
       );
     } on PlatformException catch (e) {
-      dev.log('فشل فتح كلمات السر', error: e);
+      logError('فشل فتح كلمات السر', e);
     }
     if (!mounted) return;
     if (ok) _items = await _repo.all();

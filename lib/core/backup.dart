@@ -1,4 +1,4 @@
-import 'dart:developer' as dev;
+import 'log.dart';
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
@@ -170,9 +170,9 @@ class AutoBackup {
         await zips.removeAt(0).delete();
       }
       await settings.set('last_auto_backup', now.toIso8601String());
-      dev.log('نسخة تلقائية اتعملت: ${out.path}');
+      logInfo('نسخة تلقائية اتعملت: ${out.path}');
     } on Exception catch (e, st) {
-      dev.log('فشلت النسخة التلقائية', error: e, stackTrace: st);
+      logError('فشلت النسخة التلقائية', e, st);
     }
   }
 
@@ -190,7 +190,7 @@ class AutoBackup {
         ..sort((a, b) => b.path.compareTo(a.path));
       return zips.isEmpty ? null : zips.first;
     } on Exception catch (e) {
-      dev.log('فشل قراءة النسخ التلقائية', error: e);
+      logError('فشل قراءة النسخ التلقائية', e);
       return null;
     }
   }

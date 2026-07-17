@@ -1,4 +1,4 @@
-import 'dart:developer' as dev;
+import '../core/log.dart';
 
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -52,7 +52,7 @@ class _EmergencyViewState extends State<EmergencyView> {
     try {
       await launchUrl(uri);
     } on Exception catch (e) {
-      dev.log('فشل فتح الاتصال', error: e);
+      logError('فشل فتح الاتصال', e);
     }
   }
 

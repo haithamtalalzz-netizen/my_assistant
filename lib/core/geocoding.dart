@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:developer' as dev;
+import 'log.dart';
 
 import 'package:http/http.dart' as http;
 
@@ -60,7 +60,7 @@ Future<List<GeoPlace>> searchCities(String query,
     }
     return out;
   } on Exception catch (e) {
-    dev.log('فشل البحث الجغرافي', error: e);
+    logError('فشل البحث الجغرافي', e);
     return [];
   }
 }
@@ -86,7 +86,7 @@ Future<GeoPlace?> reverseGeocode(double lat, double lng,
       lng: lng,
     );
   } on Exception catch (e) {
-    dev.log('فشل عكس الإحداثيات', error: e);
+    logError('فشل عكس الإحداثيات', e);
     return null;
   }
 }
@@ -115,7 +115,7 @@ Future<List<String>> fetchCountryCities(String countryEnglishName) async {
     out.sort();
     return out;
   } on Exception catch (e) {
-    dev.log('فشل جلب مدن الدولة', error: e);
+    logError('فشل جلب مدن الدولة', e);
     return [];
   }
 }

@@ -1,4 +1,4 @@
-import 'dart:developer' as dev;
+import '../../core/log.dart';
 
 import 'package:flutter/material.dart';
 
@@ -60,7 +60,7 @@ class _CustomPdfScreenState extends State<CustomPdfScreen> {
       await CustomReport.generateAndShare(
           kinds: _selected, from: _from, to: _to);
     } on Exception catch (e) {
-      dev.log('فشل تقرير PDF', error: e);
+      logError('فشل تقرير PDF', e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(tr('حصلت مشكلة', 'Something went wrong'))));
@@ -170,7 +170,7 @@ class _CustomPdfScreenState extends State<CustomPdfScreen> {
       await CustomReport.generateCsvAndShare(
           kinds: _selected, from: _from, to: _to);
     } on Exception catch (e) {
-      dev.log('فشل تقرير Excel', error: e);
+      logError('فشل تقرير Excel', e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(tr('حصلت مشكلة', 'Something went wrong'))));
