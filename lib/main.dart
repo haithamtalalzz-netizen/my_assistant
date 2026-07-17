@@ -12,6 +12,7 @@ import 'core/app_state.dart';
 import 'core/db_init_web.dart' if (dart.library.io) 'core/db_init_stub.dart';
 import 'core/backup.dart';
 import 'core/evening.dart';
+import 'core/log.dart';
 import 'core/proactive_insight.dart';
 import 'core/notification_actions.dart';
 import 'core/notifications.dart';
@@ -68,6 +69,9 @@ Future<void> main() async {
 }
 
 Future<void> _startup() async {
+  // ملف اللوج الأول — السطور اللى قبل ما يجهز بتتجمّع فى الذاكرة وبتتكتب
+  // بعدين، فبدايات التشغيل مابتضيعش.
+  await AppLog.init();
   initDbFactory(); // على الويب: sqflite عبر IndexedDB.
   Intl.defaultLocale = 'ar';
   await initializeDateFormatting('ar');

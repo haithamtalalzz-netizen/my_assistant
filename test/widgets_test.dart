@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/db.dart';
+import 'package:my_assistant/screens/diagnostics_screen.dart';
 import 'package:my_assistant/data/habits_repo.dart';
 import 'package:my_assistant/screens/day_close_screen.dart';
 import 'package:my_assistant/screens/habits/habits_screen.dart';
@@ -73,6 +74,28 @@ void main() {
     await tester.pumpAndSettle();
     final done = await habits.doneOn(dayKey(DateTime.now()));
     expect(done.contains(id), true);
+  });
+
+  // ملحوظة: القراءة بتتحقن هنا لإن قراءة الملف الحقيقية (dart:io) مابتخلصش
+  // جوه الزمن الوهمى بتاع testWidgets → الشاشة تفضل لودينج وpumpAndSettle
+  // يعمل timeout بعد ١٠ دقايق. القراءة الفعلية متغطية فى تستات AppLog.
+  testWidgets('شاشة التشخيص: لوج فاضى = مفيش زرار مشاركة', (tester) async {
+    await tester.pumpWidget(
+        _app(DiagnosticsScreen(readLog: () async => '')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('السجل فاضى'), findsOneWidget);
+    expect(find.text('شارك'), findsNothing,
+        reason: 'مافيش حاجة تتشارك لما اللوج فاضى');
+  });
+
+  testWidgets('شاشة التشخيص: بتعرض اللوج وأزرار النسخ/المشاركة',
+      (tester) async {
+    await tester.pumpWidget(_app(DiagnosticsScreen(
+        readLog: () async => '[07-17 16:45:00] ❌ فشل تجريبى: boom')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('❌ فشل تجريبى'), findsOneWidget);
+    expect(find.text('شارك'), findsOneWidget);
+    expect(find.text('نسخ'), findsOneWidget);
   });
 
   testWidgets('شاشة العادات: العادة المعدودة ليها عدّاد −/+ بيشتغل',

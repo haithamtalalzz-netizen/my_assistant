@@ -25,6 +25,7 @@ import '../core/widget_bridge.dart';
 import '../data/settings_repo.dart';
 import '../widgets/common.dart';
 import '../widgets/location_fields.dart';
+import 'diagnostics_screen.dart';
 import 'quick_actions_settings_screen.dart';
 
 const List<String> kBloodTypes = [
@@ -1144,6 +1145,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           await Share.shareXFiles([XFile(file.path)],
                               text: 'My Assistant backup');
                         },
+                ),
+                const Divider(height: 20),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.bug_report_outlined),
+                  title: Text(tr('شارك التشخيص', 'Share diagnostics')),
+                  subtitle: Text(tr(
+                      'سجل الأخطاء المحلى — شوفه قبل ما تشاركه، مافيهوش بياناتك',
+                      'Local error log — review it before sharing, no personal data')),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const DiagnosticsScreen())),
                 ),
                 ],
                 if (_openCat == 'developer') ...[

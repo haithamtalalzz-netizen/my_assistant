@@ -3298,6 +3298,68 @@ void main() {
           reason: 'العلامة ثابتة عشان الـgrep');
       expect(captured[1], contains('boom'), reason: 'الاستثناء نفسه بيتطبع');
     });
+
+    test('ملف اللوج: بيتكتب بختم وقت وبيتدوّر لما يكبر', () async {
+      final tmp = await Directory.systemTemp.createTemp('mylog');
+      final f = File('${tmp.path}/app.log');
+      AppLog.useFileForTests(f);
+      try {
+        logInfo('سطر أول');
+        logError('فشل حاجة', Exception('boom'));
+        await AppLog.flushForTests();
+        final text = await AppLog.read();
+        expect(text, contains('ℹ️ سطر أول'));
+        expect(text, contains('❌ فشل حاجة'));
+        expect(RegExp(r'^\[\d\d-\d\d \d\d:\d\d:\d\d\] ').hasMatch(text), true,
+            reason: 'كل سطر بختم وقت');
+        expect(await AppLog.fileForShare(), isNotNull);
+
+        // التدوير: ملف أكبر من الحد بيتقص لآخر نصه (الأحدث بيفضل).
+        await f.writeAsString('X' * 200 * 1024);
+        AppLog.append('السطر الأحدث');
+        await AppLog.flushForTests();
+        expect(await f.length(), lessThan(140 * 1024),
+            reason: 'اتدوّر فماكبرش للأبد');
+        expect(await AppLog.read(), contains('السطر الأحدث'));
+
+        // المسح بيرجّع كل حاجة لأول السطر.
+        await AppLog.clear();
+        expect(await AppLog.read(), '');
+        expect(await AppLog.fileForShare(), isNull,
+            reason: 'ملف فاضى مايتشاركش');
+      } finally {
+        AppLog.resetForTests();
+        await tmp.delete(recursive: true);
+      }
+    });
+
+    test('الكتابة بتحصل لوحدها من غير flush يدوى (مسار الـTimer الحقيقى)',
+        () async {
+      // التست ده بيجرّب اللى بيحصل فى التطبيق فعلًا: سطر بيتسجّل والكتابة
+      // بتتأجّل للـTimer — من غير أى نداء يدوى لـflush.
+      final tmp = await Directory.systemTemp.createTemp('mylog_timer');
+      final f = File('${tmp.path}/app.log');
+      AppLog.useFileForTests(f);
+      try {
+        logInfo('سطر بيتكتب لوحده');
+        await Future<void>.delayed(const Duration(seconds: 3));
+        expect(await f.exists(), true,
+            reason: 'الـTimer المفروض كتب الملف من غير نداء يدوى');
+        expect(await f.readAsString(), contains('سطر بيتكتب لوحده'));
+      } finally {
+        AppLog.resetForTests();
+        await tmp.delete(recursive: true);
+      }
+    });
+
+    test('اللوجر مايرميش استثناء لو الملف مش متاح', () async {
+      AppLog.resetForTests(); // مفيش ملف — زى قبل init أو لو فشل
+      expect(() {
+        logInfo('من غير ملف');
+        logError('خطأ من غير ملف', Exception('x'));
+      }, returnsNormally, reason: 'اللوجر عمره ما يكسر التطبيق');
+      expect(await AppLog.read(), '');
+    });
   });
 
   group('تعميق المهام والعادات (v52)', () {
