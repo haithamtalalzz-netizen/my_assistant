@@ -154,15 +154,15 @@ void main() {
 
     await tester.pumpWidget(_app(const ShoppingListScreen()));
     await tester.pumpAndSettle();
-    // القوائم بقت أقسام تحت بعض — نتأكد إنها بتظهر.
-    expect(find.text('سوبرماركت'), findsOneWidget);
-    expect(find.text('صيدلية'), findsOneWidget);
-    // الإضافة من خانة أول قسم (لكل قسم خانته الخاصة).
+    // شريط الفلتر فيه القوائم (بإيموجى) + الكل.
+    expect(find.textContaining('سوبرماركت'), findsWidgets);
+    expect(find.textContaining('صيدلية'), findsWidgets);
+    // الإضافة من الخانة الموحّدة (فلتر «الكل» → أول قائمة).
     await tester.enterText(find.byType(TextField).first, 'شنطة');
     await tester.tap(find.widgetWithIcon(IconButton, Icons.add).first);
     await tester.pumpAndSettle();
     expect(find.text('شنطة'), findsOneWidget,
-        reason: 'الصنف المضاف من خانة القسم لازم يظهر');
+        reason: 'الصنف المضاف لازم يظهر فى القائمة الموحّدة');
   });
 
   testWidgets('قائمة التسوق: تنصيب جديد بيزرع القوائم الافتراضية',
