@@ -132,7 +132,7 @@ void main() {
     expect(built.contains('bottom'), true, reason: 'اتبنى بعد ما اتمرّر ليه');
   });
 
-  testWidgets('قائمة التسوق: بعد ترقية v52→v53، الإضافة على قائمة غير الأولى',
+  testWidgets('قائمة التسوق: بعد ترقية v52→v53، الأقسام بتظهر والإضافة بتشتغل',
       (tester) async {
     // نعيد إنتاج مسار المستخدم بالظبط: DB اتعملها ترقية (مش createSchema)،
     // فالقوائم الافتراضية اتعملت عبر الـmigration + صنف قديم اتنقل.
@@ -154,14 +154,15 @@ void main() {
 
     await tester.pumpWidget(_app(const ShoppingListScreen()));
     await tester.pumpAndSettle();
-    // اختار «هدايا» (قائمة افتراضية من الترقية، مش الأولى) وضيف عليها.
-    await tester.tap(find.text('🎁 هدايا'));
-    await tester.pumpAndSettle();
+    // القوائم بقت أقسام تحت بعض — نتأكد إنها بتظهر.
+    expect(find.text('سوبرماركت'), findsOneWidget);
+    expect(find.text('صيدلية'), findsOneWidget);
+    // الإضافة من خانة أول قسم (لكل قسم خانته الخاصة).
     await tester.enterText(find.byType(TextField).first, 'شنطة');
-    await tester.tap(find.widgetWithIcon(IconButton, Icons.add));
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.add).first);
     await tester.pumpAndSettle();
     expect(find.text('شنطة'), findsOneWidget,
-        reason: 'الصنف المضاف على قائمة غير-أولى لازم يظهر');
+        reason: 'الصنف المضاف من خانة القسم لازم يظهر');
   });
 
   testWidgets('قائمة التسوق: تنصيب جديد بيزرع القوائم الافتراضية',
