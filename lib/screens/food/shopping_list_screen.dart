@@ -73,6 +73,8 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       final items = _buyLaterTab
           ? await _repo.buyLaterItems()
           : await _repo.shoppingItems(listId: _activeListId);
+      logInfo('تسوق: _load قائمة=$_activeListId لاحقاً=$_buyLaterTab '
+          'قوائم=${lists.length} → ${items.length} صنف');
       final total =
           _buyLaterTab ? 0.0 : await _repo.shoppingTotal(listId: _activeListId);
       final order = orderedShoppingCategories(
@@ -97,6 +99,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
   }
 
   void _selectList(int? id, {bool buyLater = false}) {
+    logInfo('تسوق: _selectList id=$id لاحقاً=$buyLater');
     setState(() {
       _buyLaterTab = buyLater;
       _activeListId = id;
@@ -107,6 +110,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
   Future<void> _add() async {
     final name = _input.text.trim();
+    logInfo('تسوق: _add النص="$name" قائمة=$_activeListId لاحقاً=$_buyLaterTab');
     if (name.isEmpty) {
       // بدل ما الزرار يعمل حاجة صامتة (فيبان مش شغّال) — نوجّه المستخدم
       // ونرجّع التركيز للخانة عشان يكتب.
@@ -419,6 +423,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
   /// قوالب جاهزة → تضيف مجموعة أصناف للقائمة النشطة بضغطة.
   Future<void> _useTemplate() async {
+    logInfo('تسوق: _useTemplate قائمة=$_activeListId');
     if (_activeListId == null) return;
     await showModalBottomSheet<void>(
       context: context,
@@ -811,6 +816,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
             PopupMenuButton<String>(
               tooltip: tr('المزيد', 'More'),
               onSelected: (v) {
+                logInfo('تسوق: المزيد اختار=$v');
                 switch (v) {
                   case 'templates':
                     _useTemplate();
