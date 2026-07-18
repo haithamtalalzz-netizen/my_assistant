@@ -5,6 +5,7 @@ import '../../core/l10n.dart';
 import '../../data/gratitude_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../widgets/quick_add_field.dart';
 
 /// مفكرة الامتنان — سجّل كل يوم حاجات إنت شاكر عليها.
 class GratitudeScreen extends StatefulWidget {
@@ -16,7 +17,6 @@ class GratitudeScreen extends StatefulWidget {
 
 class _GratitudeScreenState extends State<GratitudeScreen> {
   final _repo = GratitudeRepo();
-  final _input = TextEditingController();
   bool _loading = true;
   List<GratitudeEntry> _items = [];
   int _days = 0;
@@ -25,12 +25,6 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
   void initState() {
     super.initState();
     _load();
-  }
-
-  @override
-  void dispose() {
-    _input.dispose();
-    super.dispose();
   }
 
   Future<void> _load() async {
@@ -44,11 +38,8 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
     });
   }
 
-  Future<void> _add() async {
-    final t = _input.text.trim();
-    if (t.isEmpty) return;
-    await _repo.add(t);
-    _input.clear();
+  Future<void> _add(String text) async {
+    await _repo.add(text);
     await _load();
   }
 
@@ -63,21 +54,10 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _input,
-                          decoration: InputDecoration(
-                              labelText: tr('شاكر على إيه النهاردة؟',
-                                  "What are you grateful for today?")),
-                          onSubmitted: (_) => _add(),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton.filled(
-                          onPressed: _add, icon: const Icon(Icons.add)),
-                    ],
+                  child: QuickAddField(
+                    label: tr('شاكر على إيه النهاردة؟',
+                        "What are you grateful for today?"),
+                    onSubmit: _add,
                   ),
                 ),
                 if (_days > 0)

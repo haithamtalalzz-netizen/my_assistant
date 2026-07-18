@@ -17,6 +17,7 @@ import 'package:my_assistant/screens/day_close_screen.dart';
 import 'package:my_assistant/screens/food/shopping_list_screen.dart';
 import 'package:my_assistant/screens/habits/habits_screen.dart';
 import 'package:my_assistant/screens/tasks/focus_screen.dart';
+import 'package:my_assistant/widgets/quick_add_field.dart';
 import 'package:my_assistant/widgets/reorderable_sections.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -171,6 +172,32 @@ void main() {
     expect(lists.length, 5);
     expect(lists.first.name, 'سوبرماركت');
     expect(lists.any((l) => l.name == 'هدايا'), true);
+  });
+
+  testWidgets('QuickAddField: فاضى=تنبيه بدل صمت، وبنص=إضافة + تفضية',
+      (tester) async {
+    final submitted = <String>[];
+    await tester.pumpWidget(_app(Scaffold(
+      body: QuickAddField(
+        label: 'ضيف',
+        emptyHint: 'اكتب الأول',
+        onSubmit: (t) async => submitted.add(t),
+      ),
+    )));
+    await tester.pumpAndSettle();
+    // ضغط بخانة فاضية → مفيش إضافة + تنبيه ظاهر.
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.add));
+    await tester.pumpAndSettle();
+    expect(submitted, isEmpty);
+    expect(find.text('اكتب الأول'), findsOneWidget);
+    // بنص → إضافة (متقلّم) + الخانة تتفضى.
+    await tester.enterText(find.byType(TextField), '  لبن  ');
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.add));
+    await tester.pumpAndSettle();
+    expect(submitted, ['لبن']);
+    expect(
+        (tester.widget(find.byType(TextField)) as TextField).controller!.text,
+        '');
   });
 
   testWidgets('شاشة العادات: العادة المعدودة ليها عدّاد −/+ بيشتغل',

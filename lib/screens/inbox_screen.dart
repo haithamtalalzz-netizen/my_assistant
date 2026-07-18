@@ -8,6 +8,7 @@ import '../data/inbox_repo.dart';
 import '../data/meals_repo.dart';
 import '../models/models.dart';
 import '../widgets/common.dart';
+import '../widgets/quick_add_field.dart';
 import 'schedule/appointment_form.dart';
 
 /// صندوق الوارد: أفكار سريعة غير مصنفة — تتسجل في ثانية وتتصنف بعدين.
@@ -20,7 +21,6 @@ class InboxScreen extends StatefulWidget {
 
 class _InboxScreenState extends State<InboxScreen> {
   final _repo = InboxRepo();
-  final _input = TextEditingController();
   bool _loading = true;
   List<InboxNote> _notes = [];
 
@@ -28,12 +28,6 @@ class _InboxScreenState extends State<InboxScreen> {
   void initState() {
     super.initState();
     _load();
-  }
-
-  @override
-  void dispose() {
-    _input.dispose();
-    super.dispose();
   }
 
   Future<void> _load() async {
@@ -45,10 +39,8 @@ class _InboxScreenState extends State<InboxScreen> {
     });
   }
 
-  Future<void> _add() async {
-    if (_input.text.trim().isEmpty) return;
-    await _repo.add(_input.text);
-    _input.clear();
+  Future<void> _add(String text) async {
+    await _repo.add(text);
     await _load();
   }
 
@@ -121,21 +113,9 @@ class _InboxScreenState extends State<InboxScreen> {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _input,
-                          decoration: InputDecoration(
-                              labelText:
-                                  tr('ارمي أي فكرة هنا...', 'Drop any idea here...')),
-                          onSubmitted: (_) => _add(),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton.filled(
-                          onPressed: _add, icon: const Icon(Icons.add)),
-                    ],
+                  child: QuickAddField(
+                    label: tr('ارمي أي فكرة هنا...', 'Drop any idea here...'),
+                    onSubmit: _add,
                   ),
                 ),
                 if (_notes.isNotEmpty)
