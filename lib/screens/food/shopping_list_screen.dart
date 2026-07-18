@@ -57,6 +57,10 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
     return null;
   }
 
+  /// القائمة الحالية بتستخدم تصنيفات ممرات السوبرماركت؟ («أشتري لاحقاً»
+  /// دايمًا بسيطة.)
+  bool get _usesAisles => !_buyLaterTab && (_activeList?.usesAisles ?? false);
+
   Future<void> _load() async {
     try {
       final lists = await _repo.shoppingLists();
@@ -73,8 +77,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       final items = _buyLaterTab
           ? await _repo.buyLaterItems()
           : await _repo.shoppingItems(listId: _activeListId);
-      logInfo('تسوق: _load قائمة=$_activeListId لاحقاً=$_buyLaterTab '
-          'قوائم=${lists.length} → ${items.length} صنف');
       final total =
           _buyLaterTab ? 0.0 : await _repo.shoppingTotal(listId: _activeListId);
       final order = orderedShoppingCategories(
@@ -99,7 +101,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
   }
 
   void _selectList(int? id, {bool buyLater = false}) {
-    logInfo('تسوق: _selectList id=$id لاحقاً=$buyLater');
     setState(() {
       _buyLaterTab = buyLater;
       _activeListId = id;
@@ -110,7 +111,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
   Future<void> _add() async {
     final name = _input.text.trim();
-    logInfo('تسوق: _add النص="$name" قائمة=$_activeListId لاحقاً=$_buyLaterTab');
     if (name.isEmpty) {
       // بدل ما الزرار يعمل حاجة صامتة (فيبان مش شغّال) — نوجّه المستخدم
       // ونرجّع التركيز للخانة عشان يكتب.
@@ -122,7 +122,10 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       return;
     }
     await _repo.addShoppingItem(name,
-        category: _addCat, listId: _activeListId, buyLater: _buyLaterTab);
+        // القوائم غير البقالة من غير تصنيف (مايتجمّعش تحت «خضار وفاكهة»).
+        category: _usesAisles ? _addCat : '',
+        listId: _activeListId,
+        buyLater: _buyLaterTab);
     _input.clear();
     await _load();
     // نسيب التركيز فى الخانة عشان تكتب الصنف اللى بعده على طول.
@@ -365,11 +368,13 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
   Future<void> _listForm({ShoppingList? existing}) async {
     final name = TextEditingController(text: existing?.name ?? '');
     var emoji = existing?.emoji ?? '🛒';
+    var usesAisles = existing?.usesAisles ?? false;
     const emojis = ['🛒', '💊', '👕', '🔧', '📱', '🎁', '👶', '💼', '🏠', '🎨'];
     final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
+          scrollable: true,
           title: Text(existing == null
               ? tr('قائمة جديدة', 'New list')
               : tr('تعديل القائمة', 'Edit list')),
@@ -394,6 +399,19 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                     ),
                 ],
               ),
+              const SizedBox(height: 4),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                value: usesAisles,
+                title: Text(tr('تصنيف حسب ممرات السوبرماركت',
+                    'Group by supermarket aisles')),
+                subtitle: Text(
+                    tr('خضار/بقالة/لحوم... — للبقالة بس',
+                        'Produce/grocery/meat... — for groceries only'),
+                    style: const TextStyle(fontSize: 11)),
+                onChanged: (v) => setD(() => usesAisles = v),
+              ),
             ],
           ),
           actions: [
@@ -409,13 +427,13 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
     );
     if (saved == true && name.text.trim().isNotEmpty) {
       if (existing == null) {
-        final id =
-            await _repo.addShoppingList(name.text.trim(), emoji: emoji);
+        final id = await _repo.addShoppingList(name.text.trim(),
+            emoji: emoji, usesAisles: usesAisles);
         _activeListId = id;
         _buyLaterTab = false;
       } else {
         await _repo.renameShoppingList(existing.id!,
-            name: name.text.trim(), emoji: emoji);
+            name: name.text.trim(), emoji: emoji, usesAisles: usesAisles);
       }
     }
     name.dispose();
@@ -423,7 +441,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
   /// قوالب جاهزة → تضيف مجموعة أصناف للقائمة النشطة بضغطة.
   Future<void> _useTemplate() async {
-    logInfo('تسوق: _useTemplate قائمة=$_activeListId');
     if (_activeListId == null) return;
     await showModalBottomSheet<void>(
       context: context,
@@ -670,9 +687,15 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
   List<Widget> _groupedList(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    // «أشتري لاحقاً»: قائمة مسطّحة بالأولوية، من غير تجميع بالتصنيف.
-    if (_buyLaterTab) {
-      return [for (final it in _items) _itemTile(it, scheme)];
+    // «أشتري لاحقاً» أو قائمة مش-بقالة: قائمة مسطّحة من غير تجميع بالتصنيف.
+    if (_buyLaterTab || !_usesAisles) {
+      final active = _items.where((i) => !i.checked).toList();
+      final done = _items.where((i) => i.checked).toList();
+      return [
+        for (final it in active) _itemTile(it, scheme),
+        if (done.isNotEmpty) const Divider(height: 20),
+        for (final it in done) _itemTile(it, scheme),
+      ];
     }
     final active = _items.where((i) => !i.checked).toList();
     final done = _items.where((i) => i.checked).toList();
@@ -816,7 +839,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
             PopupMenuButton<String>(
               tooltip: tr('المزيد', 'More'),
               onSelected: (v) {
-                logInfo('تسوق: المزيد اختار=$v');
                 switch (v) {
                   case 'templates':
                     _useTemplate();
@@ -833,9 +855,11 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                 PopupMenuItem(
                     value: 'staples',
                     child: Text(tr('🔁 الأساسيات', '🔁 Staples'))),
-                PopupMenuItem(
-                    value: 'aisles',
-                    child: Text(tr('⇅ ترتيب الممرات', '⇅ Aisle order'))),
+                // ترتيب الممرات لقوائم البقالة بس.
+                if (_usesAisles)
+                  PopupMenuItem(
+                      value: 'aisles',
+                      child: Text(tr('⇅ ترتيب الممرات', '⇅ Aisle order'))),
               ],
             ),
           ],
@@ -877,7 +901,8 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                           onSubmitted: (_) => _add(),
                         ),
                       ),
-                      if (!_buyLaterTab) ...[
+                      // التصنيف يظهر لقوائم البقالة بس.
+                      if (_usesAisles) ...[
                         const SizedBox(width: 6),
                         DropdownButton<String>(
                           value: _addCat,

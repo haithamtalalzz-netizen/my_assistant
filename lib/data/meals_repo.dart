@@ -110,7 +110,8 @@ class MealsRepo {
     return rows.map(ShoppingList.fromMap).toList();
   }
 
-  Future<int> addShoppingList(String name, {String emoji = '🛒'}) async {
+  Future<int> addShoppingList(String name,
+      {String emoji = '🛒', bool usesAisles = false}) async {
     final db = await AppDb.instance;
     final maxRow = await db
         .rawQuery('SELECT COALESCE(MAX(sort_order), -1) m FROM shopping_lists');
@@ -119,16 +120,18 @@ class MealsRepo {
       'name': name,
       'emoji': emoji,
       'sort_order': next,
+      'uses_aisles': usesAisles ? 1 : 0,
       'created_at': DateTime.now().toIso8601String(),
     });
   }
 
   Future<void> renameShoppingList(int id,
-      {String? name, String? emoji}) async {
+      {String? name, String? emoji, bool? usesAisles}) async {
     final db = await AppDb.instance;
     final data = <String, Object?>{};
     if (name != null) data['name'] = name;
     if (emoji != null) data['emoji'] = emoji;
+    if (usesAisles != null) data['uses_aisles'] = usesAisles ? 1 : 0;
     if (data.isEmpty) return;
     await db.update('shopping_lists', data, where: 'id = ?', whereArgs: [id]);
   }

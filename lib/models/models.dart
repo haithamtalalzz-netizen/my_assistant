@@ -1639,6 +1639,10 @@ class ShoppingList {
   final String name;
   final String emoji;
   final int sortOrder;
+
+  /// بتستخدم تصنيفات ممرات السوبرماركت (خضار/بقالة/لحوم...)؟ القوائم غير
+  /// البقالة (صيدلية/ملابس/هدايا) قائمة بسيطة من غير تصنيفات.
+  final bool usesAisles;
   final String createdAt;
 
   const ShoppingList({
@@ -1646,6 +1650,7 @@ class ShoppingList {
     required this.name,
     this.emoji = '🛒',
     this.sortOrder = 0,
+    this.usesAisles = false,
     required this.createdAt,
   });
 
@@ -1654,6 +1659,7 @@ class ShoppingList {
         name: m['name'] as String,
         emoji: m['emoji'] as String? ?? '🛒',
         sortOrder: (m['sort_order'] as int?) ?? 0,
+        usesAisles: (m['uses_aisles'] as int? ?? 0) == 1,
         createdAt: m['created_at'] as String,
       );
 
@@ -1661,6 +1667,7 @@ class ShoppingList {
         'name': name,
         'emoji': emoji,
         'sort_order': sortOrder,
+        'uses_aisles': usesAisles ? 1 : 0,
         'created_at': createdAt,
       };
 }

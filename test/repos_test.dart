@@ -3309,6 +3309,35 @@ void main() {
     });
   });
 
+  group('تصنيفات التسوق للبقالة بس (v55)', () {
+    test('v55 بتضيف uses_aisles وبتفعّلها للسوبرماركت بس', () async {
+      final db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await db.execute('CREATE TABLE shopping_lists('
+          'id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, '
+          "emoji TEXT NOT NULL DEFAULT '🛒', "
+          'sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)');
+      await db.insert('shopping_lists',
+          {'name': 'سوبرماركت', 'sort_order': 0, 'created_at': 'x'});
+      await db.insert('shopping_lists',
+          {'name': 'صيدلية', 'sort_order': 1, 'created_at': 'x'});
+      await AppDb.upgradeSchema(db, 54, 55);
+      final rows = await db.query('shopping_lists', orderBy: 'sort_order');
+      expect(rows[0]['uses_aisles'], 1, reason: 'السوبرماركت بيستخدم التصنيفات');
+      expect(rows[1]['uses_aisles'], 0, reason: 'الصيدلية قائمة بسيطة');
+      await db.close();
+    });
+
+    test('القائمة الجديدة usesAisles بيترحّل صح', () async {
+      final repo = MealsRepo();
+      final groceryId = await repo.addShoppingList('بقالتى', usesAisles: true);
+      final giftsId = await repo.addShoppingList('هدايا');
+      final lists = await repo.shoppingLists();
+      expect(lists.firstWhere((l) => l.id == groceryId).usesAisles, true);
+      expect(lists.firstWhere((l) => l.id == giftsId).usesAisles, false);
+    });
+  });
+
   group('علاج التسوق (v53→v54 idempotent)', () {
     test('ترقية v53 ناقصة (من غير buy_later) بتتصلّح فى v54', () async {
       final db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,

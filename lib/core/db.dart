@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 54,
+      version: 55,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -355,7 +355,10 @@ class AppDb {
       await db.execute('CREATE TABLE IF NOT EXISTS shopping_lists('
           "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, "
           "emoji TEXT NOT NULL DEFAULT '🛒', "
-          'sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)');
+          'sort_order INTEGER NOT NULL DEFAULT 0, '
+          'uses_aisles INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)');
+      await _safeAddColumn(
+          db, 'shopping_lists', 'uses_aisles', 'INTEGER NOT NULL DEFAULT 0');
       await _safeAddColumn(db, 'shopping_items', 'list_id', 'INTEGER');
       await _safeAddColumn(
           db, 'shopping_items', 'qty', "TEXT NOT NULL DEFAULT ''");
@@ -366,6 +369,14 @@ class AppDb {
       await _safeAddColumn(
           db, 'shopping_items', 'buy_later', 'INTEGER NOT NULL DEFAULT 0');
       await _seedDefaultShoppingLists(db);
+    }
+    if (oldV < 55 && newV >= 55) {
+      // تصنيفات ممرات السوبرماركت تخص قوائم البقالة بس — عمود بيقول أنهى
+      // قائمة بتستخدم التصنيفات؛ الباقى قائمة بسيطة من غير تصنيفات.
+      await _safeAddColumn(
+          db, 'shopping_lists', 'uses_aisles', 'INTEGER NOT NULL DEFAULT 0');
+      await db.update('shopping_lists', {'uses_aisles': 1},
+          where: 'name = ? OR name = ?', whereArgs: ['سوبرماركت', 'بقالة']);
     }
   }
 
@@ -389,6 +400,8 @@ class AppDb {
         'name': d[0],
         'emoji': d[1],
         'sort_order': sort++,
+        // السوبرماركت بس هو اللى بيستخدم تصنيفات الممرات.
+        'uses_aisles': d[0] == 'سوبرماركت' ? 1 : 0,
         'created_at': now,
       });
       firstId ??= id;
@@ -407,9 +420,12 @@ class AppDb {
         name TEXT NOT NULL,
         emoji TEXT NOT NULL DEFAULT '🛒',
         sort_order INTEGER NOT NULL DEFAULT 0,
+        uses_aisles INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL
       )''',
   ];
+
+  // (uses_aisles اتضاف من v55 — موجود فى الـCREATE عشان التنصيب الجديد.)
 
   /// مهام فرعية + جلسات تركيز (بومودورو).
   static const List<String> _v52Tables = [
