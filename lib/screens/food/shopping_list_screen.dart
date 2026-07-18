@@ -7,7 +7,6 @@ import '../../core/log.dart';
 import '../../widgets/search_action.dart';
 import '../../data/meals_repo.dart';
 import '../../data/money_repo.dart';
-import '../../data/settings_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 
@@ -25,7 +24,6 @@ const int _kBuyLater = -1; // فلتر «أشتري لاحقاً»
 
 class _ShoppingListScreenState extends State<ShoppingListScreen> {
   final _repo = MealsRepo();
-  final _settings = SettingsRepo();
   final _input = TextEditingController();
   final _inputFocus = FocusNode();
 
@@ -41,7 +39,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
   /// لما الفلتر «الكل» — القائمة اللى الإضافة بتروحلها.
   int? _addTarget;
-  String _addCat = kShoppingCategories.first;
 
   @override
   void initState() {
@@ -137,9 +134,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       return;
     }
     await _repo.addShoppingItem(name,
-        category: (list?.usesAisles ?? false) ? _addCat : '',
-        listId: list?.id,
-        buyLater: buyLater);
+        listId: list?.id, buyLater: buyLater);
     _input.clear();
     await _load();
     if (mounted) _inputFocus.requestFocus();
@@ -187,7 +182,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
     final place = TextEditingController(text: item.place);
     final price = TextEditingController(
         text: item.price > 0 ? item.price.toStringAsFixed(0) : '');
-    var cat = item.category.isEmpty ? kShoppingCategories.first : item.category;
     var listId = item.listId;
     var buyLater = item.buyLater;
     var priority = item.priority;
@@ -241,20 +235,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                   ],
                   onChanged: (v) => setD(() => listId = v ?? listId),
                 ),
-              if (_lists.any((l) => l.id == listId && l.usesAisles)) ...[
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: cat,
-                  decoration:
-                      InputDecoration(labelText: tr('التصنيف', 'Category')),
-                  items: [
-                    for (final c in kShoppingCategories)
-                      DropdownMenuItem(
-                          value: c, child: Text(shoppingCategoryLabel(c))),
-                  ],
-                  onChanged: (v) => cat = v ?? cat,
-                ),
-              ],
               const SizedBox(height: 4),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -287,7 +267,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
     if (saved == true) {
       await _repo.updateShoppingItem(item.id!,
           name: name.text.trim().isEmpty ? item.name : name.text.trim(),
-          category: cat,
           qty: qty.text.trim(),
           place: place.text.trim(),
           price: double.tryParse(toEnglishDigits(price.text.trim())) ?? 0,
@@ -329,17 +308,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                   contentPadding: EdgeInsets.zero,
                   leading: Text(l.emoji, style: const TextStyle(fontSize: 20)),
                   title: Text(l.name),
-                  subtitle: l.usesAisles
-                      ? Text(tr('بتصنيفات الممرات', 'aisle categories'),
-                          style: const TextStyle(fontSize: 11))
-                      : null,
                   trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                    if (l.usesAisles)
-                      IconButton(
-                        tooltip: tr('ترتيب الممرات', 'Aisle order'),
-                        icon: const Icon(Icons.reorder, size: 18),
-                        onPressed: _editAisleOrder,
-                      ),
                     IconButton(
                       tooltip: tr('قالب جاهز', 'Template'),
                       icon: const Icon(Icons.playlist_add, size: 18),
@@ -388,7 +357,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
   Future<void> _listForm({ShoppingList? existing}) async {
     final name = TextEditingController(text: existing?.name ?? '');
     var emoji = existing?.emoji ?? '🛒';
-    var usesAisles = existing?.usesAisles ?? false;
     const emojis = ['🛒', '💊', '👕', '🔧', '📱', '🎁', '👶', '💼', '🏠', '🎨'];
     final saved = await showDialog<bool>(
       context: context,
@@ -421,18 +389,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                     ),
                 ],
               ),
-              const SizedBox(height: 4),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                value: usesAisles,
-                title: Text(tr('تصنيف حسب ممرات السوبرماركت',
-                    'Group by supermarket aisles')),
-                subtitle: Text(
-                    tr('للبقالة بس', 'groceries only'),
-                    style: const TextStyle(fontSize: 11)),
-                onChanged: (v) => setD(() => usesAisles = v),
-              ),
             ],
           ),
           actions: [
@@ -448,13 +404,13 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
     );
     if (saved == true && name.text.trim().isNotEmpty) {
       if (existing == null) {
-        final id = await _repo.addShoppingList(name.text.trim(),
-            emoji: emoji, usesAisles: usesAisles);
+        final id =
+            await _repo.addShoppingList(name.text.trim(), emoji: emoji);
         _filter = id;
         _addTarget = id;
       } else {
         await _repo.renameShoppingList(existing.id!,
-            name: name.text.trim(), emoji: emoji, usesAisles: usesAisles);
+            name: name.text.trim(), emoji: emoji);
       }
       if (mounted) await _load();
     }
@@ -595,60 +551,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
     );
   }
 
-  Future<void> _editAisleOrder() async {
-    final order = List<String>.from(
-        orderedShoppingCategories(await _settings.cardOrder('shopping_aisles')));
-    if (!mounted) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) => Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(tr('ترتيب ممرات السوبرماركت', 'Supermarket aisle order'),
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 8),
-              Flexible(
-                child: ReorderableListView(
-                  shrinkWrap: true,
-                  onReorderItem: (oldI, newI) => setSheet(() {
-                    order.insert(newI, order.removeAt(oldI));
-                  }),
-                  children: [
-                    for (final c in order)
-                      ListTile(
-                        key: ValueKey(c),
-                        dense: true,
-                        leading: const Icon(Icons.drag_handle),
-                        title: Text(shoppingCategoryLabel(c)),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: FilledButton(
-                  onPressed: () async {
-                    await _settings.setCardOrder('shopping_aisles', order);
-                    if (ctx.mounted) Navigator.pop(ctx);
-                    if (mounted) await _load();
-                  },
-                  child: Text(tr('حفظ', 'Save')),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   // ---- البناء ----
 
   @override
@@ -728,9 +630,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
   Widget _addRow(BuildContext context) {
     final buyLater = _filter == _kBuyLater;
-    final target = _targetList;
     final showListPicker = _filter == _kAll && _lists.isNotEmpty;
-    final showCat = (target?.usesAisles ?? false) && !buyLater;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
       child: Row(
@@ -765,22 +665,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                       child: Text(l.emoji, style: const TextStyle(fontSize: 18))),
               ],
               onChanged: (v) => setState(() => _addTarget = v),
-            ),
-          ],
-          if (showCat) ...[
-            const SizedBox(width: 4),
-            DropdownButton<String>(
-              value: _addCat,
-              underline: const SizedBox.shrink(),
-              isDense: true,
-              items: [
-                for (final c in kShoppingCategories)
-                  DropdownMenuItem(
-                      value: c,
-                      child: Text(shoppingCategoryLabel(c),
-                          style: const TextStyle(fontSize: 11))),
-              ],
-              onChanged: (v) => setState(() => _addCat = v ?? _addCat),
             ),
           ],
           const SizedBox(width: 4),
