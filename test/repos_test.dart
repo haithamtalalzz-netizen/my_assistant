@@ -12,6 +12,7 @@ import 'package:my_assistant/core/log.dart';
 import 'package:my_assistant/core/money_trends.dart';
 import 'package:my_assistant/core/personal_records.dart';
 import 'package:my_assistant/core/perfect_day.dart';
+import 'package:my_assistant/data/memorization_repo.dart';
 import 'package:my_assistant/core/morning_brief.dart';
 import 'package:my_assistant/core/dashboard_stats.dart';
 import 'package:my_assistant/core/data_export.dart';
@@ -4406,6 +4407,44 @@ void main() {
       await db.insert('water_logs', {'day': dk, 'glasses': 8, 'ml': 2500});
       final n = await perfectDaysThisMonth(database: db);
       expect(n >= 1, isTrue);
+    });
+  });
+
+  group('حفظ ومراجعة القرآن (Memorization)', () {
+    test('فترات Leitner + تاريخ المراجعة الجاية', () {
+      expect(MemorizationRepo.intervalForBox(0), 1);
+      expect(MemorizationRepo.intervalForBox(3), 14);
+      expect(MemorizationRepo.intervalForBox(99), 90, reason: 'clamp للأعلى');
+      final from = DateTime(2026, 6, 1);
+      expect(MemorizationRepo.nextReviewFor(0, from), '2026-06-02'); // +1
+      expect(MemorizationRepo.nextReviewFor(2, from), '2026-06-08'); // +7
+    });
+
+    test('add + due + review يرفع المستوى ويباعد / يرجّعه', () async {
+      final repo = MemorizationRepo();
+      final id = await repo.add('سورة الملك');
+      var due = await repo.due();
+      expect(due.length, 1, reason: 'البند الجديد مستحق النهاردة');
+      expect(due.first.box, 0);
+      // تمام → المستوى ١ + اتباعد فمش مستحق النهاردة
+      await repo.review(id, true);
+      expect(await repo.due(), isEmpty);
+      final all = await repo.all();
+      expect(all.first.box, 1);
+      expect(all.first.reviews, 1);
+      // ضعيف → يرجع لأول الصف (مستوى ٠)
+      await repo.review(id, false);
+      expect((await repo.all()).first.box, 0);
+    });
+
+    test('ترقية v55 ← v56 بتعمل جدول memorization', () async {
+      final v = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v, 55, 56);
+      final t = await v.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='memorization'");
+      expect(t.length, 1);
+      await v.close();
     });
   });
 }

@@ -1,5 +1,18 @@
 # SESSION_HANDOVER — My Assistant
 
+## 2026-07-19 — حفظ ومراجعة القرآن بالتكرار المتباعد (DB v56)
+
+**الحالة:** DB **v56** · **318/318** (+٣) · analyze نضيف · APK اتبنى · commit: (هيتحط). البند الـ⭐ من بنك الأفكار.
+
+**اللى اتعمل:**
+- **DB v56**: جدول `memorization` (label / box [مستوى Leitner] / next_review / last_reviewed / reviews / notes / created_at) + index على `next_review`. اتضاف في **الأماكن التلاتة**: `version: 56`، فرع `if (oldV<56 && newV>=56)` (بيلفّ `_v56Tables`)، وحلقة في `createSchema`. **تست ترقية**: `upgradeSchema(db,55,56)` بيعمل الجدول (الفرع self-contained — مايعتمدش على جداول تانية).
+- **`data/memorization_repo.dart`** (+ موديل `MemorizationItem` inline): نظام **Leitner** — `intervals=[1,3,7,14,30,60,90]` يوم حسب المستوى؛ `nextReviewFor(box, from)` (خالص، متغطّى بتست) · `add` (next_review=النهاردة فمتاح فورًا) · `all`/`due([today])`/`dueCount` · `review(id, ok)`: تمام→box+1 (cap) + يباعد؛ ضعيف→box=0 (بكرة).
+- **`screens/worship/memorization_screen.dart`**: `QuickAddField` للإضافة (متّبع جوتشا الكيبورد) + قسم «محتاج مراجعة النهاردة (N)» بكروت فيها [تمام ✓][محتاج مراجعة] + قائمة «كل المحفوظات» (badge المستوى + موعد المراجعة) بـ`SwipeToDelete` (+ undo بيعيد الإضافة).
+- **التوصيل**: `_Tool('memorize', …)` في شبكة أدوات `prayer_screen._toolsGrid()` (الجديد بيتحط آخر الشبكة؛ قابل لإعادة الترتيب بالسحب).
+- **٣ تستات**: فترات Leitner + `nextReviewFor` · add→due→review (رفع/إرجاع المستوى) · ترقية v55←v56.
+
+---
+
 ## 2026-07-19 — «اليوم المثالي» (Perfect Day)
 
 **الحالة:** **315/315** (+٣) · analyze نضيف · **مفيش migration** (قراءة فقط) · APK اتبنى · commit: (هيتحط). بند تانى من بنك الأفكار (المستخدم قال «كمّل ببند تانى»).

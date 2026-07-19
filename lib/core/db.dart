@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 55,
+      version: 56,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -378,6 +378,12 @@ class AppDb {
       await db.update('shopping_lists', {'uses_aisles': 1},
           where: 'name = ? OR name = ?', whereArgs: ['سوبرماركت', 'بقالة']);
     }
+    if (oldV < 56 && newV >= 56) {
+      // حفظ ومراجعة القرآن بالتكرار المتباعد (نظام Leitner).
+      for (final ddl in _v56Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
 
   /// يزرع القوائم الافتراضية (مرة واحدة) + بينقل البنود من غير قائمة لأول
@@ -411,6 +417,24 @@ class AppDb {
           where: 'list_id IS NULL');
     }
   }
+
+  /// حفظ ومراجعة القرآن بالتكرار المتباعد: كل بند له «صندوق» Leitner
+  /// (المستوى) + تاريخ المراجعة الجاية. المراجعة الناجحة بترفع المستوى
+  /// وتباعد الموعد؛ الضعيفة بترجّعه لأول الصف.
+  static const List<String> _v56Tables = [
+    '''
+      CREATE TABLE memorization(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        label TEXT NOT NULL,
+        box INTEGER NOT NULL DEFAULT 0,
+        next_review TEXT NOT NULL,
+        last_reviewed TEXT NOT NULL DEFAULT '',
+        reviews INTEGER NOT NULL DEFAULT 0,
+        notes TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      )''',
+    'CREATE INDEX idx_memorization_next ON memorization(next_review)',
+  ];
 
   /// قوائم التسوق المتعددة (سوبرماركت/صيدلية/ملابس...).
   static const List<String> _v53Tables = [
@@ -1547,6 +1571,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v53Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v56Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);
