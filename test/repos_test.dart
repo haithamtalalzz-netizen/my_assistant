@@ -16,6 +16,8 @@ import 'package:my_assistant/data/memorization_repo.dart';
 import 'package:my_assistant/core/salary_plan.dart';
 import 'package:my_assistant/data/leave_repo.dart';
 import 'package:my_assistant/core/adhkar_reminders.dart';
+import 'package:my_assistant/core/custom_rules.dart';
+import 'package:my_assistant/data/rules_repo.dart';
 import 'package:my_assistant/core/morning_brief.dart';
 import 'package:my_assistant/core/dashboard_stats.dart';
 import 'package:my_assistant/core/data_export.dart';
@@ -4525,6 +4527,63 @@ void main() {
       expect(parseHm('', defH: 17), (17, 0));
       expect(parseHm('9'), (9, 0)); // بدون دقايق
       expect(parseHm('99:99'), (23, 59)); // clamp
+    });
+  });
+
+  group('قواعدى (CustomRules)', () {
+    test('ruleFires: أكبر/أصغر + المساواة مش بتتحقق', () {
+      expect(ruleFires('>', 600, 500), isTrue);
+      expect(ruleFires('>', 400, 500), isFalse);
+      expect(ruleFires('<', 3, 5), isTrue);
+      expect(ruleFires('<', 7, 5), isFalse);
+      expect(ruleFires('>', 500, 500), isFalse); // مساواة
+    });
+
+    test('metricValues بيحسب مصاريف الأسبوع/الشهر + الخطوات + المياه', () async {
+      final today = dayKey(DateTime.now());
+      final within = dayKey(DateTime.now().subtract(const Duration(days: 3)));
+      final old = dayKey(DateTime.now().subtract(const Duration(days: 40)));
+      await db.insert('expenses',
+          {'amount': 200, 'category': 'أكل', 'note': '', 'day': today});
+      await db.insert('expenses',
+          {'amount': 100, 'category': 'أكل', 'note': '', 'day': within});
+      await db.insert('expenses',
+          {'amount': 999, 'category': 'أكل', 'note': '', 'day': old});
+      await db.insert('steps_logs', {'day': today, 'steps': 8000});
+      await db.insert('water_logs', {'day': today, 'glasses': 6, 'ml': 0});
+
+      final v = await metricValues(database: db);
+      expect(v['weekly_spend'], 300, reason: 'اليوم + خلال أسبوع، مش القديم');
+      expect(v['today_steps'], 8000);
+      expect(v['today_water'], 6);
+      expect(v['monthly_spend']! >= 300, isTrue);
+    });
+
+    test('RulesRepo: add/all/enabled/delete', () async {
+      final repo = RulesRepo();
+      final id = await repo.add(const CustomRule(
+          metric: 'weekly_spend',
+          op: '>',
+          threshold: 500,
+          message: 'خفّف'));
+      var all = await repo.all();
+      expect(all.length, 1);
+      expect(all.first.enabled, isTrue);
+      expect(all.first.threshold, 500);
+      await repo.setEnabled(id, false);
+      expect((await repo.all()).first.enabled, isFalse);
+      await repo.delete(id);
+      expect(await repo.all(), isEmpty);
+    });
+
+    test('ترقية v57 ← v58 بتعمل جدول custom_rules', () async {
+      final v = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v, 57, 58);
+      final t = await v.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='custom_rules'");
+      expect(t.length, 1);
+      await v.close();
     });
   });
 }

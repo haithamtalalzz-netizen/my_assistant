@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 57,
+      version: 58,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -390,6 +390,12 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 58 && newV >= 58) {
+      // قواعد يصنعها المستخدم («لو مصاريف الأسبوع عدّت X نبّهني»).
+      for (final ddl in _v58Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
 
   /// يزرع القوائم الافتراضية (مرة واحدة) + بينقل البنود من غير قائمة لأول
@@ -454,6 +460,20 @@ class AppDb {
         created_at TEXT NOT NULL
       )''',
     'CREATE INDEX idx_leave_day ON leave_ledger(day)',
+  ];
+
+  /// قواعد يصنعها المستخدم: مقياس + عملية (>/<) + حد + رسالة تنبيه.
+  static const List<String> _v58Tables = [
+    '''
+      CREATE TABLE custom_rules(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        metric TEXT NOT NULL,
+        op TEXT NOT NULL DEFAULT '>',
+        threshold REAL NOT NULL DEFAULT 0,
+        message TEXT NOT NULL DEFAULT '',
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL
+      )''',
   ];
 
   /// قوائم التسوق المتعددة (سوبرماركت/صيدلية/ملابس...).
@@ -1597,6 +1617,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v57Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v58Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);

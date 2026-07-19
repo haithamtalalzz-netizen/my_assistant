@@ -1,5 +1,20 @@
 # SESSION_HANDOVER — My Assistant
 
+## 2026-07-20 — قواعدى (Custom Rules, DB v58)
+
+**الحالة:** DB **v58** · **328/328** (+٤) · analyze نضيف · APK اتبنى · commit: (هيتحط). البند الثامن من بنك الأفكار.
+
+**اللى اتعمل:**
+- **DB v58**: جدول `custom_rules` (metric/op/threshold/message/enabled/created_at). اتضاف في الأماكن التلاتة (version + فرع `oldV<58` + createSchema). **تست ترقية** v57←v58.
+- **`core/custom_rules.dart`** (خالص/متغطّى بتست): `kRuleMetricKeys` (weekly_spend/monthly_spend/today_steps/today_water) + `ruleMetricLabel`/`ruleMetricUnit` + **`ruleFires(op, value, threshold)`** (`>`/`<`، المساواة مش بتتحقق) + **`metricValues({db})`** (يقرا القيم الحالية بـSQL مباشر: مصاريف آخر ٧ أيام `day >= today-6` / مصاريف الشهر `day LIKE 'YYYY-MM%'` / خطوات+مياه النهاردة؛ try/catch بيرجّع أصفار).
+- **`data/rules_repo.dart`** (+`CustomRule`): add/all/update/setEnabled/delete.
+- **`screens/rules_screen.dart`**: قائمة القواعد (كل قاعدة بتبيّن «الحالى: X» + بوردر/أيقونة حمرا لو **بتتحقق دلوقتى** + Switch تفعيل + تعديل/حذف) + بانر «N قاعدة بتتحقق دلوقتى» + FAB «قاعدة جديدة» (حوار: مقياس dropdown + أكبر/أصغر chips + الحد + الرسالة).
+- **التوصيل**: `GroupHubItem` في مجموعة المتابعة (بعد «آلة الزمن»).
+- **٤ تستات**: `ruleFires` (>/< + مساواة) · `metricValues` (نافذة الأسبوع الصح + خطوات/مياه) · `RulesRepo` CRUD+enabled · ترقية v57←v58.
+- **⚠️ جوتشا**: `«لو <metric>»` في doc comment بيطلّع lint `unintended_html_in_doc_comment` (الأقواس الزاوية = HTML) → استخدم `[metric]` بدلها عشان analyze يفضل ٠.
+
+---
+
 ## 2026-07-20 — آلة الزمن (Time Machine)
 
 **الحالة:** **324/324** (بدون تست جديد — UI بحت) · analyze نضيف · **مفيش migration** · APK اتبنى · commit: (هيتحط). البند السابع من بنك الأفكار.
