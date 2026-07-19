@@ -1,5 +1,17 @@
 # SESSION_HANDOVER — My Assistant
 
+## 2026-07-20 — سعر الدولار (USD/EGP via Frankfurter)
+
+**الحالة:** **330/330** (+٢) · analyze نضيف · **مفيش migration** (كاش في الإعدادات) · APK اتبنى · commit: (هيتحط). البند التاسع من بنك الأفكار. ⚠️ **الجلب الحى شبكة/runtime** (زى الطقس)؛ الـparser + الكاش متغطّيين بتست.
+
+**اللى اتعمل:**
+- **`core/fx_rate.dart`**: `parseUsdEgp(body)` (خالص/متغطّى بتست — بيفكّ `{"rates":{"EGP":..}}`، بيرجّع null للتالف/الصفر) + `FxRate.latest({client})` (GET `api.frankfurter.app/latest?from=USD&to=EGP`، **API مجانى بدون مفتاح** زى open-meteo؛ timeout 8ث، بيكاش مرة/اليوم في الإعدادات `fx_usd_egp`/`fx_usd_egp_date`، بيرجّع للمكاش لو النت وقع) + `cached()`/`cachedDate()`. الـ`client` قابل للحقن (للاختبار).
+- **`screens/money/fx_rate_screen.dart`**: كارت «١ دولار = X ج.م» + آخر تحديث + زر تحديث؛ بيعرض المكاش فورًا ثم يحدّث في الخلفية؛ رسالة لو مفيش نت ومفيش كاش.
+- **التوصيل**: `GroupHubItem` في مجموعة «الفلوس» (بعد أظرف المرتب).
+- **٢ تستات**: `parseUsdEgp` (صحيح + تالف/ناقص/صفر → null). **الشبكة مش بتتّست** (client قابل للحقن لو حبينا لاحقًا).
+
+---
+
 ## 2026-07-20 — قواعدى (Custom Rules, DB v58)
 
 **الحالة:** DB **v58** · **328/328** (+٤) · analyze نضيف · APK اتبنى · commit: (هيتحط). البند الثامن من بنك الأفكار.

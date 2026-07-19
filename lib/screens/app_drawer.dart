@@ -42,6 +42,7 @@ import 'baladna/savings_screen.dart';
 import 'baladna/social_screen.dart';
 import 'money/assets_screen.dart';
 import 'money/salary_envelopes_screen.dart';
+import 'money/fx_rate_screen.dart';
 import 'calendar_screen.dart';
 import 'capsule_screen.dart';
 import 'challenges_screen.dart';
@@ -227,6 +228,9 @@ class AppDrawer extends StatelessWidget {
                   GroupHubItem(Icons.account_balance_outlined,
                       tr('أظرف المرتب', 'Salary envelopes'),
                       screen: const SalaryEnvelopesScreen()),
+                  GroupHubItem(Icons.attach_money,
+                      tr('سعر الدولار', 'Dollar rate'),
+                      screen: const FxRateScreen()),
                   GroupHubItem(Icons.diamond_outlined,
                       tr('أموالي الخارجية', 'My assets'),
                       screen: const AssetsScreen()),

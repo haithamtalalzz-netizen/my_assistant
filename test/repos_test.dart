@@ -18,6 +18,7 @@ import 'package:my_assistant/data/leave_repo.dart';
 import 'package:my_assistant/core/adhkar_reminders.dart';
 import 'package:my_assistant/core/custom_rules.dart';
 import 'package:my_assistant/data/rules_repo.dart';
+import 'package:my_assistant/core/fx_rate.dart';
 import 'package:my_assistant/core/morning_brief.dart';
 import 'package:my_assistant/core/dashboard_stats.dart';
 import 'package:my_assistant/core/data_export.dart';
@@ -4584,6 +4585,21 @@ void main() {
           "SELECT name FROM sqlite_master WHERE type='table' AND name='custom_rules'");
       expect(t.length, 1);
       await v.close();
+    });
+  });
+
+  group('سعر الدولار (parseUsdEgp)', () {
+    test('يفكّ رد Frankfurter الصحيح', () {
+      expect(
+          parseUsdEgp('{"amount":1.0,"base":"USD","date":"2026-07-20",'
+              '"rates":{"EGP":48.53}}'),
+          48.53);
+    });
+    test('يرجّع null للرد التالف/الناقص', () {
+      expect(parseUsdEgp('مش json'), isNull);
+      expect(parseUsdEgp('{"rates":{"USD":1}}'), isNull); // مفيش EGP
+      expect(parseUsdEgp('{"rates":{"EGP":0}}'), isNull); // صفر مش سعر
+      expect(parseUsdEgp('[]'), isNull);
     });
   });
 }
