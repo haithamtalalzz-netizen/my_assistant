@@ -46,6 +46,7 @@ import 'calendar_screen.dart';
 import 'capsule_screen.dart';
 import 'challenges_screen.dart';
 import 'diary_screen.dart';
+import 'time_machine_screen.dart';
 import 'food/diet_plans_screen.dart';
 import 'food/food_card_screen.dart';
 import 'recipes_screen.dart';
@@ -416,6 +417,9 @@ class AppDrawer extends StatelessWidget {
                   GroupHubItem(Icons.calendar_month_outlined,
                       tr('تقويم النتيجة', 'Activity calendar'),
                       screen: const CalendarScreen()),
+                  GroupHubItem(Icons.history_toggle_off,
+                      tr('آلة الزمن', 'Time machine'),
+                      screen: const TimeMachineScreen()),
                   GroupHubItem(Icons.inbox_outlined,
                       tr('صندوق الوارد', 'Inbox'),
                       screen: const InboxScreen()),
