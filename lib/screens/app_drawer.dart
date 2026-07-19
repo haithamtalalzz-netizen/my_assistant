@@ -10,13 +10,9 @@ import 'schedule/schedule_screen.dart';
 import 'tasks/tasks_screen.dart';
 import 'money/subscriptions_screen.dart';
 import 'growth/goals_screen.dart';
-import 'car/car_screen.dart';
-import 'renewals/renewals_screen.dart';
 import 'leave_balance_screen.dart';
-import 'travel/travel_screen.dart';
 import 'food/fasting_screen.dart';
 import 'food/meal_planner_screen.dart';
-import 'home/home_inventory_screen.dart';
 import 'growth/courses_screen.dart';
 import 'growth/reading_screen.dart';
 import 'growth/gratitude_screen.dart';
@@ -36,7 +32,6 @@ import 'money/wishlist_screen.dart';
 import 'growth/watchlist_screen.dart';
 import 'baladna/debts_screen.dart';
 import 'baladna/gameya_screen.dart';
-import 'baladna/home_maintenance_screen.dart';
 import 'baladna/relatives_screen.dart';
 import 'baladna/savings_screen.dart';
 import 'baladna/social_screen.dart';
@@ -53,9 +48,7 @@ import 'food/diet_plans_screen.dart';
 import 'food/food_card_screen.dart';
 import 'recipes_screen.dart';
 import 'brain/charts_screen.dart';
-import 'brain/chat_screen.dart';
 import 'emergency_view.dart';
-import 'food/shopping_list_screen.dart';
 import 'group_hub_screen.dart';
 import 'gym/exercise_library_screen.dart';
 import 'gym/gym_screen.dart';
@@ -64,10 +57,7 @@ import 'gym/walk_tracker_screen.dart';
 import 'gym/workout_programs_screen.dart';
 import 'health/cycle_screen.dart';
 import 'health/health_hub_screen.dart';
-import 'home/meters_screen.dart';
 import 'home/pharmacy_screen.dart';
-import 'home/plants_screen.dart';
-import 'home/warranty_screen.dart';
 import 'inbox_screen.dart';
 import 'medical/medical_screen.dart';
 import 'quit_screen.dart';
@@ -206,8 +196,6 @@ class AppDrawer extends StatelessWidget {
             const SizedBox(height: 4),
             // مثبّت فوق — أكتر ٣ حاجات بتتفتح.
             top(0, Icons.home_outlined, tr('الرئيسية', 'Home')),
-            push(Icons.psychology_outlined, tr('اسأل مديرك', 'Ask your manager'),
-                const ChatScreen()),
             top(1, Icons.event_note_outlined, tr('المواعيد', 'Appointments')),
             push(Icons.checklist_rtl, tr('المهام', 'Tasks'),
                 const TasksScreen()),
@@ -321,39 +309,11 @@ class AppDrawer extends StatelessWidget {
                       tr('دفتر الوصفات', 'Recipes'),
                       screen: const RecipesScreen()),
                 ]),
-            // ---- البيت (صفحة مجموعة) ----
-            groupTile(Icons.home_outlined, tr('البيت', 'Home'),
-                accent: Colors.brown,
-                [
-                  GroupHubItem(Icons.inventory_2_outlined,
-                      tr('جرد الممتلكات', 'Home inventory'),
-                      screen: const HomeInventoryScreen()),
-                  GroupHubItem(Icons.home_repair_service_outlined,
-                      tr('صيانة البيت', 'Home maintenance'),
-                      screen: const HomeMaintenanceScreen()),
-                  GroupHubItem(Icons.verified_outlined,
-                      tr('أرشيف الضمانات', 'Warranties'),
-                      screen: const WarrantyScreen()),
-                  GroupHubItem(Icons.speed_outlined,
-                      tr('قراءات العدادات', 'Meter readings'),
-                      screen: const MetersScreen()),
-                  GroupHubItem(Icons.yard_outlined,
-                      tr('نباتات البيت', 'Home plants'),
-                      screen: const PlantsScreen()),
-                ]),
             // ---- ملابس (بند مستقل) ----
             push(Icons.checkroom_outlined, tr('ملابس', 'Clothes'),
                 const WardrobeScreen()),
-            push(Icons.shopping_cart_outlined, tr('قائمة التسوق', 'Shopping list'),
-                const ShoppingListScreen()),
-            push(Icons.directions_car_outlined, tr('السيارة', 'Car'),
-                const CarScreen()),
-            push(Icons.badge_outlined, tr('التجديدات', 'Renewals'),
-                const RenewalsScreen()),
             push(Icons.beach_access_outlined, tr('رصيد الإجازات', 'Leave balance'),
                 const LeaveBalanceScreen()),
-            push(Icons.flight_takeoff, tr('السفر', 'Travel'),
-                const TravelScreen()),
             push(Icons.pets_outlined, tr('الحيوانات الأليفة', 'Pets'),
                 const PetsScreen()),
             groupTile(Icons.self_improvement, tr('تطوّري', 'Growth'),
