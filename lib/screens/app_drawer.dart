@@ -207,48 +207,6 @@ class AppDrawer extends StatelessWidget {
             // الصلاة والأذكار — فوق الفلوس مباشرة (المصحف جوّاها).
             push(Icons.mosque_outlined, tr('صلاتى', 'My prayers'),
                 const PrayerScreen()),
-            // مجموعات بحسب مجال الحياة.
-            groupTile(
-                Icons.account_balance_wallet_outlined,
-                tr('فلوسى', 'My money'),
-                accent: Colors.teal,
-                [
-                  GroupHubItem(Icons.account_balance_wallet_outlined,
-                      tr('المحفظة', 'Wallet'), tabIndex: 2),
-                  GroupHubItem(Icons.savings_outlined, tr('الادخار', 'Savings'),
-                      screen: const SavingsScreen()),
-                  GroupHubItem(Icons.account_balance_outlined,
-                      tr('أظرف المرتب', 'Salary envelopes'),
-                      screen: const SalaryEnvelopesScreen()),
-                  GroupHubItem(Icons.attach_money,
-                      tr('سعر الدولار', 'Dollar rate'),
-                      screen: const FxRateScreen()),
-                  GroupHubItem(Icons.diamond_outlined,
-                      tr('أموالي الخارجية', 'My assets'),
-                      screen: const AssetsScreen()),
-                  GroupHubItem(Icons.handshake_outlined,
-                      tr('الديون والسلف', 'Debts'),
-                      screen: const DebtsScreen()),
-                  GroupHubItem(Icons.groups_outlined, tr('الجمعيات', "Gam'iyas"),
-                      screen: const GameyaScreen()),
-                  GroupHubItem(Icons.volunteer_activism_outlined,
-                      tr('الواجبات الاجتماعية', 'Social ledger'),
-                      screen: const SocialScreen()),
-                  GroupHubItem(Icons.subscriptions_outlined,
-                      tr('الاشتراكات', 'Subscriptions'),
-                      screen: const SubscriptionsScreen()),
-                  GroupHubItem(Icons.favorite_border,
-                      tr('قائمة الأمنيات', 'Wishlist'),
-                      screen: const WishlistScreen()),
-                ],
-                trailingBadge: FutureBuilder<int>(
-                  future: _moneyDueCount(),
-                  builder: (_, snap) {
-                    final n = snap.data ?? 0;
-                    return n == 0 ? const SizedBox.shrink() : badge(n);
-                  },
-                )),
-            // ---- الصحة ----
             // ---- صحتى (يجمع الصحة + الرياضة + النظام الغذائي) ----
             groupTile(Icons.health_and_safety_outlined, tr('صحتى', 'My health'),
                 accent: Colors.pink,
@@ -333,6 +291,47 @@ class AppDrawer extends StatelessWidget {
                         ],
                       )),
                 ]),
+            // ---- فلوسى ----
+            groupTile(
+                Icons.account_balance_wallet_outlined,
+                tr('فلوسى', 'My money'),
+                accent: Colors.teal,
+                [
+                  GroupHubItem(Icons.account_balance_wallet_outlined,
+                      tr('المحفظة', 'Wallet'), tabIndex: 2),
+                  GroupHubItem(Icons.savings_outlined, tr('الادخار', 'Savings'),
+                      screen: const SavingsScreen()),
+                  GroupHubItem(Icons.account_balance_outlined,
+                      tr('أظرف المرتب', 'Salary envelopes'),
+                      screen: const SalaryEnvelopesScreen()),
+                  GroupHubItem(Icons.attach_money,
+                      tr('سعر الدولار', 'Dollar rate'),
+                      screen: const FxRateScreen()),
+                  GroupHubItem(Icons.diamond_outlined,
+                      tr('أموالي الخارجية', 'My assets'),
+                      screen: const AssetsScreen()),
+                  GroupHubItem(Icons.handshake_outlined,
+                      tr('الديون والسلف', 'Debts'),
+                      screen: const DebtsScreen()),
+                  GroupHubItem(Icons.groups_outlined, tr('الجمعيات', "Gam'iyas"),
+                      screen: const GameyaScreen()),
+                  GroupHubItem(Icons.volunteer_activism_outlined,
+                      tr('الواجبات الاجتماعية', 'Social ledger'),
+                      screen: const SocialScreen()),
+                  GroupHubItem(Icons.subscriptions_outlined,
+                      tr('الاشتراكات', 'Subscriptions'),
+                      screen: const SubscriptionsScreen()),
+                  GroupHubItem(Icons.favorite_border,
+                      tr('قائمة الأمنيات', 'Wishlist'),
+                      screen: const WishlistScreen()),
+                ],
+                trailingBadge: FutureBuilder<int>(
+                  future: _moneyDueCount(),
+                  builder: (_, snap) {
+                    final n = snap.data ?? 0;
+                    return n == 0 ? const SizedBox.shrink() : badge(n);
+                  },
+                )),
             // ---- ملابس (بند مستقل) ----
             push(Icons.checkroom_outlined, tr('ملابسى', 'My clothes'),
                 const WardrobeScreen()),
