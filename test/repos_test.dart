@@ -11,6 +11,7 @@ import 'package:my_assistant/core/kcal_balance.dart';
 import 'package:my_assistant/core/log.dart';
 import 'package:my_assistant/core/money_trends.dart';
 import 'package:my_assistant/core/personal_records.dart';
+import 'package:my_assistant/core/perfect_day.dart';
 import 'package:my_assistant/core/morning_brief.dart';
 import 'package:my_assistant/core/dashboard_stats.dart';
 import 'package:my_assistant/core/data_export.dart';
@@ -4369,6 +4370,42 @@ void main() {
       final recs = await computePersonalRecords(database: db);
       expect(recs.any((r) => r.label == 'أقل صرف في شهر'), isFalse,
           reason: 'شهر واحد مش مقارنة');
+    });
+  });
+
+  group('اليوم المثالي (PerfectDay)', () {
+    test('٥ صلوات + هدف مياه + بلا عادات = يوم مثالي', () async {
+      for (var p = 0; p < 5; p++) {
+        await db.insert('prayer_log', {'day': '2026-06-15', 'prayer': p});
+      }
+      await db.insert(
+          'water_logs', {'day': '2026-06-15', 'glasses': 8, 'ml': 2500});
+      final s = await systemsForDay(DateTime(2026, 6, 15), database: db);
+      expect(s.prayersOk, isTrue);
+      expect(s.waterOk, isTrue);
+      expect(s.habitsOk, isTrue, reason: 'مفيش عادات نشطة = مايسقّطش اليوم');
+      expect(s.isPerfect, isTrue);
+    });
+
+    test('٤ صلوات = مش مثالي', () async {
+      for (var p = 0; p < 4; p++) {
+        await db.insert('prayer_log', {'day': '2026-06-16', 'prayer': p});
+      }
+      await db.insert(
+          'water_logs', {'day': '2026-06-16', 'glasses': 8, 'ml': 2500});
+      final s = await systemsForDay(DateTime(2026, 6, 16), database: db);
+      expect(s.prayersOk, isFalse);
+      expect(s.isPerfect, isFalse);
+    });
+
+    test('perfectDaysThisMonth بيعدّ يوم النهاردة المثالي', () async {
+      final dk = dayKey(DateTime.now());
+      for (var p = 0; p < 5; p++) {
+        await db.insert('prayer_log', {'day': dk, 'prayer': p});
+      }
+      await db.insert('water_logs', {'day': dk, 'glasses': 8, 'ml': 2500});
+      final n = await perfectDaysThisMonth(database: db);
+      expect(n >= 1, isTrue);
     });
   });
 }

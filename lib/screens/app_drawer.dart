@@ -21,6 +21,7 @@ import 'growth/reading_screen.dart';
 import 'growth/gratitude_screen.dart';
 import 'growth/habit_analytics_screen.dart';
 import 'growth/records_screen.dart';
+import 'growth/perfect_day_screen.dart';
 import 'pets/pets_screen.dart';
 import 'passwords/passwords_screen.dart';
 import '../data/bills_repo.dart';
@@ -360,6 +361,9 @@ class AppDrawer extends StatelessWidget {
                   GroupHubItem(Icons.emoji_events_outlined,
                       tr('أرقامك القياسية', 'Your records'),
                       screen: const RecordsScreen()),
+                  GroupHubItem(Icons.auto_awesome_outlined,
+                      tr('اليوم المثالي', 'Perfect day'),
+                      screen: const PerfectDayScreen()),
                   GroupHubItem(Icons.movie_outlined,
                       tr('قائمة المشاهدة', 'Watchlist'),
                       screen: const WatchlistScreen()),
