@@ -13,6 +13,7 @@ import 'package:my_assistant/core/money_trends.dart';
 import 'package:my_assistant/core/personal_records.dart';
 import 'package:my_assistant/core/perfect_day.dart';
 import 'package:my_assistant/data/memorization_repo.dart';
+import 'package:my_assistant/core/salary_plan.dart';
 import 'package:my_assistant/core/morning_brief.dart';
 import 'package:my_assistant/core/dashboard_stats.dart';
 import 'package:my_assistant/core/data_export.dart';
@@ -4445,6 +4446,42 @@ void main() {
           "SELECT name FROM sqlite_master WHERE type='table' AND name='memorization'");
       expect(t.length, 1);
       await v.close();
+    });
+  });
+
+  group('أظرف المرتب (SalaryPlan)', () {
+    test('التوزيع = المرتب × النسبة، والمجموع', () {
+      const envs = [
+        SalaryEnvelope('التزامات', 40),
+        SalaryEnvelope('مصاريف', 35),
+        SalaryEnvelope('ادخار', 25),
+      ];
+      expect(totalPercent(envs), 100);
+      final d = distribute(10000, envs);
+      expect(d[0].value, 4000);
+      expect(d[1].value, 3500);
+      expect(d[2].value, 2500);
+    });
+
+    test('parse/encode + الافتراضى عند الفاضى/التالف', () {
+      expect(parseEnvelopes(null).length, kDefaultEnvelopes.length);
+      expect(parseEnvelopes('مش json').first.name, kDefaultEnvelopes.first.name);
+      const list = [SalaryEnvelope('أ', 60), SalaryEnvelope('ب', 40)];
+      final round = parseEnvelopes(encodeEnvelopes(list));
+      expect(round.length, 2);
+      expect(round[0].name, 'أ');
+      expect(round[1].percent, 40);
+    });
+
+    test('العدّ التنازلى ليوم القبض (مع تجاوز الشهر وقصر فبراير)', () {
+      // النهاردة ١٠، القبض ٢٥ → فاضل ١٥
+      expect(daysUntilPayday(25, DateTime(2026, 6, 10)), 15);
+      // النهاردة ٢٥ (القبض) → ٠
+      expect(daysUntilPayday(25, DateTime(2026, 6, 25)), 0);
+      // عدّى القبض (٢٦ والقبض ٢٥) → الشهر الجاى (٣٠ يوم يونيو → ٥ يوليو = ٢٩ يوم)
+      expect(daysUntilPayday(25, DateTime(2026, 6, 26)), 29);
+      // القبض ٣١ وفبراير → آخر يوم (٢٨/٢٠٢٦)
+      expect(daysUntilPayday(31, DateTime(2026, 2, 10)), 18);
     });
   });
 }

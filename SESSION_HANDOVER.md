@@ -1,5 +1,17 @@
 # SESSION_HANDOVER — My Assistant
 
+## 2026-07-19 — أظرف المرتب (Salary Envelopes)
+
+**الحالة:** **321/321** (+٣) · analyze نضيف · **مفيش migration** (config في الإعدادات) · APK اتبنى · commit: (هيتحط). البند الرابع من بنك الأفكار.
+
+**اللى اتعمل:**
+- **`core/salary_plan.dart`** (خالص، قابل للاختبار، بدون DB): `SalaryEnvelope(name, percent)` + `kDefaultEnvelopes` (التزامات 40 / مصاريف 35 / ادخار 25) · `parseEnvelopes`/`encodeEnvelopes` (JSON، يرجّع الافتراضى عند الفاضى/التالف) · `totalPercent` · `distribute(salary, envs)` (مبلغ كل ظرف) · **`daysUntilPayday(payday, today)`** (عدّ تنازلى، بيراعى تجاوز الشهر + قصر فبراير عبر clamp لآخر يوم).
+- **`screens/money/salary_envelopes_screen.dart`**: كارت عدّاد «فاضل N يوم على القبض» + المرتب/يوم القبض (tap-to-edit) + قائمة أظرف (اسم/نسبة/مبلغ محسوب) بتعديل/حذف + «إضافة ظرف» + «التوزيع المقترح» + شارة «المجموع N%» (أخضر لو ١٠٠). **auto-save** بعد كل تعديل عبر `SettingsRepo.get/set` (مفاتيح `salary_amount`/`salary_payday`/`salary_envelopes`).
+- **التوصيل**: `GroupHubItem` في مجموعة «الفلوس» بالـdrawer (بعد الادخار).
+- **٣ تستات**: التوزيع+المجموع · parse/encode+الافتراضى · العدّ التنازلى (تجاوز الشهر + فبراير).
+
+---
+
 ## 2026-07-19 — حفظ ومراجعة القرآن بالتكرار المتباعد (DB v56)
 
 **الحالة:** DB **v56** · **318/318** (+٣) · analyze نضيف · APK اتبنى · commit: (هيتحط). البند الـ⭐ من بنك الأفكار.
