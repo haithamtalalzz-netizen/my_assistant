@@ -18,7 +18,6 @@ import 'growth/gratitude_screen.dart';
 import 'growth/habit_analytics_screen.dart';
 import 'growth/records_screen.dart';
 import 'growth/perfect_day_screen.dart';
-import 'pets/pets_screen.dart';
 import 'passwords/passwords_screen.dart';
 import '../data/bills_repo.dart';
 import '../data/income_repo.dart';
@@ -337,8 +336,6 @@ class AppDrawer extends StatelessWidget {
             // ---- ملابس (بند مستقل) ----
             push(Icons.checkroom_outlined, tr('ملابس', 'Clothes'),
                 const WardrobeScreen()),
-            push(Icons.pets_outlined, tr('الحيوانات الأليفة', 'Pets'),
-                const PetsScreen()),
             groupTile(Icons.self_improvement, tr('تطوّري', 'Growth'),
                 accent: Colors.indigo,
                 [
