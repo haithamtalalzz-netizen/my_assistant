@@ -20,6 +20,7 @@ import 'growth/courses_screen.dart';
 import 'growth/reading_screen.dart';
 import 'growth/gratitude_screen.dart';
 import 'growth/habit_analytics_screen.dart';
+import 'growth/records_screen.dart';
 import 'pets/pets_screen.dart';
 import 'passwords/passwords_screen.dart';
 import '../data/bills_repo.dart';
@@ -356,6 +357,9 @@ class AppDrawer extends StatelessWidget {
                   GroupHubItem(Icons.insights_outlined,
                       tr('تحليلات العادات', 'Habit analytics'),
                       screen: const HabitAnalyticsScreen()),
+                  GroupHubItem(Icons.emoji_events_outlined,
+                      tr('أرقامك القياسية', 'Your records'),
+                      screen: const RecordsScreen()),
                   GroupHubItem(Icons.movie_outlined,
                       tr('قائمة المشاهدة', 'Watchlist'),
                       screen: const WatchlistScreen()),

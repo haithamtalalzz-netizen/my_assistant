@@ -10,6 +10,7 @@ import 'package:my_assistant/core/day_close.dart';
 import 'package:my_assistant/core/kcal_balance.dart';
 import 'package:my_assistant/core/log.dart';
 import 'package:my_assistant/core/money_trends.dart';
+import 'package:my_assistant/core/personal_records.dart';
 import 'package:my_assistant/core/morning_brief.dart';
 import 'package:my_assistant/core/dashboard_stats.dart';
 import 'package:my_assistant/core/data_export.dart';
@@ -4320,6 +4321,54 @@ void main() {
       expect(AppState.isDarkWindow(12 * 60, '09:00', '17:00'), isTrue);
       expect(AppState.isDarkWindow(8 * 60, '09:00', '17:00'), isFalse);
       expect(AppState.isDarkWindow(20 * 60, '09:00', '17:00'), isFalse);
+    });
+  });
+
+  group('أرقامك القياسية (PersonalRecords)', () {
+    test('بيطلّع أفضل رقم من كل جدول ويتخطّى الفاضى', () async {
+      // خطوات: يومين، الأعلى ١٢٥٠٠
+      await db.insert('steps_logs', {'day': '2026-06-10', 'steps': 8000});
+      await db.insert('steps_logs', {'day': '2026-06-11', 'steps': 12500});
+      // مياه: الأعلى ١٠ أكواب
+      await db.insert('water_logs', {'day': '2026-06-10', 'glasses': 6, 'ml': 0});
+      await db.insert('water_logs', {'day': '2026-06-11', 'glasses': 10, 'ml': 0});
+      // دخل: أعلى شهر يونيو (٥٠٠٠)
+      await db.insert('income',
+          {'amount': 5000, 'source': 'مرتب', 'note': '', 'day': '2026-06-01'});
+      await db.insert('income',
+          {'amount': 3000, 'source': 'مرتب', 'note': '', 'day': '2026-05-01'});
+      // مصاريف: شهرين → أقل صرف مايو (٢٠٠)
+      await db.insert('expenses',
+          {'amount': 200, 'category': 'أكل', 'note': '', 'day': '2026-05-03'});
+      await db.insert('expenses',
+          {'amount': 900, 'category': 'أكل', 'note': '', 'day': '2026-06-03'});
+      // وزن: الأخف ٧٨.٥
+      await db.insert('body_progress', {'day': '2026-06-01', 'weight': 82.0});
+      await db.insert('body_progress', {'day': '2026-06-20', 'weight': 78.5});
+
+      final recs = await computePersonalRecords(database: db);
+      String valOf(String label) =>
+          recs.firstWhere((r) => r.label == label).value;
+
+      expect(recs.any((r) => r.label == 'أكتر خطوات في يوم'), isTrue);
+      expect(valOf('أكتر خطوات في يوم'), contains('12500'));
+      expect(valOf('أكتر مياه في يوم'), contains('10'));
+      expect(valOf('أعلى دخل في شهر'), contains('5000'));
+      expect(valOf('أقل صرف في شهر'), contains('200'));
+      expect(valOf('أخف وزن سجّلته'), contains('78.5'));
+    });
+
+    test('قاعدة نضيفة → مفيش أرقام (مايكسرش)', () async {
+      final recs = await computePersonalRecords(database: db);
+      expect(recs, isEmpty);
+    });
+
+    test('أقل صرف يحتاج شهرين على الأقل', () async {
+      await db.insert('expenses',
+          {'amount': 500, 'category': 'أكل', 'note': '', 'day': '2026-06-03'});
+      final recs = await computePersonalRecords(database: db);
+      expect(recs.any((r) => r.label == 'أقل صرف في شهر'), isFalse,
+          reason: 'شهر واحد مش مقارنة');
     });
   });
 }

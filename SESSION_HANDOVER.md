@@ -1,5 +1,22 @@
 # SESSION_HANDOVER — My Assistant
 
+## 2026-07-19 — «أرقامك القياسية» (Personal Records)
+
+**الحالة:** **312/312** (+٣) · analyze نضيف · **مفيش migration** (قراءة فقط) · APK اتبنى · آخر commit: (هيتحط).
+
+**السياق:** بعد مراجعة كاملة (analyze=0 + 309 تست + DEVELOPMENT_PLAN + SECTION_ENRICHMENT كلهم ✅ خلصوا)، المستخدم قال «راجع اللى فات و كمل شغل». اخترت من **بنك الأفكار** (`ROADMAP_ESTIMATES.md`) بند مؤكَّد إنه لسه مااتعملش وقيمته عالية وبدون بلوكر: **أرقامك القياسية**.
+
+**اللى اتعمل:**
+- **`core/personal_records.dart`** (خالص من Flutter، قابل للاختبار): `computePersonalRecords({Database? database})` → قائمة `PersonalRecord(emoji, label, value, sub)`. **قراءة فقط** من الجداول الموجودة، كل رقم داخل `guard` مستقل (بند بلا بيانات بيتخطّى مايكسرش الباقي): 👟 أكتر خطوات في يوم · 💧 أكتر مياه في يوم · 💰 أعلى دخل شهر · 💸 أقل صرف شهر (يحتاج شهرين) · ⚖️ أخف وزن سجّلته · 🔥 أطول سلسلة عادة حالية (عبر `HabitsRepo().analytics()` — **مش `active()`؛ `active()` بترجّع `List<Habit>` بدون streak، الـstreak في `HabitStat` من `analytics()`**) · 🕌 سلسلة الصلاة الحالية (`WorshipRepo().fullDaysStreak()`).
+- **`screens/growth/records_screen.dart`**: `FutureBuilder` → كروت (emoji + label + value + sub) + `EmptyHint` لو مفيش بيانات.
+- **التوصيل**: `GroupHubItem` جديد في مجموعة «تطوّري» بالـdrawer («أرقامك القياسية»، أيقونة `emoji_events`).
+- **٣ تستات** في `repos_test.dart`: أفضل رقم من كل جدول + قاعدة فاضية = مفيش أرقام + «أقل صرف» يحتاج شهرين.
+- **جوتشا مسجّلة**: `_onDay`/`_inMonth` بيلفّوا `arShortDate`/`arMonth` في try/catch — لو locale الـintl مش متهيّأ في سياق ما، الرقم مايختفيش (بيرجع ISO خام كسياق).
+
+**⚠️ خطة التطوير + إثراء الأقسام لسه «خلصوا»** — أى شغل جاى = تلميع أو بند من بنك الأفكار أو طلب صريح. أقرب أفكار غير-معمولة وبدون بلوكر: اليوم المثالي (perfect-day counter) · حفظ/تسميع القرآن بالتكرار المتباعد (يحتاج جدول DB) · أظرف المرتب · رصيد الإجازات.
+
+---
+
 ## 2026-07-17 (مساءً) — إصلاح باج إضافة التسوق + ودجت QuickAddField
 
 **الحالة:** DB **v54** · **307/307** · analyze نضيف · web مدفوع · آخر commit `a0f25a0`.
