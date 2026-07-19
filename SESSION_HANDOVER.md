@@ -1,5 +1,17 @@
 # SESSION_HANDOVER — My Assistant
 
+## 2026-07-19 — تذكير أذكار الصباح والمساء
+
+**الحالة:** **324/324** (+١) · analyze نضيف · **مفيش migration** (إعدادات فقط) · APK اتبنى · commit: (هيتحط). البند السادس من بنك الأفكار. ⚠️ **إشعارات — التحقق الفعلى للإطلاق محتاج جهاز** (منطق الجدولة + parseHm متغطّى بتست؛ الإطلاق نفسه device-only زى كل التذكيرات).
+
+**اللى اتعمل:**
+- **`core/adhkar_reminders.dart`**: `parseHm(String?, {defH, defM}) → (int,int)` (خالص، متغطّى بتست، clamp للساعة/الدقيقة) + `AdhkarReminders.reschedule()` بيلغى ويعيد جدولة تنبيهين يوميين متكررين عبر **`Notifications.scheduleDaily`** (موجود، `matchDateTimeComponents: time`). IDs 930001/930002. مفاتيح إعدادات: `adhkar_reminders` (1/0) · `adhkar_morning_time`/`adhkar_evening_time` (HH:mm، افتراضى 06:30 / 17:00).
+- **`screens/worship/adhkar_reminders_screen.dart`**: شاشة صغيرة **قائمة بذاتها** (load/save عبر `SettingsRepo` مباشرة — مش بتلمس state machine بتاع settings_screen الكبير) — SwitchListTile + وقتين `showTimePicker`؛ أى تغيير بيحفظ + `reschedule()`.
+- **التوصيل**: `_Tool('adhkar_rem', …)` في شبكة أدوات `prayer_screen`؛ و`unawaited(AdhkarReminders.reschedule())` في `main.dart` مع باقى الـschedulers (سطر ٩٦).
+- **١ تست**: `parseHm` (HH:mm + افتراضى + بدون دقايق + clamp).
+
+---
+
 ## 2026-07-19 — رصيد الإجازات (DB v57)
 
 **الحالة:** DB **v57** · **323/323** (+٢) · analyze نضيف · APK اتبنى · commit: (هيتحط). البند الخامس من بنك الأفكار.

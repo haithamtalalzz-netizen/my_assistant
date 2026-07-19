@@ -22,6 +22,7 @@ import 'hajj_umrah_screen.dart';
 import 'islamic_occasions_screen.dart';
 import 'khatma_screen.dart';
 import 'memorization_screen.dart';
+import 'adhkar_reminders_screen.dart';
 import 'mawarith_screen.dart';
 import 'monthly_times_screen.dart';
 import 'names_screen.dart';
@@ -728,6 +729,9 @@ class _PrayerScreenState extends State<PrayerScreen> {
           const Color(0xFF1E7A5A), () => const KhatmaScreen()),
       _Tool('memorize', Icons.psychology, tr('حفظ ومراجعة', 'Memorization'),
           const Color(0xFF2E7D6B), () => const MemorizationScreen()),
+      _Tool('adhkar_rem', Icons.notifications_active,
+          tr('تذكير الأذكار', 'Adhkar reminders'),
+          const Color(0xFFCC8A2E), () => const AdhkarRemindersScreen()),
       _Tool('monthly', Icons.calendar_month, tr('مواقيت الشهر', 'Monthly times'),
           const Color(0xFF4A6FB5), () => const MonthlyTimesScreen()),
       _Tool('post_prayer', Icons.self_improvement,

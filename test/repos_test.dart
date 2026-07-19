@@ -15,6 +15,7 @@ import 'package:my_assistant/core/perfect_day.dart';
 import 'package:my_assistant/data/memorization_repo.dart';
 import 'package:my_assistant/core/salary_plan.dart';
 import 'package:my_assistant/data/leave_repo.dart';
+import 'package:my_assistant/core/adhkar_reminders.dart';
 import 'package:my_assistant/core/morning_brief.dart';
 import 'package:my_assistant/core/dashboard_stats.dart';
 import 'package:my_assistant/core/data_export.dart';
@@ -4513,6 +4514,17 @@ void main() {
           "SELECT name FROM sqlite_master WHERE type='table' AND name='leave_ledger'");
       expect(t.length, 1);
       await v.close();
+    });
+  });
+
+  group('تذكير الأذكار (parseHm)', () {
+    test('يفكّ HH:mm ويستخدم الافتراضى عند الغياب/التلف', () {
+      expect(parseHm('06:30'), (6, 30));
+      expect(parseHm('17:5'), (17, 5));
+      expect(parseHm(null, defH: 6, defM: 30), (6, 30));
+      expect(parseHm('', defH: 17), (17, 0));
+      expect(parseHm('9'), (9, 0)); // بدون دقايق
+      expect(parseHm('99:99'), (23, 59)); // clamp
     });
   });
 }

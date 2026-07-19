@@ -15,6 +15,7 @@ import 'core/evening.dart';
 import 'core/log.dart';
 import 'core/proactive_insight.dart';
 import 'core/notification_actions.dart';
+import 'core/adhkar_reminders.dart';
 import 'core/notifications.dart';
 import 'core/prayers.dart';
 import 'core/month_summary.dart';
@@ -93,6 +94,7 @@ Future<void> _startup() async {
   // + حماية السلاسل + النسخة التلقائية الأسبوعية.
   unawaited(PrayerScheduler.ensureScheduled());
   unawaited(FridayReminder.ensureScheduled());
+  unawaited(AdhkarReminders.reschedule());
   unawaited(WidgetBridge.push());
   unawaited(OccasionsRepo().rescheduleAll());
   unawaited(EveningScheduler.ensureScheduled());
