@@ -1,5 +1,18 @@
 # SESSION_HANDOVER — My Assistant
 
+## 2026-07-19 — رصيد الإجازات (DB v57)
+
+**الحالة:** DB **v57** · **323/323** (+٢) · analyze نضيف · APK اتبنى · commit: (هيتحط). البند الخامس من بنك الأفكار.
+
+**اللى اتعمل:**
+- **DB v57**: جدول `leave_ledger` (day / days [REAL، بيدعم نص يوم] / kind / note / created_at) + index على `day`. اتضاف في الأماكن التلاتة (version + فرع `oldV<57` + createSchema). **تست ترقية** v56←v57.
+- **`data/leave_repo.dart`** (+موديل `LeaveEntry` + `kLeaveKinds`): `add` · `forYear([year])` (فلتر `day LIKE 'YYYY-%'`، الأحدث أول) · `takenInYear` (SUM) · `remaining(entitlement)` · `delete`. الرصيد السنوى في الإعدادات (`annual_leave_entitlement`، افتراضى ٢١).
+- **`screens/leave_balance_screen.dart`**: كارت «المتبقّى X يوم» (أصفر لو ≤٣) + progress + الرصيد (tap-edit)/المأخوذ + FAB «تسجيل إجازة» (bottom-sheet: تاريخ `showDatePicker` + عدد أيام + نوع chips + ملاحظة) + قائمة السنة بـ`SwipeToDelete` (+undo).
+- **التوصيل**: `push` مستقل في الـdrawer بعد «التجديدات».
+- **٢ تستات**: add/taken/remaining/فلتر السنة/نص-يوم · ترقية v56←v57.
+
+---
+
 ## 2026-07-19 — أظرف المرتب (Salary Envelopes)
 
 **الحالة:** **321/321** (+٣) · analyze نضيف · **مفيش migration** (config في الإعدادات) · APK اتبنى · commit: (هيتحط). البند الرابع من بنك الأفكار.

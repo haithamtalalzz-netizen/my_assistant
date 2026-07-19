@@ -12,6 +12,7 @@ import 'money/subscriptions_screen.dart';
 import 'growth/goals_screen.dart';
 import 'car/car_screen.dart';
 import 'renewals/renewals_screen.dart';
+import 'leave_balance_screen.dart';
 import 'travel/travel_screen.dart';
 import 'food/fasting_screen.dart';
 import 'food/meal_planner_screen.dart';
@@ -343,6 +344,8 @@ class AppDrawer extends StatelessWidget {
                 const CarScreen()),
             push(Icons.badge_outlined, tr('التجديدات', 'Renewals'),
                 const RenewalsScreen()),
+            push(Icons.beach_access_outlined, tr('رصيد الإجازات', 'Leave balance'),
+                const LeaveBalanceScreen()),
             push(Icons.flight_takeoff, tr('السفر', 'Travel'),
                 const TravelScreen()),
             push(Icons.pets_outlined, tr('الحيوانات الأليفة', 'Pets'),

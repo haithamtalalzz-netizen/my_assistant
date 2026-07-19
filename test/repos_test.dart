@@ -14,6 +14,7 @@ import 'package:my_assistant/core/personal_records.dart';
 import 'package:my_assistant/core/perfect_day.dart';
 import 'package:my_assistant/data/memorization_repo.dart';
 import 'package:my_assistant/core/salary_plan.dart';
+import 'package:my_assistant/data/leave_repo.dart';
 import 'package:my_assistant/core/morning_brief.dart';
 import 'package:my_assistant/core/dashboard_stats.dart';
 import 'package:my_assistant/core/data_export.dart';
@@ -4482,6 +4483,36 @@ void main() {
       expect(daysUntilPayday(25, DateTime(2026, 6, 26)), 29);
       // القبض ٣١ وفبراير → آخر يوم (٢٨/٢٠٢٦)
       expect(daysUntilPayday(31, DateTime(2026, 2, 10)), 18);
+    });
+  });
+
+  group('رصيد الإجازات (LeaveRepo)', () {
+    test('add + المأخوذ + المتبقّى (سنة معيّنة) + نص يوم', () async {
+      final repo = LeaveRepo();
+      final year = DateTime.now().year;
+      await repo.add('$year-03-10', 2, kind: 'اعتيادية');
+      await repo.add('$year-05-01', 0.5, kind: 'عارضة');
+      // سنة تانية — ما تتحسبش في السنة الحالية
+      await repo.add('${year - 1}-08-08', 5, kind: 'اعتيادية');
+
+      expect(await repo.takenInYear(), 2.5);
+      expect(await repo.remaining(21), 21 - 2.5);
+      final list = await repo.forYear();
+      expect(list.length, 2, reason: 'السنة الحالية بس');
+      // الأحدث أول (مايو قبل مارس)
+      expect(list.first.day, '$year-05-01');
+      // سنة قديمة صريحة
+      expect(await repo.takenInYear(year - 1), 5);
+    });
+
+    test('ترقية v56 ← v57 بتعمل جدول leave_ledger', () async {
+      final v = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v, 56, 57);
+      final t = await v.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='leave_ledger'");
+      expect(t.length, 1);
+      await v.close();
     });
   });
 }
