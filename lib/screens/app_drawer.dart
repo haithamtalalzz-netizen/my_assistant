@@ -205,12 +205,12 @@ class AppDrawer extends StatelessWidget {
                 ]),
             const Divider(),
             // الصلاة والأذكار — فوق الفلوس مباشرة (المصحف جوّاها).
-            push(Icons.mosque_outlined, tr('الصلاة والأذكار', 'Prayer & Adhkar'),
+            push(Icons.mosque_outlined, tr('صلاتى', 'My prayers'),
                 const PrayerScreen()),
             // مجموعات بحسب مجال الحياة.
             groupTile(
                 Icons.account_balance_wallet_outlined,
-                tr('الفلوس', 'Money'),
+                tr('فلوسى', 'My money'),
                 accent: Colors.teal,
                 [
                   GroupHubItem(Icons.account_balance_wallet_outlined,
@@ -334,7 +334,7 @@ class AppDrawer extends StatelessWidget {
                       )),
                 ]),
             // ---- ملابس (بند مستقل) ----
-            push(Icons.checkroom_outlined, tr('ملابس', 'Clothes'),
+            push(Icons.checkroom_outlined, tr('ملابسى', 'My clothes'),
                 const WardrobeScreen()),
             groupTile(Icons.self_improvement, tr('تطوّري', 'Growth'),
                 accent: Colors.indigo,
