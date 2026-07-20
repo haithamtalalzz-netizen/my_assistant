@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../data/appointments_repo.dart';
 import '../data/bills_repo.dart';
 import '../data/occasions_repo.dart';
-import '../data/renewals_repo.dart';
 import '../data/tasks_repo.dart';
 import 'ar.dart';
 import 'l10n.dart';
@@ -41,16 +40,6 @@ Future<List<WeekItem>> collectWeekOverview() async {
     final d = t.due;
     if (d != null && inWin(d)) {
       items.add(WeekItem(d, Icons.checklist_rtl, Colors.deepPurple, t.title));
-    }
-  }
-
-  // التجديدات القريبة.
-  for (final r in await RenewalsRepo().dueSoon(days: 7)) {
-    final e = r.expiryDate;
-    if (e != null && inWin(e)) {
-      items.add(WeekItem(
-          e, Icons.badge_outlined, Colors.orange,
-          tr('تجديد ${r.title}', 'Renew ${r.title}')));
     }
   }
 

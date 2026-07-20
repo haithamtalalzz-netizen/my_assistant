@@ -10,15 +10,10 @@ import 'package:my_assistant/core/day_close.dart';
 import 'package:my_assistant/core/kcal_balance.dart';
 import 'package:my_assistant/core/log.dart';
 import 'package:my_assistant/core/money_trends.dart';
-import 'package:my_assistant/core/personal_records.dart';
-import 'package:my_assistant/core/perfect_day.dart';
 import 'package:my_assistant/data/memorization_repo.dart';
-import 'package:my_assistant/core/salary_plan.dart';
-import 'package:my_assistant/data/leave_repo.dart';
 import 'package:my_assistant/core/adhkar_reminders.dart';
 import 'package:my_assistant/core/custom_rules.dart';
 import 'package:my_assistant/data/rules_repo.dart';
-import 'package:my_assistant/core/fx_rate.dart';
 import 'package:my_assistant/core/morning_brief.dart';
 import 'package:my_assistant/core/dashboard_stats.dart';
 import 'package:my_assistant/core/data_export.dart';
@@ -55,23 +50,16 @@ import 'package:my_assistant/data/docs_repo.dart';
 import 'package:my_assistant/data/habits_repo.dart';
 import 'package:my_assistant/data/health_repo.dart';
 import 'package:my_assistant/data/meds_repo.dart';
-import 'package:my_assistant/data/meters_repo.dart';
-import 'package:my_assistant/data/home_inventory_repo.dart';
 import 'package:my_assistant/data/wardrobe_repo.dart';
 import 'package:my_assistant/data/reading_repo.dart';
-import 'package:my_assistant/data/gratitude_repo.dart';
 import 'package:my_assistant/data/mood_repo.dart';
 import 'package:my_assistant/data/wishlist_repo.dart';
-import 'package:my_assistant/data/watchlist_repo.dart';
 import 'package:my_assistant/data/vaccinations_repo.dart';
 import 'package:my_assistant/data/lab_results_repo.dart';
 import 'package:my_assistant/data/money_repo.dart';
 import 'package:my_assistant/data/tasks_repo.dart';
 import 'package:my_assistant/data/subscriptions_repo.dart';
 import 'package:my_assistant/data/goals_repo.dart';
-import 'package:my_assistant/data/cars_repo.dart';
-import 'package:my_assistant/data/renewals_repo.dart';
-import 'package:my_assistant/data/trips_repo.dart';
 import 'package:my_assistant/data/courses_repo.dart';
 import 'package:my_assistant/data/pets_repo.dart';
 import 'package:my_assistant/data/passwords_repo.dart';
@@ -272,12 +260,6 @@ void main() {
       final r = await LocalBrain.answer('الوارد');
       expect(r.handled, isTrue);
       expect(r.text.contains('الوارد'), isTrue);
-    });
-
-    test('ورد القرآن من غير تسجيل', () async {
-      final r = await LocalBrain.answer('وردي؟');
-      expect(r.handled, isTrue);
-      expect(r.text.contains('ورد'), isTrue);
     });
 
     test('الترحيب الاستباقي بيرجّع رسالة', () async {
@@ -2030,20 +2012,6 @@ void main() {
     });
   });
 
-  group('ترقية قاعدة البيانات v23 ← v24', () {
-    test('جدول الأصول بيتعمل', () async {
-      final v23 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
-          options: OpenDatabaseOptions(singleInstance: false));
-      await AppDb.upgradeSchema(v23, 23, 24);
-      await v23.insert('assets',
-          {'name': 'دهب', 'type': 'gold', 'value': 50000.0, 'note': ''});
-      final rows = await v23.query('assets');
-      expect(rows.length, 1);
-      expect((rows.first['value'] as num).toDouble(), 50000.0);
-      await v23.close();
-    });
-  });
-
   group('ترقية قاعدة البيانات v22 ← v23', () {
     test('عمود repeat بيتضاف للمواعيد', () async {
       final v22 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
@@ -2154,13 +2122,10 @@ void main() {
       await v19.insert('relatives', {'name': 'عمي', 'interval_days': 14});
       await v19.insert('challenges',
           {'name': 'شهر بلا سكر', 'start_date': '2026-07-01', 'days': 30});
-      await v19.insert('time_capsules',
-          {'message': 'خير', 'open_date': '2027-07-07', 'created_at': 'x'});
       await v19.insert('appointments',
           {'title': 'دكتور', 'when_at': '2026-07-08T17:00:00', 'travel_min': 30});
       expect((await v19.query('relatives')).length, 1);
       expect((await v19.query('challenges')).length, 1);
-      expect((await v19.query('time_capsules')).length, 1);
       expect((await v19.query('appointments')).first['travel_min'], 30);
       await v19.close();
     });
@@ -2171,13 +2136,8 @@ void main() {
       final v18 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
           options: OpenDatabaseOptions(singleInstance: false));
       await AppDb.upgradeSchema(v18, 18, 19);
-      await v18.insert('quran_reviews', {'portion': 'البقرة'});
-      await v18.insert('secret_notes',
-          {'title': 'الحساب', 'body': '123', 'created_at': 'x'});
       await v18.insert('quit_counters',
           {'name': 'سجائر', 'start_date': '2026-07-01', 'daily_saving': 30});
-      expect((await v18.query('quran_reviews')).length, 1);
-      expect((await v18.query('secret_notes')).length, 1);
       expect((await v18.query('quit_counters')).length, 1);
       await v18.close();
     });
@@ -2193,39 +2153,8 @@ void main() {
         'quantity': 2,
         'expiry': '2027-01-01',
       });
-      await v15.insert('warranties', {
-        'item_name': 'تلاجة',
-        'purchase_date': '2026-01-01',
-        'warranty_months': 24,
-      });
-      await v15.insert('meter_readings', {
-        'meter_type': 'electricity',
-        'reading': 12345,
-        'day': '2026-07-07',
-      });
       expect((await v15.query('home_pharmacy')).length, 1);
-      expect((await v15.query('warranties')).length, 1);
-      expect((await v15.query('meter_readings')).length, 1);
       await v15.close();
-    });
-  });
-
-  group('ترقية قاعدة البيانات v14 ← v15', () {
-    test('جدول الواجبات الاجتماعية بيتعمل', () async {
-      final v14 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
-          options: OpenDatabaseOptions(singleInstance: false));
-      await AppDb.upgradeSchema(v14, 14, 15);
-      await v14.insert('social_obligations', {
-        'person': 'أحمد',
-        'type': 'naqoot',
-        'direction': 'received',
-        'amount': 500,
-        'day': '2026-07-07',
-      });
-      final rows = await v14.query('social_obligations');
-      expect(rows.length, 1);
-      expect(rows.first['person'], 'أحمد');
-      await v14.close();
     });
   });
 
@@ -2517,51 +2446,7 @@ void main() {
   });
 
   group('السيارة والتجديدات (v40)', () {
-    test('ترقية v39 ← v40 بتعمل الجداول', () async {
-      final v39 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
-          options: OpenDatabaseOptions(singleInstance: false));
-      await AppDb.upgradeSchema(v39, 39, 40);
-      await v39.insert('cars', {'name': 'عربيتي', 'created_at': '2026-07-14'});
-      await v39.insert('car_events',
-          {'car_id': 1, 'type': 'fuel', 'day': '2026-07-14', 'created_at': '2026-07-14'});
-      await v39.insert('renewals',
-          {'title': 'رخصة', 'expiry': '2027-01-01', 'created_at': '2026-07-14'});
-      expect((await v39.query('cars')).length, 1);
-      expect((await v39.query('car_events')).length, 1);
-      expect((await v39.query('renewals')).length, 1);
-      await v39.close();
-    });
 
-    test('CarsRepo: كفاءة الوقود من فرق العدّادات', () async {
-      final repo = CarsRepo();
-      final id = await repo.saveCar(
-          Car(name: 'س', createdAt: DateTime.now().toIso8601String()));
-      // تعبئة أولى عند 1000 كم، تانية عند 1400 كم بـ 40 لتر → 400/40 = 10 كم/ل.
-      await repo.saveEvent(CarEvent(
-          carId: id, type: 'fuel', day: '2026-07-01', odometer: 1000,
-          liters: 35, createdAt: DateTime.now().toIso8601String()));
-      await repo.saveEvent(CarEvent(
-          carId: id, type: 'fuel', day: '2026-07-10', odometer: 1400,
-          liters: 40, createdAt: DateTime.now().toIso8601String()));
-      expect(await repo.fuelEconomy(id), 10);
-      expect(await repo.totalSpent(id), 0);
-    });
-
-    test('RenewalsRepo: قرب الانتهاء', () async {
-      final repo = RenewalsRepo();
-      final soon = DateTime.now().add(const Duration(days: 10));
-      await repo.save(Renewal(
-          title: 'بطاقة',
-          expiry: dayKey(soon),
-          createdAt: DateTime.now().toIso8601String()));
-      await repo.save(Renewal(
-          title: 'جواز',
-          expiry: dayKey(DateTime.now().add(const Duration(days: 400))),
-          createdAt: DateTime.now().toIso8601String()));
-      final due = await repo.dueSoon(days: 45);
-      expect(due.length, 1);
-      expect(due.first.title, 'بطاقة');
-    });
   });
 
   group('السفر والتعلّم والحيوانات وكلمات السر (v41)', () {
@@ -2569,30 +2454,15 @@ void main() {
       final v40 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
           options: OpenDatabaseOptions(singleInstance: false));
       await AppDb.upgradeSchema(v40, 40, 41);
-      await v40.insert('trips', {'title': 'إسكندرية', 'created_at': '2026-07-14'});
-      await v40.insert('trip_items', {'trip_id': 1, 'kind': 'packing', 'text': 'شاحن'});
       await v40.insert('courses', {'title': 'فلاتر', 'created_at': '2026-07-14'});
       await v40.insert('pets', {'name': 'مشمش', 'created_at': '2026-07-14'});
       await v40.insert('pet_events',
           {'pet_id': 1, 'type': 'vaccine', 'day': '2026-07-14', 'created_at': '2026-07-14'});
       await v40.insert('passwords', {'label': 'جيميل', 'created_at': '2026-07-14'});
-      expect((await v40.query('trip_items')).length, 1);
       expect((await v40.query('courses')).length, 1);
       expect((await v40.query('pet_events')).length, 1);
       expect((await v40.query('passwords')).length, 1);
       await v40.close();
-    });
-
-    test('TripsRepo: عناصر مصنّفة + إكمال', () async {
-      final repo = TripsRepo();
-      final id = await repo.save(
-          Trip(title: 'رحلة', createdAt: DateTime.now().toIso8601String()));
-      await repo.addItem(id, 'packing', 'جواز');
-      final it = await repo.addItem(id, 'todo', 'حجز فندق');
-      await repo.toggleItem(it, true);
-      final items = await repo.items(id);
-      expect(items.length, 2);
-      expect(items.where((i) => i.done).length, 1);
     });
 
     test('CoursesRepo: تقدّم بالوحدات + اكتمال', () async {
@@ -2730,44 +2600,7 @@ void main() {
   });
 
   group('جرد الممتلكات واستهلاك العدادات (v44)', () {
-    test('ترقية v43 ← v44 بتعمل جدول الجرد', () async {
-      final v43 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
-          options: OpenDatabaseOptions(singleInstance: false));
-      await AppDb.upgradeSchema(v43, 43, 44);
-      await v43.insert('home_inventory',
-          {'name': 'تلاجة', 'value': 15000, 'created_at': '2026-07-14'});
-      expect((await v43.query('home_inventory')).length, 1);
-      await v43.close();
-    });
 
-    test('HomeInventoryRepo: إجمالي القيمة', () async {
-      final repo = HomeInventoryRepo();
-      await repo.save(HomeInventoryItem(
-          name: 'لابتوب', value: 20000,
-          createdAt: DateTime.now().toIso8601String()));
-      await repo.save(HomeInventoryItem(
-          name: 'مكتب', value: 5000,
-          createdAt: DateTime.now().toIso8601String()));
-      expect(await repo.totalValue(), 25000);
-      expect((await repo.all()).length, 2);
-    });
-
-    test('MetersRepo: استهلاك + تقدير الفاتورة', () async {
-      final repo = MetersRepo();
-      await repo.add(const MeterReading(
-          meterType: 'electricity', reading: 1000, day: '2026-05-01'));
-      await repo.add(const MeterReading(
-          meterType: 'electricity', reading: 1200, day: '2026-06-01'));
-      await repo.add(const MeterReading(
-          meterType: 'electricity', reading: 1500, day: '2026-07-01'));
-      final cons = await repo.consumptions('electricity');
-      expect(cons.length, 2); // 200 ثم 300
-      expect(cons.first.delta, 200);
-      expect(cons.last.delta, 300);
-      await repo.setRate('electricity', 2); // ٢ ج.م/وحدة
-      // المتوسط = 250 × 2 = 500
-      expect(await repo.estimateBill('electricity'), 500);
-    });
   });
 
   group('تتبّع الغسيل (v45)', () {
@@ -2836,10 +2669,7 @@ void main() {
       await AppDb.upgradeSchema(v46, 46, 47);
       await v46.insert('books',
           {'title': 'كتاب', 'total_pages': 100, 'created_at': 'x'});
-      await v46.insert('gratitude',
-          {'day': '2026-07-14', 'text': 'الصحة', 'created_at': 'x'});
       expect((await v46.query('books')).length, 1);
-      expect((await v46.query('gratitude')).length, 1);
       await v46.close();
     });
 
@@ -2854,15 +2684,6 @@ void main() {
       expect(b.currentPage, 100);
       expect(b.status, 'done');
       expect(await repo.finishedCount(), 1);
-    });
-
-    test('GratitudeRepo: حفظ + عدد الأيام', () async {
-      final repo = GratitudeRepo();
-      await repo.add('نعمة', day: DateTime(2026, 7, 10));
-      await repo.add('نعمة تانية', day: DateTime(2026, 7, 10));
-      await repo.add('نعمة', day: DateTime(2026, 7, 11));
-      expect((await repo.recent()).length, 3);
-      expect(await repo.daysCount(), 2); // يومين مختلفين
     });
 
     test('HabitsRepo: تحليلات (سلسلة + التزام)', () async {
@@ -2885,10 +2706,8 @@ void main() {
       await v47.insert('mood_logs',
           {'day': '2026-07-14', 'score': 4, 'created_at': 'x'});
       await v47.insert('wishlist', {'name': 'موبايل', 'price': 9000, 'created_at': 'x'});
-      await v47.insert('watchlist', {'title': 'فيلم', 'created_at': 'x'});
       expect((await v47.query('mood_logs')).length, 1);
       expect((await v47.query('wishlist')).length, 1);
-      expect((await v47.query('watchlist')).length, 1);
       await v47.close();
     });
 
@@ -2910,12 +2729,6 @@ void main() {
       expect(await repo.pendingTotal(), 100); // المشترى مايتحسبش
     });
 
-    test('WatchlistRepo: حفظ + تغيير حالة', () async {
-      final repo = WatchlistRepo();
-      final id = await repo.save(WatchItem(title: 'ف', kind: 'series', createdAt: 'x'));
-      await repo.setStatus(id, 'done');
-      expect((await repo.all()).first.status, 'done');
-    });
   });
 
   group('المراجعة السنوية', () {
@@ -4332,90 +4145,6 @@ void main() {
     });
   });
 
-  group('أرقامك القياسية (PersonalRecords)', () {
-    test('بيطلّع أفضل رقم من كل جدول ويتخطّى الفاضى', () async {
-      // خطوات: يومين، الأعلى ١٢٥٠٠
-      await db.insert('steps_logs', {'day': '2026-06-10', 'steps': 8000});
-      await db.insert('steps_logs', {'day': '2026-06-11', 'steps': 12500});
-      // مياه: الأعلى ١٠ أكواب
-      await db.insert('water_logs', {'day': '2026-06-10', 'glasses': 6, 'ml': 0});
-      await db.insert('water_logs', {'day': '2026-06-11', 'glasses': 10, 'ml': 0});
-      // دخل: أعلى شهر يونيو (٥٠٠٠)
-      await db.insert('income',
-          {'amount': 5000, 'source': 'مرتب', 'note': '', 'day': '2026-06-01'});
-      await db.insert('income',
-          {'amount': 3000, 'source': 'مرتب', 'note': '', 'day': '2026-05-01'});
-      // مصاريف: شهرين → أقل صرف مايو (٢٠٠)
-      await db.insert('expenses',
-          {'amount': 200, 'category': 'أكل', 'note': '', 'day': '2026-05-03'});
-      await db.insert('expenses',
-          {'amount': 900, 'category': 'أكل', 'note': '', 'day': '2026-06-03'});
-      // وزن: الأخف ٧٨.٥
-      await db.insert('body_progress', {'day': '2026-06-01', 'weight': 82.0});
-      await db.insert('body_progress', {'day': '2026-06-20', 'weight': 78.5});
-
-      final recs = await computePersonalRecords(database: db);
-      String valOf(String label) =>
-          recs.firstWhere((r) => r.label == label).value;
-
-      expect(recs.any((r) => r.label == 'أكتر خطوات في يوم'), isTrue);
-      expect(valOf('أكتر خطوات في يوم'), contains('12500'));
-      expect(valOf('أكتر مياه في يوم'), contains('10'));
-      expect(valOf('أعلى دخل في شهر'), contains('5000'));
-      expect(valOf('أقل صرف في شهر'), contains('200'));
-      expect(valOf('أخف وزن سجّلته'), contains('78.5'));
-    });
-
-    test('قاعدة نضيفة → مفيش أرقام (مايكسرش)', () async {
-      final recs = await computePersonalRecords(database: db);
-      expect(recs, isEmpty);
-    });
-
-    test('أقل صرف يحتاج شهرين على الأقل', () async {
-      await db.insert('expenses',
-          {'amount': 500, 'category': 'أكل', 'note': '', 'day': '2026-06-03'});
-      final recs = await computePersonalRecords(database: db);
-      expect(recs.any((r) => r.label == 'أقل صرف في شهر'), isFalse,
-          reason: 'شهر واحد مش مقارنة');
-    });
-  });
-
-  group('اليوم المثالي (PerfectDay)', () {
-    test('٥ صلوات + هدف مياه + بلا عادات = يوم مثالي', () async {
-      for (var p = 0; p < 5; p++) {
-        await db.insert('prayer_log', {'day': '2026-06-15', 'prayer': p});
-      }
-      await db.insert(
-          'water_logs', {'day': '2026-06-15', 'glasses': 8, 'ml': 2500});
-      final s = await systemsForDay(DateTime(2026, 6, 15), database: db);
-      expect(s.prayersOk, isTrue);
-      expect(s.waterOk, isTrue);
-      expect(s.habitsOk, isTrue, reason: 'مفيش عادات نشطة = مايسقّطش اليوم');
-      expect(s.isPerfect, isTrue);
-    });
-
-    test('٤ صلوات = مش مثالي', () async {
-      for (var p = 0; p < 4; p++) {
-        await db.insert('prayer_log', {'day': '2026-06-16', 'prayer': p});
-      }
-      await db.insert(
-          'water_logs', {'day': '2026-06-16', 'glasses': 8, 'ml': 2500});
-      final s = await systemsForDay(DateTime(2026, 6, 16), database: db);
-      expect(s.prayersOk, isFalse);
-      expect(s.isPerfect, isFalse);
-    });
-
-    test('perfectDaysThisMonth بيعدّ يوم النهاردة المثالي', () async {
-      final dk = dayKey(DateTime.now());
-      for (var p = 0; p < 5; p++) {
-        await db.insert('prayer_log', {'day': dk, 'prayer': p});
-      }
-      await db.insert('water_logs', {'day': dk, 'glasses': 8, 'ml': 2500});
-      final n = await perfectDaysThisMonth(database: db);
-      expect(n >= 1, isTrue);
-    });
-  });
-
   group('حفظ ومراجعة القرآن (Memorization)', () {
     test('فترات Leitner + تاريخ المراجعة الجاية', () {
       expect(MemorizationRepo.intervalForBox(0), 1);
@@ -4449,72 +4178,6 @@ void main() {
       await AppDb.upgradeSchema(v, 55, 56);
       final t = await v.rawQuery(
           "SELECT name FROM sqlite_master WHERE type='table' AND name='memorization'");
-      expect(t.length, 1);
-      await v.close();
-    });
-  });
-
-  group('أظرف المرتب (SalaryPlan)', () {
-    test('التوزيع = المرتب × النسبة، والمجموع', () {
-      const envs = [
-        SalaryEnvelope('التزامات', 40),
-        SalaryEnvelope('مصاريف', 35),
-        SalaryEnvelope('ادخار', 25),
-      ];
-      expect(totalPercent(envs), 100);
-      final d = distribute(10000, envs);
-      expect(d[0].value, 4000);
-      expect(d[1].value, 3500);
-      expect(d[2].value, 2500);
-    });
-
-    test('parse/encode + الافتراضى عند الفاضى/التالف', () {
-      expect(parseEnvelopes(null).length, kDefaultEnvelopes.length);
-      expect(parseEnvelopes('مش json').first.name, kDefaultEnvelopes.first.name);
-      const list = [SalaryEnvelope('أ', 60), SalaryEnvelope('ب', 40)];
-      final round = parseEnvelopes(encodeEnvelopes(list));
-      expect(round.length, 2);
-      expect(round[0].name, 'أ');
-      expect(round[1].percent, 40);
-    });
-
-    test('العدّ التنازلى ليوم القبض (مع تجاوز الشهر وقصر فبراير)', () {
-      // النهاردة ١٠، القبض ٢٥ → فاضل ١٥
-      expect(daysUntilPayday(25, DateTime(2026, 6, 10)), 15);
-      // النهاردة ٢٥ (القبض) → ٠
-      expect(daysUntilPayday(25, DateTime(2026, 6, 25)), 0);
-      // عدّى القبض (٢٦ والقبض ٢٥) → الشهر الجاى (٣٠ يوم يونيو → ٥ يوليو = ٢٩ يوم)
-      expect(daysUntilPayday(25, DateTime(2026, 6, 26)), 29);
-      // القبض ٣١ وفبراير → آخر يوم (٢٨/٢٠٢٦)
-      expect(daysUntilPayday(31, DateTime(2026, 2, 10)), 18);
-    });
-  });
-
-  group('رصيد الإجازات (LeaveRepo)', () {
-    test('add + المأخوذ + المتبقّى (سنة معيّنة) + نص يوم', () async {
-      final repo = LeaveRepo();
-      final year = DateTime.now().year;
-      await repo.add('$year-03-10', 2, kind: 'اعتيادية');
-      await repo.add('$year-05-01', 0.5, kind: 'عارضة');
-      // سنة تانية — ما تتحسبش في السنة الحالية
-      await repo.add('${year - 1}-08-08', 5, kind: 'اعتيادية');
-
-      expect(await repo.takenInYear(), 2.5);
-      expect(await repo.remaining(21), 21 - 2.5);
-      final list = await repo.forYear();
-      expect(list.length, 2, reason: 'السنة الحالية بس');
-      // الأحدث أول (مايو قبل مارس)
-      expect(list.first.day, '$year-05-01');
-      // سنة قديمة صريحة
-      expect(await repo.takenInYear(year - 1), 5);
-    });
-
-    test('ترقية v56 ← v57 بتعمل جدول leave_ledger', () async {
-      final v = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
-          options: OpenDatabaseOptions(singleInstance: false));
-      await AppDb.upgradeSchema(v, 56, 57);
-      final t = await v.rawQuery(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='leave_ledger'");
       expect(t.length, 1);
       await v.close();
     });
@@ -4586,20 +4249,39 @@ void main() {
       expect(t.length, 1);
       await v.close();
     });
+
+    // البنود اللى اتشالت من التطبيق (2026-07-20) — ترقية v59 بتمسح جداولها.
+    test('ترقية v58 ← v59 بتمسح جداول البنود المشالة وبتسيب الباقى', () async {
+      final v = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      // نبنى جدولين منهم بالإيد (الـDDL بتاعهم اتشال من الكود) + جدول لسه حى.
+      await v.execute('CREATE TABLE secret_notes(id INTEGER PRIMARY KEY, body TEXT)');
+      await v.execute('CREATE TABLE cars(id INTEGER PRIMARY KEY, name TEXT)');
+      await v.execute('CREATE TABLE passwords(id INTEGER PRIMARY KEY, label TEXT)');
+      await v.insert('secret_notes', {'body': 'سر'});
+      await v.insert('passwords', {'label': 'جيميل'});
+
+      await AppDb.upgradeSchema(v, 58, 59);
+
+      Future<int> exists(String t) async => (await v.rawQuery(
+              "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+              [t]))
+          .length;
+      expect(await exists('secret_notes'), 0);
+      expect(await exists('cars'), 0);
+      // كلمات السر بند لسه شغّال — مايتلمسش.
+      expect(await exists('passwords'), 1);
+      expect((await v.query('passwords')).length, 1);
+      await v.close();
+    });
+
+    // الترقية لازم تعدّى حتى لو الجهاز أصلاً ماعندوش الجداول دى.
+    test('ترقية v59 مابتقعش لو الجداول مش موجودة', () async {
+      final v = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v, 58, 59);
+      await v.close();
+    });
   });
 
-  group('سعر الدولار (parseUsdEgp)', () {
-    test('يفكّ رد Frankfurter الصحيح', () {
-      expect(
-          parseUsdEgp('{"amount":1.0,"base":"USD","date":"2026-07-20",'
-              '"rates":{"EGP":48.53}}'),
-          48.53);
-    });
-    test('يرجّع null للرد التالف/الناقص', () {
-      expect(parseUsdEgp('مش json'), isNull);
-      expect(parseUsdEgp('{"rates":{"USD":1}}'), isNull); // مفيش EGP
-      expect(parseUsdEgp('{"rates":{"EGP":0}}'), isNull); // صفر مش سعر
-      expect(parseUsdEgp('[]'), isNull);
-    });
-  });
 }

@@ -11,7 +11,6 @@ import '../data/measurements_repo.dart';
 import '../data/money_repo.dart';
 import '../data/plants_repo.dart';
 import '../data/reading_repo.dart';
-import '../data/renewals_repo.dart';
 import '../data/settings_repo.dart';
 import '../data/subscriptions_repo.dart';
 import '../data/tasks_repo.dart';
@@ -200,11 +199,9 @@ Future<List<DashStat>> collectDashboard([DateTime? at]) async {
     );
   });
 
-  // ————— المستندات والتجديدات —————
+  // ————— المستندات —————
   await add('docs', () async {
-    final docs = (await DocsRepo().expiringSoon()).length;
-    final ren = (await RenewalsRepo().dueSoon()).length;
-    final total = docs + ren;
+    final total = (await DocsRepo().expiringSoon()).length;
     if (total == 0) return null;
     return DashStat(
       key: 'docs',

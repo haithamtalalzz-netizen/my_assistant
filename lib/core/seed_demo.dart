@@ -1,5 +1,4 @@
 import '../data/appointments_repo.dart';
-import '../data/assets_repo.dart';
 import '../data/bills_repo.dart';
 import '../data/body_progress_repo.dart';
 import '../data/challenges_repo.dart';
@@ -15,18 +14,14 @@ import '../data/meals_repo.dart';
 import '../data/measurements_repo.dart';
 import '../data/medical_repo.dart';
 import '../data/meds_repo.dart';
-import '../data/meters_repo.dart';
 import '../data/money_repo.dart';
 import '../data/occasions_repo.dart';
 import '../data/pharmacy_repo.dart';
 import '../data/plants_repo.dart';
-import '../data/quran_repo.dart';
 import '../data/recipes_repo.dart';
 import '../data/relatives_repo.dart';
 import '../data/savings_repo.dart';
-import '../data/social_repo.dart';
 import '../data/wallets_repo.dart';
-import '../data/warranty_repo.dart';
 import '../data/workout_repo.dart';
 import '../models/models.dart';
 import 'ar.dart';
@@ -66,12 +61,6 @@ Future<int> seedDemoData() async {
       amount: 9000, source: kIncomeSources.first, note: 'مرتب الشهر', day: d(4))));
   await add(() => IncomeRepo().add(
       Income(amount: 800, source: kIncomeSources.last, note: 'شغل جانبي', day: d(1))));
-
-  // ---- الأصول ----
-  await add(() => AssetsRepo().save(const Asset(
-      name: 'دهب أمي', type: 'gold', value: 45000, note: '٣ جنيهات')));
-  await add(() => AssetsRepo().save(
-      const Asset(name: 'شهادة بنكية', type: 'certificate', value: 50000)));
 
   // ---- الديون ----
   await add(() => DebtsRepo().add(Debt(
@@ -190,19 +179,6 @@ Future<int> seedDemoData() async {
   await add(() => PharmacyRepo()
       .save(PharmacyItem(name: 'فوار', quantity: 5, expiry: d(-15))));
 
-  // ---- الضمانات ----
-  await add(() => WarrantyRepo().save(Warranty(
-      itemName: 'غسالة',
-      purchaseDate: d(200),
-      warrantyMonths: 24,
-      notes: 'إيصال في الدرج')));
-
-  // ---- العدادات ----
-  await add(() => MetersRepo()
-      .add(MeterReading(meterType: 'electricity', reading: 4520, cost: 250, day: d(30))));
-  await add(() => MetersRepo()
-      .add(MeterReading(meterType: 'electricity', reading: 4710, cost: 270, day: d())));
-
   // ---- نباتات (واحدة مستحقة) ----
   await add(() => PlantsRepo().save(Plant(
       name: 'الفل', location: 'بلكونة', waterIntervalDays: 3, lastWatered: d(5))));
@@ -219,26 +195,15 @@ Future<int> seedDemoData() async {
   await add(() => HomeMaintenanceRepo().save(const HomeMaintenance(
       name: 'فلتر المياه', intervalMonths: 6, lastDone: '2025-01-01')));
 
-  // ---- الواجبات الاجتماعية ----
-  await add(() => SocialRepo().save(SocialObligation(
-      person: 'ابن عمي',
-      type: kSocialTypes.first,
-      direction: kSocialDirections.first,
-      amount: 500,
-      occasion: 'فرح',
-      day: d(15))));
-
   // ---- التقدّم البدني ----
   await add(() => BodyProgressRepo()
       .add(BodyProgress(day: d(7), weight: 83, waist: 92)));
 
-  // ---- يوميات + وصفة + قرآن + تحديات + وارد ----
+  // ---- يوميات + وصفة + تحديات + وارد ----
   await add(() => DiariesRepo().add(Diary(
       day: d(), text: 'يوم كويس، خلّصت شغل كتير.', createdAt: now.toIso8601String())));
   await add(() => RecipesRepo().save(const Recipe(
       name: 'كشري', ingredients: 'رز\nعدس\nمكرونة', steps: 'اسلق وقلّب')));
-  await add(() => QuranRepo().add('جزء عمّ'));
-  await add(() => QuranRepo().add('سورة الكهف'));
   await add(() => ChallengesRepo().add(
       Challenge(name: 'تحدي المشي', startDate: d(3), days: 30)));
   await add(() => InboxRepo().add('أفتكر أجدد رخصة العربية'));

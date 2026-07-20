@@ -7,11 +7,9 @@ import '../core/l10n.dart';
 import '../data/search_repo.dart';
 import 'baladna/debts_screen.dart';
 import 'baladna/savings_screen.dart';
-import 'baladna/social_screen.dart';
 import 'docs/docs_screen.dart';
 import 'habits/habits_screen.dart';
 import 'home/pharmacy_screen.dart';
-import 'home/warranty_screen.dart';
 import 'baladna/home_maintenance_screen.dart';
 import 'medical/medical_screen.dart';
 import 'money/money_screen.dart';
@@ -23,14 +21,9 @@ import 'money/wishlist_screen.dart';
 import 'growth/goals_screen.dart';
 import 'growth/courses_screen.dart';
 import 'growth/reading_screen.dart';
-import 'growth/watchlist_screen.dart';
-import 'car/car_screen.dart';
-import 'renewals/renewals_screen.dart';
-import 'travel/travel_screen.dart';
 import 'pets/pets_screen.dart';
 import 'health/vaccinations_screen.dart';
 import 'health/lab_results_screen.dart';
-import 'home/home_inventory_screen.dart';
 import 'home/plants_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -91,9 +84,7 @@ class _SearchScreenState extends State<SearchScreen> {
         'document' => tr('مستندات', 'Docs'),
         'medical' => tr('سجل طبى', 'Medical'),
         'pharmacy' => tr('صيدلية', 'Pharmacy'),
-        'warranty' => tr('ضمانات', 'Warranties'),
         'debt' => tr('ديون', 'Debts'),
-        'social' => tr('واجبات', 'Social'),
         'clothing' => tr('ملابس', 'Clothes'),
         'savings' => tr('ادخار', 'Savings'),
         'habit' => tr('عادات', 'Habits'),
@@ -102,17 +93,12 @@ class _SearchScreenState extends State<SearchScreen> {
         'task' => tr('مهام', 'Tasks'),
         'subscription' => tr('اشتراكات', 'Subscriptions'),
         'goal' => tr('أهداف', 'Goals'),
-        'car' => tr('سيارات', 'Cars'),
-        'renewal' => tr('تجديدات', 'Renewals'),
-        'trip' => tr('سفر', 'Trips'),
         'course' => tr('دورات', 'Courses'),
         'pet' => tr('حيوانات', 'Pets'),
         'vaccination' => tr('تطعيمات', 'Vaccines'),
         'lab' => tr('تحاليل', 'Labs'),
         'wish' => tr('أمنيات', 'Wishlist'),
-        'watch' => tr('مشاهدة', 'Watchlist'),
         'book' => tr('كتب', 'Books'),
-        'inventory' => tr('جرد البيت', 'Inventory'),
         'plant' => tr('نباتات', 'Plants'),
         _ => kind,
       };
@@ -163,9 +149,7 @@ class _SearchScreenState extends State<SearchScreen> {
         'document' => Icons.folder_outlined,
         'medical' => Icons.medical_information_outlined,
         'pharmacy' => Icons.medication,
-        'warranty' => Icons.verified_outlined,
         'debt' => Icons.handshake_outlined,
-        'social' => Icons.volunteer_activism_outlined,
         'clothing' => Icons.checkroom_outlined,
         'savings' => Icons.savings_outlined,
         'habit' => Icons.task_alt,
@@ -174,17 +158,12 @@ class _SearchScreenState extends State<SearchScreen> {
         'task' => Icons.checklist_outlined,
         'subscription' => Icons.subscriptions_outlined,
         'goal' => Icons.flag_outlined,
-        'car' => Icons.directions_car_outlined,
-        'renewal' => Icons.badge_outlined,
-        'trip' => Icons.flight_takeoff_outlined,
         'course' => Icons.school_outlined,
         'pet' => Icons.pets_outlined,
         'vaccination' => Icons.vaccines_outlined,
         'lab' => Icons.biotech_outlined,
         'wish' => Icons.card_giftcard_outlined,
-        'watch' => Icons.movie_outlined,
         'book' => Icons.menu_book_outlined,
-        'inventory' => Icons.inventory_2_outlined,
         'plant' => Icons.local_florist_outlined,
         _ => Icons.search,
       };
@@ -195,9 +174,7 @@ class _SearchScreenState extends State<SearchScreen> {
         'document' => const DocsScreen(),
         'medical' => const MedicalScreen(),
         'pharmacy' => const PharmacyScreen(),
-        'warranty' => const WarrantyScreen(),
         'debt' => const DebtsScreen(),
-        'social' => const SocialScreen(),
         'clothing' => const WardrobeScreen(),
         'savings' => const SavingsScreen(),
         'habit' => const HabitsScreen(),
@@ -205,17 +182,12 @@ class _SearchScreenState extends State<SearchScreen> {
         'task' => const TasksScreen(),
         'subscription' => const SubscriptionsScreen(),
         'goal' => const GoalsScreen(),
-        'car' => const CarScreen(),
-        'renewal' => const RenewalsScreen(),
-        'trip' => const TravelScreen(),
         'course' => const CoursesScreen(),
         'pet' => const PetsScreen(),
         'vaccination' => const VaccinationsScreen(),
         'lab' => const LabResultsScreen(),
         'wish' => const WishlistScreen(),
-        'watch' => const WatchlistScreen(),
         'book' => const ReadingScreen(),
-        'inventory' => const HomeInventoryScreen(),
         'plant' => const PlantsScreen(),
         _ => null, // meal مفيش ليها شاشة مستقلة
       };

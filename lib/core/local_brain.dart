@@ -4,7 +4,6 @@
 // handled=false فالشات يقرر يبعته لـ Gemini (لو المستخدم مفعّله) أو يعرض مساعدة.
 
 import '../data/appointments_repo.dart';
-import '../data/assets_repo.dart';
 import '../data/bills_repo.dart';
 import '../data/challenges_repo.dart';
 import '../data/cycle_repo.dart';
@@ -25,23 +24,18 @@ import '../data/insights_repo.dart';
 import '../data/meals_repo.dart';
 import '../data/measurements_repo.dart';
 import '../data/meds_repo.dart';
-import '../data/meters_repo.dart';
 import '../data/money_repo.dart';
 import '../data/occasions_repo.dart';
 import '../data/pharmacy_repo.dart';
 import '../data/plants_repo.dart';
 import '../data/quit_repo.dart';
-import '../data/quran_repo.dart';
 import '../data/relatives_repo.dart';
 import '../data/savings_repo.dart';
 import '../data/settings_repo.dart';
 import '../data/wallets_repo.dart';
-import '../data/warranty_repo.dart';
 import '../data/workout_repo.dart';
 import '../data/tasks_repo.dart';
 import '../data/subscriptions_repo.dart';
-import '../data/renewals_repo.dart';
-import '../data/cars_repo.dart';
 import '../data/goals_repo.dart';
 import '../data/courses_repo.dart';
 import '../data/fasting_repo.dart';
@@ -245,14 +239,6 @@ class LocalBrain {
     if (_has(t, ['اشتراكاتي', 'اشتراكات', 'كام اشتراك', 'بدفع اشتراكات', 'subscriptions'])) {
       return (text: await _subscriptionsBrief(), handled: true);
     }
-    // التجديدات (استحقاق انتهاء الوثائق) — مخصّص عشان مايتلقطش بحث المستندات.
-    if (_has(t, ['تجديدات', 'التجديدات', 'امتى تنتهي', 'امتى تخلص', 'هتنتهي امتى', 'تجديد الرخصه', 'تجديد الجواز', 'وثايق بتنتهي'])) {
-      return (text: await _renewalsBrief(), handled: true);
-    }
-    // السيارة.
-    if (_has(t, ['عربيتي', 'عربيتى', 'السياره', 'سيارتي', 'صرفت على العربيه', 'كفاءه البنزين', 'استهلاك البنزين', 'بنزين العربيه'])) {
-      return (text: await _carBrief(), handled: true);
-    }
     // الأهداف.
     if (_has(t, ['اهدافي', 'هدفي', 'الاهداف', 'كام هدف'])) {
       return (text: await _goalsBrief(), handled: true);
@@ -434,24 +420,9 @@ class LocalBrain {
       return (text: await _mealsToday(), handled: true);
     }
 
-    // ضمانات.
-    if (_has(t, ['ضمان', 'الضمانات', 'ضماناتي', 'ضمان الجهاز', 'الضمان'])) {
-      return (text: await _warranties(), handled: true);
-    }
-
-    // ورد القرآن / المراجعة.
-    if (_has(t, ['وردي', 'ورد القران', 'مراجعه القران', 'حفظي', 'القران', 'المراجعه'])) {
-      return (text: await _quran(), handled: true);
-    }
-
     // عدّاد الإقلاع.
     if (_has(t, ['بطلت', 'عداد الاقلاع', 'فطمت', 'بقالي كام يوم مبطل', 'مبطل'])) {
       return (text: await _quit(), handled: true);
-    }
-
-    // قراءات العدادات.
-    if (_has(t, ['قراية العداد', 'قراءه العداد', 'عداد الكهربا', 'عداد المياه', 'عداد الغاز', 'العدادات', 'العداد'])) {
-      return (text: await _meters(), handled: true);
     }
 
     // التحديات.
@@ -547,13 +518,11 @@ class LocalBrain {
 
   static Future<String> _netWorth() async {
     final cash = await WalletsRepo().totalBalance();
-    final assets = await AssetsRepo().totalValue();
     final (owedToMe, iOwe) = await DebtsRepo().totals();
-    final net = cash + assets + owedToMe - iOwe;
+    final net = cash + owedToMe - iOwe;
     final b = StringBuffer();
     b.writeln(tr('صافي ثروتك: ${egp(net)}', 'Your net worth: ${egp(net)}'));
     b.writeln(tr('• فلوس (محافظ): ${egp(cash)}', '• Cash (wallets): ${egp(cash)}'));
-    if (assets > 0) b.writeln(tr('• أصول: ${egp(assets)}', '• Assets: ${egp(assets)}'));
     if (owedToMe > 0) b.writeln(tr('• ليك عند الناس: ${egp(owedToMe)}', '• Owed to you: ${egp(owedToMe)}'));
     if (iOwe > 0) b.writeln(tr('• عليك: ${egp(iOwe)}', '• You owe: ${egp(iOwe)}'));
     return b.toString().trim();
@@ -1082,47 +1051,6 @@ class LocalBrain {
     return b.toString().trim();
   }
 
-  static Future<String> _renewalsBrief() async {
-    final all = await RenewalsRepo().all();
-    if (all.isEmpty) {
-      return tr('مفيش وثائق للتجديد. ضيف رخصتك وجوازك من «التجديدات».',
-          'No documents to renew. Add your ID/license in Renewals.');
-    }
-    all.sort((a, b) => (a.daysLeft ?? 999999).compareTo(b.daysLeft ?? 999999));
-    final b = StringBuffer();
-    for (final r in all.take(4)) {
-      final d = r.daysLeft;
-      final st = d == null
-          ? ''
-          : d < 0
-              ? tr('(انتهت)', '(expired)')
-              : tr('(باقي ${arNum(d)} يوم)', '(${arNum(d)}d left)');
-      b.writeln('• ${r.title} — '
-          '${r.expiryDate != null ? arShortDate(r.expiryDate!) : ''} $st');
-    }
-    return b.toString().trim();
-  }
-
-  static Future<String> _carBrief() async {
-    final repo = CarsRepo();
-    final cars = await repo.cars();
-    if (cars.isEmpty) {
-      return tr('مسجلتش عربية. ضيفها من «السيارة».',
-          "No car logged. Add it in Car.");
-    }
-    final b = StringBuffer();
-    for (final c in cars) {
-      final spent = await repo.totalSpent(c.id!);
-      final eco = await repo.fuelEconomy(c.id!);
-      b.writeln(tr(
-          '${c.name}: صرفت ${egp(spent)}'
-          '${eco != null ? ' · كفاءة ${eco.toStringAsFixed(1)} كم/لتر' : ''}.',
-          '${c.name}: spent ${egp(spent)}'
-          '${eco != null ? ' · ${eco.toStringAsFixed(1)} km/L' : ''}.'));
-    }
-    return b.toString().trim();
-  }
-
   static Future<String> _goalsBrief() async {
     final repo = GoalsRepo();
     final goals = await repo.all();
@@ -1429,54 +1357,6 @@ class LocalBrain {
     return b.toString().trim();
   }
 
-  static Future<String> _warranties() async {
-    final list = await WarrantyRepo().all();
-    if (list.isEmpty) return tr('مفيش ضمانات مسجلة.', 'No warranties logged.');
-    final now = DateTime.now();
-    DateTime expiryOf(Warranty w) {
-      final p = DateTime.tryParse(w.purchaseDate) ?? now;
-      return DateTime(p.year, p.month + w.warrantyMonths, p.day);
-    }
-
-    final soon = [
-      for (final w in list)
-        if (expiryOf(w).isAfter(now) && expiryOf(w).difference(now).inDays <= 60) w
-    ];
-    final expired = [for (final w in list) if (!expiryOf(w).isAfter(now)) w];
-    if (soon.isEmpty && expired.isEmpty) {
-      return tr('كل ضماناتك سارية. عندك ${arNum(list.length)} جهاز مسجّل.',
-          'All warranties valid. ${arNum(list.length)} items logged.');
-    }
-    final b = StringBuffer();
-    if (soon.isNotEmpty) {
-      b.writeln(tr('ضمانات قربت تنتهي:', 'Warranties ending soon:'));
-      for (final w in soon) {
-        b.writeln('• ${w.itemName} — ${arShortDate(expiryOf(w))}');
-      }
-    }
-    if (expired.isNotEmpty) {
-      b.writeln(tr('انتهى ضمانها: ${expired.map((w) => w.itemName).take(4).join('، ')}',
-          'Expired: ${expired.map((w) => w.itemName).take(4).join(', ')}'));
-    }
-    return b.toString().trim();
-  }
-
-  static Future<String> _quran() async {
-    final due = await QuranRepo().due(DateTime.now());
-    if (due.isEmpty) {
-      final all = await QuranRepo().all();
-      return all.isEmpty
-          ? tr('مفيش ورد قرآن مسجّل.', 'No Quran review portions logged.')
-          : tr('مفيش مراجعة مستحقة النهاردة — كله في ميعاده 👌', 'No reviews due today 👌');
-    }
-    final b = StringBuffer();
-    b.writeln(tr('ورد المراجعة النهاردة:', "Today's Quran review:"));
-    for (final q in due.take(8)) {
-      b.writeln('• ${q.portion}');
-    }
-    return b.toString().trim();
-  }
-
   static Future<String> _quit() async {
     final list = await QuitRepo().all();
     if (list.isEmpty) return tr('مفيش عدّادات إقلاع مسجّلة.', 'No quit counters logged.');
@@ -1490,18 +1370,6 @@ class LocalBrain {
           '• ${q.name}: بقالك ${arNum(days)} يوم${saved > 0 ? ' ووفّرت ${egp(saved)}' : ''} 💪',
           '• ${q.name}: ${arNum(days)} days${saved > 0 ? ', saved ${egp(saved)}' : ''} 💪'));
     }
-    return b.toString().trim();
-  }
-
-  static Future<String> _meters() async {
-    final latest = await MetersRepo().latestByType();
-    if (latest.isEmpty) return tr('مفيش قراءات عدادات مسجّلة.', 'No meter readings logged.');
-    final b = StringBuffer();
-    b.writeln(tr('آخر قراءات العدادات:', 'Latest meter readings:'));
-    latest.forEach((type, r) {
-      final val = r.reading % 1 == 0 ? arNum(r.reading.toInt()) : arNum(r.reading);
-      b.writeln('• ${meterTypeLabel(type)}: $val (${r.day})');
-    });
     return b.toString().trim();
   }
 
@@ -1851,15 +1719,14 @@ class LocalBrain {
   static Future<String> _moneyHub() async {
     final now = DateTime.now();
     final cash = await WalletsRepo().totalBalance();
-    final assets = await AssetsRepo().totalValue();
     final (owedToMe, iOwe) = await DebtsRepo().totals();
     final spend = await MoneyRepo().totalForMonth(now.year, now.month);
     final bills = await BillsRepo().due(now);
     final b = StringBuffer();
     b.writeln(tr('وضعك المالي:', 'Your finances:'));
     b.writeln(tr('• فلوس (محافظ): ${egp(cash)}', '• Cash (wallets): ${egp(cash)}'));
-    b.writeln(tr('• صافي الثروة: ${egp(cash + assets + owedToMe - iOwe)}',
-        '• Net worth: ${egp(cash + assets + owedToMe - iOwe)}'));
+    b.writeln(tr('• صافي الثروة: ${egp(cash + owedToMe - iOwe)}',
+        '• Net worth: ${egp(cash + owedToMe - iOwe)}'));
     if (iOwe > 0) b.writeln(tr('• عليك ديون: ${egp(iOwe)}', '• You owe: ${egp(iOwe)}'));
     b.writeln(tr('• صرفت الشهر: ${egp(spend)}', '• Spent this month: ${egp(spend)}'));
     if (bills.isNotEmpty) {

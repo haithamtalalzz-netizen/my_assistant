@@ -15,7 +15,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 58,
+      version: 59,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -396,7 +396,36 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 59 && newV >= 59) {
+      // بنود اتشالت من التطبيق نهائيًا (بطلب المستخدم 2026-07-20) — بنمسح
+      // جداولها عشان ما تفضلش شايلة بيانات ميتة. `IF EXISTS` عشان الترقية
+      // تعدّى على أى جهاز ناقصه جدول منهم.
+      for (final t in _v59DroppedTables) {
+        await db.execute('DROP TABLE IF EXISTS $t');
+      }
+    }
   }
+
+  /// جداول البنود اللى اتشالت من التطبيق — بتتمسح فى ترقية v59، ومابتتعملش
+  /// أصلاً فى `createSchema` (اتشال الـDDL بتاعها).
+  static const List<String> _v59DroppedTables = [
+    'trip_items', // الابن الأول (مفتاح خارجى على trips)
+    'trips',
+    'car_events', // الابن الأول (مفتاح خارجى على cars)
+    'cars',
+    'assets',
+    'gratitude',
+    'home_inventory',
+    'leave_ledger',
+    'meter_readings',
+    'quran_reviews',
+    'renewals',
+    'secret_notes',
+    'social_obligations',
+    'time_capsules',
+    'warranties',
+    'watchlist',
+  ];
 
   /// يزرع القوائم الافتراضية (مرة واحدة) + بينقل البنود من غير قائمة لأول
   /// قائمة. آمن يتنادى من الترقية ومن createSchema — بيتخطّى لو فيه قوائم.
@@ -450,16 +479,6 @@ class AppDb {
 
   /// رصيد الإجازات: كل صف = إجازة اتاخدت (يوم + عدد أيام + نوع).
   static const List<String> _v57Tables = [
-    '''
-      CREATE TABLE leave_ledger(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        day TEXT NOT NULL,
-        days REAL NOT NULL DEFAULT 1,
-        kind TEXT NOT NULL DEFAULT '',
-        note TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL
-      )''',
-    'CREATE INDEX idx_leave_day ON leave_ledger(day)',
   ];
 
   /// قواعد يصنعها المستخدم: مقياس + عملية (>/<) + حد + رسالة تنبيه.
@@ -565,15 +584,6 @@ class AppDb {
         bought INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL
       )''',
-    '''
-      CREATE TABLE watchlist(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        kind TEXT NOT NULL DEFAULT 'movie',
-        status TEXT NOT NULL DEFAULT 'want',
-        note TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL
-      )''',
   ];
 
   /// تتبّع القراءة (كتب) + مفكرة الامتنان.
@@ -589,14 +599,6 @@ class AppDb {
         note TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL
       )''',
-    '''
-      CREATE TABLE gratitude(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        day TEXT NOT NULL,
-        text TEXT NOT NULL,
-        created_at TEXT NOT NULL
-      )''',
-    'CREATE INDEX idx_gratitude_day ON gratitude(day)',
   ];
 
   /// الأساسيات المتكررة لقائمة التسوق (تتضاف بضغطة كل شهر).
@@ -612,17 +614,6 @@ class AppDb {
 
   /// جرد ممتلكات البيت — للتأمين/الطوارئ.
   static const List<String> _v44Tables = [
-    '''
-      CREATE TABLE home_inventory(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        category TEXT NOT NULL DEFAULT '',
-        value REAL NOT NULL DEFAULT 0,
-        location TEXT NOT NULL DEFAULT '',
-        note TEXT NOT NULL DEFAULT '',
-        photo TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL
-      )''',
   ];
 
   /// الصيام المتقطّع (نوافذ صيام) + مخطّط الوجبات الأسبوعى.
@@ -660,27 +651,6 @@ class AppDb {
 
   /// السفر (رحلات + عناصر) + التعلّم (كورسات) + الحيوانات (+أحداث) + كلمات السر.
   static const List<String> _v41Tables = [
-    '''
-      CREATE TABLE trips(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        destination TEXT NOT NULL DEFAULT '',
-        start_day TEXT,
-        end_day TEXT,
-        budget REAL NOT NULL DEFAULT 0,
-        notes TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL
-      )''',
-    '''
-      CREATE TABLE trip_items(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        trip_id INTEGER NOT NULL,
-        kind TEXT NOT NULL DEFAULT 'packing',
-        text TEXT NOT NULL,
-        done INTEGER NOT NULL DEFAULT 0,
-        sort INTEGER NOT NULL DEFAULT 0
-      )''',
-    'CREATE INDEX idx_trip_items_trip ON trip_items(trip_id)',
     '''
       CREATE TABLE courses(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -725,42 +695,6 @@ class AppDb {
 
   /// السيارة (بيانات + أحداث صيانة/بنزين/تأمين/رخصة) + التجديدات (وثائق بتنتهى).
   static const List<String> _v40Tables = [
-    '''
-      CREATE TABLE cars(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        plate TEXT NOT NULL DEFAULT '',
-        make TEXT NOT NULL DEFAULT '',
-        model TEXT NOT NULL DEFAULT '',
-        year INTEGER,
-        odometer INTEGER NOT NULL DEFAULT 0,
-        notes TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL
-      )''',
-    '''
-      CREATE TABLE car_events(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        car_id INTEGER NOT NULL,
-        type TEXT NOT NULL,
-        day TEXT NOT NULL,
-        cost REAL NOT NULL DEFAULT 0,
-        odometer INTEGER,
-        liters REAL,
-        next_due TEXT,
-        note TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL
-      )''',
-    'CREATE INDEX idx_car_events_car ON car_events(car_id)',
-    '''
-      CREATE TABLE renewals(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        type TEXT NOT NULL DEFAULT '',
-        expiry TEXT NOT NULL,
-        remind_days INTEGER NOT NULL DEFAULT 30,
-        notes TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL
-      )''',
   ];
 
   /// المهام والمشاريع + الاشتراكات + الأهداف والمعالم.
@@ -970,14 +904,6 @@ class AppDb {
   ];
 
   static const List<String> _v24Tables = [
-    '''
-      CREATE TABLE assets(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        type TEXT NOT NULL DEFAULT 'gold',
-        value REAL NOT NULL DEFAULT 0,
-        note TEXT NOT NULL DEFAULT ''
-      )''',
   ];
 
   static const List<String> _v25Tables = [
@@ -1050,32 +976,9 @@ class AppDb {
         day TEXT NOT NULL,
         PRIMARY KEY(challenge_id, day)
       )''',
-    '''
-      CREATE TABLE time_capsules(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        message TEXT NOT NULL,
-        open_date TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        opened INTEGER NOT NULL DEFAULT 0
-      )''',
   ];
 
   static const List<String> _v19Tables = [
-    '''
-      CREATE TABLE quran_reviews(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        portion TEXT NOT NULL,
-        last_reviewed TEXT,
-        interval_days INTEGER NOT NULL DEFAULT 1,
-        reps INTEGER NOT NULL DEFAULT 0
-      )''',
-    '''
-      CREATE TABLE secret_notes(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        body TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL
-      )''',
     '''
       CREATE TABLE quit_counters(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1097,43 +1000,12 @@ class AppDb {
   ];
 
   static const List<String> _v17Tables = [
-    '''
-      CREATE TABLE warranties(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        item_name TEXT NOT NULL,
-        purchase_date TEXT NOT NULL,
-        warranty_months INTEGER NOT NULL,
-        photo TEXT NOT NULL DEFAULT '',
-        notes TEXT NOT NULL DEFAULT ''
-      )''',
   ];
 
   static const List<String> _v18Tables = [
-    '''
-      CREATE TABLE meter_readings(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        meter_type TEXT NOT NULL,
-        reading REAL NOT NULL,
-        cost REAL,
-        day TEXT NOT NULL
-      )''',
-    'CREATE INDEX idx_meter_type_day ON meter_readings(meter_type, day)',
   ];
 
   static const List<String> _v15Tables = [
-    '''
-      CREATE TABLE social_obligations(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        person TEXT NOT NULL,
-        type TEXT NOT NULL,
-        direction TEXT NOT NULL,
-        amount REAL,
-        occasion TEXT NOT NULL DEFAULT '',
-        day TEXT NOT NULL,
-        notes TEXT NOT NULL DEFAULT '',
-        reciprocated INTEGER NOT NULL DEFAULT 0
-      )''',
-    'CREATE INDEX idx_social_person ON social_obligations(person)',
   ];
 
   static const List<String> _v14Tables = [

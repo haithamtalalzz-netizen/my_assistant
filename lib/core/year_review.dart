@@ -35,8 +35,6 @@ Future<List<YearStat>> collectYearReview(int year) async {
       'SELECT COUNT(*) FROM (SELECT day FROM prayer_log WHERE day LIKE ? '
       'GROUP BY day HAVING COUNT(*) >= 5)');
   final habitDone = await count('SELECT COUNT(*) FROM habit_logs WHERE day LIKE ?');
-  final gratitudeDays =
-      await count('SELECT COUNT(DISTINCT day) FROM gratitude WHERE day LIKE ?');
   final meals = await count('SELECT COUNT(*) FROM meals WHERE day LIKE ?');
   final waterCups = (await sum('water_logs', 'glasses', 'day')).round();
   final booksDone = Sqflite.firstIntValue(await db
@@ -53,7 +51,6 @@ Future<List<YearStat>> collectYearReview(int year) async {
     YearStat('🕌', tr('أيام صلّيت فيها الخمس', 'Full-prayer days'),
         arNum(fullPrayerDays)),
     YearStat('🔁', tr('مرات علّمت عادة', 'Habit check-ins'), arNum(habitDone)),
-    YearStat('🙏', tr('أيام امتنان', 'Gratitude days'), arNum(gratitudeDays)),
     YearStat('📚', tr('كتب خلّصتها', 'Books finished'), arNum(booksDone)),
     YearStat('🍽', tr('وجبات سجّلتها', 'Meals logged'), arNum(meals)),
     YearStat('💧', tr('كوبايات مياه', 'Water cups'), arNum(waterCups)),

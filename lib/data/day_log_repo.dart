@@ -4,9 +4,7 @@ import '../core/l10n.dart';
 import 'income_repo.dart';
 import 'meals_repo.dart';
 import 'medical_repo.dart';
-import 'meters_repo.dart';
 import 'money_repo.dart';
-import 'social_repo.dart';
 
 /// حدث واحد في تقويم النتيجة — الشاشة بتحوّل [kind] لأيقونة.
 class DayEvent {
@@ -23,8 +21,8 @@ class DayEvent {
 class DayLogRepo {
   static const List<String> _dayTables = [
     'expenses', 'income', 'meals', 'med_logs', 'habit_logs', 'workout_logs',
-    'gym_sessions', 'measurements', 'medical_records', 'meter_readings',
-    'social_obligations', 'water_logs', 'sleep_logs', 'steps_logs',
+    'gym_sessions', 'measurements', 'medical_records',
+    'water_logs', 'sleep_logs', 'steps_logs',
     'body_progress',
   ];
 
@@ -158,28 +156,6 @@ class DayLogRepo {
       events.add(DayEvent(
           kind: 'medical',
           text: '${medicalTypeLabel(r['type'] as String)}: ${r['title']}'));
-    }
-
-    // قراءات العدادات.
-    for (final r in await db.query('meter_readings',
-        where: 'day = ?', whereArgs: [day])) {
-      events.add(DayEvent(
-          kind: 'meter',
-          text: tr('عداد ${meterTypeLabel(r['meter_type'] as String)}: '
-              '${arNum((r['reading'] as num).toDouble())}',
-              'Meter ${meterTypeLabel(r['meter_type'] as String)}: '
-              '${arNum((r['reading'] as num).toDouble())}')));
-    }
-
-    // الواجبات الاجتماعية.
-    for (final s in await db.query('social_obligations',
-        where: 'day = ?', whereArgs: [day])) {
-      final amt = (s['amount'] as num?)?.toDouble();
-      events.add(DayEvent(
-          kind: 'social',
-          text: '${socialTypeLabel(s['type'] as String)} '
-              '${socialDirectionLabel(s['direction'] as String)} '
-              '${s['person']}${amt == null ? '' : ' — ${egp(amt)}'}'));
     }
 
     // لقطة صحة اليوم: مياه/نوم/خطوات.

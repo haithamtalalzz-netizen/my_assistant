@@ -5,7 +5,6 @@ import 'income_repo.dart';
 import 'meals_repo.dart';
 import 'medical_repo.dart';
 import 'money_repo.dart';
-import 'social_repo.dart';
 
 /// نتيجة بحث واحدة — [kind] بيحدد الشاشة اللي تتفتح لما يتضغط عليها.
 class SearchHit {
@@ -106,15 +105,6 @@ class SearchRepo {
             subtitle:
                 '${tr('صيدلية البيت', 'Pharmacy')} • ×${arNum((r['quantity'] as num).toInt())}'));
 
-    // الضمانات.
-    await add(
-        "SELECT item_name FROM warranties WHERE item_name LIKE ? OR notes LIKE ? LIMIT 10",
-        [like, like],
-        (r) => SearchHit(
-            kind: 'warranty',
-            title: r['item_name'] as String,
-            subtitle: tr('ضمان', 'Warranty')));
-
     // الديون.
     await add(
         "SELECT person, amount, direction FROM debts WHERE person LIKE ? OR note LIKE ? LIMIT 10",
@@ -124,16 +114,6 @@ class SearchRepo {
             title: r['person'] as String,
             subtitle:
                 '${tr('دين/سلفة', 'Debt')} • ${egp((r['amount'] as num).toDouble())}'));
-
-    // الواجبات الاجتماعية.
-    await add(
-        "SELECT person, type, occasion FROM social_obligations WHERE person LIKE ? OR occasion LIKE ? LIMIT 10",
-        [like, like],
-        (r) => SearchHit(
-            kind: 'social',
-            title: r['person'] as String,
-            subtitle:
-                '${socialTypeLabel(r['type'] as String)}${(r['occasion'] as String).isEmpty ? '' : ' • ${r['occasion']}'}'));
 
     // الملابس.
     await add(
@@ -210,35 +190,6 @@ class SearchRepo {
             title: r['title'] as String,
             subtitle: tr('هدف', 'Goal')));
 
-    // السيارات.
-    await add(
-        "SELECT name, plate FROM cars WHERE name LIKE ? OR plate LIKE ? OR notes LIKE ? LIMIT 10",
-        [like, like, like],
-        (r) => SearchHit(
-            kind: 'car',
-            title: r['name'] as String,
-            subtitle: '${tr('سيارة', 'Car')}'
-                '${(r['plate'] as String).isEmpty ? '' : ' • ${r['plate']}'}'));
-
-    // التجديدات.
-    await add(
-        "SELECT title, type FROM renewals WHERE title LIKE ? OR notes LIKE ? LIMIT 10",
-        [like, like],
-        (r) => SearchHit(
-            kind: 'renewal',
-            title: r['title'] as String,
-            subtitle: tr('تجديد', 'Renewal')));
-
-    // الرحلات.
-    await add(
-        "SELECT title, destination FROM trips WHERE title LIKE ? OR destination LIKE ? LIMIT 10",
-        [like, like],
-        (r) => SearchHit(
-            kind: 'trip',
-            title: r['title'] as String,
-            subtitle: '${tr('رحلة', 'Trip')}'
-                '${(r['destination'] as String).isEmpty ? '' : ' • ${r['destination']}'}'));
-
     // الدورات التعليمية.
     await add(
         "SELECT title, provider FROM courses WHERE title LIKE ? OR provider LIKE ? LIMIT 10",
@@ -286,15 +237,6 @@ class SearchRepo {
             title: r['name'] as String,
             subtitle: tr('أمنية', 'Wish')));
 
-    // قائمة المشاهدة.
-    await add(
-        "SELECT title FROM watchlist WHERE title LIKE ? OR note LIKE ? LIMIT 10",
-        [like, like],
-        (r) => SearchHit(
-            kind: 'watch',
-            title: r['title'] as String,
-            subtitle: tr('مشاهدة', 'Watchlist')));
-
     // الكتب.
     await add(
         "SELECT title, author FROM books WHERE title LIKE ? OR author LIKE ? LIMIT 10",
@@ -304,15 +246,6 @@ class SearchRepo {
             title: r['title'] as String,
             subtitle: '${tr('كتاب', 'Book')}'
                 '${(r['author'] as String).isEmpty ? '' : ' • ${r['author']}'}'));
-
-    // جرد ممتلكات البيت.
-    await add(
-        "SELECT name, location FROM home_inventory WHERE name LIKE ? OR note LIKE ? LIMIT 10",
-        [like, like],
-        (r) => SearchHit(
-            kind: 'inventory',
-            title: r['name'] as String,
-            subtitle: tr('جرد البيت', 'Home inventory')));
 
     // نباتات البيت.
     await add(

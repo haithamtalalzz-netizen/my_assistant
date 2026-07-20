@@ -5,7 +5,6 @@ import '../data/home_maintenance_repo.dart';
 import '../data/meds_repo.dart';
 import '../data/plants_repo.dart';
 import '../data/relatives_repo.dart';
-import '../data/renewals_repo.dart';
 import '../data/tasks_repo.dart';
 import '../data/vaccinations_repo.dart';
 import 'ar.dart';
@@ -133,15 +132,6 @@ Future<List<AttentionItem>> collectAttention([DateTime? nowArg]) async {
       kind: AttentionKind.doc,
       id: d.id!,
       text: tr('مستند قرب يخلص: ${d.title}', 'Document expiring: ${d.title}'),
-      urgency: 4,
-    ));
-  }
-  for (final r in await RenewalsRepo().dueSoon(days: 30)) {
-    if (r.id == null) continue;
-    out.add(AttentionItem(
-      kind: AttentionKind.renewal,
-      id: r.id!,
-      text: tr('قرب تجديد: ${r.title}', 'Renewal soon: ${r.title}'),
       urgency: 4,
     ));
   }
