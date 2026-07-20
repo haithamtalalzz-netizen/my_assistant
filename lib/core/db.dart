@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
+
+import 'log.dart';
 
 /// اتصال قاعدة البيانات — singleton زي ما اتعودنا، ومايتقفلش أبدًا.
 class AppDb {
@@ -397,17 +400,55 @@ class AppDb {
       }
     }
     if (oldV < 59 && newV >= 59) {
-      // بنود اتشالت من التطبيق نهائيًا (بطلب المستخدم 2026-07-20) — بنمسح
-      // جداولها عشان ما تفضلش شايلة بيانات ميتة. `IF EXISTS` عشان الترقية
-      // تعدّى على أى جهاز ناقصه جدول منهم.
+      // بنود اتشالت من التطبيق نهائيًا (بطلب المستخدم 2026-07-20).
+      // مابنمسحش بيانات حد من غير ما نحتفظ بيها: بنأرشف صفوف كل جدول جوه
+      // `archived_tables` الأول، وبعدين نشيل الجدول. الواجهة بتبقى نضيفة،
+      // والبيانات تفضل موجودة (وبتسافر مع النسخة الاحتياطية) لو حد احتاجها.
+      await db.execute(_archiveTableDdl);
       for (final t in _v59DroppedTables) {
-        await db.execute('DROP TABLE IF EXISTS $t');
+        await _archiveThenDrop(db, t);
       }
     }
   }
 
-  /// جداول البنود اللى اتشالت من التطبيق — بتتمسح فى ترقية v59، ومابتتعملش
-  /// أصلاً فى `createSchema` (اتشال الـDDL بتاعها).
+  /// أرشيف الجداول المشالة — نسخة JSON من صفوف كل جدول قبل ما يتشال.
+  static const String _archiveTableDdl = '''
+    CREATE TABLE IF NOT EXISTS archived_tables(
+      name TEXT PRIMARY KEY,
+      rows_json TEXT NOT NULL,
+      row_count INTEGER NOT NULL DEFAULT 0,
+      archived_at TEXT NOT NULL
+    )''';
+
+  /// بيأرشف صفوف [table] (لو موجود وفيه بيانات) وبعدين بيشيله.
+  /// **لو الأرشفة فشلت مابيشيلش الجدول** — أحسن جدول زيادة من بيانات تضيع.
+  static Future<void> _archiveThenDrop(Database db, String table) async {
+    try {
+      final exists = await db.rawQuery(
+          "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", [table]);
+      if (exists.isEmpty) return;
+      final rows = await db.query(table);
+      if (rows.isNotEmpty) {
+        await db.insert(
+          'archived_tables',
+          {
+            'name': table,
+            'rows_json': jsonEncode(rows),
+            'row_count': rows.length,
+            'archived_at': DateTime.now().toIso8601String(),
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await db.execute('DROP TABLE IF EXISTS $table');
+    } on Exception catch (e, st) {
+      // الجدول بيفضل مكانه — مفيش بيانات بتضيع.
+      logError('فشلت أرشفة الجدول «$table» — اتساب زى ما هو', e, st);
+    }
+  }
+
+  /// جداول البنود اللى اتشالت من التطبيق — بتتأرشف وتتشال فى ترقية v59،
+  /// ومابتتعملش أصلاً فى `createSchema` (اتشال الـDDL بتاعها).
   static const List<String> _v59DroppedTables = [
     'trip_items', // الابن الأول (مفتاح خارجى على trips)
     'trips',

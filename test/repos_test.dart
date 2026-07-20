@@ -4276,6 +4276,43 @@ void main() {
       await v.close();
     });
 
+    // 🔴 الأهم: ترقية v59 بتتنشر لناس بتستخدم نسخة الويب — ممنوع تمسح
+    // بياناتهم. لازم تتأرشف الأول جوه `archived_tables`.
+    test('ترقية v59 بتأرشف بيانات الجدول قبل ما تشيله', () async {
+      final v = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await v.execute(
+          'CREATE TABLE secret_notes(id INTEGER PRIMARY KEY, title TEXT, body TEXT)');
+      await v.insert('secret_notes', {'title': 'حسابى', 'body': 'سرّى جدًا'});
+      await v.insert('secret_notes', {'title': 'تانى', 'body': 'كمان'});
+      // جدول فاضى — يتشال من غير أرشيف.
+      await v.execute('CREATE TABLE watchlist(id INTEGER PRIMARY KEY, title TEXT)');
+
+      await AppDb.upgradeSchema(v, 58, 59);
+
+      Future<int> exists(String t) async => (await v.rawQuery(
+              "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+              [t]))
+          .length;
+      expect(await exists('secret_notes'), 0, reason: 'الجدول اتشال');
+      expect(await exists('watchlist'), 0);
+
+      final arch = await v.query('archived_tables', where: 'name = ?',
+          whereArgs: ['secret_notes']);
+      expect(arch.length, 1, reason: 'البيانات اتأرشفت');
+      expect(arch.first['row_count'], 2);
+      final rows = jsonDecode(arch.first['rows_json'] as String) as List;
+      expect(rows.length, 2);
+      expect((rows.first as Map)['body'], 'سرّى جدًا');
+      // الفاضى مالوش أرشيف (مافيش داعى).
+      expect(
+          (await v.query('archived_tables', where: 'name = ?',
+                  whereArgs: ['watchlist']))
+              .isEmpty,
+          isTrue);
+      await v.close();
+    });
+
     // الترقية لازم تعدّى حتى لو الجهاز أصلاً ماعندوش الجداول دى.
     test('ترقية v59 مابتقعش لو الجداول مش موجودة', () async {
       final v = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
