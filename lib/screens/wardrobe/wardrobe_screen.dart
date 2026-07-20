@@ -234,7 +234,7 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
     return Scaffold(
       drawer: widget.drawer,
       appBar: AppBar(
-        title: Text(tr('خزانة الملابس', 'Wardrobe')),
+        title: Text(tr('ملابسى', 'My clothes')),
         actions: [
           searchAction(context),
           IconButton(

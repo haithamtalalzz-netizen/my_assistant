@@ -217,7 +217,7 @@ class _PrayerScreenState extends State<PrayerScreen> {
     final now = DateTime.now();
     return Scaffold(
       appBar: AppBar(
-        title: Text(tr('الصلاة والأذكار', 'Prayer & Adhkar')),
+        title: Text(tr('صلاتى', 'My prayers')),
         actions: [
           IconButton(
             tooltip: tr('سجل العبادات', 'Worship history'),
