@@ -14,10 +14,7 @@ import 'food/fasting_screen.dart';
 import 'food/meal_planner_screen.dart';
 import 'growth/courses_screen.dart';
 import 'growth/reading_screen.dart';
-import 'growth/gratitude_screen.dart';
 import 'growth/habit_analytics_screen.dart';
-import 'growth/records_screen.dart';
-import 'growth/perfect_day_screen.dart';
 import 'passwords/passwords_screen.dart';
 import '../data/bills_repo.dart';
 import '../data/income_repo.dart';
@@ -27,17 +24,11 @@ import 'reports/year_review_screen.dart';
 import 'reports/calculators_screen.dart';
 import 'health/mood_screen.dart';
 import 'money/wishlist_screen.dart';
-import 'growth/watchlist_screen.dart';
 import 'baladna/debts_screen.dart';
 import 'baladna/gameya_screen.dart';
 import 'baladna/relatives_screen.dart';
 import 'baladna/savings_screen.dart';
-import 'baladna/social_screen.dart';
-import 'money/assets_screen.dart';
-import 'money/salary_envelopes_screen.dart';
-import 'money/fx_rate_screen.dart';
 import 'calendar_screen.dart';
-import 'capsule_screen.dart';
 import 'challenges_screen.dart';
 import 'diary_screen.dart';
 import 'time_machine_screen.dart';
@@ -59,8 +50,6 @@ import 'home/pharmacy_screen.dart';
 import 'inbox_screen.dart';
 import 'medical/medical_screen.dart';
 import 'quit_screen.dart';
-import 'quran_screen.dart';
-import 'secret_notes_screen.dart';
 import 'settings_screen.dart';
 import 'wardrobe/wardrobe_screen.dart';
 import 'weekly/weekly_planning_screen.dart';
@@ -301,23 +290,11 @@ class AppDrawer extends StatelessWidget {
                       tr('المحفظة', 'Wallet'), tabIndex: 2),
                   GroupHubItem(Icons.savings_outlined, tr('الادخار', 'Savings'),
                       screen: const SavingsScreen()),
-                  GroupHubItem(Icons.account_balance_outlined,
-                      tr('أظرف المرتب', 'Salary envelopes'),
-                      screen: const SalaryEnvelopesScreen()),
-                  GroupHubItem(Icons.attach_money,
-                      tr('سعر الدولار', 'Dollar rate'),
-                      screen: const FxRateScreen()),
-                  GroupHubItem(Icons.diamond_outlined,
-                      tr('أموالي الخارجية', 'My assets'),
-                      screen: const AssetsScreen()),
                   GroupHubItem(Icons.handshake_outlined,
                       tr('الديون والسلف', 'Debts'),
                       screen: const DebtsScreen()),
                   GroupHubItem(Icons.groups_outlined, tr('الجمعيات', "Gam'iyas"),
                       screen: const GameyaScreen()),
-                  GroupHubItem(Icons.volunteer_activism_outlined,
-                      tr('الواجبات الاجتماعية', 'Social ledger'),
-                      screen: const SocialScreen()),
                   GroupHubItem(Icons.subscriptions_outlined,
                       tr('الاشتراكات', 'Subscriptions'),
                       screen: const SubscriptionsScreen()),
@@ -344,24 +321,9 @@ class AppDrawer extends StatelessWidget {
                       screen: const CoursesScreen()),
                   GroupHubItem(Icons.menu_book_outlined, tr('القراءة', 'Reading'),
                       screen: const ReadingScreen()),
-                  GroupHubItem(Icons.favorite_border,
-                      tr('مفكرة الامتنان', 'Gratitude'),
-                      screen: const GratitudeScreen()),
                   GroupHubItem(Icons.insights_outlined,
                       tr('تحليلات العادات', 'Habit analytics'),
                       screen: const HabitAnalyticsScreen()),
-                  GroupHubItem(Icons.emoji_events_outlined,
-                      tr('أرقامك القياسية', 'Your records'),
-                      screen: const RecordsScreen()),
-                  GroupHubItem(Icons.auto_awesome_outlined,
-                      tr('اليوم المثالي', 'Perfect day'),
-                      screen: const PerfectDayScreen()),
-                  GroupHubItem(Icons.movie_outlined,
-                      tr('قائمة المشاهدة', 'Watchlist'),
-                      screen: const WatchlistScreen()),
-                  GroupHubItem(Icons.auto_stories_outlined,
-                      tr('مراجعة القرآن', 'Quran review'),
-                      screen: const QuranScreen()),
                   GroupHubItem(Icons.flag_outlined, tr('التحديات', 'Challenges'),
                       screen: const ChallengesScreen()),
                   GroupHubItem(Icons.auto_stories_outlined,
@@ -370,15 +332,9 @@ class AppDrawer extends StatelessWidget {
                   GroupHubItem(Icons.emoji_events_outlined,
                       tr('عدّاد الإقلاع', 'Quit counter'),
                       screen: const QuitScreen()),
-                  GroupHubItem(Icons.hourglass_empty,
-                      tr('الكبسولة الزمنية', 'Time capsule'),
-                      screen: const CapsuleScreen()),
                   GroupHubItem(Icons.diversity_1_outlined,
                       tr('صلة الرحم', 'Keep in touch'),
                       screen: const RelativesScreen()),
-                  GroupHubItem(Icons.lock_outline,
-                      tr('الخزنة السرية', 'Secret vault'),
-                      screen: const SecretNotesScreen()),
                   GroupHubItem(Icons.key_outlined,
                       tr('كلمات السر', 'Passwords'),
                       screen: const PasswordsScreen()),

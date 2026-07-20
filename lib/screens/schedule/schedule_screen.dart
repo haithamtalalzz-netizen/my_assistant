@@ -7,13 +7,10 @@ import '../../core/l10n.dart';
 import '../../widgets/search_action.dart';
 import '../../data/appointments_repo.dart';
 import '../../data/meds_repo.dart';
-import '../../core/contacts_import.dart';
-import '../../data/occasions_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 import 'appointment_form.dart';
 import 'med_form.dart';
-import 'occasion_form.dart';
 
 class ScheduleScreen extends StatelessWidget {
   final Widget? drawer;
@@ -22,31 +19,23 @@ class ScheduleScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        drawer: drawer,
-        appBar: AppBar(
-          title: Text(tr('المواعيد', 'Appointments')),
-          actions: [
-            searchAction(context),
-            IconButton(
-              tooltip: tr('عرض شهري', 'Month view'),
-              icon: const Icon(Icons.calendar_month_outlined),
-              onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const AppointmentsCalendarScreen())),
-            ),
-          ],
-          bottom: TabBar(tabs: [
-            Tab(text: tr('المواعيد', 'Appointments')),
-            Tab(text: tr('المناسبات', 'Occasions')),
-          ]),
-        ),
-        body: const TabBarView(
-            children: [_AppointmentsTab(), _OccasionsTab()]),
+    return Scaffold(
+      drawer: drawer,
+      appBar: AppBar(
+        title: Text(tr('المواعيد', 'Appointments')),
+        actions: [
+          searchAction(context),
+          IconButton(
+            tooltip: tr('عرض شهري', 'Month view'),
+            icon: const Icon(Icons.calendar_month_outlined),
+            onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const AppointmentsCalendarScreen())),
+          ),
+        ],
       ),
+      body: const _AppointmentsTab(),
     );
   }
 }
@@ -63,157 +52,6 @@ class MedsScreen extends StatelessWidget {
         ),
         body: const _MedsTab(),
       );
-}
-
-class _OccasionsTab extends StatefulWidget {
-  const _OccasionsTab();
-
-  @override
-  State<_OccasionsTab> createState() => _OccasionsTabState();
-}
-
-class _OccasionsTabState extends State<_OccasionsTab> {
-  final _repo = OccasionsRepo();
-  bool _loading = true;
-  List<Occasion> _occasions = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final occasions = await _repo.all();
-    final now = DateTime.now();
-    occasions.sort(
-        (a, b) => a.nextOccurrence(now).compareTo(b.nextOccurrence(now)));
-    if (!mounted) return;
-    setState(() {
-      _occasions = occasions;
-      _loading = false;
-    });
-  }
-
-  Future<void> _openForm([Occasion? o]) async {
-    final saved = await Navigator.push<bool>(context,
-        MaterialPageRoute(builder: (_) => OccasionForm(occasion: o)));
-    if (saved == true && mounted) await _load();
-  }
-
-  String _countdown(Occasion o) {
-    final days = o
-        .nextOccurrence(DateTime.now())
-        .difference(dateOnly(DateTime.now()))
-        .inDays;
-    if (days == 0) return tr('النهارده! 🎉', 'Today! 🎉');
-    if (days == 1) return tr('بكرة', 'Tomorrow');
-    return tr('باقي ${arNum(days)} يوم', 'in ${arNum(days)} days');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: _occasions.isEmpty
-                  ? ListView(children: [
-                      const SizedBox(height: 80),
-                      EmptyHint(
-                          icon: Icons.cake_outlined,
-                          actionLabel: tr('ضيف مناسبة', 'Add occasion'),
-                          onAction: () => _openForm(),
-                          text:
-                              tr('مفيش مناسبات متسجلة — ضيف أعياد الميلاد\nوالمناسبات المهمة وهفكرك قبلها',
-                                  'No occasions — add birthdays\nand key dates, reminded ahead')),
-                    ])
-                  : ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-                      children: [
-                        for (final o in _occasions)
-                          Card(
-                            margin: const EdgeInsets.symmetric(vertical: 3),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: scheme.secondaryContainer,
-                                child: Icon(Icons.cake_outlined,
-                                    color: scheme.onSecondaryContainer),
-                              ),
-                              title: Text(o.person.isEmpty
-                                  ? o.title
-                                  : '${o.title} — ${o.person}'),
-                              subtitle: Text(
-                                  '${arShortDate(o.nextOccurrence(DateTime.now()))} • ${_countdown(o)}'),
-                              onTap: () => _openForm(o),
-                              trailing: PopupMenuButton<String>(
-                                onSelected: (v) async {
-                                  switch (v) {
-                                    case 'edit':
-                                      await _openForm(o);
-                                    case 'delete':
-                                      if (!await confirmDelete(context,
-                                          tr('المناسبة "${o.title}"', 'occasion "${o.title}"'))) {
-                                        return;
-                                      }
-                                      await _repo.delete(o.id!);
-                                      if (mounted) await _load();
-                                  }
-                                },
-                                itemBuilder: (_) => [
-                                  PopupMenuItem(
-                                      value: 'edit',
-                                      child: Text(tr('تعديل', 'Edit'))),
-                                  PopupMenuItem(
-                                      value: 'delete',
-                                      child: Text(tr('حذف', 'Delete'))),
-                                ],
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-            ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FloatingActionButton.small(
-            heroTag: 'occasion_import_fab',
-            onPressed: _importContacts,
-            tooltip: tr('استيراد أعياد الميلاد', 'Import birthdays'),
-            child: const Icon(Icons.contacts_outlined),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton(
-            heroTag: 'occasion_fab',
-            onPressed: () => _openForm(),
-            tooltip: tr('مناسبة جديدة', 'New occasion'),
-            child: const Icon(Icons.add),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _importContacts() async {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(tr('بستورد أعياد الميلاد...', 'Importing birthdays...'))));
-    final n = await ContactsImport.importBirthdays();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    if (n == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(tr('محتاج إذن جهات الاتصال', 'Contacts permission needed'))));
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(n == 0
-            ? tr('مفيش أعياد ميلاد جديدة', 'No new birthdays found')
-            : tr('اتضاف ${arNum(n)} عيد ميلاد', 'Added ${arNum(n)} birthdays'))));
-    await _load();
-  }
 }
 
 class _AppointmentsTab extends StatefulWidget {
