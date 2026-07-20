@@ -37,8 +37,8 @@ List<TourSlide> tourSlides() => [
         Icons.notifications_active_outlined,
         tr('التذكيرات', 'Reminders'),
         tr(
-            'التطبيق بيفكّرك بمواعيدك وأدويتك وفواتيرك وتجديد وثايقك — كله بيتحسب على تليفونك. من الإشعار نفسه تقدر تقول «تم» أو «أجّل ساعة».',
-            'Reminders for appointments, meds, bills & document renewals — all computed on your phone. From the notification itself: "Done" or "+1h".'),
+            'التطبيق بيفكّرك بمواعيدك وأدويتك وفواتيرك ومستنداتك — كله بيتحسب على تليفونك. من الإشعار نفسه تقدر تقول «تم» أو «أجّل ساعة».',
+            'Reminders for appointments, meds, bills & documents — all computed on your phone. From the notification itself: "Done" or "+1h".'),
       ),
       TourSlide(
         Icons.psychology_outlined,

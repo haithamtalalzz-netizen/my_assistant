@@ -172,10 +172,6 @@ class _TimeMachineScreenState extends State<TimeMachineScreen> {
         return Icons.monitor_heart_outlined;
       case 'medical':
         return Icons.medical_services_outlined;
-      case 'meter':
-        return Icons.bolt_outlined;
-      case 'social':
-        return Icons.people_outline;
       case 'health':
         return Icons.favorite_outline;
       default:

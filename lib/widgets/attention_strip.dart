@@ -19,7 +19,6 @@ import '../data/tasks_repo.dart';
       AttentionKind.appointment => (icon: Icons.event_outlined, color: Colors.blue),
       AttentionKind.task => (icon: Icons.checklist_outlined, color: Colors.indigo),
       AttentionKind.doc => (icon: Icons.folder_outlined, color: Colors.teal),
-      AttentionKind.renewal => (icon: Icons.badge_outlined, color: Colors.amber),
       AttentionKind.vaccine => (icon: Icons.vaccines_outlined, color: Colors.teal),
       AttentionKind.plant => (icon: Icons.yard_outlined, color: Colors.green),
       AttentionKind.maintenance => (

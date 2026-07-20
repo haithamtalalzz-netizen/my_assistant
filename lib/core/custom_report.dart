@@ -22,8 +22,6 @@ const Map<String, String> kReportSections = {
   'habit': 'العادات',
   'workout': 'التمرين',
   'gym': 'الجيم',
-  'meter': 'العدادات',
-  'social': 'الواجبات الاجتماعية',
   'health': 'الصحة العامة',
 };
 

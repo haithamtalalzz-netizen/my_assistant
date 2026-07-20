@@ -38,11 +38,8 @@ class Notifications {
   static int homeMaintNotifId(int id) => 970000 + id;
   static int incomeNotifId(int id) => 980000 + id;
   static int pharmacyNotifId(int id) => 990000 + id;
-  static int warrantyNotifId(int id) => 1000000 + id;
-  static int meterNotifId(int typeIndex) => 1010000 + typeIndex;
-  static const int quranNotifId = 1020001;
   static int relativeNotifId(int id) => 1030000 + id;
-  static int capsuleNotifId(int id) => 1040000 + id;
+  /// «اتحرك دلوقتي» لموعد ليه مدة مشوار (مش ليه علاقة برصيد الإجازات).
   static int leaveNotifId(int id) => 1050000 + id;
   static int plantNotifId(int id) => 1060000 + id;
   static const int weekSummaryNotifId = 1070001;
@@ -55,10 +52,7 @@ class Notifications {
   static const int adhanTestNotifId = 1100002; // تجربة صوت الأذان
   static int taskNotifId(int id) => 1110000 + id; // موعد مهمة
   static int subscriptionNotifId(int id) => 1120000 + id; // تجديد اشتراك
-  static int carEventNotifId(int id) => 1130000 + id; // تجديد تأمين/رخصة السيارة
-  static int renewalNotifId(int id) => 1140000 + id; // تجديد وثيقة
   static int petEventNotifId(int id) => 1150000 + id; // تطعيم/بيطري حيوان
-  static int tripNotifId(int id) => 1160000 + id; // قرب موعد رحلة
   static const int fastingEndNotifId = 1170001; // انتهاء نافذة الصيام المتقطّع
   static const int proactiveNotifId = 1180001; // رؤية استباقية يومية من العقل
   static int vaccineNotifId(int id) => 1190000 + id; // جرعة تطعيم جاية

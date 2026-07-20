@@ -17,7 +17,6 @@ enum AttentionKind {
   appointment,
   task,
   doc,
-  renewal,
   vaccine,
   plant,
   maintenance,

@@ -34,8 +34,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     'gym': 'جيم',
     'measurement': 'قياسات',
     'medical': 'طبي',
-    'meter': 'عدادات',
-    'social': 'اجتماعي',
     'health': 'صحة',
   };
 
@@ -229,8 +227,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
         'gym' => Icons.fitness_center,
         'measurement' => Icons.monitor_heart_outlined,
         'medical' => Icons.medical_information_outlined,
-        'meter' => Icons.speed_outlined,
-        'social' => Icons.volunteer_activism_outlined,
         'health' => Icons.favorite_outline,
         _ => Icons.circle,
       };
