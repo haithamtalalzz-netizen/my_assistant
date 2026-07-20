@@ -50,32 +50,73 @@ class BackupService {
         text: 'نسخة احتياطية من My Assistant');
   }
 
-  /// يرجع true لو الاستعادة تمت، false لو المستخدم لغى الاختيار.
-  /// يرمي [FormatException] برسالة عربية لو الملف مش نسخة صحيحة.
-  static Future<bool> restoreBackup() async {
-    final picked = await FilePicker.pickFiles(withData: false);
-    final path = picked?.files.single.path;
-    if (path == null) return false;
+  /// اسم ملف قاعدة البيانات جوه ملف النسخة.
+  static const String dbEntryName = 'my_assistant.db';
 
+  /// امتداد نسخة الأمان اللى بتتاخد من القاعدة الحاليّة قبل أى استعادة.
+  static const String safetyCopySuffix = '.before_restore';
+
+  /// بيتأكد إن البايتات دى فعلاً قاعدة SQLite (التوقيع فى أول الملف).
+  /// ملف مقصوص أو تالف مش هيعدّى — وده اللى بيحمى من استعادة بتخرّب البيانات.
+  static bool looksLikeSqlite(List<int> bytes) {
+    const magic = 'SQLite format 3';
+    // أصغر قاعدة SQLite = صفحة واحدة (٥١٢ بايت على الأقل)؛ أقل من كده = مقصوص.
+    if (bytes.length < 512) return false;
+    for (var i = 0; i < magic.length; i++) {
+      if (bytes[i] != magic.codeUnitAt(i)) return false;
+    }
+    return bytes[magic.length] == 0;
+  }
+
+  /// بيطبّق نسخة احتياطية من بايتات zip — **من غير ما يلمس القاعدة الحيّة
+  /// إلا فى آخر خطوة**:
+  ///   ١. بيفكّ الضغط ويتأكد إن جواه قاعدة SQLite سليمة،
+  ///   ٢. بيكتبها فى ملف مؤقت جنبها،
+  ///   ٣. بياخد نسخة أمان من الحاليّة (`.before_restore`)،
+  ///   ٤. وبعدين بس بيبدّل (rename ذرّى) وبيحطّ الصور.
+  /// أى فشل قبل الخطوة ٤ = بياناتك زى ما هى بالظبط.
+  ///
+  /// بيرمى [FormatException] برسالة عربية لو الملف مش نسخة صحيحة.
+  /// مفصول عن [restoreBackup] عشان يبقى قابل للاختبار (من غير منتقى ملفات).
+  static Future<void> applyBackupBytes(
+    List<int> zipBytes, {
+    required String dbPath,
+    required String imagesDirPath,
+  }) async {
     final Archive archive;
     try {
-      archive = ZipDecoder().decodeBytes(await File(path).readAsBytes());
+      archive = ZipDecoder().decodeBytes(zipBytes);
     } on Exception {
       throw const FormatException('الملف ده مش نسخة احتياطية صحيحة');
     }
-    final dbEntry = archive.findFile('my_assistant.db');
+    final dbEntry = archive.findFile(dbEntryName);
     if (dbEntry == null) {
+      throw const FormatException('الملف ده مش نسخة احتياطية من My Assistant');
+    }
+    final newBytes = dbEntry.content as List<int>;
+    if (!looksLikeSqlite(newBytes)) {
       throw const FormatException(
-          'الملف ده مش نسخة احتياطية من My Assistant');
+          'قاعدة البيانات جوه النسخة تالفة — مالمستش بياناتك الحالية');
     }
 
-    // استبدال قاعدة البيانات.
-    final dbPath = await AppDb.dbPath();
-    await AppDb.close();
-    await File(dbPath).writeAsBytes(dbEntry.content, flush: true);
+    // (٢) ملف مؤقت جنب القاعدة (نفس القرص عشان النقل يبقى ذرّى).
+    final tmp = File('$dbPath.restore_tmp');
+    await tmp.writeAsBytes(newBytes, flush: true);
+    try {
+      // (٣) نسخة أمان من الحاليّة — لو الاستعادة طلعت غلط يبقى فيه رجعة.
+      final live = File(dbPath);
+      if (await live.exists()) {
+        await live.copy('$dbPath$safetyCopySuffix');
+      }
+      // (٤) التبديل.
+      await tmp.rename(dbPath);
+    } on Exception {
+      if (await tmp.exists()) await tmp.delete();
+      rethrow;
+    }
 
-    // استبدال صور المستندات.
-    final imagesDir = await _imagesDir();
+    // الصور — بعد ما القاعدة بقت سليمة.
+    final imagesDir = Directory(imagesDirPath);
     if (await imagesDir.exists()) {
       await imagesDir.delete(recursive: true);
     }
@@ -83,9 +124,26 @@ class BackupService {
     for (final f in archive.files) {
       if (f.isFile && f.name.startsWith('doc_images/')) {
         final dest = File(p.join(imagesDir.path, p.basename(f.name)));
-        await dest.writeAsBytes(f.content);
+        await dest.writeAsBytes(f.content as List<int>);
       }
     }
+  }
+
+  /// يرجع true لو الاستعادة تمت، false لو المستخدم لغى الاختيار.
+  /// يرمي [FormatException] برسالة عربية لو الملف مش نسخة صحيحة.
+  static Future<bool> restoreBackup() async {
+    final picked = await FilePicker.pickFiles(withData: false);
+    final path = picked?.files.single.path;
+    if (path == null) return false;
+
+    final dbPath = await AppDb.dbPath();
+    final imagesDir = await _imagesDir();
+    await AppDb.close();
+    await applyBackupBytes(
+      await File(path).readAsBytes(),
+      dbPath: dbPath,
+      imagesDirPath: imagesDir.path,
+    );
 
     // مسارات الصور في النسخة جاية من جهاز/تثبيت مختلف — نعيد كتابتها.
     final db = await AppDb.instance;

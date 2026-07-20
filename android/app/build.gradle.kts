@@ -29,6 +29,22 @@ android {
         targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+    }
+
+    // التطبيق بيتركّب يدويًا على موبايل arm64 واحد. مكتبات الإضافات (خصوصًا
+    // ML Kit) بتيجى بكل المعماريات حتى مع `--target-platform android-arm64`
+    // (اللى بيفلتر مكتبات فلاتر نفسها بس) — يعنى ~٢٦ ميجا من الـAPK مكتبات
+    // الجهاز ما يقدرش يشغّلها أصلاً. الاستبعاد ده بيشيلها.
+    // لو احتجت تركّب على جهاز ٣٢-بت قديم أو محاكى x86، شيل البلوك ده.
+    packaging {
+        jniLibs {
+            excludes += listOf(
+                "lib/armeabi-v7a/**",
+                "lib/x86/**",
+                "lib/x86_64/**",
+            )
+        }
     }
 
     buildTypes {

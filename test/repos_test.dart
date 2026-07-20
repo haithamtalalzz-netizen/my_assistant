@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:archive/archive_io.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/ar.dart';
@@ -4281,6 +4282,111 @@ void main() {
           options: OpenDatabaseOptions(singleInstance: false));
       await AppDb.upgradeSchema(v, 58, 59);
       await v.close();
+    });
+  });
+
+
+  // ————— دورة النسخ الاحتياطى والاستعادة (مسار التعافى من الكوارث) —————
+  // البيانات كلها على جهاز واحد ومفيش سيرفر، فالمسار ده هو خط الدفاع الأخير.
+  group('النسخ الاحتياطى والاستعادة', () {
+    // بيبنى ملف نسخة (zip) فيه قاعدة SQLite حقيقية + صورة مستند.
+    Future<List<int>> buildBackupZip(String dbSourcePath,
+        {String imageName = 'doc1.jpg', List<int>? imageBytes}) async {
+      final archive = Archive();
+      archive.addFile(ArchiveFile.bytes(
+          BackupService.dbEntryName, await File(dbSourcePath).readAsBytes()));
+      archive.addFile(ArchiveFile.bytes(
+          'doc_images/$imageName', imageBytes ?? [1, 2, 3, 4]));
+      return ZipEncoder().encode(archive);
+    }
+
+    test('دورة كاملة: نسخة ← تغيير البيانات ← استعادة ← البيانات رجعت', () async {
+      final dir = await Directory.systemTemp.createTemp('bk_ok');
+      final dbPath = p.join(dir.path, 'live.db');
+      final imagesPath = p.join(dir.path, 'doc_images');
+
+      // قاعدة فيها بيانات «قديمة» → دى اللى هناخد منها النسخة.
+      var db = await databaseFactoryFfi.openDatabase(dbPath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await db.execute('CREATE TABLE notes(id INTEGER PRIMARY KEY, body TEXT)');
+      await db.insert('notes', {'body': 'قبل النسخة'});
+      await db.close();
+      final zip = await buildBackupZip(dbPath);
+
+      // بعدين البيانات تتغيّر (زى ما بيحصل بمرور الوقت).
+      db = await databaseFactoryFfi.openDatabase(dbPath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await db.delete('notes');
+      await db.insert('notes', {'body': 'بعد النسخة'});
+      await db.close();
+
+      await BackupService.applyBackupBytes(zip,
+          dbPath: dbPath, imagesDirPath: imagesPath);
+
+      // البيانات رجعت للّى كانت وقت النسخة.
+      db = await databaseFactoryFfi.openDatabase(dbPath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      final rows = await db.query('notes');
+      expect(rows.length, 1);
+      expect(rows.first['body'], 'قبل النسخة');
+      await db.close();
+
+      // الصور اترجّعت، ونسخة الأمان من القاعدة القديمة موجودة.
+      expect(await File(p.join(imagesPath, 'doc1.jpg')).exists(), isTrue);
+      expect(
+          await File('$dbPath${BackupService.safetyCopySuffix}').exists(), isTrue);
+      await dir.delete(recursive: true);
+    });
+
+    test('ملف تالف مابيلمسش البيانات الحيّة', () async {
+      final dir = await Directory.systemTemp.createTemp('bk_bad');
+      final dbPath = p.join(dir.path, 'live.db');
+      final db = await databaseFactoryFfi.openDatabase(dbPath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await db.execute('CREATE TABLE notes(id INTEGER PRIMARY KEY, body TEXT)');
+      await db.insert('notes', {'body': 'بياناتى'});
+      await db.close();
+      final before = await File(dbPath).readAsBytes();
+
+      // (أ) ملف مش zip أصلاً.
+      await expectLater(
+          BackupService.applyBackupBytes([9, 9, 9, 9],
+              dbPath: dbPath, imagesDirPath: p.join(dir.path, 'img')),
+          throwsA(isA<FormatException>()));
+
+      // (ب) zip سليم بس من غير قاعدة بيانات.
+      final noDb = Archive()
+        ..addFile(ArchiveFile.bytes('readme.txt', [65, 66]));
+      await expectLater(
+          BackupService.applyBackupBytes(ZipEncoder().encode(noDb),
+              dbPath: dbPath, imagesDirPath: p.join(dir.path, 'img')),
+          throwsA(isA<FormatException>()));
+
+      // (ج) zip فيه «قاعدة» تالفة/مقصوصة → لازم يترفض قبل ما يلمس الحيّة.
+      final corrupt = Archive()
+        ..addFile(ArchiveFile.bytes(
+            BackupService.dbEntryName, List<int>.filled(600, 7)));
+      await expectLater(
+          BackupService.applyBackupBytes(ZipEncoder().encode(corrupt),
+              dbPath: dbPath, imagesDirPath: p.join(dir.path, 'img')),
+          throwsA(isA<FormatException>()));
+
+      // القاعدة الحيّة مااتغيّرتش ولا بايت، ومفيش ملف مؤقت متسايب.
+      expect(await File(dbPath).readAsBytes(), before);
+      expect(await File('$dbPath.restore_tmp').exists(), isFalse);
+      await dir.delete(recursive: true);
+    });
+
+    test('looksLikeSqlite بيفرّق بين قاعدة سليمة وملف تالف', () {
+      expect(BackupService.looksLikeSqlite(List<int>.filled(600, 0)), isFalse);
+      expect(BackupService.looksLikeSqlite([]), isFalse);
+      final header = <int>[...'SQLite format 3'.codeUnits, 0];
+      // التوقيع صح بس الملف مقصوص.
+      expect(BackupService.looksLikeSqlite(header), isFalse);
+      expect(
+          BackupService.looksLikeSqlite(
+              [...header, ...List<int>.filled(600, 0)]),
+          isTrue);
     });
   });
 
