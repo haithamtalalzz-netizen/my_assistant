@@ -6,6 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/archived_data.dart';
+import 'package:my_assistant/core/day_timeline.dart';
+import 'package:my_assistant/core/home_layout.dart';
+import 'package:my_assistant/widgets/day_ring_view.dart';
+import 'package:my_assistant/widgets/home_skin.dart';
 import 'package:image/image.dart' as img;
 import 'package:my_assistant/core/app_images.dart';
 import 'package:my_assistant/core/backup.dart';
@@ -4667,6 +4671,166 @@ void main() {
       final b = (await AppImages.bytesOf(squeezed))!.length;
       expect(b < a, isTrue, reason: 'المضغوطة أصغر: $a → $b');
       await db.delete(AppImages.table);
+    });
+  });
+
+
+  group('خط اليوم (الرئيسية الجديدة)', () {
+    final prayers = PrayerDay(
+      fajr: DateTime(2026, 7, 21, 4, 30),
+      dhuhr: DateTime(2026, 7, 21, 13, 0),
+      asr: DateTime(2026, 7, 21, 16, 30),
+      maghrib: DateTime(2026, 7, 21, 19, 45),
+      isha: DateTime(2026, 7, 21, 21, 15),
+    );
+
+    test('بيرتّب كل بنود اليوم بالوقت والعادات فى الآخر', () {
+      final now = DateTime(2026, 7, 21, 12, 0);
+      final events = buildDayTimeline(
+        now: now,
+        prayers: prayers,
+        prayedIndexes: {0},
+        appointments: [
+          Appointment(
+              title: 'دكتور',
+              category: 'صحة',
+              when: DateTime(2026, 7, 21, 17, 0)),
+        ],
+        medications: const [
+          Medication(id: 7, name: 'ضغط', dosage: 'قرص', times: ['08:00', '20:00'])
+        ],
+        takenMeds: const {'7|08:00'},
+        meals: const [Meal(day: '2026-07-21', slot: 'غدا', description: 'كشري')],
+        habits: const [Habit(id: 3, name: 'قراءة', createdAt: '2026-01-01')],
+        doneHabits: const {},
+        apptLabel: (c) => c,
+      );
+
+      // كل البنود اللى ليها وقت مرتّبة تصاعديًا.
+      final timed = events.where((e) => e.at != null).toList();
+      for (var i = 1; i < timed.length; i++) {
+        expect(timed[i].at!.isBefore(timed[i - 1].at!), isFalse,
+            reason: 'الترتيب الزمنى اتكسر عند $i');
+      }
+      // العادة ملهاش وقت فبتيجى فى الآخر خالص.
+      expect(events.last.kind, DayEventKind.habit);
+      expect(events.last.at, isNull);
+
+      // الفجر اتصلّى → متعلّم تم؛ الضهر لأ.
+      final fajr = events.firstWhere(
+          (e) => e.kind == DayEventKind.prayer && e.actionKey == '0');
+      expect(fajr.done, isTrue);
+      final dhuhr = events.firstWhere(
+          (e) => e.kind == DayEventKind.prayer && e.actionKey == '1');
+      expect(dhuhr.done, isFalse);
+
+      // الدوا بيتفكّ لجرعتين، واللى اتاخد بس هو المعلّم.
+      final meds = events.where((e) => e.kind == DayEventKind.med).toList();
+      expect(meds.length, 2);
+      expect(meds.firstWhere((e) => e.actionKey == '7|08:00').done, isTrue);
+      expect(meds.firstWhere((e) => e.actionKey == '7|20:00').done, isFalse);
+
+      // الغدا بياخد وقته التقريبى (٢ الضهر) فبيقع بعد الضهر وقبل العصر.
+      final meal = events.firstWhere((e) => e.kind == DayEventKind.meal);
+      expect(meal.at!.hour, kMealNominalHour['غدا']);
+    });
+
+    test('حالة البند بالنسبة للوقت الحالى', () {
+      final now = DateTime(2026, 7, 21, 13, 10);
+      final events = buildDayTimeline(now: now, prayers: prayers);
+      final dhuhr = events.firstWhere((e) => e.actionKey == '1');
+      final asr = events.firstWhere((e) => e.actionKey == '2');
+      final fajr = events.firstWhere((e) => e.actionKey == '0');
+      // الضهر كان ١:٠٠ والوقت ١:١٠ → لسه «دلوقتى» (فرق ١٠ دقايق).
+      expect(dhuhr.whenRelativeTo(now), DayEventWhen.now);
+      expect(asr.whenRelativeTo(now), DayEventWhen.upcoming);
+      expect(fajr.whenRelativeTo(now), DayEventWhen.past);
+    });
+
+    test('«اللى جاى» = أقرب بند لسه ماخلصش', () {
+      final now = DateTime(2026, 7, 21, 14, 0);
+      final events = buildDayTimeline(
+          now: now, prayers: prayers, prayedIndexes: {0, 1});
+      final next = nextPendingEvent(events, now);
+      expect(next, isNotNull);
+      expect(next!.actionKey, '2'); // العصر
+    });
+
+    test('لما كل حاجة تخلص مفيش «اللى جاى»', () {
+      final now = DateTime(2026, 7, 21, 23, 0);
+      final events = buildDayTimeline(now: now, prayers: prayers);
+      expect(nextPendingEvent(events, now), isNull);
+    });
+
+    test('مفاتيح الأشكال بتروح وترجع صح', () {
+      for (final l in HomeLayout.values) {
+        expect(homeLayoutFromKey(homeLayoutKey(l)), l);
+      }
+      // الافتراضى (مفيش مفتاح متخزّن، أو مفتاح مش معروف) = «على مزاجك».
+      expect(homeLayoutFromKey(null), HomeLayout.custom);
+      expect(homeLayoutFromKey('haga_tanya'), HomeLayout.custom);
+      // والقديم لسه متاح صراحةً لمين يختاره من الإعدادات.
+      expect(homeLayoutFromKey('classic'), HomeLayout.classic);
+    });
+  });
+
+
+  group('المظهر وحلقة اليوم', () {
+    test('مرحلة اليوم بتتقسم صح على مدار ٢٤ ساعة', () {
+      DayPhase at(int h) => dayPhaseOf(DateTime(2026, 7, 21, h));
+      expect(at(5), DayPhase.dawn);
+      expect(at(9), DayPhase.morning);
+      expect(at(14), DayPhase.afternoon);
+      expect(at(18), DayPhase.evening);
+      expect(at(23), DayPhase.night);
+      // الحدود: ٤ص أول الفجر، و٢٠ أول الليل، و٣ص لسه ليل.
+      expect(at(4), DayPhase.dawn);
+      expect(at(3), DayPhase.night);
+      expect(at(20), DayPhase.night);
+      expect(at(0), DayPhase.night);
+    });
+
+    test('كل مرحلة ليها تدرّج من لونين', () {
+      for (final p in DayPhase.values) {
+        expect(dayPhaseGradient(p).length, 2);
+      }
+    });
+
+    test('موضع البند على الحلقة = نسبته من اليوم', () {
+      expect(dayFraction(DateTime(2026, 7, 21, 0, 0)), 0);
+      expect(dayFraction(DateTime(2026, 7, 21, 12, 0)), closeTo(0.5, 1e-9));
+      expect(dayFraction(DateTime(2026, 7, 21, 18, 0)), closeTo(0.75, 1e-9));
+      // منتصف الليل بيبدأ من فوق الدايرة (-90 درجة).
+      expect(ringAngle(DateTime(2026, 7, 21, 0, 0)), closeTo(-1.5707963, 1e-6));
+      // الترتيب على الحلقة بيمشى مع الوقت.
+      expect(ringAngle(DateTime(2026, 7, 21, 9)) <
+          ringAngle(DateTime(2026, 7, 21, 15)), isTrue);
+    });
+  });
+
+
+  group('كروت «على مزاجك»', () {
+    const all = ['money', 'tasks', 'habits', 'prayer'];
+
+    test('مفيش اختيار = كل الكروت (مش رئيسية فاضية)', () {
+      expect(selectedHomeCards(all, null), all);
+      expect(selectedHomeCards(all, ''), all);
+      expect(selectedHomeCards(all, '  '), all);
+    });
+
+    test('بيحترم اختيار المستخدم وترتيبه', () {
+      expect(selectedHomeCards(all, 'prayer,money'), ['prayer', 'money']);
+    });
+
+    test('كارت اتشال من التطبيق بيتجاهَل بدل ما يكسر الشاشة', () {
+      expect(selectedHomeCards(all, 'money,haga_matmasehet,tasks'),
+          ['money', 'tasks']);
+    });
+
+    test('كارت جديد فى التطبيق مابيتحشرش فى اختيار المستخدم', () {
+      // «reading» اتضاف للتطبيق بعد ما المستخدم اختار — مايظهرش لوحده.
+      expect(selectedHomeCards([...all, 'reading'], 'money,tasks'),
+          ['money', 'tasks']);
     });
   });
 

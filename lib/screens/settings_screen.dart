@@ -21,6 +21,7 @@ import 'tour_screen.dart';
 import '../core/db.dart';
 import '../core/evening.dart';
 import '../core/health_service.dart';
+import '../core/home_layout.dart';
 import '../core/home_sections.dart';
 import '../core/l10n.dart';
 import '../core/notifications.dart';
@@ -30,6 +31,7 @@ import '../core/theme.dart';
 import '../core/widget_bridge.dart';
 import '../data/settings_repo.dart';
 import '../widgets/common.dart';
+import '../widgets/home_skin.dart';
 import '../widgets/location_fields.dart';
 import 'diagnostics_screen.dart';
 import 'archived_data_screen.dart';
@@ -71,6 +73,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _governorate = 'القاهرة';
   String? _customLoc; // مدينة عالمية مخصّصة (null = محافظة)
   Set<String> _hiddenHome = {}; // عناصر الرئيسية المخفية
+  HomeLayout _homeLayout = HomeLayout.custom; // شكل الرئيسية
+  bool _homeSkin = false; // المظهر العصرى
   String _notifMode = 'both';
   bool _loading = true;
   bool _busy = false;
@@ -94,6 +98,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final governorate = await _settings.governorateName();
     final customLoc = await _settings.customLocation();
     final hiddenHome = await _settings.hiddenHomeSections();
+    final homeLayout =
+        homeLayoutFromKey(await _settings.get(kHomeLayoutSetting));
+    final homeSkin = (await _settings.get(kHomeSkinSetting)) == '1';
     final ramadan = await _settings.ramadanMode();
     final hardDay = await _settings.hardDayMode();
     final travel = await _settings.travelMode();
@@ -123,6 +130,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _governorate = governorate;
       _customLoc = customLoc?.label;
       _hiddenHome = hiddenHome;
+      _homeLayout = homeLayout;
+      _homeSkin = homeSkin;
       _ramadan = ramadan;
       _hardDay = hardDay;
       _travel = travel;
@@ -945,6 +954,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 ],
                 if (_openCat == 'home') ...[
+                Card(
+                  margin: EdgeInsets.zero,
+                  clipBehavior: Clip.antiAlias,
+                  child: ExpansionTile(
+                    leading: const Icon(Icons.view_quilt_outlined),
+                    title: Text(tr('شكل الصفحة الرئيسية', 'Home layout')),
+                    subtitle: Text(homeLayoutLabel(_homeLayout),
+                        style: const TextStyle(fontSize: 12)),
+                    childrenPadding:
+                        const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      // ListTile مش RadioListTile: مجموعة الراديو اتعملها
+                      // deprecate لصالح RadioGroup، والاختيار هنا سطر واحد
+                      // فمفيش داعى لغلاف زيادة.
+                      for (final l in HomeLayout.values)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          selected: _homeLayout == l,
+                          leading: Icon(_homeLayout == l
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked),
+                          title: Text(homeLayoutLabel(l)),
+                          subtitle: Text(homeLayoutDescription(l),
+                              style: const TextStyle(fontSize: 11.5)),
+                          onTap: () async {
+                            await _settings.set(
+                                kHomeLayoutSetting, homeLayoutKey(l));
+                            setState(() => _homeLayout = l);
+                          },
+                        ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(tr('المظهر العصرى', 'Modern look')),
+                        subtitle: Text(
+                            tr('تدرّج لونى بيتغيّر مع وقت اليوم + كروت ناعمة',
+                                'Time-of-day gradient + soft cards'),
+                            style: const TextStyle(fontSize: 11.5)),
+                        value: _homeSkin,
+                        onChanged: (v) async {
+                          await _settings.set(kHomeSkinSetting, v ? '1' : '0');
+                          setState(() => _homeSkin = v);
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
                 Card(
                   margin: EdgeInsets.zero,
                   clipBehavior: Clip.antiAlias,
