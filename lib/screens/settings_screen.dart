@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io' show File;
 import '../core/log.dart';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
@@ -9,6 +13,8 @@ import 'package:share_plus/share_plus.dart';
 import '../core/app_state.dart';
 import '../core/ar.dart';
 import '../core/backup.dart';
+import '../core/file_out.dart';
+import '../core/json_backup.dart';
 import '../core/data_export.dart';
 import '../core/proactive_insight.dart';
 import 'tour_screen.dart';
@@ -231,6 +237,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
       logError('فشل تغيير حالة القفل', e);
       _toast(tr('حصلت مشكلة في البصمة — جرب تاني',
           'Biometric error — try again'));
+    }
+  }
+
+
+  /// نسخة JSON — **الوحيدة اللى بتشتغل على الويب** (SQL خالص من غير ملفات).
+  Future<void> _exportJson() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final json = await JsonBackup.exportAll();
+      final n = JsonBackup.rowCountOf(json);
+      await deliverFile(
+          'my_assistant_${dayKey(DateTime.now())}.json',
+          'application/json',
+          utf8.encode(json));
+      _toast(tr('اتصدّر ${arNum(n)} سجل', 'Exported ${arNum(n)} records'));
+    } on Exception catch (e, st) {
+      logError('فشل تصدير JSON', e, st);
+      _toast(tr('حصلت مشكلة أثناء التصدير', 'Export failed'));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _restoreJson() async {
+    if (_busy) return;
+    // بنقرا الملف الأول ونقول للمستخدم فيه كام سجل قبل ما يأكّد.
+    final picked = await FilePicker.pickFiles(withData: true);
+    if (picked == null) return;
+    final f = picked.files.single;
+    String? content;
+    try {
+      if (f.bytes != null) {
+        content = utf8.decode(f.bytes!); // الويب بيدّى bytes مش path
+      } else if (f.path != null) {
+        content = await File(f.path!).readAsString();
+      }
+    } on Exception catch (e) {
+      logError('فشلت قراءة ملف الاستعادة', e);
+    }
+    if (content == null) {
+      _toast(tr('مقدرتش أقرا الملف', "Couldn't read the file"));
+      return;
+    }
+    final n = JsonBackup.rowCountOf(content);
+    if (!mounted) return;
+    final sure = await confirmAction(
+      context,
+      title: tr('استعادة من JSON', 'Restore from JSON'),
+      message: tr(
+          'هيتم استبدال بيانات الأقسام اللى فى الملف (${arNum(n)} سجل). متأكد؟',
+          'Sections present in the file will be replaced (${arNum(n)} records). Sure?'),
+      confirmLabel: tr('استعادة', 'Restore'),
+    );
+    if (!sure) return;
+    setState(() => _busy = true);
+    try {
+      final done = await JsonBackup.importAll(content);
+      _toast(tr('اترجّع ${arNum(done)} سجل', 'Restored ${arNum(done)} records'));
+      if (mounted) Navigator.pop(context, true);
+    } on FormatException catch (e) {
+      _toast(e.message);
+    } on Exception catch (e, st) {
+      logError('فشلت استعادة JSON', e, st);
+      _toast(tr('حصلت مشكلة أثناء الاستعادة', 'Restore failed'));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -1116,7 +1189,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: _busy ? null : _restore,
                 ),
                 const Divider(height: 20),
+                // نسخة JSON — الوحيدة اللى بتشتغل فى المتصفح كمان.
                 ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.data_object),
+                  title: Text(tr('تصدير نسخة JSON', 'Export JSON backup')),
+                  subtitle: Text(tr(
+                      kIsWeb
+                          ? 'كل بياناتك فى ملف واحد — بينزّل على جهازك'
+                          : 'كل بياناتك فى ملف واحد (من غير الصور) — يشتغل على الويب كمان',
+                      'All your data in one file (no images)')),
+                  onTap: _busy ? null : _exportJson,
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.restore_page_outlined),
+                  title: Text(tr('استعادة من JSON', 'Restore from JSON')),
+                  subtitle: Text(tr(
+                      'بيستبدل الأقسام اللى فى الملف بس — الباقى زى ما هو',
+                      'Replaces only the sections present in the file')),
+                  onTap: _busy ? null : _restoreJson,
+                ),
+                const Divider(height: 20),
+                if (!kIsWeb) ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.table_view_outlined),
                   title: Text(tr('تصدير كل البيانات (Excel/CSV)',
@@ -1126,7 +1221,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'A zip with a CSV per section — opens in Excel (archive/read)')),
                   onTap: _busy ? null : _exportData,
                 ),
-                ListTile(
+                if (!kIsWeb) ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.history),
                   title: Text(tr('شارك آخر نسخة تلقائية',

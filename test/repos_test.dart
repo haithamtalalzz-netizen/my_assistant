@@ -6,6 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/archived_data.dart';
 import 'package:my_assistant/core/backup.dart';
+import 'package:my_assistant/core/json_backup.dart';
 import 'package:my_assistant/core/app_state.dart';
 import 'package:my_assistant/core/contextual_tips.dart';
 import 'package:my_assistant/core/day_close.dart';
@@ -4484,6 +4485,72 @@ void main() {
       expect(await ArchivedData.totalRows(), 0);
       expect(await ArchivedData.exportJson(), '{}');
       expect(await ArchivedData.deleteAll(), 0);
+    });
+  });
+
+
+  // نسخة JSON — دى الوحيدة اللى بتشتغل على الويب (SQL خالص من غير ملفات).
+  group('نسخة JSON (تشتغل على الويب)', () {
+    test('دورة كاملة: تصدير ← تغيير ← استعادة ← البيانات رجعت', () async {
+      final db = await AppDb.instance;
+      await db.delete('tasks');
+      await TasksRepo().save(Task(
+          title: 'مهمة قبل النسخة',
+          createdAt: DateTime.now().toIso8601String()));
+      final json = await JsonBackup.exportAll();
+      expect(JsonBackup.rowCountOf(json) > 0, isTrue);
+
+      // البيانات تتغيّر بعد النسخة.
+      await db.delete('tasks');
+      await TasksRepo().save(Task(
+          title: 'مهمة بعد النسخة',
+          createdAt: DateTime.now().toIso8601String()));
+
+      final restored = await JsonBackup.importAll(json);
+      expect(restored > 0, isTrue);
+      final titles =
+          (await TasksRepo().tasks()).map((t) => t.title).toList();
+      expect(titles, contains('مهمة قبل النسخة'));
+      expect(titles, isNot(contains('مهمة بعد النسخة')));
+    });
+
+    test('ملف تالف/غريب بيترفض والبيانات مااتلمستش', () async {
+      await TasksRepo().save(Task(
+          title: 'بياناتى', createdAt: DateTime.now().toIso8601String()));
+      final before = (await TasksRepo().tasks()).length;
+
+      await expectLater(
+          JsonBackup.importAll('مش JSON خالص'),
+          throwsA(isA<FormatException>()));
+      await expectLater(
+          JsonBackup.importAll('{"kind":"something_else","tables":{}}'),
+          throwsA(isA<FormatException>()));
+      await expectLater(
+          JsonBackup.importAll('{"kind":"my_assistant_full_backup"}'),
+          throwsA(isA<FormatException>()));
+
+      expect((await TasksRepo().tasks()).length, before);
+    });
+
+    test('بيتخطّى الجداول والأعمدة اللى مش موجودة (نسخة من إصدار تانى)',
+        () async {
+      final json = jsonEncode({
+        'kind': 'my_assistant_full_backup',
+        'format': 1,
+        'tables': {
+          'جدول_مش_موجود': [
+            {'a': 1}
+          ],
+          'tasks': [
+            {'title': 'مهمة من نسخة قديمة', 'created_at': '2026-01-01',
+             'عمود_مش_موجود': 'x'}
+          ],
+        },
+      });
+      final n = await JsonBackup.importAll(json);
+      expect(n, 1);
+      expect((await TasksRepo().tasks()).map((t) => t.title),
+          contains('مهمة من نسخة قديمة'));
     });
   });
 
