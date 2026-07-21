@@ -742,7 +742,9 @@ class _TodayScreenState extends State<TodayScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
           _layoutSwitcher(context),
-          _skinnedHeader(context),
+          // الترحيب هنا بالمظهر العادى عن قصد (اختيار المستخدم) — التدرّج
+          // بيفضل للأشكال التانية.
+          _header(context),
           const SizedBox(height: 16),
           _customSectionHeader(
             context,
@@ -766,10 +768,12 @@ class _TodayScreenState extends State<TodayScreen> {
               physics: const NeverScrollableScrollPhysics(),
               padding: EdgeInsets.zero,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: 1.25,
+                crossAxisCount: 3,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                // نفس نسبة كروت اللوحة الشاملة — الكارت بيضيق مع ٣ فى
+                // الصف، فلازم يطول عشان الرقم والعنوان ما يتقصّوش.
+                childAspectRatio: 0.82,
               ),
               itemCount: cards.length,
               itemBuilder: (_, i) => DashCardTile(
