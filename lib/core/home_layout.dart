@@ -28,6 +28,28 @@ enum HomeLayout {
 
   /// ٣ شرايح تتسحب أفقى: يومك · صحتك · أقسامك.
   stories,
+
+  /// المستخدم بيبنيها بنفسه: ترحيب + إجراءات سريعة يختارها + كروت يختارها.
+  custom,
+}
+
+/// الكروت اللى المستخدم اختار يشوفها فى الرئيسية المخصّصة (مفاتيح مفصولة
+/// بفاصلة). فاضى = **الكل** — عشان مستخدم لسه ماختارش يلاقى رئيسية
+/// مليانة مش فاضية.
+const String kHomeCardsSetting = 'home_cards';
+
+/// بيرتّب كروت الرئيسية حسب اختيار المستخدم.
+///
+/// [all] كل مفاتيح الكروت المتاحة (بترتيبها الطبيعى)، و[saved] اختيار
+/// المستخدم. أى كارت جديد يتضاف للتطبيق **مابيظهرش** تلقائيًا لو
+/// المستخدم عامل اختيار — عشان اختياره ما يتخرقش من ورا ضهره.
+List<String> selectedHomeCards(List<String> all, String? saved) {
+  final raw = (saved ?? '').split(',').where((e) => e.trim().isNotEmpty);
+  final picked = [
+    for (final k in raw)
+      if (all.contains(k)) k,
+  ];
+  return picked.isEmpty ? List<String>.from(all) : picked;
 }
 
 const String kHomeLayoutSetting = 'home_layout';
@@ -40,6 +62,7 @@ HomeLayout homeLayoutFromKey(String? key) => switch (key) {
       'deck' => HomeLayout.deck,
       'ring' => HomeLayout.ring,
       'stories' => HomeLayout.stories,
+      'custom' => HomeLayout.custom,
       _ => HomeLayout.classic,
     };
 
@@ -51,6 +74,7 @@ String homeLayoutKey(HomeLayout l) => switch (l) {
       HomeLayout.deck => 'deck',
       HomeLayout.ring => 'ring',
       HomeLayout.stories => 'stories',
+      HomeLayout.custom => 'custom',
       HomeLayout.classic => 'classic',
     };
 
@@ -63,6 +87,7 @@ String homeLayoutLabel(HomeLayout l) => switch (l) {
       HomeLayout.deck => tr('كارت واحد', 'One card'),
       HomeLayout.ring => tr('حلقة اليوم', 'Day ring'),
       HomeLayout.stories => tr('شرايح', 'Slides'),
+      HomeLayout.custom => tr('على مزاجك', 'Yours'),
     };
 
 String homeLayoutDescription(HomeLayout l) => switch (l) {
@@ -89,4 +114,7 @@ String homeLayoutDescription(HomeLayout l) => switch (l) {
       HomeLayout.stories => tr(
           'اسحب أفقى بين ٣ شرايح: يومك · صحتك · أقسامك.',
           'Swipe between 3 slides: your day · health · sections.'),
+      HomeLayout.custom => tr(
+          'ترحيب + إجراءات سريعة تختارها + كروت تختارها. دوس ＋ لأى منهم.',
+          'Greeting + quick actions you pick + cards you pick. Tap ＋ on either.'),
     };

@@ -170,6 +170,9 @@ class _TodayScreenState extends State<TodayScreen> {
   /// المظهر العصرى شغّال؟ (تدرّج بوقت اليوم + كروت ناعمة + حركة)
   bool _skin = false;
 
+  /// كروت الرئيسية اللى المستخدم اختارها (فاضى = الكل).
+  String? _homeCards;
+
   /// عنصر الرئيسية ظاهر؟ (لكل ما هو مش مخفي من الإعدادات).
   bool _vis(String key) => !_hidden.contains(key);
   List<Meal> _meals = [];
@@ -257,6 +260,7 @@ class _TodayScreenState extends State<TodayScreen> {
     final prayedCount = prayedSet.length;
     final layout = homeLayoutFromKey(await _settings.get(kHomeLayoutSetting));
     final skin = (await _settings.get(kHomeSkinSetting)) == '1';
+    final homeCards = await _settings.get(kHomeCardsSetting);
     if (!mounted) return;
     setState(() {
       _attention = attention;
@@ -269,6 +273,7 @@ class _TodayScreenState extends State<TodayScreen> {
       _prayedSet = prayedSet;
       _layout = layout;
       _skin = skin;
+      _homeCards = homeCards;
       _name = name;
       _quickOrder = quickOrder;
       _stepsAuto = stepsAuto;
@@ -718,7 +723,147 @@ class _TodayScreenState extends State<TodayScreen> {
         HomeLayout.deck => _bodyDeck(context),
         HomeLayout.ring => _bodyRing(context),
         HomeLayout.stories => _bodyStories(context),
+        HomeLayout.custom => _bodyCustom(context),
       };
+
+  /// ٩) «على مزاجك» — الرئيسية اللى المستخدم بيبنيها بنفسه:
+  /// ترحيب وتاريخ · إجراءات سريعة يختارها · كروت يختارها، وكل كارت
+  /// بيفتح صفحته. الاتنين فيهم ＋ بيعدّل الاختيار من الرئيسية على طول.
+  Widget _bodyCustom(BuildContext context) {
+    final chosen = selectedHomeCards(
+        _dash.map((d) => d.key).toList(), _homeCards);
+    final cards = [
+      for (final k in chosen)
+        ..._dash.where((d) => d.key == k),
+    ];
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        children: [
+          _layoutSwitcher(context),
+          _skinnedHeader(context),
+          const SizedBox(height: 16),
+          _customSectionHeader(
+            context,
+            tr('إجراءات سريعة', 'Quick actions'),
+            onAdd: _editQuickActions,
+          ),
+          const SizedBox(height: 8),
+          _quickActions(context),
+          const SizedBox(height: 18),
+          _customSectionHeader(
+            context,
+            tr('كروتك', 'Your cards'),
+            onAdd: _editHomeCards,
+          ),
+          const SizedBox(height: 8),
+          if (cards.isEmpty)
+            _emptyCardsHint(context)
+          else
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 1.25,
+              ),
+              itemCount: cards.length,
+              itemBuilder: (_, i) => DashCardTile(
+                stat: cards[i],
+                onOpen: (screen) => _reloadAfter(() => Navigator.push(
+                    context, MaterialPageRoute(builder: (_) => screen))),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// عنوان قسم فى «على مزاجك» + زرار ＋ للتعديل.
+  Widget _customSectionHeader(BuildContext context, String title,
+      {required VoidCallback onAdd}) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Text(title,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+        const Spacer(),
+        IconButton.filledTonal(
+          visualDensity: VisualDensity.compact,
+          tooltip: tr('اختار اللى تحبه', 'Pick what you want'),
+          icon: const Icon(Icons.add, size: 20),
+          onPressed: onAdd,
+          style: IconButton.styleFrom(
+            backgroundColor: scheme.primaryContainer,
+            foregroundColor: scheme.onPrimaryContainer,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _emptyCardsHint(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SkinCard(
+      skin: _skin,
+      child: Row(
+        children: [
+          const Text('🗂', style: TextStyle(fontSize: 26)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              tr('دوس ＋ واختار الكروت اللى تحب تشوفها هنا.',
+                  'Tap ＋ and pick the cards you want here.'),
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ＋ الإجراءات السريعة — بيفتح نفس شاشة التخصيص الموجودة (اختيار +
+  /// ترتيب بالسحب) بدل ما نبنى واحدة تانية.
+  Future<void> _editQuickActions() async {
+    final all = [
+      for (final a in quickActionCatalog())
+        (key: a.key, icon: a.icon, label: a.label),
+    ];
+    final picked = await Navigator.push<List<String>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuickActionsSettingsScreen(
+            all: all, enabledOrder: _quickOrder),
+      ),
+    );
+    if (picked == null) return;
+    await _settings.set('quick_actions', picked.join(','));
+    if (mounted) await _load();
+  }
+
+  /// ＋ الكروت — اختيار أى كروت تظهر فى الرئيسية.
+  Future<void> _editHomeCards() async {
+    final all = _dash.map((d) => (key: d.key, title: d.title)).toList();
+    final current = selectedHomeCards(
+        all.map((e) => e.key).toList(), _homeCards).toSet();
+    final picked = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => _HomeCardsPicker(all: all, selected: current),
+    );
+    if (picked == null) return;
+    // ترتيب الاختيار بيتبع الترتيب الطبيعى للكروت — أبسط وأثبت من ترتيب
+    // بيتغيّر حسب أنهى واحد المستخدم دوس عليه الأول.
+    final ordered =
+        all.map((e) => e.key).where(picked.contains).toList();
+    await _settings.set(kHomeCardsSetting, ordered.join(','));
+    if (mounted) await _load();
+  }
 
   /// الهيدر حسب المظهر: التدرّج العصرى أو الترحيب العادى.
   Widget _skinnedHeader(BuildContext context) {
@@ -4089,4 +4234,85 @@ class _QuickAct {
   final VoidCallback onTap;
 
   const _QuickAct(this.key, this.icon, this.label, this.color, this.onTap);
+}
+
+/// شيت اختيار كروت الرئيسية — المستخدم بيعلّم اللى يحبه يشوفه.
+///
+/// بيرجّع مجموعة المفاتيح المختارة، أو null لو اتلغى. لو المستخدم شال
+/// الكل بترجع فاضية — والرئيسية ساعتها بتعرض تلميح «دوس ＋» بدل شبكة
+/// فاضية بلا تفسير.
+class _HomeCardsPicker extends StatefulWidget {
+  final List<({String key, String title})> all;
+  final Set<String> selected;
+
+  const _HomeCardsPicker({required this.all, required this.selected});
+
+  @override
+  State<_HomeCardsPicker> createState() => _HomeCardsPickerState();
+}
+
+class _HomeCardsPickerState extends State<_HomeCardsPicker> {
+  late Set<String> _sel = {...widget.selected};
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 12, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    tr('اختار كروتك', 'Pick your cards'),
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w900),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => setState(() => _sel = _sel.length ==
+                          widget.all.length
+                      ? <String>{}
+                      : widget.all.map((e) => e.key).toSet()),
+                  child: Text(_sel.length == widget.all.length
+                      ? tr('شيل الكل', 'Clear all')
+                      : tr('اختار الكل', 'Select all')),
+                ),
+              ],
+            ),
+          ),
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final c in widget.all)
+                  CheckboxListTile(
+                    value: _sel.contains(c.key),
+                    onChanged: (v) => setState(() =>
+                        v == true ? _sel.add(c.key) : _sel.remove(c.key)),
+                    secondary: Icon(
+                      dashLook(c.key)?.icon ?? Icons.dashboard_outlined,
+                      color: dashLook(c.key)?.color,
+                    ),
+                    title: Text(c.title),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context, _sel),
+                child: Text(tr('حفظ', 'Save')),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

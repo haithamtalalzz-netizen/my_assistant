@@ -4806,4 +4806,30 @@ void main() {
     });
   });
 
+
+  group('كروت «على مزاجك»', () {
+    const all = ['money', 'tasks', 'habits', 'prayer'];
+
+    test('مفيش اختيار = كل الكروت (مش رئيسية فاضية)', () {
+      expect(selectedHomeCards(all, null), all);
+      expect(selectedHomeCards(all, ''), all);
+      expect(selectedHomeCards(all, '  '), all);
+    });
+
+    test('بيحترم اختيار المستخدم وترتيبه', () {
+      expect(selectedHomeCards(all, 'prayer,money'), ['prayer', 'money']);
+    });
+
+    test('كارت اتشال من التطبيق بيتجاهَل بدل ما يكسر الشاشة', () {
+      expect(selectedHomeCards(all, 'money,haga_matmasehet,tasks'),
+          ['money', 'tasks']);
+    });
+
+    test('كارت جديد فى التطبيق مابيتحشرش فى اختيار المستخدم', () {
+      // «reading» اتضاف للتطبيق بعد ما المستخدم اختار — مايظهرش لوحده.
+      expect(selectedHomeCards([...all, 'reading'], 'money,tasks'),
+          ['money', 'tasks']);
+    });
+  });
+
 }
