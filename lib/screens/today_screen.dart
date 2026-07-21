@@ -306,6 +306,9 @@ class _TodayScreenState extends State<TodayScreen> {
       children: [
         IconButton(
           tooltip: tr('التنبيهات', 'Alerts'),
+          // أصفر ثابت مش من الثيم: الجرس لازم يشدّ العين فى الوضعين
+          // (فاتح وغامق)، والكهرماني ده مقروء على الاتنين.
+          color: const Color(0xFFFFC107),
           icon: Icon(n > 0
               ? Icons.notifications_active_outlined
               : Icons.notifications_none),
