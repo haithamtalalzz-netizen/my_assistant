@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../core/app_images.dart';
+
 import '../../core/l10n.dart';
 import '../../data/wardrobe_repo.dart';
 import '../../models/models.dart';
@@ -51,16 +53,10 @@ class _ClothingFormState extends State<ClothingForm> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    final picked = await ImagePicker()
-        .pickImage(source: source, maxWidth: 1600, imageQuality: 85);
-    if (picked == null) return;
-    final dir = await getApplicationDocumentsDirectory();
-    final imagesDir = Directory(p.join(dir.path, 'clothes_images'));
-    await imagesDir.create(recursive: true);
-    final dest = p.join(imagesDir.path,
-        'cloth_${DateTime.now().microsecondsSinceEpoch}${p.extension(picked.path)}');
-    await File(picked.path).copy(dest);
-    if (mounted) setState(() => _photo = dest);
+    final stored = await AppImages.pickAndStore(source,
+        maxWidth: 1600, namePrefix: 'cloth');
+    if (stored == null) return;
+    if (mounted) setState(() => _photo = stored);
   }
 
   Future<void> _photoSheet() async {
@@ -137,7 +133,7 @@ class _ClothingFormState extends State<ClothingForm> {
                     ? Center(
                         child: Icon(Icons.add_a_photo_outlined,
                             size: 36, color: scheme.outline))
-                    : Image.file(File(_photo),
+                    : AppImage(_photo,
                         fit: BoxFit.cover,
                         errorBuilder: (_, _, _) => Center(
                             child: Icon(Icons.checkroom, color: scheme.outline))),

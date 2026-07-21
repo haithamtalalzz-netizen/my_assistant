@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../core/app_images.dart';
+
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../widgets/search_action.dart';
@@ -244,7 +246,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
             children: [
               AspectRatio(
                 aspectRatio: 3 / 4,
-                child: Image.file(File(e.photo),
+                child: AppImage(e.photo,
                     fit: BoxFit.cover,
                     errorBuilder: (_, _, _) =>
                         Container(color: scheme.surfaceContainerHighest)),
@@ -316,7 +318,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
             if (e.photo.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.file(File(e.photo),
+                child: AppImage(e.photo,
                     width: 72,
                     height: 96,
                     fit: BoxFit.cover,
@@ -393,16 +395,10 @@ class _ProgressFormState extends State<_ProgressForm> {
   }
 
   Future<void> _pickPhoto(ImageSource source) async {
-    final picked = await ImagePicker()
-        .pickImage(source: source, maxWidth: 1600, imageQuality: 85);
-    if (picked == null) return;
-    final dir = await getApplicationDocumentsDirectory();
-    final imagesDir = Directory(p.join(dir.path, 'progress_images'));
-    await imagesDir.create(recursive: true);
-    final dest = p.join(imagesDir.path,
-        'prog_${DateTime.now().microsecondsSinceEpoch}${p.extension(picked.path)}');
-    await File(picked.path).copy(dest);
-    if (mounted) setState(() => _photo = dest);
+    final stored = await AppImages.pickAndStore(source,
+        maxWidth: 1600, namePrefix: 'prog');
+    if (stored == null) return;
+    if (mounted) setState(() => _photo = stored);
   }
 
   Future<void> _save() async {
@@ -465,7 +461,7 @@ class _ProgressFormState extends State<_ProgressForm> {
                   padding: const EdgeInsetsDirectional.only(end: 12),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.file(File(_photo),
+                    child: AppImage(_photo,
                         width: 48, height: 48, fit: BoxFit.cover),
                   ),
                 ),

@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../core/app_images.dart';
+
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../data/medical_repo.dart';
@@ -82,32 +84,21 @@ class _MedicalFormState extends State<MedicalForm> {
     super.dispose();
   }
 
-  Future<String?> _copyToApp(String src) async {
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final imagesDir = Directory(p.join(dir.path, 'medical_images'));
-      await imagesDir.create(recursive: true);
-      final dest = p.join(imagesDir.path,
-          'med_${DateTime.now().microsecondsSinceEpoch}${p.extension(src)}');
-      await File(src).copy(dest);
-      return dest;
-    } on Exception catch (_) {
-      return null;
-    }
-  }
+  Future<String?> _copyToApp(XFile src) async =>
+      AppImages.storeXFile(src, namePrefix: 'med');
 
   Future<void> _addFromCamera() async {
     final picked = await ImagePicker()
         .pickImage(source: ImageSource.camera, maxWidth: 2200, imageQuality: 85);
     if (picked == null) return;
-    final dest = await _copyToApp(picked.path);
+    final dest = await _copyToApp(picked);
     if (dest != null && mounted) setState(() => _photos.add(dest));
   }
 
   Future<void> _addFromGallery() async {
     final picked = await ImagePicker().pickMultiImage(maxWidth: 2200, imageQuality: 85);
     for (final x in picked) {
-      final dest = await _copyToApp(x.path);
+      final dest = await _copyToApp(x);
       if (dest != null) _photos.add(dest);
     }
     if (mounted) setState(() {});
@@ -321,7 +312,7 @@ class _MedicalFormState extends State<MedicalForm> {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(10),
-          child: Image.file(File(_photos[i]),
+          child: AppImage(_photos[i],
               width: 80,
               height: 80,
               fit: BoxFit.cover,

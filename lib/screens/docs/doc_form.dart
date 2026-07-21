@@ -1,9 +1,12 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+
+import '../../core/app_images.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
@@ -52,18 +55,10 @@ class _DocFormState extends State<DocForm> {
   }
 
   Future<void> _importShared(String source) async {
-    try {
-      final docsDir = await getApplicationDocumentsDirectory();
-      final imagesDir = Directory(p.join(docsDir.path, 'doc_images'));
-      await imagesDir.create(recursive: true);
-      final dest = p.join(imagesDir.path,
-          'doc_${DateTime.now().millisecondsSinceEpoch}${p.extension(source)}');
-      await File(source).copy(dest);
-      if (mounted) setState(() => _imagePath = dest);
-      await _suggestExpiryFromImage(dest);
-    } on Exception catch (_) {
-      // الصورة المشاركة ممكن تكون اتمسحت — المستخدم يقدر يختار غيرها.
-    }
+    final stored = await AppImages.storeXFile(XFile(source), namePrefix: 'doc');
+    if (stored == null) return; // الصورة المشاركة ممكن تكون اتمسحت
+    if (mounted) setState(() => _imagePath = stored);
+    await _suggestExpiryFromImage(stored);
   }
 
   @override
@@ -74,23 +69,17 @@ class _DocFormState extends State<DocForm> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    final picked = await ImagePicker()
-        .pickImage(source: source, maxWidth: 2000, imageQuality: 85);
-    if (picked == null) return;
-    final docsDir = await getApplicationDocumentsDirectory();
-    final imagesDir = Directory(p.join(docsDir.path, 'doc_images'));
-    await imagesDir.create(recursive: true);
-    final ext = p.extension(picked.path);
-    final dest = p.join(imagesDir.path,
-        'doc_${DateTime.now().millisecondsSinceEpoch}$ext');
-    await File(picked.path).copy(dest);
-    if (mounted) setState(() => _imagePath = dest);
-    await _suggestExpiryFromImage(dest);
+    final stored = await AppImages.pickAndStore(source, namePrefix: 'doc');
+    if (stored == null) return;
+    if (mounted) setState(() => _imagePath = stored);
+    await _suggestExpiryFromImage(stored);
   }
 
   /// OCR محلي: لو لقى تاريخ مستقبلي في الصورة يقترحه كتاريخ انتهاء.
   Future<void> _suggestExpiryFromImage(String path) async {
     if (_expiry != null) return;
+    // قراءة التاريخ من الصورة محتاجة ملف على القرص — مش متاحة على الويب.
+    if (kIsWeb || AppImages.isInline(path)) return;
     final text = await OcrService.recognizeFromPath(path);
     if (text == null || !mounted) return;
     final suggested = bestExpiryDate(text, DateTime.now());
@@ -198,8 +187,7 @@ class _DocFormState extends State<DocForm> {
                               style: TextStyle(color: scheme.outline)),
                         ],
                       )
-                    : Image.file(
-                        File(_imagePath),
+                    : AppImage(_imagePath,
                         fit: BoxFit.cover,
                         errorBuilder: (_, _, _) => Center(
                           child: Icon(Icons.broken_image_outlined,

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../core/app_images.dart';
+
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../widgets/search_action.dart';
@@ -220,7 +222,7 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
     }
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
-      child: Image.file(File(it.photo),
+      child: AppImage(it.photo,
           width: size,
           height: size,
           fit: BoxFit.cover,

@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/archived_data.dart';
+import 'package:my_assistant/core/app_images.dart';
 import 'package:my_assistant/core/backup.dart';
 import 'package:my_assistant/core/json_backup.dart';
 import 'package:my_assistant/core/app_state.dart';
@@ -4551,6 +4553,62 @@ void main() {
       expect(n, 1);
       expect((await TasksRepo().tasks()).map((t) => t.title),
           contains('مهمة من نسخة قديمة'));
+    });
+  });
+
+
+  // الصور على الويب بتتخزّن جوه القاعدة — وده اللى بيخلّى نسخة JSON تاخدها معاها.
+  group('صور جوه القاعدة (الويب)', () {
+    test('حفظ → قراءة → مسح', () async {
+      final bytes = Uint8List.fromList(List<int>.generate(64, (i) => i));
+      final key = await AppImages.storeBytes(bytes, namePrefix: 'doc');
+      expect(AppImages.isInline(key), isTrue);
+      expect(key.startsWith('img:'), isTrue);
+
+      final back = await AppImages.bytesOf(key);
+      expect(back, isNotNull);
+      expect(back!.length, 64);
+      expect(back.first, 0);
+      expect(back.last, 63);
+
+      await AppImages.remove(key);
+      expect(await AppImages.bytesOf(key), isNull);
+    });
+
+    test('مسار ملف عادى مش inline، والفاضى بيرجّع null', () async {
+      expect(AppImages.isInline('/data/user/0/app/doc_images/x.jpg'), isFalse);
+      expect(await AppImages.bytesOf(''), isNull);
+      expect(await AppImages.bytesOf('img:مش_موجود'), isNull);
+    });
+
+    test('نسخة JSON بتاخد الصور معاها', () async {
+      final db = await AppDb.instance;
+      await db.delete(AppImages.table);
+      final key = await AppImages.storeBytes(
+          Uint8List.fromList([1, 2, 3]), namePrefix: 'doc');
+      final json = jsonDecode(await JsonBackup.exportAll()) as Map;
+      final tables = json['tables'] as Map;
+      expect(tables.containsKey(AppImages.table), isTrue,
+          reason: 'جدول الصور جوه النسخة');
+      expect((tables[AppImages.table] as List).length, 1);
+
+      // بعد ما تتمسح، الاستعادة بترجّعها.
+      await db.delete(AppImages.table);
+      expect(await AppImages.bytesOf(key), isNull);
+      await JsonBackup.importAll(jsonEncode(json));
+      final back = await AppImages.bytesOf(key);
+      expect(back, isNotNull);
+      expect(back!.toList(), [1, 2, 3]);
+    });
+
+    test('ترقية v59 ← v60 بتعمل جدول الصور', () async {
+      final v = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await AppDb.upgradeSchema(v, 59, 60);
+      final t = await v.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='app_images'");
+      expect(t.length, 1);
+      await v.close();
     });
   });
 

@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../core/app_images.dart';
+
 import '../core/l10n.dart';
 import '../widgets/search_action.dart';
 import '../data/recipes_repo.dart';
@@ -64,7 +66,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
               const SizedBox(height: 8),
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.file(File(r.photo),
+                child: AppImage(r.photo,
                     height: 180, width: double.infinity, fit: BoxFit.cover),
               ),
             ],
@@ -150,7 +152,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
                                           .surfaceContainerHighest,
                                       child: const Icon(Icons.restaurant, size: 32),
                                     )
-                                  : Image.file(File(r.photo), fit: BoxFit.cover),
+                                  : AppImage(r.photo, fit: BoxFit.cover),
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -211,16 +213,10 @@ class _RecipeFormState extends State<_RecipeForm> {
   }
 
   Future<void> _pickPhoto() async {
-    final picked = await ImagePicker().pickImage(
-        source: ImageSource.gallery, maxWidth: 1600, imageQuality: 85);
-    if (picked == null) return;
-    final dir = await getApplicationDocumentsDirectory();
-    final imagesDir = Directory(p.join(dir.path, 'recipe_images'));
-    await imagesDir.create(recursive: true);
-    final dest = p.join(imagesDir.path,
-        'rec_${DateTime.now().microsecondsSinceEpoch}${p.extension(picked.path)}');
-    await File(picked.path).copy(dest);
-    if (mounted) setState(() => _photo = dest);
+    final stored = await AppImages.pickAndStore(ImageSource.gallery,
+        maxWidth: 1600, namePrefix: 'rec');
+    if (stored == null) return;
+    if (mounted) setState(() => _photo = stored);
   }
 
   Future<void> _save() async {
@@ -264,7 +260,7 @@ class _RecipeFormState extends State<_RecipeForm> {
                   ? Center(
                       child: Icon(Icons.add_a_photo_outlined,
                           size: 32, color: scheme.outline))
-                  : Image.file(File(_photo), fit: BoxFit.cover),
+                  : AppImage(_photo, fit: BoxFit.cover),
             ),
           ),
           const SizedBox(height: 16),

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../core/app_images.dart';
+
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../widgets/search_action.dart';
@@ -177,8 +179,7 @@ class _DocsScreenState extends State<DocsScreen> {
     }
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
-      child: Image.file(
-        File(d.imagePath),
+      child: AppImage(d.imagePath,
         width: 52,
         height: 52,
         fit: BoxFit.cover,

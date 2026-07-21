@@ -18,7 +18,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 59,
+      version: 60,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -409,7 +409,25 @@ class AppDb {
         await _archiveThenDrop(db, t);
       }
     }
+    if (oldV < 60 && newV >= 60) {
+      // صور جوه القاعدة — عشان الويب (مفيش نظام ملفات هناك). المكسب الجانبى:
+      // نسخة JSON الاحتياطية بتاخد الصور معاها أوتوماتيك.
+      for (final ddl in _v60Tables) {
+        await db.execute(ddl);
+      }
+    }
   }
+
+  /// صور متخزّنة جوه القاعدة (الويب) — `AppImages`.
+  static const List<String> _v60Tables = [
+    '''
+      CREATE TABLE IF NOT EXISTS app_images(
+        key TEXT PRIMARY KEY,
+        mime TEXT NOT NULL DEFAULT 'image/jpeg',
+        data TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )''',
+  ];
 
   /// أرشيف الجداول المشالة — نسخة JSON من صفوف كل جدول قبل ما يتشال.
   static const String _archiveTableDdl = '''
@@ -1533,6 +1551,9 @@ class AppDb {
       batch.execute(ddl);
     }
     for (final ddl in _v58Tables) {
+      batch.execute(ddl);
+    }
+    for (final ddl in _v60Tables) {
       batch.execute(ddl);
     }
     await batch.commit(noResult: true);
