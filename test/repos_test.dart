@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/archived_data.dart';
+import 'package:my_assistant/core/day_timeline.dart';
+import 'package:my_assistant/core/home_layout.dart';
 import 'package:image/image.dart' as img;
 import 'package:my_assistant/core/app_images.dart';
 import 'package:my_assistant/core/backup.dart';
@@ -4667,6 +4669,104 @@ void main() {
       final b = (await AppImages.bytesOf(squeezed))!.length;
       expect(b < a, isTrue, reason: 'المضغوطة أصغر: $a → $b');
       await db.delete(AppImages.table);
+    });
+  });
+
+
+  group('خط اليوم (الرئيسية الجديدة)', () {
+    final prayers = PrayerDay(
+      fajr: DateTime(2026, 7, 21, 4, 30),
+      dhuhr: DateTime(2026, 7, 21, 13, 0),
+      asr: DateTime(2026, 7, 21, 16, 30),
+      maghrib: DateTime(2026, 7, 21, 19, 45),
+      isha: DateTime(2026, 7, 21, 21, 15),
+    );
+
+    test('بيرتّب كل بنود اليوم بالوقت والعادات فى الآخر', () {
+      final now = DateTime(2026, 7, 21, 12, 0);
+      final events = buildDayTimeline(
+        now: now,
+        prayers: prayers,
+        prayedIndexes: {0},
+        appointments: [
+          Appointment(
+              title: 'دكتور',
+              category: 'صحة',
+              when: DateTime(2026, 7, 21, 17, 0)),
+        ],
+        medications: const [
+          Medication(id: 7, name: 'ضغط', dosage: 'قرص', times: ['08:00', '20:00'])
+        ],
+        takenMeds: const {'7|08:00'},
+        meals: const [Meal(day: '2026-07-21', slot: 'غدا', description: 'كشري')],
+        habits: const [Habit(id: 3, name: 'قراءة', createdAt: '2026-01-01')],
+        doneHabits: const {},
+        apptLabel: (c) => c,
+      );
+
+      // كل البنود اللى ليها وقت مرتّبة تصاعديًا.
+      final timed = events.where((e) => e.at != null).toList();
+      for (var i = 1; i < timed.length; i++) {
+        expect(timed[i].at!.isBefore(timed[i - 1].at!), isFalse,
+            reason: 'الترتيب الزمنى اتكسر عند $i');
+      }
+      // العادة ملهاش وقت فبتيجى فى الآخر خالص.
+      expect(events.last.kind, DayEventKind.habit);
+      expect(events.last.at, isNull);
+
+      // الفجر اتصلّى → متعلّم تم؛ الضهر لأ.
+      final fajr = events.firstWhere(
+          (e) => e.kind == DayEventKind.prayer && e.actionKey == '0');
+      expect(fajr.done, isTrue);
+      final dhuhr = events.firstWhere(
+          (e) => e.kind == DayEventKind.prayer && e.actionKey == '1');
+      expect(dhuhr.done, isFalse);
+
+      // الدوا بيتفكّ لجرعتين، واللى اتاخد بس هو المعلّم.
+      final meds = events.where((e) => e.kind == DayEventKind.med).toList();
+      expect(meds.length, 2);
+      expect(meds.firstWhere((e) => e.actionKey == '7|08:00').done, isTrue);
+      expect(meds.firstWhere((e) => e.actionKey == '7|20:00').done, isFalse);
+
+      // الغدا بياخد وقته التقريبى (٢ الضهر) فبيقع بعد الضهر وقبل العصر.
+      final meal = events.firstWhere((e) => e.kind == DayEventKind.meal);
+      expect(meal.at!.hour, kMealNominalHour['غدا']);
+    });
+
+    test('حالة البند بالنسبة للوقت الحالى', () {
+      final now = DateTime(2026, 7, 21, 13, 10);
+      final events = buildDayTimeline(now: now, prayers: prayers);
+      final dhuhr = events.firstWhere((e) => e.actionKey == '1');
+      final asr = events.firstWhere((e) => e.actionKey == '2');
+      final fajr = events.firstWhere((e) => e.actionKey == '0');
+      // الضهر كان ١:٠٠ والوقت ١:١٠ → لسه «دلوقتى» (فرق ١٠ دقايق).
+      expect(dhuhr.whenRelativeTo(now), DayEventWhen.now);
+      expect(asr.whenRelativeTo(now), DayEventWhen.upcoming);
+      expect(fajr.whenRelativeTo(now), DayEventWhen.past);
+    });
+
+    test('«اللى جاى» = أقرب بند لسه ماخلصش', () {
+      final now = DateTime(2026, 7, 21, 14, 0);
+      final events = buildDayTimeline(
+          now: now, prayers: prayers, prayedIndexes: {0, 1});
+      final next = nextPendingEvent(events, now);
+      expect(next, isNotNull);
+      expect(next!.actionKey, '2'); // العصر
+    });
+
+    test('لما كل حاجة تخلص مفيش «اللى جاى»', () {
+      final now = DateTime(2026, 7, 21, 23, 0);
+      final events = buildDayTimeline(now: now, prayers: prayers);
+      expect(nextPendingEvent(events, now), isNull);
+    });
+
+    test('مفاتيح الأشكال بتروح وترجع صح', () {
+      for (final l in HomeLayout.values) {
+        expect(homeLayoutFromKey(homeLayoutKey(l)), l);
+      }
+      // مفتاح غريب أو فاضى = الشكل القديم (ما نكسرش رئيسية حد).
+      expect(homeLayoutFromKey(null), HomeLayout.classic);
+      expect(homeLayoutFromKey('haga_tanya'), HomeLayout.classic);
     });
   });
 

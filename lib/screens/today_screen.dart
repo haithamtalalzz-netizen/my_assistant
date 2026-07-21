@@ -9,6 +9,9 @@ import 'package:hijri/hijri_calendar.dart';
 
 import '../core/app_state.dart';
 import '../core/ar.dart';
+import '../core/day_timeline.dart';
+import '../core/home_layout.dart';
+import '../widgets/day_timeline_view.dart';
 import '../core/health_service.dart';
 import '../core/week_overview.dart';
 import '../core/attention.dart';
@@ -154,6 +157,13 @@ class _TodayScreenState extends State<TodayScreen> {
   /// عدد الصلوات اللى اتصلّت النهارده (لحلقة «يومك فى سطر»).
   int _prayedCount = 0;
 
+  /// أرقام الصلوات اللى اتصلّت — الخط الزمنى محتاج يعرف كل واحدة بعينها،
+  /// مش العدد بس.
+  Set<int> _prayedSet = {};
+
+  /// شكل الرئيسية المختار (بنجرّب ٣ أشكال قبل ما نثبّت واحد).
+  HomeLayout _layout = HomeLayout.classic;
+
   /// عنصر الرئيسية ظاهر؟ (لكل ما هو مش مخفي من الإعدادات).
   bool _vis(String key) => !_hidden.contains(key);
   List<Meal> _meals = [];
@@ -237,7 +247,9 @@ class _TodayScreenState extends State<TodayScreen> {
     final shortcutsRaw = await SettingsRepo().get('home_shortcuts') ?? '';
     // «قفل اليوم» بيظهر مساءً بس — مانحمّلوش الصبح.
     final dayClose = now.hour >= 18 ? await collectDayClose(now) : null;
-    final prayedCount = (await WorshipRepo().prayedToday()).length;
+    final prayedSet = await WorshipRepo().prayedToday();
+    final prayedCount = prayedSet.length;
+    final layout = homeLayoutFromKey(await _settings.get(kHomeLayoutSetting));
     if (!mounted) return;
     setState(() {
       _attention = attention;
@@ -247,6 +259,8 @@ class _TodayScreenState extends State<TodayScreen> {
       final sc = shortcutsRaw.split(',').where((e) => e.isNotEmpty).toList();
       _shortcutKeys = sc.isEmpty ? _defaultShortcuts : sc;
       _prayedCount = prayedCount;
+      _prayedSet = prayedSet;
+      _layout = layout;
       _name = name;
       _quickOrder = quickOrder;
       _stepsAuto = stepsAuto;
@@ -687,7 +701,87 @@ class _TodayScreenState extends State<TodayScreen> {
         ],
       );
 
-  Widget _body(BuildContext context) {
+  Widget _body(BuildContext context) => switch (_layout) {
+        HomeLayout.classic => _bodyClassic(context),
+        HomeLayout.timeline => _bodyTimeline(context),
+        HomeLayout.oneScreen => _bodyOneScreen(context),
+        HomeLayout.twoLayer => _bodyTwoLayer(context),
+      };
+
+  /// كل البنود اللى النهاردة — مصدر واحد للأشكال الجديدة.
+  List<DayEvent> _dayEvents() => buildDayTimeline(
+        now: DateTime.now(),
+        prayers: _prayers,
+        prayedIndexes: _prayedSet,
+        appointments: _todayAppts,
+        medications: _activeMeds,
+        takenMeds: _taken,
+        meals: _meals,
+        habits: _habitList,
+        doneHabits: _doneHabits,
+        includePrayers: _vis('prayer'),
+        includeHabits: _vis('habits'),
+        apptLabel: apptCategoryLabel,
+      );
+
+  /// تنفيذ «تم / رجّعه» على أى بند فى الخط الزمنى — كل نوع وريبوه.
+  Future<void> _toggleEvent(DayEvent e, bool done) async {
+    switch (e.kind) {
+      case DayEventKind.prayer:
+        await WorshipRepo()
+            .togglePrayer(DateTime.now(), int.parse(e.actionKey), done);
+      case DayEventKind.appointment:
+        await _appts.setDone(int.parse(e.actionKey), done);
+      case DayEventKind.med:
+        final parts = e.actionKey.split('|');
+        await _toggleMed(int.parse(parts[0]), parts[1], done);
+        return; // _toggleMed بيعمل _load بنفسه
+      case DayEventKind.habit:
+        final h = _habitList.firstWhere((x) => '${x.id}' == e.actionKey);
+        await _toggleHabit(h);
+        return; // _toggleHabit بيعمل _load بنفسه
+      case DayEventKind.meal:
+        return; // الوجبة اتسجّلت خلاص
+    }
+    if (mounted) await _load();
+  }
+
+  /// شريط اختيار الشكل — مؤقت وإحنا بنجرّب، بيتشال قبل النشر.
+  Widget _layoutSwitcher(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (final l in HomeLayout.values) ...[
+                ChoiceChip(
+                  selected: _layout == l,
+                  label: Text(homeLayoutLabel(l)),
+                  onSelected: (_) async {
+                    await _settings.set(kHomeLayoutSetting, homeLayoutKey(l));
+                    if (mounted) setState(() => _layout = l);
+                  },
+                ),
+                const SizedBox(width: 6),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          homeLayoutDescription(_layout),
+          style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
+        ),
+        const Divider(height: 18),
+      ],
+    );
+  }
+
+  /// ١) الشكل القديم — الأقسام ورا بعض بالترتيب اللى المستخدم رتّبه.
+  Widget _bodyClassic(BuildContext context) {
     final sections = _sections(context);
     return RefreshIndicator(
       onRefresh: _load,
@@ -699,6 +793,7 @@ class _TodayScreenState extends State<TodayScreen> {
         header: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            _layoutSwitcher(context),
             _header(context),
             const SizedBox(height: 12),
             if (_vis('attention')) ...[
@@ -710,6 +805,222 @@ class _TodayScreenState extends State<TodayScreen> {
       ),
     );
   }
+
+  /// ٢) خط اليوم — كل بنود يومك فى قايمة واحدة مرتّبة بالوقت.
+  ///
+  /// «محتاج منك دلوقتي» هنا بيتفلتر: البنود اللى ليها وقت النهاردة بتتشال
+  /// منه لأنها ظاهرة تحت فى الخط الزمنى — ده اللى بيلغى التكرار.
+  Widget _bodyTimeline(BuildContext context) {
+    final now = DateTime.now();
+    final events = _dayEvents();
+    final offTimeline = _attention
+        .where((a) => !_isOnTimeline(a))
+        .toList(growable: false);
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        children: [
+          _layoutSwitcher(context),
+          _header(context),
+          const SizedBox(height: 12),
+          if (_vis('attention') && offTimeline.isNotEmpty) ...[
+            AttentionStrip(items: offTimeline, onChanged: _load),
+            const SizedBox(height: 12),
+          ],
+          SectionHeader(tr('يومك', 'Your day')),
+          DayTimelineView(events: events, now: now, onToggle: _toggleEvent),
+          const SizedBox(height: 18),
+          if (_vis('quick_actions')) _quickActions(context),
+          if (_vis('day_close') && _dayClose != null && !_dayClose!.allDone) ...[
+            const SizedBox(height: 12),
+            _dayCloseStrip(context),
+          ],
+          const SizedBox(height: 12),
+          _openSectionsButton(context),
+        ],
+      ),
+    );
+  }
+
+  /// البند ده ظاهر خلاص فى الخط الزمنى؟ (عشان ما يتكرّرش فى شريط الانتباه)
+  bool _isOnTimeline(AttentionItem a) => const {
+        AttentionKind.appointment,
+        AttentionKind.med,
+      }.contains(a.kind);
+
+  /// ٣) شاشة واحدة — المهم بس، من غير تمرير.
+  Widget _bodyOneScreen(BuildContext context) {
+    final next = nextPendingEvent(_dayEvents(), DateTime.now());
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        children: [
+          _layoutSwitcher(context),
+          _header(context),
+          const SizedBox(height: 12),
+          if (_vis('glance')) ...[
+            DayGlance(rings: _glanceRings(), onTap: _onGlanceTap),
+            const SizedBox(height: 14),
+          ],
+          if (next != null) ...[
+            _nextUpCard(context, next),
+            const SizedBox(height: 12),
+          ],
+          if (_vis('attention') && _attention.isNotEmpty) ...[
+            AttentionStrip(items: _attention.take(3).toList(), onChanged: _load),
+            const SizedBox(height: 12),
+          ],
+          if (_vis('quick_actions')) _quickActions(context),
+          if (_vis('day_close') && _dayClose != null && !_dayClose!.allDone) ...[
+            const SizedBox(height: 12),
+            _dayCloseStrip(context),
+          ],
+          const SizedBox(height: 12),
+          _openSectionsButton(context),
+        ],
+      ),
+    );
+  }
+
+  /// ٤) دلوقتى / اليوم — كارت بارز لأقرب حاجة، وتحته ملخص اليوم مضغوط.
+  Widget _bodyTwoLayer(BuildContext context) {
+    final now = DateTime.now();
+    final events = _dayEvents();
+    final next = nextPendingEvent(events, now);
+    final remaining = events.where((e) => !e.done).length;
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        children: [
+          _layoutSwitcher(context),
+          _header(context),
+          const SizedBox(height: 12),
+          SectionHeader(tr('دلوقتى', 'Now')),
+          if (next != null)
+            _nextUpCard(context, next)
+          else
+            _allClearCard(context),
+          if (_vis('attention') && _attention.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            AttentionStrip(items: _attention.take(3).toList(), onChanged: _load),
+          ],
+          const SizedBox(height: 18),
+          SectionHeader(
+            tr('اليوم', 'Today'),
+            trailing: Text(
+              tr('فاضل ${arNum(remaining)}', '${arNum(remaining)} left'),
+              style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
+          ),
+          if (_vis('glance')) ...[
+            DayGlance(rings: _glanceRings(), onTap: _onGlanceTap),
+            const SizedBox(height: 12),
+          ],
+          DayTimelineView(events: events, now: now, onToggle: _toggleEvent),
+          const SizedBox(height: 18),
+          if (_vis('quick_actions')) _quickActions(context),
+          const SizedBox(height: 12),
+          _openSectionsButton(context),
+        ],
+      ),
+    );
+  }
+
+  /// كارت «اللى جاى» — أقرب بند لسه ماخلصش.
+  Widget _nextUpCard(BuildContext context, DayEvent e) {
+    final scheme = Theme.of(context).colorScheme;
+    final mins = e.at == null ? 0 : e.at!.difference(DateTime.now()).inMinutes;
+    final when = e.at == null
+        ? tr('أى وقت النهاردة', 'Anytime today')
+        : mins <= 0
+            ? tr('دلوقتى', 'Now')
+            : mins < 60
+                ? tr('بعد ${arNum(mins)} دقيقة', 'in ${arNum(mins)} min')
+                : arTime(e.at!);
+    return Card(
+      margin: EdgeInsets.zero,
+      color: scheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Text(e.emoji, style: const TextStyle(fontSize: 30)),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(when,
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: scheme.onPrimaryContainer
+                              .withValues(alpha: .75))),
+                  const SizedBox(height: 2),
+                  Text(e.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: scheme.onPrimaryContainer)),
+                  if (e.subtitle.trim().isNotEmpty)
+                    Text(e.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onPrimaryContainer
+                                .withValues(alpha: .8))),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.check_circle_outline,
+                  color: scheme.onPrimaryContainer),
+              tooltip: tr('تم', 'Done'),
+              onPressed: () => _toggleEvent(e, true),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _allClearCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            const Text('✅', style: TextStyle(fontSize: 26)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                tr('مفيش حاجة مستنياك دلوقتى.', 'Nothing waiting on you now.'),
+                style: TextStyle(color: scheme.onSurfaceVariant),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// زرار الخروج لكروت الأقسام — التفاصيل بقت هناك مش فى الرئيسية.
+  Widget _openSectionsButton(BuildContext context) => OutlinedButton.icon(
+        onPressed: () => _reloadAfter(() => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const DashboardScreen()))),
+        icon: const Icon(Icons.grid_view_rounded),
+        label: Text(tr('كل أقسامك', 'All your sections')),
+      );
 
   Widget _seeAll(int tab) => TextButton(
       onPressed: () => widget.onGoToTab?.call(tab),
