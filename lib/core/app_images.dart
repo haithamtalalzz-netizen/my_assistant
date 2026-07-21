@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -23,6 +24,48 @@ import 'log.dart';
 class AppImages {
   static const String _prefix = 'img:';
   static const String table = 'app_images';
+
+  /// أقصى بُعد للصورة على الويب — الصور بتتخزّن جوه القاعدة وبتتحوّل base64
+  /// فى النسخة الاحتياطية، فلازم تفضل صغيرة.
+  static const int webMaxDimension = 1280;
+  static const int webJpegQuality = 70;
+
+  /// بيصغّر الصورة ويعيد ترميزها JPEG.
+  ///
+  /// ليه ده لازم على الويب: `image_picker` على المتصفح **بيتجاهل**
+  /// `maxWidth`/`imageQuality` خالص، فالصورة بتتخزّن بحجمها الأصلى من
+  /// الكاميرا (٤-٨ ميجا) → القاعدة تتضخّم وملف النسخة يبقى تقيل.
+  ///
+  /// دالة نقية (بتاخد بايتات وترجّع بايتات) عشان تبقى قابلة للاختبار.
+  /// لو الترميز فشل أو طلع أكبر من الأصل، بترجّع الأصل زى ما هو.
+  static Uint8List compressForWeb(
+    Uint8List input, {
+    int maxDim = webMaxDimension,
+    int quality = webJpegQuality,
+  }) {
+    try {
+      final decoded = img.decodeImage(input);
+      if (decoded == null) return input;
+      final longest =
+          decoded.width > decoded.height ? decoded.width : decoded.height;
+      final resized = longest > maxDim
+          ? img.copyResize(
+              decoded,
+              width: decoded.width >= decoded.height ? maxDim : null,
+              height: decoded.height > decoded.width ? maxDim : null,
+              interpolation: img.Interpolation.average,
+            )
+          : decoded;
+      final out = Uint8List.fromList(img.encodeJpg(resized, quality: quality));
+      // ماينفعش نطلع بحاجة أكبر من اللى دخلت (مثلًا صورة صغيرة أصلاً).
+      return out.length < input.length ? out : input;
+    } catch (e, st) {
+      // مش `on Exception` بس: فك الترميز بيرمى `RangeError` على ملف تالف،
+      // و`RangeError` نوعه Error مش Exception فمكانش بيتمسك.
+      logError('فشل ضغط الصورة — هتتخزّن زى ما هى', e, st);
+      return input;
+    }
+  }
 
   /// هل القيمة دى صورة متخزّنة جوه القاعدة (مش مسار ملف)؟
   static bool isInline(String path) => path.startsWith(_prefix);
@@ -49,10 +92,8 @@ class AppImages {
       {String namePrefix = 'img'}) async {
     try {
       if (kIsWeb) {
-        final bytes = await picked.readAsBytes();
-        return storeBytes(bytes,
-            mime: picked.mimeType ?? _mimeFromName(picked.name),
-            namePrefix: namePrefix);
+        final raw = await picked.readAsBytes();
+        return storeBytes(raw, compress: true, namePrefix: namePrefix);
       }
       final docsDir = await getApplicationDocumentsDirectory();
       final dir = Directory(p.join(docsDir.path, 'doc_images'));
@@ -70,13 +111,17 @@ class AppImages {
   /// بيخزّن بايتات صورة جوه قاعدة البيانات ويرجّع مفتاحها `img:<key>`.
   /// (ده مسار الويب — ومتاح للاختبار على أى منصة.)
   static Future<String> storeBytes(Uint8List bytes,
-      {String mime = 'image/jpeg', String namePrefix = 'img'}) async {
+      {String mime = 'image/jpeg',
+      String namePrefix = 'img',
+      bool compress = false}) async {
+    final data = compress ? compressForWeb(bytes) : bytes;
+    if (compress && !identical(data, bytes)) mime = 'image/jpeg';
     final db = await AppDb.instance;
     final key = '${namePrefix}_${DateTime.now().microsecondsSinceEpoch}';
     await db.insert(table, {
       'key': key,
       'mime': mime,
-      'data': base64Encode(bytes),
+      'data': base64Encode(data),
       'created_at': DateTime.now().toIso8601String(),
     });
     return '$_prefix$key';

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/archived_data.dart';
+import 'package:image/image.dart' as img;
 import 'package:my_assistant/core/app_images.dart';
 import 'package:my_assistant/core/backup.dart';
 import 'package:my_assistant/core/json_backup.dart';
@@ -4609,6 +4610,63 @@ void main() {
           "SELECT name FROM sqlite_master WHERE type='table' AND name='app_images'");
       expect(t.length, 1);
       await v.close();
+    });
+  });
+
+
+  // image_picker على الويب بيتجاهل maxWidth/imageQuality، فبنضغط بنفسنا.
+  group('ضغط الصور (الويب)', () {
+    // صورة اصطناعية كبيرة بتدرّج ألوان (مش لون واحد عشان الضغط يبقى واقعى).
+    // زى اللى بيطلع من الكاميرا: JPEG بجودة عالية وأبعاد كبيرة.
+    Uint8List bigPhoto(int w, int h) {
+      final im = img.Image(width: w, height: h);
+      for (var y = 0; y < h; y++) {
+        for (var x = 0; x < w; x++) {
+          im.setPixelRgb(x, y, (x * 255) ~/ w, (y * 255) ~/ h, 128);
+        }
+      }
+      return Uint8List.fromList(img.encodeJpg(im, quality: 100));
+    }
+
+    test('بتصغّر الأبعاد والحجم', () {
+      final raw = bigPhoto(2400, 1800);
+      final out = AppImages.compressForWeb(raw);
+      expect(out.length < raw.length, isTrue,
+          reason: 'المفروض أصغر: ${raw.length} → ${out.length}');
+
+      final decoded = img.decodeImage(out)!;
+      expect(decoded.width, AppImages.webMaxDimension, reason: 'البُعد الأطول اتقصّ');
+      expect(decoded.height, 1800 * AppImages.webMaxDimension ~/ 2400);
+    });
+
+    test('الصورة الطويلة بتتقصّ من الارتفاع', () {
+      final out = AppImages.compressForWeb(bigPhoto(900, 2000));
+      final decoded = img.decodeImage(out)!;
+      expect(decoded.height, AppImages.webMaxDimension);
+      expect(decoded.width < AppImages.webMaxDimension, isTrue);
+    });
+
+    test('الصورة الصغيرة مابتكبرش، والملف التالف بيرجع زى ما هو', () {
+      final small = Uint8List.fromList(img.encodeJpg(
+          img.Image(width: 40, height: 40), quality: 60));
+      expect(AppImages.compressForWeb(small).length <= small.length, isTrue);
+
+      final junk = Uint8List.fromList([1, 2, 3, 4, 5]);
+      expect(AppImages.compressForWeb(junk), junk);
+    });
+
+    test('التخزين بالضغط بيقلّل اللى بيتحفظ فى القاعدة فعليًا', () async {
+      final db = await AppDb.instance;
+      await db.delete(AppImages.table);
+      final raw = bigPhoto(2400, 1800);
+
+      final plain = await AppImages.storeBytes(raw);
+      final squeezed = await AppImages.storeBytes(raw, compress: true);
+
+      final a = (await AppImages.bytesOf(plain))!.length;
+      final b = (await AppImages.bytesOf(squeezed))!.length;
+      expect(b < a, isTrue, reason: 'المضغوطة أصغر: $a → $b');
+      await db.delete(AppImages.table);
     });
   });
 
