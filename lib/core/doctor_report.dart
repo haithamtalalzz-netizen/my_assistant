@@ -1,11 +1,9 @@
-import 'dart:io';
 
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:share_plus/share_plus.dart';
+
+import 'file_out.dart';
 
 import '../data/appointments_repo.dart';
 import '../data/insights_repo.dart';
@@ -161,11 +159,7 @@ class DoctorReport {
     ));
 
     final bytes = await doc.save();
-    final temp = await getTemporaryDirectory();
-    final file = File(
-        p.join(temp.path, 'health_report_${dayKey(now)}.pdf'));
-    await file.writeAsBytes(bytes);
-    await Share.shareXFiles([XFile(file.path)],
-        text: 'تقرير صحي — آخر ٣٠ يوم');
+    await deliverFile(
+        'health_report_${dayKey(now)}.pdf', 'application/pdf', bytes);
   }
 }

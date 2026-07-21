@@ -164,13 +164,6 @@ class AppImages {
     }
   }
 
-  static String _mimeFromName(String name) {
-    final e = p.extension(name).toLowerCase();
-    if (e == '.png') return 'image/png';
-    if (e == '.webp') return 'image/webp';
-    if (e == '.heic') return 'image/heic';
-    return 'image/jpeg';
-  }
 }
 
 /// ودجت عرض موحّد — بيعرض الصورة سواء كانت ملف (موبايل) أو جوه القاعدة (ويب).

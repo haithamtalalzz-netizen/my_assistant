@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
+
+import 'file_out.dart';
 
 import 'ar.dart';
 import 'db.dart';
@@ -113,12 +111,8 @@ class ArchivedData {
     final items = await list();
     if (items.isEmpty) return false;
     final json = await exportJson();
-    final temp = await getTemporaryDirectory();
-    final file = File(p.join(
-        temp.path, 'my_assistant_archived_${dayKey(DateTime.now())}.json'));
-    await file.writeAsString(json);
-    await Share.shareXFiles([XFile(file.path)],
-        text: 'بيانات البنود المؤرشفة — My Assistant');
+    await deliverFile('my_assistant_archived_${dayKey(DateTime.now())}.json',
+        'application/json', utf8.encode(json));
     return true;
   }
 

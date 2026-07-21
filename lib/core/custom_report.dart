@@ -7,6 +7,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 
+import 'file_out.dart';
+
 import '../data/day_log_repo.dart';
 import 'ar.dart';
 
@@ -161,10 +163,7 @@ class CustomReport {
     ));
 
     final bytes = await doc.save();
-    final temp = await getTemporaryDirectory();
-    final file = File(p.join(temp.path, 'report.pdf'));
-    await file.writeAsBytes(bytes);
-    await Share.shareXFiles([XFile(file.path)], text: 'تقرير مساعدي');
+    await deliverFile('report.pdf', 'application/pdf', bytes);
   }
 
   /// نفس الاختيارات لكن كملف CSV يفتح في Excel (بـ BOM عشان العربي يظهر صح).

@@ -34,6 +34,8 @@ dependencies:
   share_plus: ^10.0.0
   # تنزيل الملفات فى المتصفح (نسخة الويب) — بديل dart:io اللى مش موجود هناك.
   web: ^1.1.0
+  # ضغط صور الويب قبل ما تتخزّن جوه القاعدة (lib/core/app_images.dart).
+  image: ^4.2.0
   file_picker: ^11.0.2
   home_widget: ^0.7.0
   health: ^13.0.0
@@ -73,7 +75,6 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   sqflite_common_ffi: ^2.3.3
   flutter_launcher_icons: ^0.14.1
-  image: ^4.2.0
 
 # أيقونة التطبيق — تُولَّد من الصورة عبر: dart run flutter_launcher_icons
 flutter_launcher_icons:
