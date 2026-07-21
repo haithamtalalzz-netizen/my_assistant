@@ -9,54 +9,34 @@ import 'package:hijri/hijri_calendar.dart';
 
 import '../core/app_state.dart';
 import '../core/ar.dart';
-import '../core/day_timeline.dart';
 import '../core/home_layout.dart';
-import '../widgets/day_deck_view.dart';
-import '../widgets/day_ring_view.dart';
-import '../widgets/day_timeline_view.dart';
-import '../widgets/home_skin.dart';
 import '../core/health_service.dart';
-import '../core/week_overview.dart';
 import '../core/attention.dart';
-import '../widgets/attention_strip.dart';
-import '../widgets/day_glance.dart';
-import '../widgets/reorderable_sections.dart';
-import '../data/worship_repo.dart';
 import '../core/l10n.dart';
 import '../core/notifications.dart';
-import '../core/prayers.dart';
 import '../core/water_guard.dart';
-import '../core/weather.dart';
 import '../core/widget_bridge.dart';
 import '../data/appointments_repo.dart';
 import '../data/tasks_repo.dart';
 import '../data/bills_repo.dart';
 import '../data/debts_repo.dart';
-import '../data/docs_repo.dart';
 import '../data/habits_repo.dart';
 import '../data/health_repo.dart';
-import '../data/home_maintenance_repo.dart';
 import '../data/inbox_repo.dart';
-import '../data/plants_repo.dart';
-import '../data/cycle_repo.dart';
 import '../data/meals_repo.dart';
 import '../data/measurements_repo.dart';
 import '../data/meds_repo.dart';
-import '../data/occasions_repo.dart';
 import '../data/settings_repo.dart';
 import '../data/wallets_repo.dart';
-import '../data/weekly_repo.dart';
 import '../data/workout_repo.dart';
 import '../models/models.dart';
-import '../widgets/common.dart';
 import '../widgets/decorations.dart';
+import 'alerts_center_screen.dart';
 import 'brain/chat_screen.dart';
 import '../core/dashboard_stats.dart';
-import '../core/day_close.dart';
 import '../core/morning_brief.dart';
 import '../widgets/dash_card.dart';
 import 'dashboard_screen.dart';
-import 'day_close_screen.dart';
 import 'emergency_view.dart';
 import 'health/health_hub_screen.dart';
 import 'food/food_card_screen.dart';
@@ -65,11 +45,7 @@ import 'gym/gym_screen.dart';
 import 'money/money_screen.dart';
 import 'schedule/schedule_screen.dart';
 import 'tasks/tasks_screen.dart';
-import 'brain/day_plan_screen.dart';
-import 'food/diet_plans_screen.dart';
-import 'health/cycle_screen.dart';
 import 'food/meal_sheet.dart';
-import 'food/shopping_list_screen.dart';
 import 'calendar_screen.dart';
 import 'docs/doc_form.dart';
 import 'home/pharmacy_screen.dart';
@@ -79,7 +55,6 @@ import 'money/quick_expense_sheet.dart';
 import '../widgets/search_action.dart';
 import 'schedule/appointment_form.dart';
 import 'voice/voice_sheet.dart';
-import 'weekly/weekly_planning_screen.dart';
 import 'worship/prayer_screen.dart';
 import 'workout/workout_plan_screen.dart';
 
@@ -99,7 +74,6 @@ class _TodayScreenState extends State<TodayScreen> {
   final _appts = AppointmentsRepo();
   final _meds = MedsRepo();
   final _health = HealthRepo();
-  final _docs = DocsRepo();
   final _habits = HabitsRepo();
 
   bool _loading = true;
@@ -127,62 +101,22 @@ class _TodayScreenState extends State<TodayScreen> {
   List<DashStat> _dash = [];
 
   /// حالة «قفل اليوم» — بتتجمّع مساءً بس (بعد ٦م).
-  DayCloseStatus? _dayClose;
 
   /// اختصارات صف الإجراءات (٤) — من اختيار المستخدم، محفوظة فى الإعدادات.
   List<String> _shortcutKeys = _defaultShortcuts;
   List<Medication> _activeMeds = [];
   Set<String> _taken = {};
-  List<Habit> _habitList = [];
-  Set<int> _doneHabits = {};
-  Map<int, int> _streaks = {};
-  List<DocItem> _expiring = [];
-  PrayerDay? _prayers;
-  PrayerDay? _prayersTomorrow; // عشان الكارت يفضل يوري الصلاة الجاية بعد العشا
-  bool _weeklyDue = false;
-  List<Appointment> _chronic = [];
   int? _steps;
   int? _calories;
   int? _restingHr;
   double? _distanceKm;
-  int _calorieGoal = 0;
-  int _proteinTarget = 0;
-  int _carbsTarget = 0;
-  int _fatTarget = 0;
-  CyclePrediction? _cyclePred; // للسيدات فقط
-  bool _hardDay = false;
-  Set<String> _hidden = {}; // عناصر الرئيسية المخفية (من الإعدادات)
-  List<WeekItem> _weekItems = [];
-
-  /// «محتاج منك دلوقتي» — كل المتأخر/المستحق من كل الأقسام.
   List<AttentionItem> _attention = [];
 
-  /// عدد الصلوات اللى اتصلّت النهارده (لحلقة «يومك فى سطر»).
-  int _prayedCount = 0;
-
-  /// أرقام الصلوات اللى اتصلّت — الخط الزمنى محتاج يعرف كل واحدة بعينها،
-  /// مش العدد بس.
-  Set<int> _prayedSet = {};
-
-  /// شكل الرئيسية المختار (بنجرّب أشكال قبل ما نثبّت واحد).
-  HomeLayout _layout = HomeLayout.classic;
-
-  /// المظهر العصرى شغّال؟ (تدرّج بوقت اليوم + كروت ناعمة + حركة)
-  bool _skin = false;
 
   /// كروت الرئيسية اللى المستخدم اختارها (فاضى = الكل).
   String? _homeCards;
 
-  /// عنصر الرئيسية ظاهر؟ (لكل ما هو مش مخفي من الإعدادات).
-  bool _vis(String key) => !_hidden.contains(key);
-  List<Meal> _meals = [];
-  String? _missedWorkout;
   bool _ramadan = false;
-  List<Occasion> _occasionsSoon = [];
-  List<RecurringBill> _dueBills = [];
-  List<HomeMaintenance> _dueMaintenance = [];
-  List<Plant> _duePlants = [];
-  WeatherToday? _weather;
 
   String get _today => dayKey(DateTime.now());
 
@@ -214,65 +148,26 @@ class _TodayScreenState extends State<TodayScreen> {
     final meds = await _meds.all(activeOnly: true);
     final taken = await _meds.takenOn(day);
     final habits = await _habits.active();
-    final doneHabits = await _habits.doneOn(day);
     final streaks = <int, int>{};
     for (final h in habits) {
       streaks[h.id!] = computeStreak(await _habits.daysFor(h.id!), now);
     }
-    final expiring = await _docs.expiringSoon();
-    final place = await resolvePlace(_settings);
-    final prayers = prayerTimesFor(now, place);
-    final prayersTomorrow =
-        prayerTimesFor(now.add(const Duration(days: 1)), place);
     // بانر التخطيط الأسبوعي يظهر من الجمعة للأحد لو أسبوع ده لسه مااتخططش.
-    final weekendDay = now.weekday == DateTime.friday ||
-        now.weekday == DateTime.saturday ||
-        now.weekday == DateTime.sunday;
-    final weeklyDue = weekendDay &&
-        await WeeklyRepo().forWeek(currentWeekKey(now)) == null;
-    final chronic = await _appts.chronicallyPostponed();
-    final meals = await MealsRepo().forDay(day);
-    final calorieGoal = await _settings.calorieGoal();
-    final proteinTarget = await _settings.proteinTarget();
-    final carbsTarget = await _settings.carbsTarget();
-    final fatTarget = await _settings.fatTarget();
-    final cyclePred = AppState.gender.value == 'female'
-        ? await CycleRepo().predict()
-        : null;
-    final hardDay = await _settings.hardDayMode();
-    final hidden = await _settings.hiddenHomeSections();
-    final workoutRepo = WorkoutRepo();
-    final missedWorkout = await workoutRepo.missedYesterdaySuggestion(now);
     final ramadan = await _settings.ramadanMode();
-    final occasionsSoon = await OccasionsRepo().upcomingWithinWindow(now);
-    final dueBills = await BillsRepo().due(now);
-    final dueMaintenance = await HomeMaintenanceRepo().due(now);
-    final duePlants = await PlantsRepo().due(now);
-    final weekItems = await collectWeekOverview();
     // «محتاج منك دلوقتي» + عدد الصلوات (لحلقات «يومك فى سطر»).
     final attention = await collectAttention(now);
     final dueTasks = (await TasksRepo().dueTasks(now)).length;
     final dash = await collectDashboard(now);
     final shortcutsRaw = await SettingsRepo().get('home_shortcuts') ?? '';
     // «قفل اليوم» بيظهر مساءً بس — مانحمّلوش الصبح.
-    final dayClose = now.hour >= 18 ? await collectDayClose(now) : null;
-    final prayedSet = await WorshipRepo().prayedToday();
-    final prayedCount = prayedSet.length;
-    final layout = homeLayoutFromKey(await _settings.get(kHomeLayoutSetting));
-    final skin = (await _settings.get(kHomeSkinSetting)) == '1';
     final homeCards = await _settings.get(kHomeCardsSetting);
     if (!mounted) return;
     setState(() {
       _attention = attention;
       _dueTasks = dueTasks;
       _dash = dash;
-      _dayClose = dayClose;
       final sc = shortcutsRaw.split(',').where((e) => e.isNotEmpty).toList();
       _shortcutKeys = sc.isEmpty ? _defaultShortcuts : sc;
-      _prayedCount = prayedCount;
-      _prayedSet = prayedSet;
-      _layout = layout;
-      _skin = skin;
       _homeCards = homeCards;
       _name = name;
       _quickOrder = quickOrder;
@@ -285,37 +180,13 @@ class _TodayScreenState extends State<TodayScreen> {
       _todayAppts = appts;
       _activeMeds = meds;
       _taken = taken;
-      _habitList = habits;
-      _doneHabits = doneHabits;
-      _streaks = streaks;
-      _expiring = expiring;
-      _prayers = prayers;
-      _prayersTomorrow = prayersTomorrow;
-      _weeklyDue = weeklyDue;
-      _chronic = chronic;
-      _calorieGoal = calorieGoal;
-      _proteinTarget = proteinTarget;
-      _carbsTarget = carbsTarget;
-      _fatTarget = fatTarget;
-      _cyclePred = cyclePred;
-      _hardDay = hardDay;
-      _hidden = hidden;
-      _weekItems = weekItems;
-      _meals = meals;
-      _missedWorkout = missedWorkout;
       _ramadan = ramadan;
-      _occasionsSoon = occasionsSoon;
-      _dueBills = dueBills;
-      _dueMaintenance = dueMaintenance;
-      _duePlants = duePlants;
       _editingSleep = false;
       _loading = false;
     });
     sw.stop();
     logInfo('فتح الرئيسية: ${sw.elapsedMilliseconds}ms');
     unawaited(WidgetBridge.push());
-    // الطقس best-effort — بيتحدث لوحده لما يوصل من غير ما يعطل الشاشة.
-    unawaited(_loadWeather());
     // مزامنة الصحة بعد أول رسمة — أبطأ جزء فى التحميل القديم.
     if (stepsAuto) unawaited(_syncHealth(day, now));
   }
@@ -362,83 +233,6 @@ class _TodayScreenState extends State<TodayScreen> {
     } on Exception catch (e, st) {
       logError('فشل مزامنة الصحة', e, st);
     }
-  }
-
-  Future<void> _loadWeather() async {
-    final w = await WeatherService.today();
-    if (w != null && mounted) setState(() => _weather = w);
-  }
-
-  String _summaryText() {
-    final parts = <String>[];
-    if (_ramadan) parts.add(tr('رمضان كريم.', 'Ramadan Kareem.'));
-    if (_weather != null) parts.add(_weather!.summaryLine());
-    if (_dueMaintenance.isNotEmpty) {
-      parts.add(_dueMaintenance.length == 1
-          ? tr('صيانة مستحقة: ${_dueMaintenance.first.name}.',
-              'Maintenance due: ${_dueMaintenance.first.name}.')
-          : tr('${arNum(_dueMaintenance.length)} صيانات بيت مستحقة.',
-              '${arNum(_dueMaintenance.length)} home maintenance items due.'));
-    }
-    if (_duePlants.isNotEmpty) {
-      parts.add(_duePlants.length == 1
-          ? tr('🪴 ${_duePlants.first.name} محتاجة مياه.',
-              '🪴 ${_duePlants.first.name} needs water.')
-          : tr('🪴 ${arNum(_duePlants.length)} نباتات محتاجة مياه.',
-              '🪴 ${arNum(_duePlants.length)} plants need water.'));
-    }
-    for (final o in _occasionsSoon.take(1)) {
-      final days = o
-          .nextOccurrence(DateTime.now())
-          .difference(dateOnly(DateTime.now()))
-          .inDays;
-      final label = o.person.isEmpty ? o.title : '${o.title} ${o.person}';
-      parts.add(days == 0
-          ? tr('$label النهارده!', '$label today!')
-          : days == 1
-              ? tr('$label بكرة — جهز نفسك.', '$label tomorrow — get ready.')
-              : tr('$label بعد ${arNum(days)} أيام.',
-                  '$label in ${arNum(days)} days.'));
-    }
-    if (_missedWorkout != null) {
-      parts.add(tr('تمرين امبارح ($_missedWorkout) فاتك — تعوضه النهارده؟',
-          "Yesterday's workout ($_missedWorkout) was missed — make it up today?"));
-    }
-    if (_todayAppts.isEmpty) {
-      parts.add(tr('مفيش مواعيد النهارده.', 'No appointments today.'));
-    } else if (_todayAppts.length == 1) {
-      parts.add(tr('عندك موعد واحد النهارده: ${_todayAppts.first.title}.',
-          'One appointment today: ${_todayAppts.first.title}.'));
-    } else {
-      parts.add(tr('عندك ${arNum(_todayAppts.length)} مواعيد النهارده.',
-          'You have ${arNum(_todayAppts.length)} appointments today.'));
-    }
-    final totalSlots =
-        _activeMeds.fold<int>(0, (sum, m) => sum + m.times.length);
-    final remaining = totalSlots - _taken.length;
-    if (remaining > 0) {
-      parts.add(remaining == 1
-          ? tr('فاضل جرعة دوا واحدة.', 'One medication dose left.')
-          : tr('فاضل ${arNum(remaining)} جرعات دوا.',
-              '${arNum(remaining)} medication doses left.'));
-    }
-    if (_chronic.isNotEmpty) {
-      final a = _chronic.first;
-      parts.add(tr(
-          '«${a.title}» اتأجل ${arNum(a.postponeCount)} مرات — نقسمه لخطوات أصغر؟',
-          '"${a.title}" postponed ${arNum(a.postponeCount)}× — split into smaller steps?'));
-    }
-    if (_sleep != null && _sleep! < 6) {
-      parts.add(tr('نومك امبارح كان قليل — حاول تنام بدري.',
-          'You slept little last night — try to sleep earlier.'));
-    }
-    if (_expiring.isNotEmpty) {
-      parts.add(_expiring.length == 1
-          ? tr('في مستند محتاج تجديد.', 'A document needs renewing.')
-          : tr('في ${arNum(_expiring.length)} مستندات محتاجة تجديد.',
-              '${arNum(_expiring.length)} documents need renewing.'));
-    }
-    return parts.take(3).join(' ');
   }
 
   Future<void> _changeWater(int delta) async {
@@ -499,15 +293,54 @@ class _TodayScreenState extends State<TodayScreen> {
     });
   }
 
-  Future<void> _toggleHabit(Habit h) async {
-    HapticFeedback.selectionClick();
-    final done = await _habits.toggle(h.id!, _today);
-    final streak = computeStreak(await _habits.daysFor(h.id!), DateTime.now());
-    if (!mounted) return;
-    setState(() {
-      done ? _doneHabits.add(h.id!) : _doneHabits.remove(h.id!);
-      _streaks[h.id!] = streak;
-    });
+  /// جرس «مركز التنبيهات» جنب البحث — بيفتح شاشة التنبيهات وعليه عدّاد
+  /// باللى محتاج منك دلوقتى.
+  ///
+  /// ده كمان بيسدّ ثغرة: الرئيسية الجديدة مفيهاش شريط «محتاج منك دلوقتي»،
+  /// فالجرس بقى الطريق المضمون لأى حاجة متأخرة من غير ما يزحم الشاشة.
+  Widget _alertsAction(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final n = _attention.length;
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        IconButton(
+          tooltip: tr('التنبيهات', 'Alerts'),
+          icon: Icon(n > 0
+              ? Icons.notifications_active_outlined
+              : Icons.notifications_none),
+          onPressed: () => _reloadAfter(() => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AlertsCenterScreen()),
+              )),
+        ),
+        if (n > 0)
+          PositionedDirectional(
+            top: 8,
+            end: 6,
+            child: IgnorePointer(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                constraints: const BoxConstraints(minWidth: 17),
+                decoration: BoxDecoration(
+                  color: scheme.error,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Text(
+                  // فوق ٩ بيبقى «٩+» — العدّاد بيوسّع الأيقونة ويكسر الصف.
+                  n > 9 ? tr('٩+', '9+') : arNum(n),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: scheme.onError,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   @override
@@ -516,7 +349,7 @@ class _TodayScreenState extends State<TodayScreen> {
       drawer: widget.drawer,
       appBar: AppBar(
         title: Text(tr('الرئيسية', 'Home')),
-        actions: [searchAction(context)],
+        actions: [_alertsAction(context), searchAction(context)],
       ),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 450),
@@ -537,194 +370,8 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
-  /// حلقات «يومك فى سطر» — بتتبنى من البيانات المحمّلة أصلاً (مفيش تحميل زيادة).
-  List<GlanceRing> _glanceRings() {
-    final expectedDoses =
-        _activeMeds.fold<int>(0, (s, m) => s + m.times.length);
-    return [
-      GlanceRing(
-        icon: Icons.mosque_outlined,
-        label: tr('صلوات', 'Prayers'),
-        done: _prayedCount,
-        total: 5,
-        color: const Color(0xFF2FA36B),
-      ),
-      GlanceRing(
-        icon: Icons.water_drop_outlined,
-        label: tr('مياه', 'Water'),
-        done: _water,
-        total: _waterGoal,
-        color: Colors.blue,
-      ),
-      GlanceRing(
-        icon: Icons.task_alt,
-        label: tr('عادات', 'Habits'),
-        done: _doneHabits.length,
-        total: _habitList.length,
-        color: Colors.deepPurple,
-      ),
-      GlanceRing(
-        icon: Icons.medication_outlined,
-        label: tr('أدوية', 'Meds'),
-        done: _taken.length.clamp(0, expectedDoses),
-        total: expectedDoses,
-        color: Colors.pink,
-      ),
-    ];
-  }
-
-  /// دوسة على حلقة -> تفتح قسمها.
-  void _onGlanceTap(GlanceRing r) {
-    if (r.label == tr('عادات', 'Habits')) {
-      widget.onGoToTab?.call(3);
-    } else if (r.label == tr('أدوية', 'Meds')) {
-      widget.onGoToTab?.call(1);
-    } else if (r.label == tr('مياه', 'Water')) {
-      // دوسة على حلقة المياه = تفتح شيت المياه (تحديد الملى بالظبط).
-      _openWaterSheet();
-    }
-  }
-
-  /// أقسام الرئيسية — القسم الفاضى **مابيتبنيش أصلاً** (بدل كارت «مفيش...»).
-  List<Section> _sections(BuildContext context) {
-    final out = <Section>[];
-    // كسول: المحتوى بيتبنى وقت ما القسم يوصل للشاشة بس (Section.builder) —
-    // فالأقسام تحت الطى مابتتبنيش مع كل فتحة، بس شرط الإظهار بيتقيّم دلوقتى.
-    void add(String id, bool show, Widget Function() build) {
-      if (show) out.add(Section.builder(id, (_) => build()));
-    }
-
-    add('glance', _vis('glance'),
-        () => DayGlance(rings: _glanceRings(), onTap: _onGlanceTap));
-    add('quick_actions', _vis('quick_actions'), () => _quickActions(context));
-    // الصلاة + ملخص المدير (كل واحد ليه مفتاح إظهار جوّه).
-    add('hero', _vis('prayer') || _vis('summary'),
-        () => _heroAndSummary(context));
-    add('week', _vis('week') && _weekItems.isNotEmpty,
-        () => _weekOverviewCard(context));
-    add('cycle', _vis('cycle') && _showCycleCard, () => _cycleCard(context));
-    add('weekly', _weeklyDue, () => _weeklyBanner(context));
-    add('smartwatch', _vis('smartwatch') && _hasFitnessData,
-        () => _sec(tr('من ساعتك الذكية', 'From your smartwatch'),
-            _fitnessSection(context)));
-    add('bills', _vis('bills') && _dueBills.isNotEmpty,
-        () => _sec(tr('فواتير مستحقة', 'Bills due'), _dueBillsCard(context)));
-    add(
-        'docs_expiry',
-        _vis('docs_expiry') && _expiring.isNotEmpty,
-        () => _sec(tr('مستندات محتاجة تجديد', 'Documents to renew'),
-            _expiringCard(context)));
-    add(
-        'appointments',
-        _vis('appointments') && _todayAppts.isNotEmpty,
-        () => _sec(tr("مواعيد النهارده", "Today's appointments"),
-            Column(children: [for (final a in _todayAppts) _apptTile(context, a)]),
-            trailing: _seeAll(1)));
-    add(
-        'meds',
-        _vis('meds') && _activeMeds.isNotEmpty,
-        () => _sec(tr("أدوية النهارده", "Today's medications"),
-            Column(children: _medTiles(context))));
-    add(
-        'meals',
-        _vis('meals') && (_meals.isNotEmpty || _showNutrition),
-        () => _sec(
-            tr("وجبات النهارده", "Today's meals"),
-            Column(children: [
-              for (final m in _meals) _mealTile(context, m),
-              if (_showNutrition) _nutritionCard(context),
-            ]),
-            trailing: _mealsActions(context)));
-    add(
-        'habits',
-        _vis('habits') && _habitList.isNotEmpty,
-        () => _sec(tr("عادات النهارده", "Today's habits"), _habitChips(context),
-            trailing: _seeAll(3)));
-    // «اقفل يومك» — مساءً ولو فيه ناقص بس.
-    add(
-        'day_close',
-        _vis('day_close') && _dayClose != null && !_dayClose!.allDone,
-        () => _dayCloseStrip(context));
-    // كروت الأقسام بأرقامها — فى الأسفل (آخر قسم).
-    add('dashboard', _vis('dashboard') && _dash.isNotEmpty,
-        () => _dashboardCards(context));
-    return out;
-  }
-
-  /// شريط «اقفل يومك» المسائى — بيوّرى عدد الناقص ويفتح شاشة قفل اليوم.
-  Widget _dayCloseStrip(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final n = _dayClose?.pendingCount ?? 0;
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: FilledButton.tonalIcon(
-        onPressed: () => _reloadAfter(() => Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const DayCloseScreen()))),
-        icon: const Text('🌙', style: TextStyle(fontSize: 18)),
-        label: Text(
-          tr('اقفل يومك — فاضل ${arNum(n)} بند',
-              'Close your day — ${arNum(n)} left'),
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-        style: FilledButton.styleFrom(
-          backgroundColor: scheme.tertiaryContainer,
-          foregroundColor: scheme.onTertiaryContainer,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-      ),
-    );
-  }
-
-  /// كروت الأقسام بأرقامها الحية — جوه الرئيسية (نفس كروت اللوحة الشاملة).
-  Widget _dashboardCards(BuildContext context) => _sec(
-        tr('أقسامك', 'Your sections'),
-        GridView.builder(
-          // جوه ListView فلازم shrinkWrap + منع السكرول المتداخل.
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: EdgeInsets.zero,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childAspectRatio: 0.82,
-          ),
-          itemCount: _dash.length,
-          itemBuilder: (_, i) => DashCardTile(
-            stat: _dash[i],
-            onOpen: (screen) => _reloadAfter(() => Navigator.push(
-                context, MaterialPageRoute(builder: (_) => screen))),
-          ),
-        ),
-        trailing: TextButton(
-          onPressed: () => _reloadAfter(() => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const DashboardScreen()))),
-          child: Text(tr('الكل', 'All')),
-        ),
-      );
-
-  /// قسم = عنوان + محتوى، ملفوفين فى ودجت واحدة (عشان الترتيب بالسحب).
-  Widget _sec(String title, Widget body, {Widget? trailing}) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SectionHeader(title, trailing: trailing),
-          body,
-        ],
-      );
-
-  Widget _body(BuildContext context) => switch (_layout) {
-        HomeLayout.classic => _bodyClassic(context),
-        HomeLayout.timeline => _bodyTimeline(context),
-        HomeLayout.oneScreen => _bodyOneScreen(context),
-        HomeLayout.twoLayer => _bodyTwoLayer(context),
-        HomeLayout.bento => _bodyBento(context),
-        HomeLayout.deck => _bodyDeck(context),
-        HomeLayout.ring => _bodyRing(context),
-        HomeLayout.stories => _bodyStories(context),
-        HomeLayout.custom => _bodyCustom(context),
-      };
+  // الرئيسية بقت شكل واحد («على مزاجك») — الأشكال التانية اتلغت.
+  Widget _body(BuildContext context) => _bodyCustom(context);
 
   /// ٩) «على مزاجك» — الرئيسية اللى المستخدم بيبنيها بنفسه:
   /// ترحيب وتاريخ · إجراءات سريعة يختارها · كروت يختارها، وكل كارت
@@ -811,9 +458,11 @@ class _TodayScreenState extends State<TodayScreen> {
 
   Widget _emptyCardsHint(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return SkinCard(
-      skin: _skin,
-      child: Row(
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
         children: [
           const Text('🗂', style: TextStyle(fontSize: 26)),
           const SizedBox(width: 12),
@@ -825,6 +474,7 @@ class _TodayScreenState extends State<TodayScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -866,944 +516,6 @@ class _TodayScreenState extends State<TodayScreen> {
         all.map((e) => e.key).where(picked.contains).toList();
     await _settings.set(kHomeCardsSetting, ordered.join(','));
     if (mounted) await _load();
-  }
-
-  /// الهيدر حسب المظهر: التدرّج العصرى أو الترحيب العادى.
-  Widget _skinnedHeader(BuildContext context) {
-    if (!_skin) return _header(context);
-    final now = DateTime.now();
-    final remaining = _dayEvents().where((e) => !e.done).length;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: SkinHeader(
-        now: now,
-        greeting: _name.trim().isEmpty
-            ? greetingFor(now)
-            : '${greetingFor(now)}، $_name',
-        subtitle: remaining == 0
-            ? tr('مفيش حاجة مستنياك النهاردة 🎉',
-                'Nothing waiting on you today 🎉')
-            : tr('فاضل ${arNum(remaining)} بند النهاردة',
-                '${arNum(remaining)} things left today'),
-      ),
-    );
-  }
-
-  /// كل البنود اللى النهاردة — مصدر واحد للأشكال الجديدة.
-  List<DayEvent> _dayEvents() => buildDayTimeline(
-        now: DateTime.now(),
-        prayers: _prayers,
-        prayedIndexes: _prayedSet,
-        appointments: _todayAppts,
-        medications: _activeMeds,
-        takenMeds: _taken,
-        meals: _meals,
-        habits: _habitList,
-        doneHabits: _doneHabits,
-        includePrayers: _vis('prayer'),
-        includeHabits: _vis('habits'),
-        apptLabel: apptCategoryLabel,
-      );
-
-  /// تنفيذ «تم / رجّعه» على أى بند فى الخط الزمنى — كل نوع وريبوه.
-  Future<void> _toggleEvent(DayEvent e, bool done) async {
-    switch (e.kind) {
-      case DayEventKind.prayer:
-        await WorshipRepo()
-            .togglePrayer(DateTime.now(), int.parse(e.actionKey), done);
-      case DayEventKind.appointment:
-        await _appts.setDone(int.parse(e.actionKey), done);
-      case DayEventKind.med:
-        final parts = e.actionKey.split('|');
-        await _toggleMed(int.parse(parts[0]), parts[1], done);
-        return; // _toggleMed بيعمل _load بنفسه
-      case DayEventKind.habit:
-        final h = _habitList.firstWhere((x) => '${x.id}' == e.actionKey);
-        await _toggleHabit(h);
-        return; // _toggleHabit بيعمل _load بنفسه
-      case DayEventKind.meal:
-        return; // الوجبة اتسجّلت خلاص
-    }
-    if (mounted) await _load();
-  }
-
-  /// ١) الشكل القديم — الأقسام ورا بعض بالترتيب اللى المستخدم رتّبه.
-  Widget _bodyClassic(BuildContext context) {
-    final sections = _sections(context);
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ReorderableSections(
-        storageKey: 'home',
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-        sections: sections,
-        // الترحيب و«محتاج منك دلوقتي» ثابتين فوق — مش بيتحركوا.
-        header: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-              _skinnedHeader(context),
-            const SizedBox(height: 12),
-            if (_vis('attention')) ...[
-              AttentionStrip(items: _attention, onChanged: _load),
-              const SizedBox(height: 12),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// ٢) خط اليوم — كل بنود يومك فى قايمة واحدة مرتّبة بالوقت.
-  ///
-  /// «محتاج منك دلوقتي» هنا بيتفلتر: البنود اللى ليها وقت النهاردة بتتشال
-  /// منه لأنها ظاهرة تحت فى الخط الزمنى — ده اللى بيلغى التكرار.
-  Widget _bodyTimeline(BuildContext context) {
-    final now = DateTime.now();
-    final events = _dayEvents();
-    final offTimeline = _attention
-        .where((a) => !_isOnTimeline(a))
-        .toList(growable: false);
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-        children: [
-          _skinnedHeader(context),
-          const SizedBox(height: 12),
-          if (_vis('attention') && offTimeline.isNotEmpty) ...[
-            AttentionStrip(items: offTimeline, onChanged: _load),
-            const SizedBox(height: 12),
-          ],
-          SectionHeader(tr('يومك', 'Your day')),
-          DayTimelineView(events: events, now: now, onToggle: _toggleEvent),
-          const SizedBox(height: 18),
-          if (_vis('quick_actions')) _quickActions(context),
-          if (_vis('day_close') && _dayClose != null && !_dayClose!.allDone) ...[
-            const SizedBox(height: 12),
-            _dayCloseStrip(context),
-          ],
-          const SizedBox(height: 12),
-          _openSectionsButton(context),
-        ],
-      ),
-    );
-  }
-
-  /// البند ده ظاهر خلاص فى الخط الزمنى؟ (عشان ما يتكرّرش فى شريط الانتباه)
-  bool _isOnTimeline(AttentionItem a) => const {
-        AttentionKind.appointment,
-        AttentionKind.med,
-      }.contains(a.kind);
-
-  /// ٣) شاشة واحدة — المهم بس، من غير تمرير.
-  Widget _bodyOneScreen(BuildContext context) {
-    final next = nextPendingEvent(_dayEvents(), DateTime.now());
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-        children: [
-          _skinnedHeader(context),
-          const SizedBox(height: 12),
-          if (_vis('glance')) ...[
-            DayGlance(rings: _glanceRings(), onTap: _onGlanceTap),
-            const SizedBox(height: 14),
-          ],
-          if (next != null) ...[
-            _nextUpCard(context, next),
-            const SizedBox(height: 12),
-          ],
-          if (_vis('attention') && _attention.isNotEmpty) ...[
-            AttentionStrip(items: _attention.take(3).toList(), onChanged: _load),
-            const SizedBox(height: 12),
-          ],
-          if (_vis('quick_actions')) _quickActions(context),
-          if (_vis('day_close') && _dayClose != null && !_dayClose!.allDone) ...[
-            const SizedBox(height: 12),
-            _dayCloseStrip(context),
-          ],
-          const SizedBox(height: 12),
-          _openSectionsButton(context),
-        ],
-      ),
-    );
-  }
-
-  /// ٤) دلوقتى / اليوم — كارت بارز لأقرب حاجة، وتحته ملخص اليوم مضغوط.
-  Widget _bodyTwoLayer(BuildContext context) {
-    final now = DateTime.now();
-    final events = _dayEvents();
-    final next = nextPendingEvent(events, now);
-    final remaining = events.where((e) => !e.done).length;
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-        children: [
-          _skinnedHeader(context),
-          const SizedBox(height: 12),
-          SectionHeader(tr('دلوقتى', 'Now')),
-          if (next != null)
-            _nextUpCard(context, next)
-          else
-            _allClearCard(context),
-          if (_vis('attention') && _attention.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            AttentionStrip(items: _attention.take(3).toList(), onChanged: _load),
-          ],
-          const SizedBox(height: 18),
-          SectionHeader(
-            tr('اليوم', 'Today'),
-            trailing: Text(
-              tr('فاضل ${arNum(remaining)}', '${arNum(remaining)} left'),
-              style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
-            ),
-          ),
-          if (_vis('glance')) ...[
-            DayGlance(rings: _glanceRings(), onTap: _onGlanceTap),
-            const SizedBox(height: 12),
-          ],
-          DayTimelineView(events: events, now: now, onToggle: _toggleEvent),
-          const SizedBox(height: 18),
-          if (_vis('quick_actions')) _quickActions(context),
-          const SizedBox(height: 12),
-          _openSectionsButton(context),
-        ],
-      ),
-    );
-  }
-
-  /// كارت «اللى جاى» — أقرب بند لسه ماخلصش.
-  Widget _nextUpCard(BuildContext context, DayEvent e) {
-    final scheme = Theme.of(context).colorScheme;
-    final mins = e.at == null ? 0 : e.at!.difference(DateTime.now()).inMinutes;
-    final when = e.at == null
-        ? tr('أى وقت النهاردة', 'Anytime today')
-        : mins <= 0
-            ? tr('دلوقتى', 'Now')
-            : mins < 60
-                ? tr('بعد ${arNum(mins)} دقيقة', 'in ${arNum(mins)} min')
-                : arTime(e.at!);
-    return Card(
-      margin: EdgeInsets.zero,
-      color: scheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Text(e.emoji, style: const TextStyle(fontSize: 30)),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(when,
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: scheme.onPrimaryContainer
-                              .withValues(alpha: .75))),
-                  const SizedBox(height: 2),
-                  Text(e.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: scheme.onPrimaryContainer)),
-                  if (e.subtitle.trim().isNotEmpty)
-                    Text(e.subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: scheme.onPrimaryContainer
-                                .withValues(alpha: .8))),
-                ],
-              ),
-            ),
-            IconButton(
-              icon: Icon(Icons.check_circle_outline,
-                  color: scheme.onPrimaryContainer),
-              tooltip: tr('تم', 'Done'),
-              onPressed: () => _toggleEvent(e, true),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _allClearCard(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            const Text('✅', style: TextStyle(fontSize: 26)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                tr('مفيش حاجة مستنياك دلوقتى.', 'Nothing waiting on you now.'),
-                style: TextStyle(color: scheme.onSurfaceVariant),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// ٥) بينتو — شبكة مربعات بأحجام مختلفة، الأهم أكبر.
-  Widget _bodyBento(BuildContext context) {
-    final now = DateTime.now();
-    final events = _dayEvents();
-    final next = nextPendingEvent(events, now);
-    final remaining = events.where((e) => !e.done).length;
-    final done = events.length - remaining;
-    final upcoming = events
-        .where((e) => !e.done && e.at != null && !e.at!.isBefore(now))
-        .take(4)
-        .toList();
-
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-        children: [
-          _skinnedHeader(context),
-          const SizedBox(height: 12),
-          // البلاطة الكبيرة: اللى جاى.
-          if (next != null)
-            _nextUpCard(context, next)
-          else
-            _allClearCard(context),
-          const SizedBox(height: 12),
-          // صف بلاطتين متوسّطين.
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: _bentoTile(
-                  context,
-                  emoji: '✅',
-                  value: '${arNum(done)}/${arNum(events.length)}',
-                  label: tr('خلص النهاردة', 'Done today'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _bentoTile(
-                  context,
-                  emoji: remaining == 0 ? '🎉' : '⏳',
-                  value: arNum(remaining),
-                  label: tr('فاضل', 'Left'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // بلاطة عريضة: حلقات التقدّم.
-          if (_vis('glance'))
-            SkinCard(
-              skin: _skin,
-              child: DayGlance(rings: _glanceRings(), onTap: _onGlanceTap),
-            ),
-          // بلاطة عريضة: الجاى فى اليوم.
-          if (upcoming.isNotEmpty)
-            SkinCard(
-              skin: _skin,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(tr('الجاى', 'Coming up'),
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 6),
-                  DayTimelineView(
-                      events: upcoming, now: now, onToggle: _toggleEvent),
-                ],
-              ),
-            ),
-          if (_vis('attention') && _attention.isNotEmpty) ...[
-            AttentionStrip(items: _attention.take(3).toList(), onChanged: _load),
-            const SizedBox(height: 12),
-          ],
-          if (_vis('quick_actions')) _quickActions(context),
-          const SizedBox(height: 12),
-          _openSectionsButton(context),
-        ],
-      ),
-    );
-  }
-
-  /// بلاطة رقم صغيرة فى شبكة البينتو.
-  Widget _bentoTile(BuildContext context,
-      {required String emoji, required String value, required String label}) {
-    final scheme = Theme.of(context).colorScheme;
-    return SkinCard(
-      skin: _skin,
-      margin: EdgeInsets.zero,
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-      child: Column(
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 24)),
-          const SizedBox(height: 6),
-          Text(value,
-              style:
-                  const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 2),
-          Text(label,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
-        ],
-      ),
-    );
-  }
-
-  /// ٦) الكارت الواحد — حاجة واحدة قدّامك، تسحبها.
-  Widget _bodyDeck(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-        children: [
-          _skinnedHeader(context),
-          const SizedBox(height: 18),
-          DayDeckView(
-              events: _dayEvents(),
-              now: DateTime.now(),
-              onToggle: _toggleEvent),
-          const SizedBox(height: 20),
-          if (_vis('quick_actions')) _quickActions(context),
-          const SizedBox(height: 12),
-          _openSectionsButton(context),
-        ],
-      ),
-    );
-  }
-
-  /// ٧) حلقة اليوم — دايرة زى الساعة.
-  Widget _bodyRing(BuildContext context) {
-    final now = DateTime.now();
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-        children: [
-          _skinnedHeader(context),
-          const SizedBox(height: 8),
-          DayRingView(
-              events: _dayEvents(), now: now, onToggle: _toggleEvent),
-          const SizedBox(height: 18),
-          if (_vis('attention') && _attention.isNotEmpty) ...[
-            AttentionStrip(items: _attention.take(3).toList(), onChanged: _load),
-            const SizedBox(height: 12),
-          ],
-          if (_vis('quick_actions')) _quickActions(context),
-          const SizedBox(height: 12),
-          _openSectionsButton(context),
-        ],
-      ),
-    );
-  }
-
-  /// ٨) شرايح — تسحب أفقى بين يومك · صحتك · أقسامك.
-  Widget _bodyStories(BuildContext context) {
-    final now = DateTime.now();
-    final events = _dayEvents();
-    final pages = <({String title, Widget body})>[
-      (
-        title: tr('يومك', 'Your day'),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          children: [
-            DayTimelineView(events: events, now: now, onToggle: _toggleEvent),
-            const SizedBox(height: 16),
-            if (_vis('quick_actions')) _quickActions(context),
-          ],
-        ),
-      ),
-      (
-        title: tr('صحتك', 'Your health'),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          children: [
-            if (_vis('glance'))
-              SkinCard(
-                skin: _skin,
-                child: DayGlance(rings: _glanceRings(), onTap: _onGlanceTap),
-              ),
-            if (_activeMeds.isNotEmpty)
-              SkinCard(
-                skin: _skin,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(tr("أدوية النهارده", "Today's medications"),
-                        style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w900)),
-                    ..._medTiles(context),
-                  ],
-                ),
-              ),
-            if (_meals.isNotEmpty)
-              SkinCard(
-                skin: _skin,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(tr("وجبات النهارده", "Today's meals"),
-                        style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w900)),
-                    for (final m in _meals) _mealTile(context, m),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-      (
-        title: tr('أقسامك', 'Your sections'),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          children: [
-            if (_vis('attention') && _attention.isNotEmpty) ...[
-              AttentionStrip(items: _attention, onChanged: _load),
-              const SizedBox(height: 12),
-            ],
-            if (_dash.isNotEmpty) _dashboardCards(context),
-          ],
-        ),
-      ),
-    ];
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: Column(children: [
-              _skinnedHeader(context),
-          ]),
-        ),
-        Expanded(
-          child: DefaultTabController(
-            length: pages.length,
-            child: Column(
-              children: [
-                TabBar(
-                  tabs: [for (final p in pages) Tab(text: p.title)],
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [for (final p in pages) p.body],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// زرار الخروج لكروت الأقسام — التفاصيل بقت هناك مش فى الرئيسية.
-  Widget _openSectionsButton(BuildContext context) => OutlinedButton.icon(
-        onPressed: () => _reloadAfter(() => Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const DashboardScreen()))),
-        icon: const Icon(Icons.grid_view_rounded),
-        label: Text(tr('كل أقسامك', 'All your sections')),
-      );
-
-  Widget _seeAll(int tab) => TextButton(
-      onPressed: () => widget.onGoToTab?.call(tab),
-      child: Text(tr('الكل', 'All')));
-
-  /// شريط بحث بارز (زي طارة) — بيفتح البحث الشامل الحي.
-  /// بانر وضع «يوم صعب» — بيهدّي بدل الضغط.
-  /// نظرة الأسبوع — أهم اللى جاى فى الـ٧ أيام الجاية.
-  Widget _weekOverviewCard(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    String whenLabel(DateTime d) {
-      final diff = DateTime(d.year, d.month, d.day).difference(today).inDays;
-      if (diff <= 0) return tr('النهاردة', 'Today');
-      if (diff == 1) return tr('بكرة', 'Tomorrow');
-      return arShortDate(d);
-    }
-
-    final shown = _weekItems.take(6).toList();
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.date_range, size: 18, color: scheme.primary),
-                const SizedBox(width: 6),
-                Text(tr('نظرة الأسبوع', 'Week ahead'),
-                    style: const TextStyle(fontWeight: FontWeight.w800)),
-                const Spacer(),
-                Text(tr('${arNum(_weekItems.length)} قادم', '${arNum(_weekItems.length)} upcoming'),
-                    style: TextStyle(fontSize: 12, color: scheme.outline)),
-              ],
-            ),
-            const SizedBox(height: 6),
-            for (final it in shown)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    Icon(it.icon, size: 16, color: it.color),
-                    const SizedBox(width: 8),
-                    Expanded(
-                        child: Text(it.text,
-                            maxLines: 1, overflow: TextOverflow.ellipsis)),
-                    const SizedBox(width: 8),
-                    Text(whenLabel(it.date),
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: scheme.primary,
-                            fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ),
-            if (_weekItems.length > shown.length)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                    tr('+ ${arNum(_weekItems.length - shown.length)} كمان',
-                        '+ ${arNum(_weekItems.length - shown.length)} more'),
-                    style: TextStyle(fontSize: 12, color: scheme.outline)),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _hardDayBanner(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: scheme.secondaryContainer,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.spa_outlined, color: scheme.onSecondaryContainer),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                  tr('وضع يوم صعب شغّال — خد يومك براحتك، مفيش ضغط النهارده 🌿',
-                      "Hard-day mode on — take it easy, no pressure today 🌿"),
-                  style: TextStyle(color: scheme.onSecondaryContainer)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// كارت الصلاة + ملخص المدير — جنب بعض على الشاشات العريضة، فوق بعض على الضيقة.
-  /// كارت الصلاة **أساسي** ومابيختفيش مع «وضع يوم صعب» — الإخفاء بس من الإعدادات.
-  /// وضع «يوم صعب» بيحط بانر هادي فوق، من غير ما يشيل الصلاة.
-  Widget _heroAndSummary(BuildContext context) {
-    final showPrayer = _vis('prayer');
-    final showSummary = _vis('summary');
-    final banner = _hardDay ? _hardDayBanner(context) : null;
-
-    final parts = <Widget>[
-      ?banner,
-      if (showPrayer) _prayerCompactCard(context),
-      if (showSummary) _summaryCard(context),
-    ];
-    if (parts.isEmpty) return const SizedBox.shrink();
-    return Column(
-      children: [
-        for (var i = 0; i < parts.length; i++) ...[
-          if (i > 0) const SizedBox(height: 12),
-          parts[i],
-        ],
-      ],
-    );
-  }
-
-  /// بطاقة «دلوقتي» — أقرب حاجة جاية (موعد/صلاة) + العد التنازلي.
-  bool get _showCycleCard {
-    final p = _cyclePred;
-    if (p == null || !p.hasData) return false;
-    final until = p.daysUntilNext ?? 999;
-    final day = p.currentDay ?? 0;
-    if (day >= 1 && day <= 5) return true; // فترة الدورة
-    if (until >= 0 && until <= 4) return true; // قربت
-    final today = dateOnly(DateTime.now());
-    if (p.fertileStart != null &&
-        p.fertileEnd != null &&
-        !today.isBefore(p.fertileStart!) &&
-        !today.isAfter(p.fertileEnd!)) {
-      return true; // أيام الخصوبة
-    }
-    return false;
-  }
-
-  /// كارت الدورة الشهرية في الرئيسية (يظهر للسيدات لما الدورة تقرب/نازلة/خصوبة).
-  Widget _cycleCard(BuildContext context) {
-    final p = _cyclePred!;
-    final scheme = Theme.of(context).colorScheme;
-    final until = p.daysUntilNext ?? 0;
-    final day = p.currentDay ?? 0;
-    final today = dateOnly(DateTime.now());
-    String emoji, title, sub;
-    if (day >= 1 && day <= 5) {
-      emoji = '🩸';
-      title = tr('فترة الدورة — يوم ${arNum(day)}', 'Period — day ${arNum(day)}');
-      sub = tr('اهتمي بنفسك النهاردة 🌸', 'Take care of yourself today 🌸');
-    } else if (until <= 0) {
-      emoji = '🌸';
-      title = tr('الدورة متوقّعة النهاردة', 'Period expected today');
-      sub = tr('سجّلي بدايتها أول ما تنزل', 'Log its start when it comes');
-    } else if (until <= 4) {
-      emoji = '🌸';
-      title = tr('دورتك قربت — باقي ${arNum(until)} يوم',
-          'Period in ${arNum(until)} days');
-      sub = tr('جهّزي نفسك', 'Get ready');
-    } else {
-      emoji = '🌱';
-      title = tr('أيام الخصوبة', 'Fertile days');
-      sub = today.isAtSameMomentAs(p.ovulation ?? today) && p.ovulation != null
-          ? tr('اليوم المتوقّع للتبويض', 'Predicted ovulation day')
-          : tr('فترة الخصوبة المتوقّعة', 'Your predicted fertile window');
-    }
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () async {
-          await Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const CycleScreen()));
-          if (mounted) await _load();
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Text(emoji, style: const TextStyle(fontSize: 28)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15)),
-                    const SizedBox(height: 2),
-                    Text(sub,
-                        style:
-                            TextStyle(fontSize: 12.5, color: scheme.outline)),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_left, color: scheme.outline),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// كارت الصلاة المصغّر — بيوري الصلاة الجاية + عدّاد حي، وبيفتح صفحة الصلاة.
-  Widget _prayerCompactCard(BuildContext context) {
-    final now = DateTime.now();
-    var p = _prayers;
-    var idx = p?.nextIndex(now);
-    var isTomorrow = false;
-    if (p == null || idx == null) {
-      p = _prayersTomorrow ?? p;
-      idx = 0;
-      isTomorrow = true;
-    }
-    if (p == null) return _nowCard(context);
-    final when = p.times[idx];
-    final name = prayerNameLabel(idx);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const PrayerScreen())),
-          child: Ink(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.centerRight,
-                end: Alignment.centerLeft,
-                colors: [Color(0xFF2C4677), Color(0xFF15233c)],
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.mosque,
-                        color: Color(0xFFF3D06E), size: 24),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        isTomorrow
-                            ? tr('صلاة $name (بكرة)', '$name (tomorrow)')
-                            : tr('صلاة $name', '$name prayer'),
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        tr('الأذان ${arTime(when)}', 'Adhan ${arTime(when)}'),
-                        style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.65),
-                            fontSize: 12.5),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _CountdownText(
-                        target: when,
-                        style: const TextStyle(
-                            color: Color(0xFF2FDE9B),
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1),
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(tr('كل المواعيد', 'All times'),
-                              style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.6),
-                                  fontSize: 11)),
-                          Icon(Icons.chevron_left,
-                              size: 16,
-                              color: Colors.white.withValues(alpha: 0.6)),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _nowCard(BuildContext context) {
-    final now = DateTime.now();
-    ({DateTime when, IconData icon, String label})? best;
-    void consider(DateTime w, IconData i, String l) {
-      if (w.isAfter(now) && (best == null || w.isBefore(best!.when))) {
-        best = (when: w, icon: i, label: l);
-      }
-    }
-
-    for (final a in _todayAppts) {
-      if (!a.done && a.when.isAfter(now)) {
-        consider(a.when, Icons.event, tr('موعد: ${a.title}', a.title));
-      }
-    }
-    if (_prayers != null) {
-      final idx = _prayers!.nextIndex(now);
-      if (idx != null) {
-        consider(_prayers!.times[idx], Icons.access_time_filled,
-            tr('صلاة ${prayerNameLabel(idx)}', '${prayerNameLabel(idx)} prayer'));
-      }
-    }
-    if (best == null) return const SizedBox.shrink();
-    final b = best!;
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: scheme.primaryContainer,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Icon(b.icon, color: scheme.onPrimaryContainer),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(tr('اللي جاي دلوقتي', 'Up next'),
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: scheme.onPrimaryContainer.withValues(alpha: 0.7))),
-                  Text(b.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: scheme.onPrimaryContainer)),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(arTime(b.when),
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: scheme.onPrimaryContainer)),
-                Text(_humanDuration(b.when.difference(now)),
-                    style: TextStyle(
-                        fontSize: 11, color: scheme.onPrimaryContainer)),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _humanDuration(Duration d) {
-    final h = d.inHours;
-    final m = d.inMinutes % 60;
-    if (d.inMinutes < 1) return tr('دلوقتي', 'now');
-    if (h == 0) return tr('بعد ${arNum(m)} د', 'in ${arNum(m)}m');
-    if (m == 0) return tr('بعد ${arNum(h)} ساعة', 'in ${arNum(h)}h');
-    return tr('بعد ${arNum(h)}س و${arNum(m)}د', 'in ${arNum(h)}h ${arNum(m)}m');
   }
 
   /// لوحة تشغيل سريعة — تايلز ملوّنة في كارت واحد (زي الموكاب).
@@ -3401,87 +2113,6 @@ class _TodayScreenState extends State<TodayScreen> {
         '${arNum(h.hDay)} ${h.longMonthName} ${arNum(h.hYear)} AH');
   }
 
-  Widget _summaryCard(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      // لمسة زجاجية: تدرّج شفاف خفيف + حدّ مضيء رفيع.
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            scheme.primary.withValues(alpha: 0.16),
-            scheme.primaryContainer.withValues(alpha: 0.75),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: scheme.primary.withValues(alpha: 0.22)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.auto_awesome, color: scheme.onPrimaryContainer),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(tr('ملخص مديرك لليوم', "Your manager's brief"),
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: scheme.onPrimaryContainer,
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(height: 4),
-                Text(_summaryText(),
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: scheme.onPrimaryContainer)),
-                const SizedBox(height: 8),
-                ActionChip(
-                  avatar: Icon(Icons.route_outlined,
-                      size: 18, color: scheme.primary),
-                  label: Text(tr('رتبلي باقي اليوم', 'Plan the rest of my day')),
-                  onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const DayPlanScreen())),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _weeklyBanner(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      color: scheme.secondaryContainer,
-      child: ListTile(
-        leading: Icon(Icons.event_repeat, color: scheme.onSecondaryContainer),
-        title: Text(tr('وقت التخطيط الأسبوعي', 'Weekly planning time'),
-            style: TextStyle(
-                color: scheme.onSecondaryContainer,
-                fontWeight: FontWeight.w600)),
-        subtitle: Text(
-            tr('١٠ دقايق تراجع أسبوعك وتجهز الجاي',
-                '10 minutes to review your week and plan ahead'),
-            style: TextStyle(color: scheme.onSecondaryContainer)),
-        trailing: Icon(Icons.chevron_left, color: scheme.onSecondaryContainer),
-        onTap: () async {
-          await Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => const WeeklyPlanningScreen()));
-          if (mounted) await _load();
-        },
-      ),
-    );
-  }
-
   // ignore: unused_element  (اتشال من الرئيسية بطلب المستخدم — متساب لإعادة الاستخدام)
   Widget _waterCard(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -3632,235 +2263,6 @@ class _TodayScreenState extends State<TodayScreen> {
     if (mounted) await _load();
   }
 
-  Widget _mealsActions(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          onPressed: () async {
-            await Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const ShoppingListScreen()));
-          },
-          tooltip: tr('قائمة التسوق', 'Shopping list'),
-          icon: const Icon(Icons.shopping_cart_outlined, size: 20),
-        ),
-        TextButton(
-          onPressed: () async {
-            final added = await showMealSheet(context);
-            if (added == true && mounted) await _load();
-          },
-          child: Text(tr('سجل وجبة', 'Log meal')),
-        ),
-      ],
-    );
-  }
-
-  int get _eatenCalories =>
-      _meals.fold<double>(0, (s, m) => s + (m.calories ?? 0)).round();
-
-  int get _eatenProtein =>
-      _meals.fold<double>(0, (s, m) => s + (m.protein ?? 0)).round();
-  int get _eatenCarbs =>
-      _meals.fold<double>(0, (s, m) => s + (m.carbs ?? 0)).round();
-  int get _eatenFat =>
-      _meals.fold<double>(0, (s, m) => s + (m.fat ?? 0)).round();
-  bool get _hasMacros =>
-      _meals.any((m) => m.protein != null || m.carbs != null || m.fat != null);
-
-  bool get _showNutrition =>
-      _calorieGoal > 0 ||
-      _calories != null ||
-      _meals.any((m) => m.calories != null);
-
-  Widget _nutritionCard(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final eaten = _eatenCalories;
-    final burned = _calories ?? 0;
-    final net = eaten - burned;
-    final remaining = _calorieGoal > 0 ? _calorieGoal + burned - eaten : null;
-
-    Widget cell(String label, String value, Color color) => Expanded(
-          child: Column(
-            children: [
-              Text(label,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(color: scheme.outline)),
-              const SizedBox(height: 2),
-              Text(value,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700, color: color)),
-            ],
-          ),
-        );
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Icon(Icons.balance, size: 18, color: scheme.primary),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(tr('الميزان الغذائي', 'Nutrition balance'),
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelLarge
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                ),
-                IconButton(
-                  tooltip: tr('الأنظمة الغذائية', 'Diet plans'),
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.restaurant_menu, size: 18),
-                  onPressed: () async {
-                    await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const DietPlansScreen()));
-                    if (mounted) await _load();
-                  },
-                ),
-                TextButton(
-                    onPressed: _editCalorieGoal,
-                    child: Text(_calorieGoal > 0
-                        ? tr('هدف: ${arNum(_calorieGoal)}', 'Goal: ${arNum(_calorieGoal)}')
-                        : tr('حدد هدف', 'Set goal'))),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                cell(tr('أكلت 🍽', 'Eaten 🍽'), arNum(eaten), scheme.primary),
-                cell(tr('حرقت 🔥', 'Burned 🔥'), arNum(burned),
-                    Colors.deepOrange),
-                cell(tr('الصافي', 'Net'), arNum(net),
-                    net >= 0 ? scheme.onSurface : Colors.green),
-              ],
-            ),
-            if (remaining != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                  remaining >= 0
-                      ? tr('متبقّي من هدفك: ${arNum(remaining)} سعرة',
-                          '${arNum(remaining)} kcal left of your goal')
-                      : tr('عدّيت هدفك بـ ${arNum(-remaining)} سعرة',
-                          '${arNum(-remaining)} kcal over your goal'),
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: remaining >= 0 ? Colors.green : scheme.error)),
-            ],
-            if (_hasMacros || _proteinTarget > 0) ...[
-              const Divider(height: 18),
-              Row(
-                children: [
-                  _macroTotal(tr('بروتين', 'Protein'), _eatenProtein,
-                      _proteinTarget, Colors.red),
-                  _macroTotal(tr('كارب', 'Carbs'), _eatenCarbs, _carbsTarget,
-                      Colors.orange),
-                  _macroTotal(
-                      tr('دهون', 'Fat'), _eatenFat, _fatTarget, Colors.blue),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _macroTotal(String label, int grams, int target, Color color) =>
-      Expanded(
-        child: Column(
-          children: [
-            Text(
-                target > 0
-                    ? '${arNum(grams)}/${arNum(target)}${tr('جم', 'g')}'
-                    : '${arNum(grams)}${tr('جم', 'g')}',
-                style: TextStyle(fontWeight: FontWeight.w700, color: color)),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 11,
-                    color: Theme.of(context).colorScheme.outline)),
-          ],
-        ),
-      );
-
-  Future<void> _editCalorieGoal() async {
-    final controller = TextEditingController(
-        text: _calorieGoal > 0 ? _calorieGoal.toString() : '');
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr('هدف السعرات اليومي', 'Daily calorie goal')),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-              labelText: tr('السعرات (مثلًا: 2000)', 'Calories (e.g. 2000)'),
-              helperText: tr('سيبه فاضي عشان تلغي الهدف',
-                  'Leave empty to clear the goal')),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(tr('إلغاء', 'Cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(tr('حفظ', 'Save'))),
-        ],
-      ),
-    );
-    if (saved == true) {
-      final value = int.tryParse(controller.text.trim());
-      await _settings.set(
-          'calorie_goal', value == null || value <= 0 ? '' : '$value');
-      if (mounted) await _load();
-    }
-    controller.dispose();
-  }
-
-  Widget _mealTile(BuildContext context, Meal m) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 3),
-      child: ListTile(
-        dense: true,
-        leading: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: scheme.secondaryContainer,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(mealSlotLabel(m.slot),
-              style: TextStyle(
-                  color: scheme.onSecondaryContainer, fontSize: 12)),
-        ),
-        title: Text(m.description),
-        subtitle: m.calories == null
-            ? null
-            : Text(tr('${arNum(m.calories!.toInt())} سعرة تقريبًا',
-                '~${arNum(m.calories!.toInt())} kcal')),
-        trailing: IconButton(
-          icon: const Icon(Icons.close, size: 18),
-          tooltip: tr('حذف', 'Delete'),
-          onPressed: () async {
-            await MealsRepo().delete(m.id!);
-            if (mounted) await _load();
-          },
-        ),
-      ),
-    );
-  }
-
   // ignore: unused_element  (اتشال من الرئيسية — الخطوات في قسم الساعة الذكية)
   Widget _stepsCard(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -3895,276 +2297,6 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
-  bool get _hasFitnessData =>
-      _calories != null || _restingHr != null || _distanceKm != null;
-
-  Widget _fitnessSection(BuildContext context) {
-    final cards = <Widget>[
-      if (_calories != null)
-        _fitnessMetricCard(
-          context,
-          icon: Icons.local_fire_department,
-          color: Colors.deepOrange,
-          value: arNum(_calories!),
-          label: tr('سعرة محروقة', 'calories burned'),
-        ),
-      if (_restingHr != null)
-        _fitnessMetricCard(
-          context,
-          icon: Icons.favorite,
-          color: Colors.redAccent,
-          value: arNum(_restingHr!),
-          label: tr('نبضة/دقيقة', 'bpm'),
-        ),
-      if (_distanceKm != null)
-        _fitnessMetricCard(
-          context,
-          icon: Icons.straighten,
-          color: Colors.teal,
-          value: arNum(_distanceKm!.toStringAsFixed(_distanceKm! >= 10 ? 0 : 1)),
-          label: tr('كيلومتر', 'km'),
-        ),
-    ];
-    return Wrap(spacing: 10, runSpacing: 10, children: cards);
-  }
-
-  Widget _fitnessMetricCard(
-    BuildContext context, {
-    required IconData icon,
-    required Color color,
-    required String value,
-    required String label,
-  }) {
-    final scheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      width: (MediaQuery.of(context).size.width - 32 - 20) / 3,
-      child: Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-          child: Column(
-            children: [
-              Icon(icon, size: 22, color: color),
-              const SizedBox(height: 6),
-              Text(value,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 2),
-              Text(label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, color: scheme.outline)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// كارت تنبيه نظيف: خلفية الكارت العادية + شريط كهرماني على جنب البداية
-  /// (يمين في RTL) — بدل إغراق الكارت كله في اللون البني (tertiaryContainer).
-  Widget _attentionCard({required Widget child}) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: BorderDirectional(
-            start: BorderSide(color: scheme.tertiary, width: 4),
-          ),
-        ),
-        child: child,
-      ),
-    );
-  }
-
-  /// زر أصفر كهرماني واضح (اتدفعت/اعمله) — تباين عالي على الخلفية الغامقة.
-  ButtonStyle get _amberButtonStyle => FilledButton.styleFrom(
-        backgroundColor: Theme.of(context).colorScheme.tertiary,
-        foregroundColor: Colors.black87,
-        visualDensity: VisualDensity.compact,
-      );
-
-  Widget _dueBillsCard(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return _attentionCard(
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Column(
-          children: [
-            for (final b in _dueBills)
-              ListTile(
-                dense: true,
-                leading: Icon(Icons.receipt_long_outlined,
-                    color: scheme.tertiary),
-                title: Text(b.name,
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text(egp(b.amount)),
-                trailing: FilledButton(
-                  style: _amberButtonStyle,
-                  onPressed: () async {
-                    await BillsRepo().markPaid(b.id!);
-                    if (mounted) await _load();
-                  },
-                  child: Text(tr('اتدفعت ✓', 'Paid ✓')),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _expiringCard(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final today = dateOnly(DateTime.now());
-    return _attentionCard(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            for (final d in _expiring)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded,
-                        size: 18, color: scheme.tertiary),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(d.title)),
-                    Text(
-                      _expiryLabel(today, DateTime.parse(d.expiry!)),
-                      style: TextStyle(
-                          color: scheme.tertiary,
-                          fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _expiryLabel(DateTime today, DateTime expiry) {
-    final days = dateOnly(expiry).difference(today).inDays;
-    if (days < 0) return tr('منتهي', 'Expired');
-    if (days == 0) return tr('ينتهي النهارده', 'Expires today');
-    return tr('باقي ${arNum(days)} يوم', '${arNum(days)} days left');
-  }
-
-  Widget _apptTile(BuildContext context, Appointment a) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 3),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: scheme.secondaryContainer,
-          child: Icon(Icons.event, color: scheme.onSecondaryContainer),
-        ),
-        title: Text(a.title),
-        subtitle: Text('${arTime(a.when)} • ${apptCategoryLabel(a.category)}'),
-        trailing: IconButton(
-          icon: const Icon(Icons.check_circle_outline),
-          tooltip: tr('تم', 'Done'),
-          onPressed: () async {
-            await _appts.setDone(a.id!, true);
-            if (mounted) await _load();
-          },
-        ),
-      ),
-    );
-  }
-
-  List<Widget> _medTiles(BuildContext context) {
-    final tiles = <Widget>[];
-    for (final m in _activeMeds) {
-      for (final slot in m.times) {
-        final key = '${m.id}|$slot';
-        tiles.add(Card(
-          margin: const EdgeInsets.symmetric(vertical: 3),
-          child: CheckboxListTile(
-            value: _taken.contains(key),
-            onChanged: (v) => _toggleMed(m.id!, slot, v ?? false),
-            title: Text(m.name),
-            subtitle: Text(
-                '${arTimeOfSlot(slot)}${m.dosage.isEmpty ? '' : ' • ${m.dosage}'}'),
-          ),
-        ));
-      }
-    }
-    return tiles;
-  }
-
-  Widget _habitChips(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final h in _habitList)
-          FilterChip(
-            selected: _doneHabits.contains(h.id),
-            onSelected: (_) => _toggleHabit(h),
-            label: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(h.name),
-                if ((_streaks[h.id] ?? 0) > 0) ...[
-                  const SizedBox(width: 4),
-                  const Icon(Icons.local_fire_department,
-                      size: 16, color: Colors.deepOrange),
-                  Text(arNum(_streaks[h.id]!)),
-                ],
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-}
-
-/// عدّاد تنازلي حي (HH:MM:SS) بيتحدّث كل ثانية — widget مستقل عشان يعيد بناء
-/// النص بس مش الشاشة كلها.
-class _CountdownText extends StatefulWidget {
-  final DateTime target;
-  final TextStyle? style;
-
-  const _CountdownText({required this.target, this.style});
-
-  @override
-  State<_CountdownText> createState() => _CountdownTextState();
-}
-
-class _CountdownTextState extends State<_CountdownText> {
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    var diff = widget.target.difference(DateTime.now());
-    if (diff.isNegative) diff = Duration.zero;
-    final h = diff.inHours.toString().padLeft(2, '0');
-    final m = (diff.inMinutes % 60).toString().padLeft(2, '0');
-    final s = (diff.inSeconds % 60).toString().padLeft(2, '0');
-    return Text(arNum('$h:$m:$s'), style: widget.style);
-  }
 }
 
 /// إجراء سريع متاح على شاشة اليوم (بيتخزّن اختياره وترتيبه في الإعدادات).

@@ -21,8 +21,6 @@ import 'tour_screen.dart';
 import '../core/db.dart';
 import '../core/evening.dart';
 import '../core/health_service.dart';
-import '../core/home_layout.dart';
-import '../core/home_sections.dart';
 import '../core/l10n.dart';
 import '../core/notifications.dart';
 import '../core/prayers.dart';
@@ -31,7 +29,6 @@ import '../core/theme.dart';
 import '../core/widget_bridge.dart';
 import '../data/settings_repo.dart';
 import '../widgets/common.dart';
-import '../widgets/home_skin.dart';
 import '../widgets/location_fields.dart';
 import 'diagnostics_screen.dart';
 import 'archived_data_screen.dart';
@@ -72,9 +69,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _blood = '';
   String _governorate = 'القاهرة';
   String? _customLoc; // مدينة عالمية مخصّصة (null = محافظة)
-  Set<String> _hiddenHome = {}; // عناصر الرئيسية المخفية
-  HomeLayout _homeLayout = HomeLayout.custom; // شكل الرئيسية
-  bool _homeSkin = false; // المظهر العصرى
   String _notifMode = 'both';
   bool _loading = true;
   bool _busy = false;
@@ -97,10 +91,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final healthSync = await _settings.healthSyncEnabled();
     final governorate = await _settings.governorateName();
     final customLoc = await _settings.customLocation();
-    final hiddenHome = await _settings.hiddenHomeSections();
-    final homeLayout =
-        homeLayoutFromKey(await _settings.get(kHomeLayoutSetting));
-    final homeSkin = (await _settings.get(kHomeSkinSetting)) == '1';
     final ramadan = await _settings.ramadanMode();
     final hardDay = await _settings.hardDayMode();
     final travel = await _settings.travelMode();
@@ -129,9 +119,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _healthSync = healthSync;
       _governorate = governorate;
       _customLoc = customLoc?.label;
-      _hiddenHome = hiddenHome;
-      _homeLayout = homeLayout;
-      _homeSkin = homeSkin;
       _ramadan = ramadan;
       _hardDay = hardDay;
       _travel = travel;
@@ -679,7 +666,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             (key: 'appearance', title: tr('المظهر واللغة', 'Appearance & language'), icon: Icons.palette_outlined, sub: tr('اللغة والثيم والألوان', 'Language, theme & colors'), kw: 'لغة عربي انجليزي ثيم غامق فاتح لون الوان مظهر theme dark light color'),
             (key: 'general', title: tr('عام', 'General'), icon: Icons.tune, sub: tr('المياه والميزانية', 'Water & budget'), kw: 'مياه ماء هدف ميزانية فلوس water budget'),
             (key: 'location', title: tr('الموقع والصلاة', 'Location & prayer'), icon: Icons.place_outlined, sub: tr('مدينتك وإشعارات الأذان', 'City & adhan alerts'), kw: 'موقع مدينة دولة صلاة اذان طقس location city prayer adhan weather'),
-            (key: 'home', title: tr('الصفحة الرئيسية', 'Home screen'), icon: Icons.dashboard_customize_outlined, sub: tr('إظهار وإخفاء العناصر', 'Show / hide sections'), kw: 'رئيسية كروت اخفاء اظهار home cards'),
             (key: 'notifications', title: tr('الإشعارات', 'Notifications'), icon: Icons.notifications_active_outlined, sub: tr('صوت واهتزاز', 'Sound & vibration'), kw: 'اشعار صوت اهتزاز تنبيه notification sound vibration'),
             (key: 'health', title: tr('الصحة', 'Health'), icon: Icons.favorite_outline, sub: tr('مزامنة الساعة الذكية', 'Smartwatch sync'), kw: 'صحة ساعة خطوات نوم مزامنة health watch steps'),
             (key: 'modes', title: tr('الأوضاع', 'Modes'), icon: Icons.toggle_on_outlined, sub: tr('رمضان / يوم صعب / سفر', 'Ramadan / hard-day / travel'), kw: 'رمضان سفر يوم صعب ملخص ramadan travel'),
@@ -951,91 +937,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'Alert at each prayer via local astronomical calc')),
                   value: _prayerNotifs,
                   onChanged: (v) => setState(() => _prayerNotifs = v),
-                ),
-                ],
-                if (_openCat == 'home') ...[
-                Card(
-                  margin: EdgeInsets.zero,
-                  clipBehavior: Clip.antiAlias,
-                  child: ExpansionTile(
-                    leading: const Icon(Icons.view_quilt_outlined),
-                    title: Text(tr('شكل الصفحة الرئيسية', 'Home layout')),
-                    subtitle: Text(homeLayoutLabel(_homeLayout),
-                        style: const TextStyle(fontSize: 12)),
-                    childrenPadding:
-                        const EdgeInsets.symmetric(horizontal: 16),
-                    children: [
-                      // ListTile مش RadioListTile: مجموعة الراديو اتعملها
-                      // deprecate لصالح RadioGroup، والاختيار هنا سطر واحد
-                      // فمفيش داعى لغلاف زيادة.
-                      for (final l in HomeLayout.values)
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          selected: _homeLayout == l,
-                          leading: Icon(_homeLayout == l
-                              ? Icons.radio_button_checked
-                              : Icons.radio_button_unchecked),
-                          title: Text(homeLayoutLabel(l)),
-                          subtitle: Text(homeLayoutDescription(l),
-                              style: const TextStyle(fontSize: 11.5)),
-                          onTap: () async {
-                            await _settings.set(
-                                kHomeLayoutSetting, homeLayoutKey(l));
-                            setState(() => _homeLayout = l);
-                          },
-                        ),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(tr('المظهر العصرى', 'Modern look')),
-                        subtitle: Text(
-                            tr('تدرّج لونى بيتغيّر مع وقت اليوم + كروت ناعمة',
-                                'Time-of-day gradient + soft cards'),
-                            style: const TextStyle(fontSize: 11.5)),
-                        value: _homeSkin,
-                        onChanged: (v) async {
-                          await _settings.set(kHomeSkinSetting, v ? '1' : '0');
-                          setState(() => _homeSkin = v);
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Card(
-                  margin: EdgeInsets.zero,
-                  clipBehavior: Clip.antiAlias,
-                  child: ExpansionTile(
-                    leading: const Icon(Icons.dashboard_customize_outlined),
-                    title: Text(tr('إظهار وإخفاء عناصر الرئيسية',
-                        'Show / hide home sections')),
-                    subtitle: Text(
-                        tr('اختار اللي يظهر — كل عنصر لوحده',
-                            'Pick what shows — each independently'),
-                        style: const TextStyle(fontSize: 12)),
-                    childrenPadding:
-                        const EdgeInsets.symmetric(horizontal: 16),
-                    children: [
-                      for (final key in kHomeSectionKeys)
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                          title: Text(homeSectionLabel(key)),
-                          value: !_hiddenHome.contains(key),
-                          onChanged: (show) async {
-                            await _settings.setHomeSectionHidden(key, !show);
-                            setState(() {
-                              if (show) {
-                                _hiddenHome.remove(key);
-                              } else {
-                                _hiddenHome.add(key);
-                              }
-                            });
-                          },
-                        ),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
                 ),
                 ],
                 if (_openCat == 'notifications') ...[
