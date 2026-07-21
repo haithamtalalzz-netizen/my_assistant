@@ -11,7 +11,10 @@ import '../core/app_state.dart';
 import '../core/ar.dart';
 import '../core/day_timeline.dart';
 import '../core/home_layout.dart';
+import '../widgets/day_deck_view.dart';
+import '../widgets/day_ring_view.dart';
 import '../widgets/day_timeline_view.dart';
+import '../widgets/home_skin.dart';
 import '../core/health_service.dart';
 import '../core/week_overview.dart';
 import '../core/attention.dart';
@@ -161,8 +164,11 @@ class _TodayScreenState extends State<TodayScreen> {
   /// مش العدد بس.
   Set<int> _prayedSet = {};
 
-  /// شكل الرئيسية المختار (بنجرّب ٣ أشكال قبل ما نثبّت واحد).
+  /// شكل الرئيسية المختار (بنجرّب أشكال قبل ما نثبّت واحد).
   HomeLayout _layout = HomeLayout.classic;
+
+  /// المظهر العصرى شغّال؟ (تدرّج بوقت اليوم + كروت ناعمة + حركة)
+  bool _skin = false;
 
   /// عنصر الرئيسية ظاهر؟ (لكل ما هو مش مخفي من الإعدادات).
   bool _vis(String key) => !_hidden.contains(key);
@@ -250,6 +256,7 @@ class _TodayScreenState extends State<TodayScreen> {
     final prayedSet = await WorshipRepo().prayedToday();
     final prayedCount = prayedSet.length;
     final layout = homeLayoutFromKey(await _settings.get(kHomeLayoutSetting));
+    final skin = (await _settings.get(kHomeSkinSetting)) == '1';
     if (!mounted) return;
     setState(() {
       _attention = attention;
@@ -261,6 +268,7 @@ class _TodayScreenState extends State<TodayScreen> {
       _prayedCount = prayedCount;
       _prayedSet = prayedSet;
       _layout = layout;
+      _skin = skin;
       _name = name;
       _quickOrder = quickOrder;
       _stepsAuto = stepsAuto;
@@ -706,7 +714,32 @@ class _TodayScreenState extends State<TodayScreen> {
         HomeLayout.timeline => _bodyTimeline(context),
         HomeLayout.oneScreen => _bodyOneScreen(context),
         HomeLayout.twoLayer => _bodyTwoLayer(context),
+        HomeLayout.bento => _bodyBento(context),
+        HomeLayout.deck => _bodyDeck(context),
+        HomeLayout.ring => _bodyRing(context),
+        HomeLayout.stories => _bodyStories(context),
       };
+
+  /// الهيدر حسب المظهر: التدرّج العصرى أو الترحيب العادى.
+  Widget _skinnedHeader(BuildContext context) {
+    if (!_skin) return _header(context);
+    final now = DateTime.now();
+    final remaining = _dayEvents().where((e) => !e.done).length;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: SkinHeader(
+        now: now,
+        greeting: _name.trim().isEmpty
+            ? greetingFor(now)
+            : '${greetingFor(now)}، $_name',
+        subtitle: remaining == 0
+            ? tr('مفيش حاجة مستنياك النهاردة 🎉',
+                'Nothing waiting on you today 🎉')
+            : tr('فاضل ${arNum(remaining)} بند النهاردة',
+                '${arNum(remaining)} things left today'),
+      ),
+    );
+  }
 
   /// كل البنود اللى النهاردة — مصدر واحد للأشكال الجديدة.
   List<DayEvent> _dayEvents() => buildDayTimeline(
@@ -775,6 +808,25 @@ class _TodayScreenState extends State<TodayScreen> {
           homeLayoutDescription(_layout),
           style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
         ),
+        // المظهر محور مستقل عن الشكل — نفس التركيب بمظهرين للمقارنة.
+        Row(
+          children: [
+            Switch(
+              value: _skin,
+              onChanged: (v) async {
+                await _settings.set(kHomeSkinSetting, v ? '1' : '0');
+                if (mounted) setState(() => _skin = v);
+              },
+            ),
+            Expanded(
+              child: Text(
+                tr('المظهر العصرى (تدرّج بوقت اليوم + كروت ناعمة)',
+                    'Modern look (time-of-day gradient + soft cards)'),
+                style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
+              ),
+            ),
+          ],
+        ),
         const Divider(height: 18),
       ],
     );
@@ -794,7 +846,7 @@ class _TodayScreenState extends State<TodayScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _layoutSwitcher(context),
-            _header(context),
+            _skinnedHeader(context),
             const SizedBox(height: 12),
             if (_vis('attention')) ...[
               AttentionStrip(items: _attention, onChanged: _load),
@@ -822,7 +874,7 @@ class _TodayScreenState extends State<TodayScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
           _layoutSwitcher(context),
-          _header(context),
+          _skinnedHeader(context),
           const SizedBox(height: 12),
           if (_vis('attention') && offTimeline.isNotEmpty) ...[
             AttentionStrip(items: offTimeline, onChanged: _load),
@@ -858,7 +910,7 @@ class _TodayScreenState extends State<TodayScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
           _layoutSwitcher(context),
-          _header(context),
+          _skinnedHeader(context),
           const SizedBox(height: 12),
           if (_vis('glance')) ...[
             DayGlance(rings: _glanceRings(), onTap: _onGlanceTap),
@@ -896,7 +948,7 @@ class _TodayScreenState extends State<TodayScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
           _layoutSwitcher(context),
-          _header(context),
+          _skinnedHeader(context),
           const SizedBox(height: 12),
           SectionHeader(tr('دلوقتى', 'Now')),
           if (next != null)
@@ -1011,6 +1063,263 @@ class _TodayScreenState extends State<TodayScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// ٥) بينتو — شبكة مربعات بأحجام مختلفة، الأهم أكبر.
+  Widget _bodyBento(BuildContext context) {
+    final now = DateTime.now();
+    final events = _dayEvents();
+    final next = nextPendingEvent(events, now);
+    final remaining = events.where((e) => !e.done).length;
+    final done = events.length - remaining;
+    final upcoming = events
+        .where((e) => !e.done && e.at != null && !e.at!.isBefore(now))
+        .take(4)
+        .toList();
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        children: [
+          _layoutSwitcher(context),
+          _skinnedHeader(context),
+          const SizedBox(height: 12),
+          // البلاطة الكبيرة: اللى جاى.
+          if (next != null)
+            _nextUpCard(context, next)
+          else
+            _allClearCard(context),
+          const SizedBox(height: 12),
+          // صف بلاطتين متوسّطين.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _bentoTile(
+                  context,
+                  emoji: '✅',
+                  value: '${arNum(done)}/${arNum(events.length)}',
+                  label: tr('خلص النهاردة', 'Done today'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _bentoTile(
+                  context,
+                  emoji: remaining == 0 ? '🎉' : '⏳',
+                  value: arNum(remaining),
+                  label: tr('فاضل', 'Left'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // بلاطة عريضة: حلقات التقدّم.
+          if (_vis('glance'))
+            SkinCard(
+              skin: _skin,
+              child: DayGlance(rings: _glanceRings(), onTap: _onGlanceTap),
+            ),
+          // بلاطة عريضة: الجاى فى اليوم.
+          if (upcoming.isNotEmpty)
+            SkinCard(
+              skin: _skin,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(tr('الجاى', 'Coming up'),
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 6),
+                  DayTimelineView(
+                      events: upcoming, now: now, onToggle: _toggleEvent),
+                ],
+              ),
+            ),
+          if (_vis('attention') && _attention.isNotEmpty) ...[
+            AttentionStrip(items: _attention.take(3).toList(), onChanged: _load),
+            const SizedBox(height: 12),
+          ],
+          if (_vis('quick_actions')) _quickActions(context),
+          const SizedBox(height: 12),
+          _openSectionsButton(context),
+        ],
+      ),
+    );
+  }
+
+  /// بلاطة رقم صغيرة فى شبكة البينتو.
+  Widget _bentoTile(BuildContext context,
+      {required String emoji, required String value, required String label}) {
+    final scheme = Theme.of(context).colorScheme;
+    return SkinCard(
+      skin: _skin,
+      margin: EdgeInsets.zero,
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+      child: Column(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 24)),
+          const SizedBox(height: 6),
+          Text(value,
+              style:
+                  const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 2),
+          Text(label,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
+        ],
+      ),
+    );
+  }
+
+  /// ٦) الكارت الواحد — حاجة واحدة قدّامك، تسحبها.
+  Widget _bodyDeck(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        children: [
+          _layoutSwitcher(context),
+          _skinnedHeader(context),
+          const SizedBox(height: 18),
+          DayDeckView(
+              events: _dayEvents(),
+              now: DateTime.now(),
+              onToggle: _toggleEvent),
+          const SizedBox(height: 20),
+          if (_vis('quick_actions')) _quickActions(context),
+          const SizedBox(height: 12),
+          _openSectionsButton(context),
+        ],
+      ),
+    );
+  }
+
+  /// ٧) حلقة اليوم — دايرة زى الساعة.
+  Widget _bodyRing(BuildContext context) {
+    final now = DateTime.now();
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        children: [
+          _layoutSwitcher(context),
+          _skinnedHeader(context),
+          const SizedBox(height: 8),
+          DayRingView(
+              events: _dayEvents(), now: now, onToggle: _toggleEvent),
+          const SizedBox(height: 18),
+          if (_vis('attention') && _attention.isNotEmpty) ...[
+            AttentionStrip(items: _attention.take(3).toList(), onChanged: _load),
+            const SizedBox(height: 12),
+          ],
+          if (_vis('quick_actions')) _quickActions(context),
+          const SizedBox(height: 12),
+          _openSectionsButton(context),
+        ],
+      ),
+    );
+  }
+
+  /// ٨) شرايح — تسحب أفقى بين يومك · صحتك · أقسامك.
+  Widget _bodyStories(BuildContext context) {
+    final now = DateTime.now();
+    final events = _dayEvents();
+    final pages = <({String title, Widget body})>[
+      (
+        title: tr('يومك', 'Your day'),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          children: [
+            DayTimelineView(events: events, now: now, onToggle: _toggleEvent),
+            const SizedBox(height: 16),
+            if (_vis('quick_actions')) _quickActions(context),
+          ],
+        ),
+      ),
+      (
+        title: tr('صحتك', 'Your health'),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          children: [
+            if (_vis('glance'))
+              SkinCard(
+                skin: _skin,
+                child: DayGlance(rings: _glanceRings(), onTap: _onGlanceTap),
+              ),
+            if (_activeMeds.isNotEmpty)
+              SkinCard(
+                skin: _skin,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(tr("أدوية النهارده", "Today's medications"),
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w900)),
+                    ..._medTiles(context),
+                  ],
+                ),
+              ),
+            if (_meals.isNotEmpty)
+              SkinCard(
+                skin: _skin,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(tr("وجبات النهارده", "Today's meals"),
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w900)),
+                    for (final m in _meals) _mealTile(context, m),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+      (
+        title: tr('أقسامك', 'Your sections'),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          children: [
+            if (_vis('attention') && _attention.isNotEmpty) ...[
+              AttentionStrip(items: _attention, onChanged: _load),
+              const SizedBox(height: 12),
+            ],
+            if (_dash.isNotEmpty) _dashboardCards(context),
+          ],
+        ),
+      ),
+    ];
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Column(children: [
+            _layoutSwitcher(context),
+            _skinnedHeader(context),
+          ]),
+        ),
+        Expanded(
+          child: DefaultTabController(
+            length: pages.length,
+            child: Column(
+              children: [
+                TabBar(
+                  tabs: [for (final p in pages) Tab(text: p.title)],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [for (final p in pages) p.body],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 

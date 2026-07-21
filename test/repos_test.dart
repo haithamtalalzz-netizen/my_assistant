@@ -8,6 +8,8 @@ import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/archived_data.dart';
 import 'package:my_assistant/core/day_timeline.dart';
 import 'package:my_assistant/core/home_layout.dart';
+import 'package:my_assistant/widgets/day_ring_view.dart';
+import 'package:my_assistant/widgets/home_skin.dart';
 import 'package:image/image.dart' as img;
 import 'package:my_assistant/core/app_images.dart';
 import 'package:my_assistant/core/backup.dart';
@@ -4767,6 +4769,40 @@ void main() {
       // مفتاح غريب أو فاضى = الشكل القديم (ما نكسرش رئيسية حد).
       expect(homeLayoutFromKey(null), HomeLayout.classic);
       expect(homeLayoutFromKey('haga_tanya'), HomeLayout.classic);
+    });
+  });
+
+
+  group('المظهر وحلقة اليوم', () {
+    test('مرحلة اليوم بتتقسم صح على مدار ٢٤ ساعة', () {
+      DayPhase at(int h) => dayPhaseOf(DateTime(2026, 7, 21, h));
+      expect(at(5), DayPhase.dawn);
+      expect(at(9), DayPhase.morning);
+      expect(at(14), DayPhase.afternoon);
+      expect(at(18), DayPhase.evening);
+      expect(at(23), DayPhase.night);
+      // الحدود: ٤ص أول الفجر، و٢٠ أول الليل، و٣ص لسه ليل.
+      expect(at(4), DayPhase.dawn);
+      expect(at(3), DayPhase.night);
+      expect(at(20), DayPhase.night);
+      expect(at(0), DayPhase.night);
+    });
+
+    test('كل مرحلة ليها تدرّج من لونين', () {
+      for (final p in DayPhase.values) {
+        expect(dayPhaseGradient(p).length, 2);
+      }
+    });
+
+    test('موضع البند على الحلقة = نسبته من اليوم', () {
+      expect(dayFraction(DateTime(2026, 7, 21, 0, 0)), 0);
+      expect(dayFraction(DateTime(2026, 7, 21, 12, 0)), closeTo(0.5, 1e-9));
+      expect(dayFraction(DateTime(2026, 7, 21, 18, 0)), closeTo(0.75, 1e-9));
+      // منتصف الليل بيبدأ من فوق الدايرة (-90 درجة).
+      expect(ringAngle(DateTime(2026, 7, 21, 0, 0)), closeTo(-1.5707963, 1e-6));
+      // الترتيب على الحلقة بيمشى مع الوقت.
+      expect(ringAngle(DateTime(2026, 7, 21, 9)) <
+          ringAngle(DateTime(2026, 7, 21, 15)), isTrue);
     });
   });
 
