@@ -741,7 +741,6 @@ class _TodayScreenState extends State<TodayScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          _layoutSwitcher(context),
           // الترحيب هنا بالمظهر العادى عن قصد (اختيار المستخدم) — التدرّج
           // بيفضل للأشكال التانية.
           _header(context),
@@ -928,59 +927,6 @@ class _TodayScreenState extends State<TodayScreen> {
     if (mounted) await _load();
   }
 
-  /// شريط اختيار الشكل — مؤقت وإحنا بنجرّب، بيتشال قبل النشر.
-  Widget _layoutSwitcher(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              for (final l in HomeLayout.values) ...[
-                ChoiceChip(
-                  selected: _layout == l,
-                  label: Text(homeLayoutLabel(l)),
-                  onSelected: (_) async {
-                    await _settings.set(kHomeLayoutSetting, homeLayoutKey(l));
-                    if (mounted) setState(() => _layout = l);
-                  },
-                ),
-                const SizedBox(width: 6),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          homeLayoutDescription(_layout),
-          style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
-        ),
-        // المظهر محور مستقل عن الشكل — نفس التركيب بمظهرين للمقارنة.
-        Row(
-          children: [
-            Switch(
-              value: _skin,
-              onChanged: (v) async {
-                await _settings.set(kHomeSkinSetting, v ? '1' : '0');
-                if (mounted) setState(() => _skin = v);
-              },
-            ),
-            Expanded(
-              child: Text(
-                tr('المظهر العصرى (تدرّج بوقت اليوم + كروت ناعمة)',
-                    'Modern look (time-of-day gradient + soft cards)'),
-                style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
-              ),
-            ),
-          ],
-        ),
-        const Divider(height: 18),
-      ],
-    );
-  }
-
   /// ١) الشكل القديم — الأقسام ورا بعض بالترتيب اللى المستخدم رتّبه.
   Widget _bodyClassic(BuildContext context) {
     final sections = _sections(context);
@@ -994,8 +940,7 @@ class _TodayScreenState extends State<TodayScreen> {
         header: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _layoutSwitcher(context),
-            _skinnedHeader(context),
+              _skinnedHeader(context),
             const SizedBox(height: 12),
             if (_vis('attention')) ...[
               AttentionStrip(items: _attention, onChanged: _load),
@@ -1022,7 +967,6 @@ class _TodayScreenState extends State<TodayScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          _layoutSwitcher(context),
           _skinnedHeader(context),
           const SizedBox(height: 12),
           if (_vis('attention') && offTimeline.isNotEmpty) ...[
@@ -1058,7 +1002,6 @@ class _TodayScreenState extends State<TodayScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          _layoutSwitcher(context),
           _skinnedHeader(context),
           const SizedBox(height: 12),
           if (_vis('glance')) ...[
@@ -1096,7 +1039,6 @@ class _TodayScreenState extends State<TodayScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          _layoutSwitcher(context),
           _skinnedHeader(context),
           const SizedBox(height: 12),
           SectionHeader(tr('دلوقتى', 'Now')),
@@ -1232,7 +1174,6 @@ class _TodayScreenState extends State<TodayScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          _layoutSwitcher(context),
           _skinnedHeader(context),
           const SizedBox(height: 12),
           // البلاطة الكبيرة: اللى جاى.
@@ -1330,7 +1271,6 @@ class _TodayScreenState extends State<TodayScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          _layoutSwitcher(context),
           _skinnedHeader(context),
           const SizedBox(height: 18),
           DayDeckView(
@@ -1354,7 +1294,6 @@ class _TodayScreenState extends State<TodayScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          _layoutSwitcher(context),
           _skinnedHeader(context),
           const SizedBox(height: 8),
           DayRingView(
@@ -1447,8 +1386,7 @@ class _TodayScreenState extends State<TodayScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: Column(children: [
-            _layoutSwitcher(context),
-            _skinnedHeader(context),
+              _skinnedHeader(context),
           ]),
         ),
         Expanded(

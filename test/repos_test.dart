@@ -4766,9 +4766,11 @@ void main() {
       for (final l in HomeLayout.values) {
         expect(homeLayoutFromKey(homeLayoutKey(l)), l);
       }
-      // مفتاح غريب أو فاضى = الشكل القديم (ما نكسرش رئيسية حد).
-      expect(homeLayoutFromKey(null), HomeLayout.classic);
-      expect(homeLayoutFromKey('haga_tanya'), HomeLayout.classic);
+      // الافتراضى (مفيش مفتاح متخزّن، أو مفتاح مش معروف) = «على مزاجك».
+      expect(homeLayoutFromKey(null), HomeLayout.custom);
+      expect(homeLayoutFromKey('haga_tanya'), HomeLayout.custom);
+      // والقديم لسه متاح صراحةً لمين يختاره من الإعدادات.
+      expect(homeLayoutFromKey('classic'), HomeLayout.classic);
     });
   });
 

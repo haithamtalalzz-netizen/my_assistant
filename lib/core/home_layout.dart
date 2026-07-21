@@ -63,7 +63,10 @@ HomeLayout homeLayoutFromKey(String? key) => switch (key) {
       'ring' => HomeLayout.ring,
       'stories' => HomeLayout.stories,
       'custom' => HomeLayout.custom,
-      _ => HomeLayout.classic,
+      'classic' => HomeLayout.classic,
+      // الافتراضى = «على مزاجك» (الرئيسية الجديدة). أى مفتاح مش معروف
+      // بيرجع هنا كمان، فمستخدم جاى من نسخة قديمة مايقعش على شاشة فاضية.
+      _ => HomeLayout.custom,
     };
 
 String homeLayoutKey(HomeLayout l) => switch (l) {
