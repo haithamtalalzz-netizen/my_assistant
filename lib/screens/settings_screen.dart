@@ -26,6 +26,7 @@ import '../data/settings_repo.dart';
 import '../widgets/common.dart';
 import '../widgets/location_fields.dart';
 import 'diagnostics_screen.dart';
+import 'archived_data_screen.dart';
 import 'quick_actions_settings_screen.dart';
 
 const List<String> kBloodTypes = [
@@ -1145,6 +1146,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           await Share.shareXFiles([XFile(file.path)],
                               text: 'My Assistant backup');
                         },
+                ),
+                const Divider(height: 20),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.inventory_2_outlined),
+                  title: Text(tr('استرجاع البيانات المؤرشفة',
+                      'Recover archived data')),
+                  subtitle: Text(tr(
+                      'بنود اتشالت من التطبيق — بياناتها محفوظة وتقدر تصدّرها',
+                      'Removed sections — their data is kept and can be exported')),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ArchivedDataScreen())),
                 ),
                 const Divider(height: 20),
                 ListTile(

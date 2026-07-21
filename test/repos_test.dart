@@ -4,6 +4,7 @@ import 'package:archive/archive_io.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/ar.dart';
+import 'package:my_assistant/core/archived_data.dart';
 import 'package:my_assistant/core/backup.dart';
 import 'package:my_assistant/core/app_state.dart';
 import 'package:my_assistant/core/contextual_tips.dart';
@@ -4424,6 +4425,65 @@ void main() {
           BackupService.looksLikeSqlite(
               [...header, ...List<int>.filled(600, 0)]),
           isTrue);
+    });
+  });
+
+
+  // زرار «استرجاع البيانات المؤرشفة» فى الإعدادات بيقرا من هنا.
+  group('البيانات المؤرشفة', () {
+    test('بتقرا الأرشيف وبتصدّره JSON فيه الصفوف كاملة', () async {
+      final db = await AppDb.instance;
+      await db.execute(
+          'CREATE TABLE IF NOT EXISTS archived_tables(name TEXT PRIMARY KEY, '
+          'rows_json TEXT NOT NULL, row_count INTEGER NOT NULL DEFAULT 0, '
+          'archived_at TEXT NOT NULL)');
+      await db.delete('archived_tables');
+      await db.insert('archived_tables', {
+        'name': 'secret_notes',
+        'rows_json': jsonEncode([
+          {'id': 1, 'title': 'حسابى', 'body': 'سرّى'}
+        ]),
+        'row_count': 1,
+        'archived_at': '2026-07-21T00:00:00.000',
+      });
+      await db.insert('archived_tables', {
+        'name': 'watchlist',
+        'rows_json': jsonEncode([
+          {'id': 1, 'title': 'فيلم'},
+          {'id': 2, 'title': 'مسلسل'}
+        ]),
+        'row_count': 2,
+        'archived_at': '2026-07-21T00:00:00.000',
+      });
+
+      final items = await ArchivedData.list();
+      expect(items.length, 2);
+      // الاسم العربى بيتعرض للمستخدم بدل اسم الجدول.
+      expect(items.firstWhere((e) => e.table == 'secret_notes').label,
+          'الخزنة السرية');
+      expect(await ArchivedData.totalRows(), 3);
+
+      final json = jsonDecode(await ArchivedData.exportJson()) as Map;
+      expect(json['kind'], 'archived_data');
+      final sections = json['sections'] as List;
+      expect(sections.length, 2);
+      final watch = sections.firstWhere((e) => e['table'] == 'watchlist') as Map;
+      expect(watch['row_count'], 2);
+      expect((watch['rows'] as List).length, 2, reason: 'الصفوف نفسها متصدّرة');
+      expect(((watch['rows'] as List).first as Map)['title'], 'فيلم');
+
+      expect(await ArchivedData.deleteAll(), 2);
+      expect((await ArchivedData.list()).isEmpty, isTrue);
+      await db.execute('DROP TABLE IF EXISTS archived_tables');
+    });
+
+    test('مفيش أرشيف = قايمة فاضية مش استثناء', () async {
+      final db = await AppDb.instance;
+      await db.execute('DROP TABLE IF EXISTS archived_tables');
+      expect(await ArchivedData.list(), isEmpty);
+      expect(await ArchivedData.totalRows(), 0);
+      expect(await ArchivedData.exportJson(), '{}');
+      expect(await ArchivedData.deleteAll(), 0);
     });
   });
 
