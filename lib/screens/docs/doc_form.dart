@@ -30,7 +30,7 @@ class _DocFormState extends State<DocForm> {
   final _formKey = GlobalKey<FormState>();
   final _title = TextEditingController();
   final _notes = TextEditingController();
-  String _imagePath = '';
+  final List<String> _images = [];
   DateTime? _expiry;
   int _remindDays = 30;
 
@@ -41,7 +41,7 @@ class _DocFormState extends State<DocForm> {
     if (d != null) {
       _title.text = d.title;
       _notes.text = d.notes;
-      _imagePath = d.imagePath;
+      _images.addAll(d.allImages);
       _expiry = d.expiry == null ? null : DateTime.parse(d.expiry!);
       _remindDays =
           kRemindDaysOptions.contains(d.remindDays) ? d.remindDays : 30;
@@ -54,7 +54,7 @@ class _DocFormState extends State<DocForm> {
   Future<void> _importShared(String source) async {
     final stored = await AppImages.storeXFile(XFile(source), namePrefix: 'doc');
     if (stored == null) return; // الصورة المشاركة ممكن تكون اتمسحت
-    if (mounted) setState(() => _imagePath = stored);
+    if (mounted) setState(() => _images.add(stored));
     await _suggestExpiryFromImage(stored);
   }
 
@@ -68,8 +68,15 @@ class _DocFormState extends State<DocForm> {
   Future<void> _pickImage(ImageSource source) async {
     final stored = await AppImages.pickAndStore(source, namePrefix: 'doc');
     if (stored == null) return;
-    if (mounted) setState(() => _imagePath = stored);
+    if (mounted) setState(() => _images.add(stored));
     await _suggestExpiryFromImage(stored);
+  }
+
+  /// بيمسح صورة من المستند (وبيشيلها من التخزين عشان ماتفضلش بلا مالك).
+  Future<void> _removeImage(int i) async {
+    final path = _images[i];
+    setState(() => _images.removeAt(i));
+    await AppImages.remove(path);
   }
 
   /// OCR محلي: لو لقى تاريخ مستقبلي في الصورة يقترحه كتاريخ انتهاء.
@@ -139,7 +146,8 @@ class _DocFormState extends State<DocForm> {
     await DocsRepo().save(DocItem(
       id: widget.doc?.id,
       title: _title.text.trim(),
-      imagePath: _imagePath,
+      imagePath: _images.isEmpty ? '' : _images.first,
+      images: List<String>.from(_images),
       expiry: _expiry == null ? null : dayKey(_expiry!),
       remindDays: _remindDays,
       notes: _notes.text.trim(),
@@ -147,6 +155,99 @@ class _DocFormState extends State<DocForm> {
     if (!mounted) return;
     Navigator.pop(context, true);
   }
+
+  /// صورة واحدة فى الشريط + زرار مسح، ومطوّلة بتخليها الغلاف.
+  Widget _photoTile(ColorScheme scheme, int i) {
+    final isCover = i == 0;
+    return GestureDetector(
+      onLongPress: isCover
+          ? null
+          : () => setState(() {
+                final p = _images.removeAt(i);
+                _images.insert(0, p);
+              }),
+      child: Stack(
+        children: [
+          Container(
+            width: 130,
+            height: 150,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+              border: isCover
+                  ? Border.all(color: scheme.primary, width: 2)
+                  : null,
+            ),
+            child: AppImage(
+              _images[i],
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Center(
+                child: Icon(Icons.broken_image_outlined,
+                    size: 32, color: scheme.outline),
+              ),
+            ),
+          ),
+          PositionedDirectional(
+            top: 4,
+            end: 4,
+            child: InkWell(
+              onTap: () => _removeImage(i),
+              child: CircleAvatar(
+                radius: 13,
+                backgroundColor: Colors.black54,
+                child: const Icon(Icons.close, size: 16, color: Colors.white),
+              ),
+            ),
+          ),
+          if (isCover)
+            PositionedDirectional(
+              bottom: 4,
+              start: 4,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: scheme.primary,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(tr('الغلاف', 'Cover'),
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onPrimary)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _addPhotoTile(ColorScheme scheme) => InkWell(
+        onTap: _showImageSourceSheet,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: 130,
+          height: 150,
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add_a_photo_outlined, size: 32, color: scheme.outline),
+              const SizedBox(height: 6),
+              Text(
+                  _images.isEmpty
+                      ? tr('صوّر المستند', 'Snap the document')
+                      : tr('صورة كمان', 'Add another'),
+                  style: TextStyle(fontSize: 12, color: scheme.outline)),
+            ],
+          ),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -162,37 +263,27 @@ class _DocFormState extends State<DocForm> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            InkWell(
-              onTap: _showImageSourceSheet,
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                height: 180,
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: _imagePath.isEmpty
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add_a_photo_outlined,
-                              size: 36, color: scheme.outline),
-                          const SizedBox(height: 8),
-                          Text(tr('صور المستند أو اختاره من الصور',
-                              'Snap the document or pick from gallery'),
-                              style: TextStyle(color: scheme.outline)),
-                        ],
-                      )
-                    : AppImage(_imagePath,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Center(
-                          child: Icon(Icons.broken_image_outlined,
-                              size: 36, color: scheme.outline),
-                        ),
-                      ),
+            // شريط الصور — أول صورة هى الغلاف، وزرار ＋ فى الآخر.
+            SizedBox(
+              height: 150,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _images.length + 1,
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
+                itemBuilder: (_, i) {
+                  if (i == _images.length) return _addPhotoTile(scheme);
+                  return _photoTile(scheme, i);
+                },
               ),
             ),
+            if (_images.length > 1) ...[
+              const SizedBox(height: 6),
+              Text(
+                tr('أول صورة هى الغلاف — اضغط مطوّل على أى صورة تخليها الغلاف',
+                    'The first photo is the cover — long-press any photo to make it the cover'),
+                style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
+              ),
+            ],
             const SizedBox(height: 16),
             TextFormField(
               controller: _title,

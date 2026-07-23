@@ -4848,4 +4848,74 @@ void main() {
     });
   });
 
+
+  group('صور المستندات المتعددة', () {
+    test('مستند قديم بصورة واحدة بيتقرا كقايمة من عنصر', () {
+      const old = DocItem(title: 'رخصة', imagePath: 'img:abc');
+      expect(old.allImages, ['img:abc']);
+      // والتخزين بيملى العمود الجديد من الغلاف — مفيش بيانات بتضيع.
+      expect(old.toMap()['images'], '["img:abc"]');
+    });
+
+    test('مستند من غير صور خالص', () {
+      const d = DocItem(title: 'بطاقة');
+      expect(d.allImages, isEmpty);
+      expect(d.toMap()['images'], '[]');
+    });
+
+    test('الغلاف دايمًا أول صورة فى القايمة', () {
+      const d = DocItem(
+          title: 'جواز', imagePath: 'قديم', images: ['أ', 'ب', 'ج']);
+      expect(d.toMap()['image_path'], 'أ');
+      expect(d.allImages, ['أ', 'ب', 'ج']);
+    });
+
+    test('عمود بايظ مابيكسرش القراية', () {
+      final d = DocItem.fromMap({
+        'id': 1, 'title': 'كارنيه', 'image_path': 'غلاف',
+        'remind_days': 30, 'notes': '', 'images': 'مش JSON',
+      });
+      expect(d.images, isEmpty);
+      expect(d.allImages, ['غلاف']); // بيرجع للغلاف
+    });
+
+    test('رحلة كاملة على القاعدة', () async {
+      final repo = DocsRepo();
+      final id = await repo.save(const DocItem(
+          title: 'رخصة السواقة', images: ['img:a', 'img:b', 'img:c']));
+      final saved = (await repo.all()).firstWhere((d) => d.id == id);
+      expect(saved.allImages, ['img:a', 'img:b', 'img:c']);
+      expect(saved.imagePath, 'img:a');
+    });
+  });
+
+
+  group('ترقية قاعدة البيانات v60 ← v61', () {
+    test('عمود الصور بيتضاف ومستند قديم بيفضل شغّال', () async {
+      final v60 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      // شكل الجدول القديم بالظبط (من غير عمود images).
+      await v60.execute('''
+        CREATE TABLE documents(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          image_path TEXT NOT NULL DEFAULT '',
+          expiry TEXT,
+          remind_days INTEGER NOT NULL DEFAULT 30,
+          notes TEXT NOT NULL DEFAULT ''
+        )''');
+      await v60.insert('documents',
+          {'title': 'رخصة قديمة', 'image_path': 'img:old', 'remind_days': 30});
+
+      await AppDb.upgradeSchema(v60, 60, 61);
+
+      final rows = await v60.query('documents');
+      expect(rows.length, 1, reason: 'الصف القديم مااتمسحش');
+      final doc = DocItem.fromMap(rows.first);
+      // العمود الجديد فاضى → بيرجع للغلاف، فالصورة القديمة مش ضايعة.
+      expect(doc.allImages, ['img:old']);
+      await v60.close();
+    });
+  });
+
 }

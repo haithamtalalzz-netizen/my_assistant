@@ -18,7 +18,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 60,
+      version: 61,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -408,6 +408,12 @@ class AppDb {
       for (final t in _v59DroppedTables) {
         await _archiveThenDrop(db, t);
       }
+    }
+    if (oldV < 61 && newV >= 61) {
+      // صور متعددة للمستند (JSON list). الغلاف `image_path` بيفضل زى ما هو
+      // عشان الشاشات اللى بتقراه ماتتكسرش؛ فاضى = استخدم الغلاف.
+      await db.execute(
+          "ALTER TABLE documents ADD COLUMN images TEXT NOT NULL DEFAULT ''");
     }
     if (oldV < 60 && newV >= 60) {
       // صور جوه القاعدة — عشان الويب (مفيش نظام ملفات هناك). المكسب الجانبى:
@@ -1386,7 +1392,8 @@ class AppDb {
         image_path TEXT NOT NULL DEFAULT '',
         expiry TEXT,
         remind_days INTEGER NOT NULL DEFAULT 30,
-        notes TEXT NOT NULL DEFAULT ''
+        notes TEXT NOT NULL DEFAULT '',
+        images TEXT NOT NULL DEFAULT ''
       )''');
     batch.execute('''
       CREATE TABLE habits(

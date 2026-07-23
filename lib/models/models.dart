@@ -1,6 +1,8 @@
 /// الموديلات كلها هنا — كائنات بسيطة بتترجم من/إلى صفوف SQLite.
 library;
 
+import 'dart:convert';
+
 class Appointment {
   final int? id;
   final String title;
@@ -1131,6 +1133,12 @@ class DocItem {
   final int remindDays;
   final String notes;
 
+  /// كل صور المستند (وش وضهر وتجديدات…). أول صورة هى الغلاف.
+  ///
+  /// `imagePath` بيفضل موجود ومساوى لأول صورة: كل الشاشات التانية
+  /// (القايمة/البحث/التنبيهات) بتقراه، فماينفعش يتشال.
+  final List<String> images;
+
   const DocItem({
     this.id,
     required this.title,
@@ -1138,23 +1146,48 @@ class DocItem {
     this.expiry,
     this.remindDays = 30,
     this.notes = '',
+    this.images = const [],
   });
 
-  factory DocItem.fromMap(Map<String, Object?> m) => DocItem(
-        id: m['id'] as int?,
-        title: m['title'] as String,
-        imagePath: m['image_path'] as String? ?? '',
-        expiry: m['expiry'] as String?,
-        remindDays: m['remind_days'] as int? ?? 30,
-        notes: m['notes'] as String? ?? '',
-      );
+  /// الصور مضمونة إنها متسقة مع الغلاف — مستند قديم (قبل الصور المتعددة)
+  /// بيرجّع صورته الواحدة كقايمة من عنصر.
+  List<String> get allImages {
+    if (images.isNotEmpty) return images;
+    return imagePath.isEmpty ? const [] : [imagePath];
+  }
+
+  factory DocItem.fromMap(Map<String, Object?> m) {
+    final raw = (m['images'] as String?) ?? '';
+    var list = <String>[];
+    if (raw.trim().isNotEmpty) {
+      try {
+        final v = jsonDecode(raw);
+        if (v is List) list = v.whereType<String>().toList();
+      } on FormatException {
+        list = const [];
+      }
+    }
+    return DocItem(
+      id: m['id'] as int?,
+      title: m['title'] as String,
+      imagePath: m['image_path'] as String? ?? '',
+      expiry: m['expiry'] as String?,
+      remindDays: m['remind_days'] as int? ?? 30,
+      notes: m['notes'] as String? ?? '',
+      images: list,
+    );
+  }
 
   Map<String, Object?> toMap() => {
         'title': title,
-        'image_path': imagePath,
+        // الغلاف = أول صورة، عشان الشاشات اللى بتقرا `image_path` تفضل شغّالة.
+        'image_path': images.isNotEmpty ? images.first : imagePath,
         'expiry': expiry,
         'remind_days': remindDays,
         'notes': notes,
+        'images': jsonEncode(images.isNotEmpty
+            ? images
+            : (imagePath.isEmpty ? <String>[] : [imagePath])),
       };
 }
 
