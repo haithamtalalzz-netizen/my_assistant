@@ -416,13 +416,15 @@ class _TodayScreenState extends State<TodayScreen> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               padding: EdgeInsets.zero,
+              // طول ثابت بدل childAspectRatio: على شاشة واسعة (تابلت) الـ٣
+              // كروت بيبقوا عريضين، والنسبة بتضرب الطول فى العرض الكبير ده
+              // فيطلعوا ضخام وفاضيين من جوه. mainAxisExtent بيثبّت الطول
+              // مهما اتّسعت الشاشة.
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
                 mainAxisSpacing: 8,
                 crossAxisSpacing: 8,
-                // نفس نسبة كروت اللوحة الشاملة — الكارت بيضيق مع ٣ فى
-                // الصف، فلازم يطول عشان الرقم والعنوان ما يتقصّوش.
-                childAspectRatio: 0.82,
+                mainAxisExtent: 124,
               ),
               itemCount: cards.length,
               itemBuilder: (_, i) => DashCardTile(
@@ -1673,8 +1675,10 @@ class _TodayScreenState extends State<TodayScreen> {
     ];
   }
 
+  // المهام اتشالت من الاختصارات الافتراضية (بطلب المستخدم) — لسه فى
+  // الكتالوج فتتضاف تانى من «تخصيص الاختصارات».
   static const List<String> _defaultShortcuts = [
-    'money', 'agenda', 'tasks', 'voice'
+    'money', 'agenda', 'voice', 'health'
   ];
 
   /// صف الإجراءات: المدير · ➕ إضافة (المميّز) · [٤ اختصارات قابلة للتخصيص]

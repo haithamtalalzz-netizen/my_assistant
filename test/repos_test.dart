@@ -3822,8 +3822,8 @@ void main() {
       final emptyKeys = empty.map((s) => s.key).toSet();
       expect(emptyKeys.contains('debts'), isFalse, reason: 'مفيش ديون');
       expect(emptyKeys.contains('subs'), isFalse, reason: 'مفيش اشتراكات');
-      // المهام كارت دايم (حتى لو صفر) عشان بند أساسى.
-      expect(emptyKeys.contains('tasks'), isTrue);
+      // المهام اتشالت من كروت اللوحة (بطلب المستخدم) — مابقاش لها كارت خالص.
+      expect(emptyKeys.contains('tasks'), isFalse);
 
       // نضيف بيانات حقيقية.
       final iso = now.toIso8601String();
@@ -3831,7 +3831,6 @@ void main() {
           person: 'أحمد', amount: 300, direction: 'عليا', createdAt: iso));
       await SubscriptionsRepo().save(Subscription(
           name: 'نتفليكس', amount: 200, createdAt: iso));
-      await TasksRepo().save(Task(title: 'مهمة', createdAt: iso));
 
       final full = await collectDashboard(now);
       final byKey = {for (final s in full) s.key: s};
@@ -3842,8 +3841,8 @@ void main() {
       // الاشتراكات ظهرت.
       expect(byKey.containsKey('subs'), isTrue);
       expect(byKey['subs']!.value.contains('200'), isTrue);
-      // المهام عدّت.
-      expect(byKey['tasks']!.value, arNum(1));
+      // المهام مابتظهرش كارت (اتشالت من الرئيسية).
+      expect(byKey.containsKey('tasks'), isFalse);
       // كل كارت لازم يبقى ليه عنوان وقيمة (مفيش كارت فاضى).
       for (final s in full) {
         expect(s.title.trim().isNotEmpty, isTrue);

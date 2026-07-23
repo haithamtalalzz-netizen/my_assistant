@@ -13,7 +13,6 @@ import '../data/plants_repo.dart';
 import '../data/reading_repo.dart';
 import '../data/settings_repo.dart';
 import '../data/subscriptions_repo.dart';
-import '../data/tasks_repo.dart';
 import '../data/vaccinations_repo.dart';
 import '../data/wallets_repo.dart';
 import '../data/worship_repo.dart';
@@ -72,19 +71,8 @@ Future<List<DashStat>> collectDashboard([DateTime? at]) async {
     );
   });
 
-  // ————— المهام —————
-  await add('tasks', () async {
-    final open = await TasksRepo().openCount();
-    final due = (await TasksRepo().dueTasks(now)).length;
-    return DashStat(
-      key: 'tasks',
-      title: tr('المهام', 'Tasks'),
-      value: arNum(open),
-      sub: due == 0
-          ? tr('مفتوحة · مفيش مستحق', 'open · none due')
-          : tr('مفتوحة · ${arNum(due)} مستحقة', 'open · ${arNum(due)} due'),
-    );
-  });
+  // المهام اتشالت من كروت الرئيسية (بطلب المستخدم) — الميزة لسه متاحة
+  // كاختصار من زرار الـ＋. لو رجّعتها كارت، ضيف add('tasks', …) هنا تانى.
 
   // ————— العادات —————
   await add('habits', () async {
