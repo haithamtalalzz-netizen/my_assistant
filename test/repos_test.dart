@@ -4772,4 +4772,39 @@ void main() {
     });
   });
 
+
+  group('اقتراح الطقم (ألبس إيه النهارده)', () {
+    test('بيرجّع كل فئات الملابس — مش الأساسيات بس', () async {
+      final repo = WardrobeRepo();
+      for (final cat in kClothingCategories) {
+        await repo.save(ClothingItem(
+            name: 'قطعة $cat', category: cat, season: 'all',
+            formality: 'casual'));
+      }
+      // طقس ثابت عشان الاختبار مايعتمدش على الإنترنت.
+      final outfit = await repo.suggestOutfit(
+          formality: 'casual',
+          weather: const WeatherToday(25, 18, 0));
+      // الإكسسوار والجاكيت كانوا ناقصين قبل كده.
+      for (final cat in kClothingCategories) {
+        expect(outfit.containsKey(cat), isTrue, reason: 'الفئة $cat ناقصة');
+        expect(outfit[cat], isNotNull, reason: 'مفيش قطعة لـ$cat');
+      }
+    });
+
+    test('بيختار الأقل لبسًا مؤخرًا', () async {
+      final repo = WardrobeRepo();
+      await repo.save(const ClothingItem(
+          name: 'اتلبس امبارح', category: 'top', season: 'all',
+          formality: 'casual', lastWorn: '2026-07-21'));
+      await repo.save(const ClothingItem(
+          name: 'عمره مااتلبس', category: 'top', season: 'all',
+          formality: 'casual'));
+      final outfit = await repo.suggestOutfit(
+          formality: 'casual',
+          weather: const WeatherToday(25, 18, 0));
+      expect(outfit['top']!.name, 'عمره مااتلبس');
+    });
+  });
+
 }

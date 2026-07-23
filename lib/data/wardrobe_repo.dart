@@ -123,11 +123,15 @@ class WardrobeRepo {
       return matches.first;
     }
 
+    // الطقم الكامل — كل الفئات. الجاكيت مابقاش مقصور على الشتا: فلتر
+    // الموسم فوق بيمنع البالطو الشتوى فى الصيف لوحده، وبيسيب الجاكيت
+    // اللى «كل المواسم» يظهر. الفئة اللى ملهاش قطعة مناسبة بترجع null.
     return {
       'top': pick('top'),
       'bottom': pick('bottom'),
-      if (season == 'winter') 'outer': pick('outer'),
+      'outer': pick('outer'),
       'shoes': pick('shoes'),
+      'accessory': pick('accessory'),
     };
   }
 
