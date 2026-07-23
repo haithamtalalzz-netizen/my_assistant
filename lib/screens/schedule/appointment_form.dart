@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'dart:convert';
-
 import '../../core/ar.dart';
 import '../../core/calendar_sync.dart';
 import '../../core/l10n.dart';
 import '../../data/appointments_repo.dart';
-import '../../data/settings_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/wheel_date_picker.dart';
 
@@ -83,10 +80,6 @@ class _AppointmentFormState extends State<AppointmentForm> {
   bool _customMode = false;
   final List<DateTime> _customDates = [];
 
-  /// قوالب المستخدم الخاصة (عناوين) — محفوظة فى جدول الإعدادات كـJSON.
-  static const _kCustomTplKey = 'appt_custom_templates';
-  List<String> _customTemplates = [];
-
   @override
   void initState() {
     super.initState();
@@ -106,74 +99,6 @@ class _AppointmentFormState extends State<AppointmentForm> {
       _repeat = kRepeatModes.contains(a.repeat) ? a.repeat : 'none';
       _location.text = a.location;
     }
-    _loadCustomTemplates();
-  }
-
-  Future<void> _loadCustomTemplates() async {
-    final raw = await SettingsRepo().get(_kCustomTplKey) ?? '[]';
-    List<String> list;
-    try {
-      list = (jsonDecode(raw) as List).map((e) => '$e').toList();
-    } on Object {
-      list = []; // قيمة تالفة ما تكسرش الفورم
-    }
-    if (mounted) setState(() => _customTemplates = list);
-  }
-
-  Future<void> _saveCustomTemplates() =>
-      SettingsRepo().set(_kCustomTplKey, jsonEncode(_customTemplates));
-
-  /// «+» جنب القوالب السريعة: إضافة قالب باسم من اختيار المستخدم.
-  Future<void> _addCustomTemplate() async {
-    final c = TextEditingController();
-    final title = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr('قالب جديد', 'New template')),
-        content: TextField(
-          controller: c,
-          autofocus: true,
-          decoration: InputDecoration(
-              labelText: tr('اسم القالب', 'Template name'),
-              hintText: tr('مثال: متابعة المستشفى', 'e.g. Hospital follow-up')),
-          onSubmitted: (v) => Navigator.pop(ctx, v),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(tr('إلغاء', 'Cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, c.text),
-              child: Text(tr('حفظ', 'Save'))),
-        ],
-      ),
-    );
-    final t = title?.trim() ?? '';
-    if (t.isEmpty || _customTemplates.contains(t)) return;
-    setState(() => _customTemplates.add(t));
-    await _saveCustomTemplates();
-  }
-
-  /// ضغطة مطوَّلة على قالب خاص = حذفه (بعد تأكيد).
-  Future<void> _deleteCustomTemplate(String t) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr('حذف القالب؟', 'Delete template?')),
-        content: Text('«$t»'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(tr('إلغاء', 'Cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(tr('حذف', 'Delete'))),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    setState(() => _customTemplates.remove(t));
-    await _saveCustomTemplates();
   }
 
   @override
@@ -349,24 +274,6 @@ class _AppointmentFormState extends State<AppointmentForm> {
                       label: Text(apptTemplateLabel(t.key)),
                       onPressed: () => _applyTemplate(t),
                     ),
-                  // قوالب المستخدم الخاصة — ضغطة تملأ العنوان،
-                  // وضغطة مطوَّلة تحذف القالب
-                  for (final t in _customTemplates)
-                    InkWell(
-                      borderRadius: BorderRadius.circular(8),
-                      onLongPress: () => _deleteCustomTemplate(t),
-                      child: ActionChip(
-                        avatar: const Icon(Icons.push_pin_outlined, size: 16),
-                        label: Text(t),
-                        onPressed: () => setState(() => _title.text = t),
-                      ),
-                    ),
-                  // «+» لإضافة بند جديد للقوالب
-                  ActionChip(
-                    avatar: const Icon(Icons.add, size: 18),
-                    label: Text(tr('إضافة', 'Add')),
-                    onPressed: _addCustomTemplate,
-                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -374,14 +281,22 @@ class _AppointmentFormState extends State<AppointmentForm> {
             TextFormField(
               controller: _title,
               decoration: InputDecoration(
-                  labelText: tr('عنوان التذكير', 'Reminder title')),
+                  labelText: tr('عنوان الموعد', 'Appointment title')),
               validator: (v) => (v == null || v.trim().isEmpty)
-                  ? tr('اكتب عنوان التذكير', 'Enter a title')
+                  ? tr('اكتب عنوان الموعد', 'Enter a title')
                   : null,
             ),
             const SizedBox(height: 16),
-            // «النوع» أُلغى من الفورم بطلب المستخدم — التصنيف بيتحدد من
-            // القوالب أو بيفضل زى ما هو عند التعديل (بيتخزن عادى).
+            DropdownButtonFormField<String>(
+              initialValue: _category,
+              decoration: InputDecoration(labelText: tr('النوع', 'Category')),
+              items: [
+                for (final c in kApptCategories)
+                  DropdownMenuItem(value: c, child: Text(apptCategoryLabel(c))),
+              ],
+              onChanged: (v) => setState(() => _category = v ?? _category),
+            ),
+            const SizedBox(height: 16),
             if (isNew)
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
