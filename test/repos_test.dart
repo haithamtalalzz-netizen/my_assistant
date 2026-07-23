@@ -48,7 +48,9 @@ import 'package:my_assistant/core/religion_data.dart';
 import 'package:my_assistant/core/quran_data.dart';
 import 'package:my_assistant/core/mawarith.dart';
 import 'package:my_assistant/data/mushaf_repo.dart';
+import 'package:my_assistant/core/demo_images.dart';
 import 'package:my_assistant/core/seed_demo.dart';
+import 'package:image/image.dart' as img;
 import 'package:my_assistant/data/wallets_repo.dart';
 import 'package:my_assistant/core/voice_parser.dart';
 import 'package:my_assistant/data/appointments_repo.dart';
@@ -4804,6 +4806,46 @@ void main() {
           formality: 'casual',
           weather: const WeatherToday(25, 18, 0));
       expect(outfit['top']!.name, 'عمره مااتلبس');
+    });
+  });
+
+
+  group('صور الملابس التجريبية', () {
+    test('السواتش بتتولّد PNG صالح بلون القطعة', () {
+      final png = demoSwatchPng('أزرق', width: 40, height: 50);
+      expect(png.length, greaterThan(50));
+      // توقيع PNG.
+      expect(png.sublist(0, 4), [0x89, 0x50, 0x4E, 0x47]);
+      final decoded = img.decodePng(png)!;
+      expect(decoded.width, 40);
+      expect(decoded.height, 50);
+      // أعلى الصورة باللون الأصلى، وأسفلها أغمق (تدرّج).
+      final top = decoded.getPixel(20, 0);
+      final bottom = decoded.getPixel(20, 49);
+      expect(top.b, greaterThan(bottom.b));
+      final (r, g, b) = demoColorOf('أزرق');
+      expect(top.r.round(), closeTo(r, 3));
+      expect(top.g.round(), closeTo(g, 3));
+      expect(top.b.round(), closeTo(b, 3));
+    });
+
+    test('لون مش معروف بياخد رمادى بدل ما يفشل', () {
+      expect(demoColorOf('لون مخترع'), demoColorOf('حاجة تانية'));
+      expect(demoSwatchPng('لون مخترع', width: 8, height: 8).isNotEmpty, isTrue);
+    });
+
+    test('كل قطعة تجريبية ليها صورة متخزّنة تتقرا فعلاً', () async {
+      await AppDb.wipeAllData(keepSettings: true);
+      await seedDemoData();
+      final clothes = await WardrobeRepo().all();
+      expect(clothes.every((c) => c.photo.isNotEmpty), isTrue);
+      // مش بس الحقل مليان — البايتات موجودة فى القاعدة وبترجع.
+      for (final c in clothes.take(3)) {
+        expect(AppImages.isInline(c.photo), isTrue);
+        final bytes = await AppImages.bytesOf(c.photo);
+        expect(bytes, isNotNull);
+        expect(bytes!.length, greaterThan(50));
+      }
     });
   });
 

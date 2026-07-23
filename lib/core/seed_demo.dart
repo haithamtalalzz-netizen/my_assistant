@@ -40,7 +40,9 @@ import '../data/savings_repo.dart';
 import '../data/wallets_repo.dart';
 import '../data/workout_repo.dart';
 import '../models/models.dart';
+import 'app_images.dart';
 import 'ar.dart';
+import 'demo_images.dart';
 
 /// يملأ التطبيق ببيانات وهمية لتجربة كل البنود. بيرجّع عدد العناصر المضافة.
 /// (بيضيف من غير ما يمسح — لو اتضغط مرتين هيتضاعف؛ للتجربة بس.)
@@ -324,9 +326,13 @@ Future<int> seedDemoData() async {
     ('accessory', 'حزام جلد', 'بنى', 'all', 'formal'),
   ];
   for (final (i, c) in clothes.indexed) {
+    // صورة متولّدة بلون القطعة — بتتخزّن جوه القاعدة زى أى صورة، فبتشتغل
+    // على الموبايل والويب وبتسافر مع النسخة الاحتياطية.
+    final photo = await AppImages.storeBytes(demoSwatchPng(c.$3),
+        mime: 'image/png', namePrefix: 'demo_cloth');
     await WardrobeRepo().save(ClothingItem(
         name: c.$2, category: c.$1, color: c.$3, season: c.$4,
-        formality: c.$5,
+        formality: c.$5, photo: photo,
         // بعضها متلبِس مؤخرًا، بعضها من زمان، وبعضها لسه.
         lastWorn: i % 3 == 0 ? d(i * 2) : null,
         // مفضّلة متنوّعة عبر الفئات.
