@@ -50,7 +50,6 @@ import 'package:my_assistant/core/mawarith.dart';
 import 'package:my_assistant/data/mushaf_repo.dart';
 import 'package:my_assistant/core/demo_images.dart';
 import 'package:my_assistant/core/seed_demo.dart';
-import 'package:image/image.dart' as img;
 import 'package:my_assistant/data/wallets_repo.dart';
 import 'package:my_assistant/core/voice_parser.dart';
 import 'package:my_assistant/data/appointments_repo.dart';

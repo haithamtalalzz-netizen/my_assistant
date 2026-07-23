@@ -6,7 +6,9 @@ import '../core/app_state.dart';
 import '../core/l10n.dart';
 import '../data/settings_repo.dart';
 import 'account_screen.dart';
+import 'schedule/appointments_calendar_screen.dart';
 import 'schedule/schedule_screen.dart';
+import 'tasks/tasks_screen.dart';
 import 'money/subscriptions_screen.dart';
 import 'growth/goals_screen.dart';
 import 'food/fasting_screen.dart';
@@ -182,12 +184,15 @@ class AppDrawer extends StatelessWidget {
             const SizedBox(height: 4),
             // مثبّت فوق — أكتر ٣ حاجات بتتفتح.
             top(0, Icons.home_outlined, tr('الرئيسية', 'Home')),
-            // ---- تذكيراتى = صفحة المواعيد نفسها مباشرةً ----
-            // كانت بتفتح صفحة وسيطة فيها كارتين (المواعيد + المهام)؛ المستخدم
-            // عايز البند ده يبقى هو صفحة المواعيد على طول. المهام لسه متاحة
-            // من الرئيسية (كارت/إجراء سريع).
+            // ---- تلات بنود مستقلة ورا بعض ----
+            // تذكيراتى = قايمة التذكيرات · مهامى = المهام · مواعيدى = نفس
+            // بيانات التذكيرات بس بعرض التقويم الشهرى (عرض تانى مش تكرار).
             top(1, Icons.notifications_active_outlined,
                 tr('تذكيراتى', 'My reminders')),
+            push(Icons.checklist_rtl, tr('مهامى', 'My tasks'),
+                const TasksScreen()),
+            push(Icons.calendar_month_outlined, tr('مواعيدى', 'My calendar'),
+                const AppointmentsCalendarScreen()),
             const Divider(),
             // الصلاة والأذكار — فوق الفلوس مباشرة (المصحف جوّاها).
             push(Icons.mosque_outlined, tr('صلاتى', 'My prayers'),
