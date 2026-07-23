@@ -1252,6 +1252,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.restart_alt),
+                  title: Text(tr('مسح وإضافة بيانات وهمية من جديد',
+                      'Reset & re-add demo data')),
+                  subtitle: Text(tr(
+                      'بيمسح البيانات الحالية الأول وبعدين يملأ من جديد — من غير تكرار',
+                      'Wipes current data first, then fills fresh — no duplicates')),
+                  onTap: _busy ? null : _reseedDemo,
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.delete_sweep_outlined,
                       color: Theme.of(context).colorScheme.error),
                   title: Text(tr('مسح كل البيانات', 'Clear all data')),
@@ -1287,6 +1297,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'Added $count demo items — restart the app'));
     } on Exception catch (e) {
       logError('فشل توليد البيانات التجريبية', e);
+      if (mounted) _toast(tr('حصلت مشكلة', 'Something went wrong'));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// مسح ثم بذر فى خطوة واحدة.
+  ///
+  /// البذّار بيضيف من غير ما يمسح، فتشغيله مرتين كان بيضاعف البيانات —
+  /// وده حصل فعلاً. الزرار ده بيقفل الباب: بيمسح الأول وبعدين يملأ.
+  /// المسح بيحافظ على الإعدادات (الاسم والثيم واللغة).
+  Future<void> _reseedDemo() async {
+    final sure = await confirmAction(
+      context,
+      title: tr('مسح وإضافة من جديد', 'Reset & re-add'),
+      message: tr(
+          'هيتمسح كل اللى مسجّل دلوقتى (بياناتك الحقيقية كمان لو فيه) وبعدين '
+          'يتملى ببيانات تجريبية. مش هينفع ترجّعه.',
+          'Everything currently saved (including real data) will be deleted, '
+          'then refilled with demo data. This cannot be undone.'),
+      confirmLabel: tr('امسح وابدأ', 'Reset'),
+    );
+    if (!sure) return;
+    setState(() => _busy = true);
+    try {
+      await Notifications.cancelAll();
+      await AppDb.wipeAllData(keepSettings: true);
+      final count = await seedDemoData();
+      if (!mounted) return;
+      _toast(tr('اتمسح واتضاف $count عنصر — اقفل وافتح التطبيق',
+          'Reset — $count demo items added. Restart the app'));
+    } on Exception catch (e) {
+      logError('فشل المسح والبذر', e);
       if (mounted) _toast(tr('حصلت مشكلة', 'Something went wrong'));
     } finally {
       if (mounted) setState(() => _busy = false);

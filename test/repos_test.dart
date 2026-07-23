@@ -1536,6 +1536,25 @@ void main() {
     });
   });
 
+  group('مسح وبذر من جديد', () {
+    test('تشغيلتين ورا بعض مابيتراكموش لو مسحنا بينهم', () async {
+      await seedDemoData();
+      final firstClothes = (await WardrobeRepo().all()).length;
+      final firstWallets = (await WalletsRepo().all()).length;
+
+      // من غير مسح: التكرار بيتضاعف — ده اللى الزرار الجديد بيمنعه.
+      await seedDemoData();
+      expect((await WardrobeRepo().all()).length, firstClothes * 2);
+
+      // مسح ثم بذر = نفس أرقام أول مرة بالظبط.
+      await AppDb.wipeAllData(keepSettings: true);
+      expect((await WardrobeRepo().all()), isEmpty);
+      await seedDemoData();
+      expect((await WardrobeRepo().all()).length, firstClothes);
+      expect((await WalletsRepo().all()).length, firstWallets);
+    });
+  });
+
   group('نباتات البيت', () {
     test('الاستحقاق بيتحسب من آخر ري + المدة', () {
       const p =
