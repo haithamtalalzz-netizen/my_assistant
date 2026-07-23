@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -5,8 +7,23 @@ import '../../core/ar.dart';
 import '../../core/calendar_sync.dart';
 import '../../core/l10n.dart';
 import '../../data/appointments_repo.dart';
+import '../../data/settings_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/wheel_date_picker.dart';
+
+/// القوالب اللى المستخدم ضافها بنفسه (زرار ＋ جنب «قوالب سريعة») —
+/// قايمة عناوين متخزّنة JSON فى الإعدادات، فبتسافر مع النسخة الاحتياطية.
+const String kCustomApptTemplatesSetting = 'appt_templates';
+
+List<String> decodeCustomTemplates(String? raw) {
+  if (raw == null || raw.trim().isEmpty) return const [];
+  try {
+    final v = jsonDecode(raw);
+    return v is List ? v.whereType<String>().toList() : const [];
+  } on FormatException {
+    return const [];
+  }
+}
 
 const List<String> kApptCategories = ['شخصي', 'شغل', 'صحة', 'عيلة'];
 
@@ -80,6 +97,9 @@ class _AppointmentFormState extends State<AppointmentForm> {
   bool _customMode = false;
   final List<DateTime> _customDates = [];
 
+  /// قوالب المستخدم المخصّصة (بتتحمّل من الإعدادات).
+  List<String> _customTemplates = [];
+
   @override
   void initState() {
     super.initState();
@@ -99,6 +119,68 @@ class _AppointmentFormState extends State<AppointmentForm> {
       _repeat = kRepeatModes.contains(a.repeat) ? a.repeat : 'none';
       _location.text = a.location;
     }
+    _loadCustomTemplates();
+  }
+
+  Future<void> _loadCustomTemplates() async {
+    final raw = await SettingsRepo().get(kCustomApptTemplatesSetting);
+    final list = decodeCustomTemplates(raw);
+    if (mounted && list.isNotEmpty) setState(() => _customTemplates = list);
+  }
+
+  Future<void> _saveCustomTemplates() => SettingsRepo()
+      .set(kCustomApptTemplatesSetting, jsonEncode(_customTemplates));
+
+  /// زرار ＋ جنب «قوالب سريعة» — بيضيف قالب باسم من عند المستخدم.
+  Future<void> _addCustomTemplate() async {
+    final ctrl = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('قالب جديد', 'New template')),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: InputDecoration(
+              labelText: tr('اسم القالب', 'Template name'),
+              hintText: tr('مثلًا: ميعاد الكهربا', 'e.g. Electricity bill')),
+          onSubmitted: (v) => Navigator.pop(ctx, v),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(tr('إلغاء', 'Cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, ctrl.text),
+              child: Text(tr('إضافة', 'Add'))),
+        ],
+      ),
+    );
+    final t = (name ?? '').trim();
+    if (t.isEmpty || _customTemplates.contains(t)) return;
+    setState(() => _customTemplates.add(t));
+    await _saveCustomTemplates();
+  }
+
+  /// ضغطة مطوّلة على قالب مخصّص = مسحه (بعد تأكيد).
+  Future<void> _deleteCustomTemplate(String t) async {
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('مسح قالب «$t»؟', 'Delete template "$t"?')),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('إلغاء', 'Cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(tr('امسح', 'Delete'))),
+        ],
+      ),
+    );
+    if (sure != true) return;
+    setState(() => _customTemplates.remove(t));
+    await _saveCustomTemplates();
   }
 
   @override
@@ -258,10 +340,19 @@ class _AppointmentFormState extends State<AppointmentForm> {
           padding: const EdgeInsets.all(16),
           children: [
             if (isNew) ...[
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Text(tr('قوالب سريعة', 'Quick templates'),
-                    style: Theme.of(context).textTheme.labelLarge),
+              Row(
+                children: [
+                  Text(tr('قوالب سريعة', 'Quick templates'),
+                      style: Theme.of(context).textTheme.labelLarge),
+                  const SizedBox(width: 6),
+                  // ＋ بيضيف قالب باسم المستخدم — بيتخزّن ويظهر مع القوالب.
+                  IconButton.filledTonal(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: tr('أضف قالب', 'Add template'),
+                    icon: const Icon(Icons.add, size: 18),
+                    onPressed: _addCustomTemplate,
+                  ),
+                ],
               ),
               const SizedBox(height: 6),
               Wrap(
@@ -274,6 +365,18 @@ class _AppointmentFormState extends State<AppointmentForm> {
                       label: Text(apptTemplateLabel(t.key)),
                       onPressed: () => _applyTemplate(t),
                     ),
+                  // قوالب المستخدم — دوسة بتحط الاسم فى العنوان، ومطوّلة بتمسح.
+                  for (final t in _customTemplates)
+                    GestureDetector(
+                      onLongPress: () => _deleteCustomTemplate(t),
+                      child: ActionChip(
+                        avatar: const Icon(Icons.star_outline, size: 16),
+                        label: Text(t),
+                        onPressed: () => setState(() {
+                          if (_title.text.trim().isEmpty) _title.text = t;
+                        }),
+                      ),
+                    ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -281,22 +384,14 @@ class _AppointmentFormState extends State<AppointmentForm> {
             TextFormField(
               controller: _title,
               decoration: InputDecoration(
-                  labelText: tr('عنوان الموعد', 'Appointment title')),
+                  labelText: tr('عنوان التذكير', 'Reminder title')),
               validator: (v) => (v == null || v.trim().isEmpty)
-                  ? tr('اكتب عنوان الموعد', 'Enter a title')
+                  ? tr('اكتب عنوان التذكير', 'Enter a title')
                   : null,
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              initialValue: _category,
-              decoration: InputDecoration(labelText: tr('النوع', 'Category')),
-              items: [
-                for (final c in kApptCategories)
-                  DropdownMenuItem(value: c, child: Text(apptCategoryLabel(c))),
-              ],
-              onChanged: (v) => setState(() => _category = v ?? _category),
-            ),
-            const SizedBox(height: 16),
+            // «النوع» اتشال من الفورم (بطلب المستخدم) — _category شغّال من
+            // ورا الكواليس: سجل قديم بيحتفظ بنوعه، والجديد بياخد الافتراضى.
             if (isNew)
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,

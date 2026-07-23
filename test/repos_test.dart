@@ -4696,4 +4696,26 @@ void main() {
     });
   });
 
+
+  group('قوالب التذكيرات المخصّصة', () {
+    test('فكّ الترميز بيتسامح مع كل الحالات الوحشة', () {
+      expect(decodeCustomTemplates(null), isEmpty);
+      expect(decodeCustomTemplates(''), isEmpty);
+      expect(decodeCustomTemplates('  '), isEmpty);
+      expect(decodeCustomTemplates('مش JSON'), isEmpty);
+      expect(decodeCustomTemplates('{"مش": "قايمة"}'), isEmpty);
+      // عناصر مش نصوص بتتجاهَل بدل ما تكسر.
+      expect(decodeCustomTemplates('["ميعاد الكهربا", 5, null, "دورى"]'),
+          ['ميعاد الكهربا', 'دورى']);
+    });
+
+    test('رحلة الحفظ والتحميل من الإعدادات', () async {
+      await SettingsRepo().set(kCustomApptTemplatesSetting,
+          jsonEncode(['ميعاد الكهربا', 'اجتماع الأسبوع']));
+      final raw = await SettingsRepo().get(kCustomApptTemplatesSetting);
+      expect(decodeCustomTemplates(raw), ['ميعاد الكهربا', 'اجتماع الأسبوع']);
+      await SettingsRepo().set(kCustomApptTemplatesSetting, '');
+    });
+  });
+
 }
