@@ -1501,7 +1501,22 @@ void main() {
       expect((await PlantsRepo().all()).length, 2);
 
       // الأقسام اللى كانت فاضية بقت مليانة (تطوّرى / ملابسى / صحة / مهام).
-      expect((await WardrobeRepo().all()).length, 6);
+      final clothes = await WardrobeRepo().all();
+      expect(clothes.length, 21);
+      // كل فئة فيها قطع (عشان كل فلتر يبان)، وكل موسم/رسمية ممثّلة،
+      // وفيه مفضّلة وشوية للغسيل.
+      for (final cat in kClothingCategories) {
+        expect(clothes.any((c) => c.category == cat), isTrue,
+            reason: 'فئة $cat فاضية');
+      }
+      for (final s in kClothingSeasons) {
+        expect(clothes.any((c) => c.season == s), isTrue);
+      }
+      for (final f in kClothingFormality) {
+        expect(clothes.any((c) => c.formality == f), isTrue);
+      }
+      expect(clothes.any((c) => c.favorite), isTrue);
+      expect((await WardrobeRepo().laundry()).isNotEmpty, isTrue);
       expect((await ReadingRepo().all()).length, 3);
       expect((await CoursesRepo().all()).length, 2);
       expect((await GoalsRepo().all()).length, 2);

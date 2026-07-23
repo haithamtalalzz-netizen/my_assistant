@@ -291,22 +291,48 @@ Future<int> seedDemoData() async {
   await TasksRepo().setDone(t3, true);
   n += 5;
 
-  // ---- ملابسى ----
+  // ---- ملابسى: تشكيلة كاملة تغطى كل بند ----
+  // (category, name, color, season, formality) — الفئة/الموسم/الرسمية
+  // لازم تكون المفاتيح المخزّنة (top/summer/formal…) مش أسماء عربية،
+  // عشان تظهر تحت الفلاتر واقتراح الطقم صح.
   const clothes = [
-    ('قميص أبيض', 'قمصان', 'أبيض', 'summer', 'formal'),
-    ('بنطلون جينز', 'بناطيل', 'أزرق', 'all', 'casual'),
-    ('جاكيت شتوى', 'جواكت', 'أسود', 'winter', 'casual'),
-    ('تيشيرت رمادى', 'تيشيرتات', 'رمادى', 'summer', 'casual'),
-    ('بدلة', 'بدل', 'كحلى', 'all', 'formal'),
-    ('بلوفر صوف', 'بلوفرات', 'بيج', 'winter', 'casual'),
+    // top × كل موسم × كل رسمية
+    ('top', 'قميص أبيض كلاسيك', 'أبيض', 'all', 'formal'),
+    ('top', 'تيشيرت قطن رمادى', 'رمادى', 'summer', 'casual'),
+    ('top', 'تيشيرت رياضى', 'كحلى', 'summer', 'sport'),
+    ('top', 'قميص كاروهات', 'أحمر', 'winter', 'casual'),
+    ('top', 'بلوفر صوف', 'بيج', 'winter', 'casual'),
+    ('top', 'بولو', 'أخضر', 'all', 'casual'),
+    // bottom
+    ('bottom', 'بنطلون جينز', 'أزرق', 'all', 'casual'),
+    ('bottom', 'بنطلون قماش رسمى', 'أسود', 'all', 'formal'),
+    ('bottom', 'شورت رياضى', 'رمادى', 'summer', 'sport'),
+    ('bottom', 'بنطلون صوف', 'بنى', 'winter', 'casual'),
+    // outer
+    ('outer', 'جاكيت جينز', 'أزرق فاتح', 'all', 'casual'),
+    ('outer', 'بالطو شتوى', 'أسود', 'winter', 'formal'),
+    ('outer', 'جاكيت رياضى', 'كحلى', 'winter', 'sport'),
+    // shoes
+    ('shoes', 'حذاء كلاسيك جلد', 'أسود', 'all', 'formal'),
+    ('shoes', 'كوتشى أبيض', 'أبيض', 'all', 'casual'),
+    ('shoes', 'حذاء جرى', 'رمادى', 'summer', 'sport'),
+    ('shoes', 'بوت شتوى', 'بنى', 'winter', 'casual'),
+    // accessory
+    ('accessory', 'ساعة يد', 'فضى', 'all', 'formal'),
+    ('accessory', 'كاب رياضى', 'أسود', 'summer', 'sport'),
+    ('accessory', 'كوفية صوف', 'رمادى', 'winter', 'casual'),
+    ('accessory', 'حزام جلد', 'بنى', 'all', 'formal'),
   ];
   for (final (i, c) in clothes.indexed) {
     await WardrobeRepo().save(ClothingItem(
-        name: c.$1, category: c.$2, color: c.$3, season: c.$4,
+        name: c.$2, category: c.$1, color: c.$3, season: c.$4,
         formality: c.$5,
-        lastWorn: i < 3 ? d(i * 4) : null,
-        favorite: i == 0,
-        needsWash: i == 3));
+        // بعضها متلبِس مؤخرًا، بعضها من زمان، وبعضها لسه.
+        lastWorn: i % 3 == 0 ? d(i * 2) : null,
+        // مفضّلة متنوّعة عبر الفئات.
+        favorite: i % 5 == 0,
+        // شوية محتاجة غسيل (عشان بند «الغسيل» يبان).
+        needsWash: i % 6 == 2));
     n++;
   }
 
