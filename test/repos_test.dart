@@ -1495,9 +1495,29 @@ void main() {
   group('البيانات التجريبية', () {
     test('بتتضاف لكل البنود من غير أخطاء', () async {
       final count = await seedDemoData();
-      expect(count, greaterThan(30));
+      // بقت مهولة: ٦٠ يوم سجلات + كل الأقسام.
+      expect(count, greaterThan(400));
       expect((await WalletsRepo().all()).length, 3);
       expect((await PlantsRepo().all()).length, 2);
+
+      // الأقسام اللى كانت فاضية بقت مليانة (تطوّرى / ملابسى / صحة / مهام).
+      expect((await WardrobeRepo().all()).length, 6);
+      expect((await ReadingRepo().all()).length, 3);
+      expect((await CoursesRepo().all()).length, 2);
+      expect((await GoalsRepo().all()).length, 2);
+      expect((await SubscriptionsRepo().all()).length, 3);
+      expect((await WishlistRepo().all()).length, 2);
+      expect((await DocsRepo().all()).length, 3);
+      expect((await LabResultsRepo().all()).length, 3);
+      expect((await TasksRepo().tasks()).length, greaterThanOrEqualTo(3));
+
+      // العمق اليومى: ٦٠ يوم مزاج + صلاة + وزن ≥٢٠ قياس (للرسوم والترند).
+      final db = await AppDb.instance;
+      expect((await db.query('mood_logs')).length, 60);
+      expect((await db.query('prayer_log')).length, greaterThan(250));
+      final weights =
+          await MeasurementsRepo().recent(limit: 100, type: 'وزن');
+      expect(weights.length, greaterThanOrEqualTo(20));
     });
   });
 
