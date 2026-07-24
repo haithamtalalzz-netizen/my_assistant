@@ -32,6 +32,13 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
   bool _loading = true;
   List<AttentionItem> _items = const [];
 
+  /// البنود اللى المستخدم قال عليها «بعدين» — بتتخبّى لباقى الجلسة بس
+  /// (مؤقت عن قصد: التأجيل معناه «مش وقته دلوقتى»، مش إنه اتعمل).
+  /// المفتاح = النوع + الـid عشان يفضل ثابت عبر إعادة التحميل.
+  final Set<String> _snoozed = {};
+
+  String _keyOf(AttentionItem it) => '${it.kind.name}_${it.id}_${it.slot ?? ''}';
+
   @override
   void initState() {
     super.initState();
@@ -42,7 +49,7 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
     final items = await collectAttention();
     if (!mounted) return;
     setState(() {
-      _items = items;
+      _items = items.where((it) => !_snoozed.contains(_keyOf(it))).toList();
       _loading = false;
     });
   }
@@ -99,12 +106,30 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
           (icon: Icons.groups_outlined, color: Colors.teal),
       };
 
+  void _snooze(AttentionItem it) {
+    setState(() {
+      _snoozed.add(_keyOf(it));
+      _items = _items.where((x) => _keyOf(x) != _keyOf(it)).toList();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('التنبيهات', 'Alerts')),
-          actions: [searchAction(context)]),
+          actions: [
+            if (_snoozed.isNotEmpty)
+              IconButton(
+                tooltip: tr('رجّع المؤجّل', 'Un-snooze'),
+                icon: const Icon(Icons.unarchive_outlined),
+                onPressed: () {
+                  _snoozed.clear();
+                  _load();
+                },
+              ),
+            searchAction(context),
+          ]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
@@ -133,16 +158,27 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
           child: Icon(look.icon, color: look.color, size: 20),
         ),
         title: Text(it.text),
-        trailing: it.actionLabel == null
-            ? (screen == null ? null : const Icon(Icons.chevron_left, size: 20))
-            : FilledButton.tonal(
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (it.actionLabel != null)
+              FilledButton.tonal(
                 onPressed: () => _act(it),
                 style: FilledButton.styleFrom(
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.symmetric(horizontal: 12)),
-                child:
-                    Text(it.actionLabel!, style: const TextStyle(fontSize: 12.5)),
+                child: Text(it.actionLabel!,
+                    style: const TextStyle(fontSize: 12.5)),
               ),
+            // «بعدين» — يخبّى البند لباقى الجلسة عشان القايمة تفضل معبّرة.
+            IconButton(
+              tooltip: tr('بعدين', 'Later'),
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.schedule, size: 18),
+              onPressed: () => _snooze(it),
+            ),
+          ],
+        ),
         onTap: screen == null
             ? null
             : () async {

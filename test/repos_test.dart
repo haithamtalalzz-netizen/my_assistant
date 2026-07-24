@@ -1523,7 +1523,11 @@ void main() {
       expect((await GoalsRepo().all()).length, 2);
       expect((await SubscriptionsRepo().all()).length, 3);
       expect((await WishlistRepo().all()).length, 2);
-      expect((await DocsRepo().all()).length, 3);
+      final docs = await DocsRepo().all();
+      expect(docs.length, 4);
+      // المستندات التجريبية ليها بيانات كاملة (نوع/رقم) مش عنوان بس.
+      expect(docs.every((d) => d.docNumber.isNotEmpty || d.type != 'other'),
+          isTrue);
       expect((await LabResultsRepo().all()).length, 3);
       expect((await TasksRepo().tasks()).length, greaterThanOrEqualTo(3));
 
@@ -5087,6 +5091,25 @@ void main() {
         expect(await performAttentionAction(it, nowArg: now), isTrue,
             reason: 'الإجراء بتاع ${it.kind} مانفّذش');
       }
+    });
+  });
+
+
+  group('البحث الشامل بيلاقى بيانات المستند', () {
+    test('بيلاقى المستند برقمه وجهته ومالكه مش العنوان بس', () async {
+      await DocsRepo().save(const DocItem(
+        title: 'رخصة القيادة',
+        docNumber: 'ABC998877',
+        issuer: 'مرور الجيزة',
+        owner: 'سلمى',
+      ));
+      final repo = SearchRepo();
+      expect((await repo.search('ABC998877')).any((h) => h.kind == 'document'),
+          isTrue, reason: 'الرقم');
+      expect((await repo.search('الجيزة')).any((h) => h.kind == 'document'),
+          isTrue, reason: 'الجهة');
+      expect((await repo.search('سلمى')).any((h) => h.kind == 'document'),
+          isTrue, reason: 'المالك');
     });
   });
 

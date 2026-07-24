@@ -10,6 +10,9 @@ import '../../core/l10n.dart';
 import '../../core/log.dart';
 import '../../data/settings_repo.dart';
 import '../../widgets/search_action.dart';
+import 'package:pdf/widgets.dart' as pw;
+
+import '../../core/file_out.dart';
 import '../../core/section_pdf.dart';
 import '../../data/docs_repo.dart';
 import '../../data/money_repo.dart';
@@ -325,6 +328,39 @@ class _DocsScreenState extends State<DocsScreen> {
     );
   }
 
+  /// بيشارك صور المستند برّه التطبيق — صورة واحدة تتشارك كصورة، وأكتر
+  /// من واحدة بتتجمّع PDF (صفحة لكل صورة) عشان تطلع ملف واحد مرتّب.
+  Future<void> _share(DocItem d) async {
+    final imgs = d.allImages;
+    if (imgs.isEmpty) return;
+    final safe = d.title.replaceAll(RegExp(r'[^\w؀-ۿ ]'), '').trim();
+    try {
+      if (imgs.length == 1) {
+        final bytes = await AppImages.bytesOf(imgs.first);
+        if (bytes == null) throw StateError('no bytes');
+        await deliverFile('$safe.jpg', 'image/jpeg', bytes);
+      } else {
+        final doc = pw.Document();
+        for (final path in imgs) {
+          final bytes = await AppImages.bytesOf(path);
+          if (bytes == null) continue;
+          doc.addPage(pw.Page(
+            build: (_) => pw.Center(
+                child: pw.Image(pw.MemoryImage(bytes),
+                    fit: pw.BoxFit.contain)),
+          ));
+        }
+        await deliverFile('$safe.pdf', 'application/pdf', await doc.save());
+      }
+    } on Exception catch (e) {
+      logError('فشل مشاركة المستند', e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(tr('حصلت مشكلة', 'Something went wrong'))));
+      }
+    }
+  }
+
   Widget _docTile(BuildContext context, DocItem d) {
     final scheme = Theme.of(context).colorScheme;
     return Card(
@@ -356,6 +392,8 @@ class _DocsScreenState extends State<DocsScreen> {
             switch (v) {
               case 'edit':
                 await _openForm(d);
+              case 'share':
+                await _share(d);
               case 'renew':
                 await _renew(d);
               case 'delete':
@@ -364,6 +402,9 @@ class _DocsScreenState extends State<DocsScreen> {
           },
           itemBuilder: (_) => [
             PopupMenuItem(value: 'edit', child: Text(tr('تعديل', 'Edit'))),
+            if (d.allImages.isNotEmpty)
+              PopupMenuItem(
+                  value: 'share', child: Text(tr('شارك 📤', 'Share 📤'))),
             if (d.validYears > 0)
               PopupMenuItem(
                   value: 'renew', child: Text(tr('جدّدته ✓', 'Renewed ✓'))),

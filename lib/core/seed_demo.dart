@@ -86,7 +86,8 @@ Future<int> seedDemoData() async {
       amount: 500,
       direction: 'لى',
       note: 'سلفة',
-      createdAt: now.toIso8601String())));
+      // من ٤٥ يوم — قديم كفاية عشان يشعل تنبيه «لسه مدين لك».
+      createdAt: now.subtract(const Duration(days: 45)).toIso8601String())));
   await add(() => DebtsRepo().add(Debt(
       person: 'محل البقالة',
       amount: 120,
@@ -367,8 +368,10 @@ Future<int> seedDemoData() async {
   n += 9;
 
   // ---- الاشتراكات + قائمة الأمنيات ----
+  // نتفليكس يوم تجديده خلال يومين → يشعل تنبيه «اشتراك بيتجدّد».
+  final renewSoon = now.add(const Duration(days: 2)).day;
   await SubscriptionsRepo().save(Subscription(
-      name: 'نتفليكس', amount: 200, dayOfMonth: 3, createdAt: iso));
+      name: 'نتفليكس', amount: 200, dayOfMonth: renewSoon, createdAt: iso));
   await SubscriptionsRepo().save(Subscription(
       name: 'سبوتيفاى', amount: 60, dayOfMonth: 15, createdAt: iso));
   await SubscriptionsRepo().save(Subscription(
@@ -380,12 +383,38 @@ Future<int> seedDemoData() async {
   n += 5;
 
   // ---- المستندات (واحد قرّب يخلص) ----
+  // بيانات كاملة + انتهاء محسوب من (الإصدار + المدة) عشان كل الحقول تبان.
   await DocsRepo().save(DocItem(
-      title: 'رخصة القيادة', expiry: d(-25), remindDays: 30));
+      title: 'رخصة القيادة',
+      type: 'license',
+      docNumber: '29801011234567',
+      issuer: 'مرور القاهرة',
+      issued: d(365 * 4 + 335), // انتهاؤها المحسوب قرّب (٤ سنين مضت + مدة ٥)
+      validYears: 5,
+      renewCost: 350,
+      remindDays: 30));
   await DocsRepo().save(DocItem(
-      title: 'جواز السفر', expiry: dayKey(now.add(const Duration(days: 400)))));
-  await DocsRepo().save(const DocItem(title: 'البطاقة الشخصية'));
-  n += 3;
+      title: 'جواز السفر',
+      type: 'passport',
+      docNumber: 'A12345678',
+      issuer: 'مصلحة الجوازات',
+      owner: 'ابنى',
+      issued: d(400),
+      validYears: 7,
+      renewCost: 500));
+  await DocsRepo().save(DocItem(
+      title: 'البطاقة الشخصية',
+      type: 'id',
+      docNumber: '29505150102030',
+      issuer: 'الأحوال المدنية'));
+  await DocsRepo().save(DocItem(
+      title: 'بوليصة التأمين',
+      type: 'insurance',
+      issuer: 'مصر للتأمين',
+      expiry: d(-40),
+      renewCost: 1200,
+      validYears: 1));
+  n += 4;
 
   // ---- التحاليل + التطعيمات ----
   await LabResultsRepo().save(LabResult(

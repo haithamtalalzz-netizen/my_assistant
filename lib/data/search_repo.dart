@@ -76,14 +76,21 @@ class SearchRepo {
             title: r['name'] as String,
             subtitle: tr('دواء', 'Medication')));
 
-    // المستندات.
+    // المستندات — بندوّر فى الرقم والجهة والمالك كمان مش العنوان بس،
+    // عشان تلاقى رخصتك برقمها أو «مصلحة الجوازات» أو باسم صاحب المستند.
     await add(
-        "SELECT title FROM documents WHERE title LIKE ? OR notes LIKE ? LIMIT 10",
-        [like, like],
+        'SELECT title, doc_number, issuer, owner FROM documents '
+        'WHERE title LIKE ? OR notes LIKE ? OR doc_number LIKE ? '
+        'OR issuer LIKE ? OR owner LIKE ? LIMIT 10',
+        [like, like, like, like, like],
         (r) => SearchHit(
             kind: 'document',
             title: r['title'] as String,
-            subtitle: tr('مستند', 'Document')));
+            subtitle: [
+              tr('مستند', 'Document'),
+              if ((r['owner'] as String?)?.trim().isNotEmpty ?? false)
+                r['owner'] as String,
+            ].join(' • ')));
 
     // السجلات الطبية.
     await add(
