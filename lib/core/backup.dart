@@ -48,6 +48,30 @@ class BackupService {
     await out.writeAsBytes(bytes);
     await Share.shareXFiles([XFile(out.path)],
         text: 'نسخة احتياطية من My Assistant');
+    // نسجّل إن المستخدم طلّع نسخة برّه الجهاز — التذكير بيعتمد عليها.
+    await SettingsRepo().set('last_manual_export', DateTime.now().toIso8601String());
+  }
+
+  static const String lastExportKey = 'last_manual_export';
+
+  /// كام يوم عدّى على آخر نسخة **طلّعها المستخدم برّه الجهاز** (تصدير/مشاركة).
+  ///
+  /// النسخة التلقائية بتفضل على الجهاز نفسه، فلو الموبايل ضاع بتروح معاه —
+  /// عشان كده التذكير بيتبع التصدير اليدوى مش التلقائى. بيرجّع null لو
+  /// المستخدم عمرّه مطلّعش نسخة (يتعامل معاها كـ«محتاج نسخة»).
+  static Future<int?> daysSinceExport({DateTime? now}) async {
+    final raw = await SettingsRepo().get(lastExportKey) ?? '';
+    if (raw.isEmpty) return null;
+    final last = DateTime.tryParse(raw);
+    if (last == null) return null;
+    return (now ?? DateTime.now()).difference(last).inDays;
+  }
+
+  /// محتاج نبّه المستخدم يعمل نسخة؟ (عمرّه مطلّعش، أو بقاله [threshold] يوم).
+  static Future<bool> needsBackupReminder(
+      {int threshold = 14, DateTime? now}) async {
+    final days = await daysSinceExport(now: now);
+    return days == null || days >= threshold;
   }
 
   /// اسم ملف قاعدة البيانات جوه ملف النسخة.

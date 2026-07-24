@@ -81,6 +81,7 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
         AttentionKind.debt => const DebtsScreen(),
         AttentionKind.subscription => const SubscriptionsScreen(),
         AttentionKind.gameya => const GameyaScreen(),
+        AttentionKind.backup => null, // إجراؤه بيطلّع النسخة، مفيش صفحة
       };
 
   ({IconData icon, Color color}) _look(AttentionKind kind) => switch (kind) {
@@ -105,6 +106,8 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
           (icon: Icons.subscriptions_outlined, color: Colors.indigo),
         AttentionKind.gameya =>
           (icon: Icons.groups_outlined, color: Colors.teal),
+        AttentionKind.backup =>
+          (icon: Icons.backup_outlined, color: Colors.blueGrey),
       };
 
   void _snooze(AttentionItem it) {
@@ -117,7 +120,10 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
   /// «خلّص المتاح» — بينفّذ إجراء كل بند له زرار (تمّت/اتاخد/…) دفعة
   /// واحدة. البنود اللى مالهاش إجراء (زى الاشتراك) بتفضل زى ما هى.
   Future<void> _clearActionable() async {
-    final actionable = _items.where((i) => i.actionLabel != null).toList();
+    // النسخة مستثناة: إجراؤها بيفتح شيت مشاركة، مايصحّش وسط لوب.
+    final actionable = _items
+        .where((i) => i.actionLabel != null && i.kind != AttentionKind.backup)
+        .toList();
     if (actionable.isEmpty) return;
     final ok = await confirmAction(
       context,

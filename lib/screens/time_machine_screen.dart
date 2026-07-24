@@ -69,6 +69,12 @@ class _TimeMachineScreenState extends State<TimeMachineScreen> {
     _load();
   }
 
+  /// «زى ده السنة اللى فاتت» — نفس اليوم من سنة (من اليوم المعروض).
+  void _sameDayLastYear() {
+    _day = DateTime(_day.year - 1, _day.month, _day.day);
+    _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -76,6 +82,11 @@ class _TimeMachineScreenState extends State<TimeMachineScreen> {
       appBar: AppBar(
         title: Text(tr('آلة الزمن', 'Time machine')),
         actions: [
+          IconButton(
+            tooltip: tr('زى ده السنة اللى فاتت', 'Same day last year'),
+            icon: const Icon(Icons.history_toggle_off),
+            onPressed: _sameDayLastYear,
+          ),
           IconButton(
             tooltip: tr('يوم عشوائى', 'Random day'),
             icon: const Icon(Icons.casino_outlined),

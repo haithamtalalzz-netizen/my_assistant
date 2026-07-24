@@ -2892,6 +2892,9 @@ void main() {
     });
 
     test('يوم نضيف = قايمة فاضية (شريط «كله تمام»)', () async {
+      // نعمل «نسخة» قريّبة عشان تذكير النسخة مايظهرش (لولاه القايمة مش فاضية).
+      await SettingsRepo().set(BackupService.lastExportKey,
+          DateTime(2026, 7, 15).toIso8601String());
       final items = await collectAttention(DateTime(2026, 7, 15, 14));
       expect(items, isEmpty);
     });
@@ -5083,11 +5086,13 @@ void main() {
 
     test('كل نوع له إجراء بيتنفّذ فعلاً (مفيش زرار ميت)', () async {
       // الاشتراك هو الوحيد اللى مالوش إجراء عن قصد (بيتجدّد لوحده).
+      // النسخة مستثناة: إجراؤها بيشارك ملف (منصّة) مش متاح فى التست.
       final now = DateTime(2026, 7, 22);
       await HomeMaintenanceRepo().save(const HomeMaintenance(
           name: 'فلتر المياه', intervalMonths: 6, lastDone: '2020-01-01'));
       final items = await collectAttention(now);
-      for (final it in items.where((i) => i.actionLabel != null)) {
+      for (final it in items.where(
+          (i) => i.actionLabel != null && i.kind != AttentionKind.backup)) {
         expect(await performAttentionAction(it, nowArg: now), isTrue,
             reason: 'الإجراء بتاع ${it.kind} مانفّذش');
       }
@@ -5150,6 +5155,33 @@ void main() {
       final titles = soon.map((d) => d.title).toList();
       expect(titles.indexOf('رخصة محسوبة') < titles.indexOf('تأمين مكتوب'),
           isTrue);
+    });
+  });
+
+
+  group('تذكير النسخة الاحتياطية', () {
+    test('محتاج تذكير لو عمرّه مطلّعش نسخة', () async {
+      await SettingsRepo().set(BackupService.lastExportKey, '');
+      expect(await BackupService.daysSinceExport(), isNull);
+      expect(await BackupService.needsBackupReminder(), isTrue);
+    });
+
+    test('مايحتاجش لو طلّع نسخة قريّب، ويحتاج لو بقاله كتير', () async {
+      final now = DateTime(2026, 7, 22);
+      await SettingsRepo().set(BackupService.lastExportKey,
+          DateTime(2026, 7, 20).toIso8601String()); // يومين
+      expect(await BackupService.daysSinceExport(now: now), 2);
+      expect(await BackupService.needsBackupReminder(now: now), isFalse);
+
+      await SettingsRepo().set(BackupService.lastExportKey,
+          DateTime(2026, 7, 1).toIso8601String()); // ٢١ يوم
+      expect(await BackupService.needsBackupReminder(now: now), isTrue);
+    });
+
+    test('بند النسخة بيظهر فى التنبيهات لما محتاج', () async {
+      await SettingsRepo().set(BackupService.lastExportKey, '');
+      final items = await collectAttention(DateTime(2026, 7, 22));
+      expect(items.any((i) => i.kind == AttentionKind.backup), isTrue);
     });
   });
 

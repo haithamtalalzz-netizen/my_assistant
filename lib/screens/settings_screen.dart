@@ -32,6 +32,7 @@ import '../data/settings_repo.dart';
 import '../widgets/common.dart';
 import '../widgets/location_fields.dart';
 import 'diagnostics_screen.dart';
+import 'lock_gate.dart';
 import 'archived_data_screen.dart';
 import 'quick_actions_settings_screen.dart';
 
@@ -60,6 +61,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   int _waterGoalMl = 2000;
   bool _appLock = false;
   bool _docsLock = false;
+  bool _returnHome = false;
   bool _prayerNotifs = true;
   bool _healthSync = false;
   bool _ramadan = false;
@@ -90,6 +92,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final budget = await _settings.monthlyBudget();
     final appLock = await _settings.appLockEnabled();
     final docsLock = await _settings.get(kDocsLockSetting) == '1';
+    final returnHome = await _settings.get(kReturnHomeSetting) == '1';
     final prayerNotifs = await _settings.prayerNotificationsEnabled();
     final healthSync = await _settings.healthSyncEnabled();
     final governorate = await _settings.governorateName();
@@ -119,6 +122,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _budget.text = budget > 0 ? budget.toStringAsFixed(0) : '';
       _appLock = appLock;
       _docsLock = docsLock;
+      _returnHome = returnHome;
       _prayerNotifs = prayerNotifs;
       _healthSync = healthSync;
       _governorate = governorate;
@@ -1143,6 +1147,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onChanged: (v) async {
                     await _settings.set(kDocsLockSetting, v ? '1' : '0');
                     setState(() => _docsLock = v);
+                  },
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                      tr('ارجع للرئيسية بعد الغياب', 'Return home after a while')),
+                  subtitle: Text(tr(
+                      'لو سبت التطبيق أكتر من ٥ دقايق، يرجع للرئيسية بدل آخر شاشة',
+                      "Away over 5 min → reopen on Home instead of the last screen")),
+                  value: _returnHome,
+                  onChanged: (v) async {
+                    await _settings.set(kReturnHomeSetting, v ? '1' : '0');
+                    setState(() => _returnHome = v);
                   },
                 ),
                 ],

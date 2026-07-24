@@ -8,6 +8,9 @@ import '../core/l10n.dart';
 import '../data/settings_repo.dart';
 import 'emergency_view.dart';
 
+/// إعداد «ارجع للرئيسية بعد غياب طويل».
+const String kReturnHomeSetting = 'return_home_on_resume';
+
 /// بوابة القفل: تلف الـ Shell وتطلب البصمة عند الفتح وبعد غياب طويل
 /// في الخلفية — لو القفل مفعّل من الإعدادات.
 class LockGate extends StatefulWidget {
@@ -59,15 +62,33 @@ class _LockGateState extends State<LockGate> with WidgetsBindingObserver {
     }
   }
 
+  /// بعد غياب طويل نرجع للرئيسية (لو المستخدم مفعّلها) — نقفل أى صفحات
+  /// مفتوحة فوق الشِل. أطول من قفل البصمة عشان تبديل تطبيق سريع مايضيّعش
+  /// مكانك، بس رجوعك «تانى يوم» يبدأ من الرئيسية.
+  static const _homeAfter = Duration(minutes: 5);
+
   Future<void> _maybeRelock() async {
     final pausedAt = _pausedAt;
     _pausedAt = null;
-    if (pausedAt == null || _locked) return;
-    if (DateTime.now().difference(pausedAt) < _relockAfter) return;
-    if (!await SettingsRepo().appLockEnabled()) return;
-    if (!mounted) return;
-    setState(() => _locked = true);
-    await _tryUnlock();
+    if (pausedAt == null) return;
+    final away = DateTime.now().difference(pausedAt);
+
+    // أولًا: القفل بالبصمة (لو مفعّل + غياب > دقيقة).
+    if (!_locked &&
+        away >= _relockAfter &&
+        await SettingsRepo().appLockEnabled()) {
+      if (!mounted) return;
+      setState(() => _locked = true);
+      await _tryUnlock();
+    }
+
+    // ثانيًا: الرجوع للرئيسية (لو مفعّل + غياب > ٥ دقايق) — بنقفل أى
+    // صفحات مدفوعة فوق الشِل، فرجوعك «تانى يوم» يبدأ نضيف من الرئيسية.
+    if (away >= _homeAfter &&
+        (await SettingsRepo().get(kReturnHomeSetting)) == '1') {
+      if (!mounted) return;
+      Navigator.of(context).popUntil((r) => r.isFirst);
+    }
   }
 
   Future<void> _tryUnlock() async {

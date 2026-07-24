@@ -1,5 +1,6 @@
 import '../data/appointments_repo.dart';
 import '../data/bills_repo.dart';
+import 'backup.dart';
 import '../data/debts_repo.dart';
 import '../data/gameya_repo.dart';
 import '../data/subscriptions_repo.dart';
@@ -28,6 +29,7 @@ enum AttentionKind {
   debt,
   subscription,
   gameya,
+  backup,
 }
 
 /// بند «محتاج منك دلوقتي» — حاجة متأخرة أو مستحقة النهارده من أى قسم.
@@ -243,6 +245,24 @@ Future<List<AttentionItem>> collectAttention([DateTime? nowArg]) async {
     ));
   }
 
+  // ————— تذكير النسخة الاحتياطية —————
+  // كل البيانات محلية (وفيها صور المستندات)، فلو الموبايل ضاع من غير
+  // نسخة برّه الجهاز = كله يروح. بند id=0 (مش سجل، إجراء واحد).
+  if (await BackupService.needsBackupReminder(now: now)) {
+    final days = await BackupService.daysSinceExport(now: now);
+    out.add(AttentionItem(
+      kind: AttentionKind.backup,
+      id: 0,
+      text: days == null
+          ? tr('اعمل نسخة احتياطية — بياناتك لسه ماتحفظتش برّه الموبايل',
+              'Back up — your data is only on this phone')
+          : tr('بقالك ${arNum(days)} يوم من غير نسخة احتياطية',
+              '${arNum(days)} days since your last backup'),
+      urgency: 4,
+      actionLabel: tr('اعمل نسخة', 'Back up'),
+    ));
+  }
+
   out.sort((a, b) => a.urgency.compareTo(b.urgency));
   return out;
 }
@@ -346,5 +366,8 @@ Future<bool> performAttentionAction(AttentionItem item,
     case AttentionKind.subscription:
       // الاشتراك بيتجدّد لوحده — مفيش إجراء، بس بيفكّرك تلغيه لو عايز.
       return false;
+    case AttentionKind.backup:
+      await BackupService.exportBackup();
+      return true;
   }
 }
