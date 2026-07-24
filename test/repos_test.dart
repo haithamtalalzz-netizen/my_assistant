@@ -47,6 +47,7 @@ import 'package:my_assistant/core/prayers.dart';
 import 'package:my_assistant/core/religion_data.dart';
 import 'package:my_assistant/core/quran_data.dart';
 import 'package:my_assistant/core/mawarith.dart';
+import 'package:my_assistant/core/zakat.dart';
 import 'package:my_assistant/data/mushaf_repo.dart';
 import 'package:my_assistant/core/demo_images.dart';
 import 'package:my_assistant/core/seed_demo.dart';
@@ -5182,6 +5183,84 @@ void main() {
       await SettingsRepo().set(BackupService.lastExportKey, '');
       final items = await collectAttention(DateTime(2026, 7, 22));
       expect(items.any((i) => i.kind == AttentionKind.backup), isTrue);
+    });
+  });
+
+  group('حاسبة الزكاة', () {
+    test('نقاء العيار: 24 = 1.0 و 21 = 0.875 و 18 = 0.75', () {
+      expect(karatPurity(24), closeTo(1.0, 1e-9));
+      expect(karatPurity(21), closeTo(0.875, 1e-9));
+      expect(karatPurity(18), closeTo(0.75, 1e-9));
+    });
+
+    test('تقييم قطعة ذهب من سعر عيار 24 × النقاء', () {
+      // 100 جم عيار 21، سعر عيار 24 = 3000 → 100×3000×0.875 = 262500.
+      const g = GoldHolding(grams: 100, karat: 21);
+      expect(g.value(3000), closeTo(262500, 1e-6));
+      expect(g.pureGrams, closeTo(87.5, 1e-6));
+      // سعر جرام مُدخل صراحةً يتجاوز الاشتقاق.
+      const g2 = GoldHolding(grams: 10, karat: 18, pricePerGram: 2500);
+      expect(g2.value(3000), closeTo(25000, 1e-6));
+    });
+
+    test('كاش تحت النصاب = لا زكاة', () {
+      final r = computeZakat(
+          const ZakatInput(cash: 100000, gold24Price: 3000)); // نصاب 255000
+      expect(r.nisabValue, closeTo(255000, 1e-6));
+      expect(r.isDue, isFalse);
+      expect(r.zakatDue, closeTo(0, 1e-6));
+    });
+
+    test('كاش فوق النصاب = 2.5%', () {
+      final r =
+          computeZakat(const ZakatInput(cash: 300000, gold24Price: 3000));
+      expect(r.isDue, isTrue);
+      expect(r.zakatDue, closeTo(7500, 1e-6));
+    });
+
+    test('الديون المستحقة بتتخصم من صافى المال الزكوى', () {
+      final r = computeZakat(const ZakatInput(
+          cash: 300000, debts: 100000, gold24Price: 3000));
+      expect(r.zakatable, closeTo(200000, 1e-6));
+      expect(r.isDue, isFalse); // 200000 < 255000
+    });
+
+    test('يجمع الذهب متعدد العيارات مع باقى الأصول', () {
+      final r = computeZakat(ZakatInput(
+        cash: 50000,
+        gold24Price: 3000,
+        gold: const [
+          GoldHolding(grams: 50, karat: 21), // 131250
+          GoldHolding(grams: 20, karat: 18), // 20×3000×0.75 = 45000
+        ],
+        trade: 10000,
+        investments: 5000,
+        receivables: 15000,
+      ));
+      // ذهب = 176250 · إجمالى = 50000+176250+10000+5000+15000 = 256250
+      expect(r.goldValue, closeTo(176250, 1e-6));
+      expect(r.pureGoldGrams, closeTo(58.75, 1e-6)); // 43.75 + 15
+      expect(r.totalAssets, closeTo(256250, 1e-6));
+      expect(r.isDue, isTrue);
+      expect(r.zakatDue, closeTo(256250 * 0.025, 1e-6));
+    });
+
+    test('أساس نصاب الفضة أقل من الذهب', () {
+      // نصاب الفضة = 15×595 = 8925 مقابل ذهب 255000.
+      final r = computeZakat(const ZakatInput(
+        cash: 10000,
+        gold24Price: 3000,
+        silverPricePerGram: 15,
+        nisabBasis: NisabBasis.silver,
+      ));
+      expect(r.nisabValue, closeTo(8925, 1e-6));
+      expect(r.isDue, isTrue); // 10000 فوق نصاب الفضة
+    });
+
+    test('بدون سعر ذهب = لا نصاب (لا زكاة)', () {
+      final r = computeZakat(const ZakatInput(cash: 999999));
+      expect(r.nisabValue, closeTo(0, 1e-6));
+      expect(r.isDue, isFalse);
     });
   });
 

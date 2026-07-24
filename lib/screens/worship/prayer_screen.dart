@@ -33,6 +33,7 @@ import 'ruqyah_screen.dart';
 import 'spiritual_stats_screen.dart';
 import 'tasbih_screen.dart';
 import 'worship_history_screen.dart';
+import 'zakat_guide_screen.dart';
 import 'zakat_screen.dart';
 
 /// صفحة الصلاة والأذكار — مواعيد الصلاة + تتبّعها + بوصلة القبلة + أدوات دينية.
@@ -743,6 +744,8 @@ class _PrayerScreenState extends State<PrayerScreen> {
           const Color(0xFF3C5A99), () => const SpiritualStatsScreen()),
       _Tool('zakat', Icons.calculate, tr('حاسبة الزكاة', 'Zakat'),
           const Color(0xFF2E7D6B), () => const ZakatScreen()),
+      _Tool('zakat_guide', Icons.menu_book, tr('دليل الزكاة', 'Zakat guide'),
+          const Color(0xFF1E7A5A), () => const ZakatGuideScreen()),
       _Tool('mawarith', Icons.account_tree, tr('حاسبة المواريث', 'Inheritance'),
           const Color(0xFFB5654A), () => const MawarithScreen()),
       _Tool('occasions', Icons.event, tr('المناسبات الإسلامية', 'Islamic occasions'),
