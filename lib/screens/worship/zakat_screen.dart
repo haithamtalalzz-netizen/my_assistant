@@ -75,14 +75,16 @@ class _ZakatScreenState extends State<ZakatScreen> {
   /// يجلب سعر الذهب/الفضة من البورصة العالمية ويملأ الحقول.
   Future<void> _fetchPrice() async {
     setState(() => _fetching = true);
-    final p = await GoldPriceService.fetch();
+    final res = await GoldPriceService.fetch();
     if (!mounted) return;
     setState(() => _fetching = false);
+    final p = res.prices;
     if (p == null) {
+      final why = res.diag == null ? '' : ' (${res.diag})';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(tr(
-              'تعذّر جلب السعر — تأكد من الإنترنت أو أدخله يدويًا.',
-              'Couldn’t fetch the price — check your connection or enter it manually.'))));
+              'تعذّر جلب السعر — تأكد من الإنترنت أو أدخله يدويًا.$why',
+              'Couldn’t fetch the price — check your connection or enter it manually.$why'))));
       return;
     }
     _gold24.text = p.gold24EgpPerGram.toStringAsFixed(2);
@@ -93,8 +95,8 @@ class _ZakatScreenState extends State<ZakatScreen> {
     setState(() {});
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(tr(
-            'عيار 24 ≈ ${egp(p.gold24EgpPerGram)}/جم · الأونصة \$${p.usdPerOzGold.toStringAsFixed(0)} · الدولار ${p.usdToEgp.toStringAsFixed(2)} ج.م',
-            '24k ≈ ${egp(p.gold24EgpPerGram)}/g · oz \$${p.usdPerOzGold.toStringAsFixed(0)} · USD ${p.usdToEgp.toStringAsFixed(2)} EGP'))));
+            'عيار 24 ≈ ${egp(p.gold24EgpPerGram)}/جم · الفضة ≈ ${egp(p.silverEgpPerGram)}/جم',
+            '24k ≈ ${egp(p.gold24EgpPerGram)}/g · silver ≈ ${egp(p.silverEgpPerGram)}/g'))));
   }
 
   @override
