@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
+import '../../core/gold_price.dart';
 import '../../core/l10n.dart';
 import '../../core/zakat.dart';
 import '../../data/settings_repo.dart';
@@ -26,8 +27,12 @@ class _GoldRow {
 class _ZakatScreenState extends State<ZakatScreen> {
   static const _kGoldPriceKey = 'zakat_gold24_price';
   static const _kSilverPriceKey = 'zakat_silver_price';
+  static const _kPriceDateKey = 'zakat_price_date';
 
   final _settings = SettingsRepo();
+
+  String? _priceDate; // dayKey لآخر مرة اتحدّد فيها سعر الجرام
+  bool _fetching = false;
 
   final _cash = TextEditingController();
   final _trade = TextEditingController();
@@ -52,11 +57,44 @@ class _ZakatScreenState extends State<ZakatScreen> {
   Future<void> _restorePrices() async {
     final g = await _settings.get(_kGoldPriceKey);
     final s = await _settings.get(_kSilverPriceKey);
+    final d = await _settings.get(_kPriceDateKey);
     if (!mounted) return;
     setState(() {
       if (g != null && g.isNotEmpty) _gold24.text = g;
       if (s != null && s.isNotEmpty) _silverPrice.text = s;
+      if (d != null && d.isNotEmpty) _priceDate = d;
     });
+  }
+
+  /// يسجّل إن سعر الجرام اتحدّد النهارده (بجلب أو بإدخال يدوى).
+  void _stampPriceDate() {
+    _priceDate = dayKey(DateTime.now());
+    _settings.set(_kPriceDateKey, _priceDate!);
+  }
+
+  /// يجلب سعر الذهب/الفضة من البورصة العالمية ويملأ الحقول.
+  Future<void> _fetchPrice() async {
+    setState(() => _fetching = true);
+    final p = await GoldPriceService.fetch();
+    if (!mounted) return;
+    setState(() => _fetching = false);
+    if (p == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr(
+              'تعذّر جلب السعر — تأكد من الإنترنت أو أدخله يدويًا.',
+              'Couldn’t fetch the price — check your connection or enter it manually.'))));
+      return;
+    }
+    _gold24.text = p.gold24EgpPerGram.toStringAsFixed(2);
+    _silverPrice.text = p.silverEgpPerGram.toStringAsFixed(2);
+    _settings.set(_kGoldPriceKey, _gold24.text);
+    _settings.set(_kSilverPriceKey, _silverPrice.text);
+    _stampPriceDate();
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr(
+            'عيار 24 ≈ ${egp(p.gold24EgpPerGram)}/جم · الأونصة \$${p.usdPerOzGold.toStringAsFixed(0)} · الدولار ${p.usdToEgp.toStringAsFixed(2)} ج.م',
+            '24k ≈ ${egp(p.gold24EgpPerGram)}/g · oz \$${p.usdPerOzGold.toStringAsFixed(0)} · USD ${p.usdToEgp.toStringAsFixed(2)} EGP'))));
   }
 
   @override
@@ -289,11 +327,7 @@ class _ZakatScreenState extends State<ZakatScreen> {
                     style: const TextStyle(
                         fontSize: 15.5, fontWeight: FontWeight.w800)),
               ]),
-              _field(
-                _gold24,
-                tr('سعر جرام الذهب (عيار 24)', 'Gold gram price (24k)'),
-                onChanged: (v) => _settings.set(_kGoldPriceKey, v),
-              ),
+              _goldPriceBlock(scheme),
               const SizedBox(height: 4),
               for (int i = 0; i < _gold.length; i++) _goldRow(scheme, i),
               const SizedBox(height: 4),
@@ -320,6 +354,62 @@ class _ZakatScreenState extends State<ZakatScreen> {
           ),
         ),
       );
+
+  /// حقل سعر جرام الذهب + زر جلب السعر العالمى + آخر تحديث.
+  Widget _goldPriceBlock(ColorScheme scheme) {
+    final stale = _priceDate != null && _priceDate != dayKey(DateTime.now());
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _field(
+          _gold24,
+          tr('سعر جرام الذهب اليوم (عيار 24)', 'Today’s gold gram price (24k)'),
+          onChanged: (v) {
+            _settings.set(_kGoldPriceKey, v);
+            _stampPriceDate();
+          },
+        ),
+        Row(children: [
+          if (_fetching)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else
+            TextButton.icon(
+              onPressed: _fetchPrice,
+              icon: const Icon(Icons.public, size: 18),
+              label: Text(tr('جلب سعر السوق العالمى', 'Fetch world price')),
+            ),
+          const Spacer(),
+          if (_priceDate != null)
+            Text(
+              tr('آخر تحديث: ${_priceDateDisplay()}',
+                  'Updated: ${_priceDateDisplay()}'),
+              style: TextStyle(
+                  fontSize: 11,
+                  color: stale ? scheme.error : scheme.onSurfaceVariant),
+            ),
+        ]),
+        Text(
+          tr('السعر العالمى استرشادى — عدّله لسعر السوق المحلى لو لزم.',
+              'The world price is a reference — adjust to your local market.'),
+          style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant),
+        ),
+      ],
+    );
+  }
+
+  String _priceDateDisplay() {
+    try {
+      return arShortDate(DateTime.parse(_priceDate!));
+    } on FormatException {
+      return _priceDate ?? '';
+    }
+  }
 
   Widget _goldRow(ColorScheme scheme, int i) {
     final row = _gold[i];

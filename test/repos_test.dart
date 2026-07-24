@@ -48,6 +48,7 @@ import 'package:my_assistant/core/religion_data.dart';
 import 'package:my_assistant/core/quran_data.dart';
 import 'package:my_assistant/core/mawarith.dart';
 import 'package:my_assistant/core/zakat.dart';
+import 'package:my_assistant/core/gold_price.dart';
 import 'package:my_assistant/data/mushaf_repo.dart';
 import 'package:my_assistant/core/demo_images.dart';
 import 'package:my_assistant/core/seed_demo.dart';
@@ -5261,6 +5262,15 @@ void main() {
       final r = computeZakat(const ZakatInput(cash: 999999));
       expect(r.nisabValue, closeTo(0, 1e-6));
       expect(r.isDue, isFalse);
+    });
+  });
+
+  group('سعر الذهب العالمى', () {
+    test('تحويل الأونصة/الدولار إلى جنيه/جرام', () {
+      // الأونصة = 31.1034768 جم، فسعر أونصة = هذا الرقم بدولار وصرف 1 → 1 ج.م/جم.
+      expect(egpPerGram24(kGramsPerTroyOz, 1), closeTo(1.0, 1e-9));
+      // 3110.34768 دولار/أونصة × صرف 10 ÷ 31.1034768 = 1000 ج.م/جم.
+      expect(egpPerGram24(3110.34768, 10), closeTo(1000.0, 1e-6));
     });
   });
 
