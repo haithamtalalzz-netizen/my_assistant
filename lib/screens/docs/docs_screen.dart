@@ -1,12 +1,18 @@
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:local_auth/local_auth.dart';
 
 import '../../core/app_images.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../core/log.dart';
+import '../../data/settings_repo.dart';
 import '../../widgets/search_action.dart';
+import '../../core/section_pdf.dart';
 import '../../data/docs_repo.dart';
+import '../../data/money_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 import 'doc_form.dart';
@@ -22,13 +28,47 @@ class DocsScreen extends StatefulWidget {
 
 class _DocsScreenState extends State<DocsScreen> {
   final _repo = DocsRepo();
+  final _auth = LocalAuthentication();
   bool _loading = true;
   List<DocItem> _docs = [];
+
+  /// فلتر النوع (null = الكل).
+  String? _typeFilter;
+
+  /// القفل بالبصمة — اختيارى من الإعدادات. `_authed` بيبقى true على طول
+  /// لو القفل مقفول، فالشاشة مابتتغيّرش لمين مش مفعّله.
+  bool _authed = true;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _start();
+  }
+
+  Future<void> _start() async {
+    final locked = (await SettingsRepo().get(kDocsLockSetting)) == '1';
+    if (!locked) {
+      await _load();
+      return;
+    }
+    var ok = false;
+    try {
+      ok = await _auth.authenticate(
+        localizedReason: tr('افتح خزنة المستندات', 'Unlock documents'),
+        options: const AuthenticationOptions(stickyAuth: true),
+      );
+    } on PlatformException catch (e) {
+      logError('فشل فتح المستندات', e);
+    }
+    if (!mounted) return;
+    if (ok) {
+      await _load();
+    } else {
+      setState(() {
+        _authed = false;
+        _loading = false;
+      });
+    }
   }
 
   Future<void> _load() async {
@@ -80,10 +120,19 @@ class _DocsScreenState extends State<DocsScreen> {
       drawer: widget.drawer,
       appBar: AppBar(
           title: Text(tr('خزنة المستندات', 'Documents')),
-          actions: [searchAction(context)]),
+          actions: [
+            IconButton(
+              tooltip: tr('تصدير PDF', 'Export PDF'),
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              onPressed: _docs.isEmpty ? null : _exportPdf,
+            ),
+            searchAction(context),
+          ]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
+          : !_authed
+              ? _lockedView(context)
+              : RefreshIndicator(
               onRefresh: _load,
               child: _docs.isEmpty
                   ? ListView(children: [
@@ -100,7 +149,8 @@ class _DocsScreenState extends State<DocsScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
                       children: [
                         _renewalBanner(context),
-                        for (final d in _docs) _docTile(context, d),
+                        _typeFilterBar(context),
+                        for (final d in _visibleDocs) _docTile(context, d),
                       ],
                     ),
             ),
@@ -141,6 +191,140 @@ class _DocsScreenState extends State<DocsScreen> {
     );
   }
 
+  /// المستندات المعروضة بعد فلتر النوع.
+  List<DocItem> get _visibleDocs =>
+      _typeFilter == null ? _docs : _docs.where((d) => d.type == _typeFilter).toList();
+
+  /// شرايط النوع — بتظهر بس لما يبقى فيه أكتر من نوع (مالهاش لازمة قبل كده).
+  Widget _typeFilterBar(BuildContext context) {
+    final present = _docs.map((d) => d.type).toSet().toList()
+      ..sort((a, b) => kDocTypes.indexOf(a).compareTo(kDocTypes.indexOf(b)));
+    if (present.length < 2) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            ChoiceChip(
+              label: Text(tr('الكل', 'All')),
+              selected: _typeFilter == null,
+              onSelected: (_) => setState(() => _typeFilter = null),
+            ),
+            for (final t in present) ...[
+              const SizedBox(width: 6),
+              ChoiceChip(
+                avatar: Icon(docTypeIcon(t), size: 16),
+                label: Text(docTypeLabel(t)),
+                selected: _typeFilter == t,
+                onSelected: (_) => setState(() => _typeFilter = t),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _lockedView(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.lock_outline, size: 56, color: scheme.primary),
+          const SizedBox(height: 12),
+          Text(tr('المستندات مقفولة', 'Documents are locked')),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: _start,
+            icon: const Icon(Icons.fingerprint),
+            label: Text(tr('افتح', 'Unlock')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// «جدّدته ✓» — بينقل الإصدار للنهارده (فالانتهاء بيتحسب لوحده)،
+  /// ولو فيه تكلفة تجديد بيسجّلها مصروف فى الفلوس.
+  ///
+  /// التسجيل فى الفلوس **بيتسأل عليه** — إضافة مصروف من ورا المستخدم
+  /// بتلخبط ميزانيته.
+  Future<void> _renew(DocItem d) async {
+    final today = DateTime.now();
+    final hasCost = d.renewCost > 0;
+    final ok = await confirmAction(
+      context,
+      title: tr('جدّدت «${d.title}»؟', 'Renewed "${d.title}"?'),
+      message: hasCost
+          ? tr(
+              'هحدّث تاريخ الإصدار للنهارده (والانتهاء هيتحسب لوحده)، '
+              'وهسجّل ${egp(d.renewCost)} مصروف تجديد فى الفلوس.',
+              "I'll set the issue date to today (expiry recalculates) and log "
+              '${egp(d.renewCost)} as a renewal expense.')
+          : tr('هحدّث تاريخ الإصدار للنهارده، والانتهاء هيتحسب لوحده.',
+              "I'll set the issue date to today; expiry recalculates."),
+      confirmLabel: tr('جدّدته', 'Renewed'),
+    );
+    if (!ok) return;
+    await _repo.save(DocItem(
+      id: d.id,
+      title: d.title,
+      imagePath: d.imagePath,
+      images: d.images,
+      // الانتهاء المكتوب بإيد بيتشال عشان المحسوب من الإصدار الجديد يشتغل.
+      expiry: null,
+      remindDays: d.remindDays,
+      notes: d.notes,
+      type: d.type,
+      docNumber: d.docNumber,
+      issuer: d.issuer,
+      owner: d.owner,
+      issued: dayKey(today),
+      validYears: d.validYears,
+      renewCost: d.renewCost,
+    ));
+    if (hasCost) {
+      await MoneyRepo().add(Expense(
+        amount: d.renewCost,
+        category: 'أخرى',
+        note: tr('تجديد ${d.title}', 'Renewed ${d.title}'),
+        day: dayKey(today),
+      ));
+    }
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(hasCost
+            ? tr('اتجدّد واتسجّل فى الفلوس ✓', 'Renewed & logged ✓')
+            : tr('اتجدّد ✓', 'Renewed ✓'))));
+  }
+
+  /// تصدير كل المستندات PDF — للمراجعة أو الطباعة.
+  Future<void> _exportPdf() async {
+    await SectionPdf.share(
+      title: tr('خزنة المستندات', 'Documents'),
+      headers: [
+        tr('المستند', 'Document'),
+        tr('النوع', 'Type'),
+        tr('الرقم', 'Number'),
+        tr('لمين', 'Owner'),
+        tr('الانتهاء', 'Expiry'),
+      ],
+      rows: [
+        for (final d in _visibleDocs)
+          [
+            d.title,
+            docTypeLabel(d.type),
+            d.docNumber,
+            d.owner.trim().isEmpty ? tr('أنا', 'Me') : d.owner,
+            d.effectiveExpiry ?? '—',
+          ],
+      ],
+    );
+  }
+
   Widget _docTile(BuildContext context, DocItem d) {
     final scheme = Theme.of(context).colorScheme;
     return Card(
@@ -149,18 +333,40 @@ class _DocsScreenState extends State<DocsScreen> {
         onTap: () => _openForm(d),
         leading: _thumbnail(d, scheme),
         title: Text(d.title),
-        subtitle: _expiryLine(d, scheme),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _expiryLine(d, scheme),
+            if (d.docNumber.trim().isNotEmpty || d.owner.trim().isNotEmpty)
+              Text(
+                [
+                  if (d.docNumber.trim().isNotEmpty) d.docNumber,
+                  if (d.owner.trim().isNotEmpty) d.owner,
+                ].join('  ·  '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 11.5, color: scheme.onSurfaceVariant),
+              ),
+          ],
+        ),
         trailing: PopupMenuButton<String>(
           onSelected: (v) async {
             switch (v) {
               case 'edit':
                 await _openForm(d);
+              case 'renew':
+                await _renew(d);
               case 'delete':
                 await _delete(d);
             }
           },
           itemBuilder: (_) => [
             PopupMenuItem(value: 'edit', child: Text(tr('تعديل', 'Edit'))),
+            if (d.validYears > 0)
+              PopupMenuItem(
+                  value: 'renew', child: Text(tr('جدّدته ✓', 'Renewed ✓'))),
             PopupMenuItem(value: 'delete', child: Text(tr('حذف', 'Delete'))),
           ],
         ),
@@ -170,10 +376,10 @@ class _DocsScreenState extends State<DocsScreen> {
 
   Widget _thumbnail(DocItem d, ColorScheme scheme) {
     if (d.imagePath.isEmpty) {
+      // أيقونة النوع بدل أيقونة عامة — بتخلّى القايمة تتقري بنظرة.
       return CircleAvatar(
         backgroundColor: scheme.secondaryContainer,
-        child: Icon(Icons.description_outlined,
-            color: scheme.onSecondaryContainer),
+        child: Icon(docTypeIcon(d.type), color: scheme.onSecondaryContainer),
       );
     }
     return ClipRRect(

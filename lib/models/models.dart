@@ -1133,6 +1133,25 @@ class DocItem {
   final int remindDays;
   final String notes;
 
+  /// نوع المستند (المفتاح المخزّن — شوف `kDocTypes`).
+  final String type;
+
+  /// رقم المستند وجهة الإصدار — أكتر حاجة بتفتح الصورة عشانها.
+  final String docNumber;
+  final String issuer;
+
+  /// المستند بتاع مين (أنا / اسم فرد من العيلة). فاضى = أنا.
+  final String owner;
+
+  /// تاريخ الإصدار YYYY-MM-DD (اختيارى) — منه بيتحسب التجديد.
+  final String? issued;
+
+  /// مدة الصلاحية بالسنين (٠ = مش محدّدة) — بتحسب الانتهاء من الإصدار.
+  final int validYears;
+
+  /// تكلفة التجديد (٠ = مش محدّدة).
+  final double renewCost;
+
   /// كل صور المستند (وش وضهر وتجديدات…). أول صورة هى الغلاف.
   ///
   /// `imagePath` بيفضل موجود ومساوى لأول صورة: كل الشاشات التانية
@@ -1147,7 +1166,32 @@ class DocItem {
     this.remindDays = 30,
     this.notes = '',
     this.images = const [],
+    this.type = 'other',
+    this.docNumber = '',
+    this.issuer = '',
+    this.owner = '',
+    this.issued,
+    this.validYears = 0,
+    this.renewCost = 0,
   });
+
+  /// تاريخ الانتهاء المحسوب من الإصدار + مدة الصلاحية — بيُستخدم لما
+  /// المستخدم مايكتبش `expiry` بإيده. بيرجّع null لو الحساب مش ممكن.
+  String? get computedExpiry {
+    if (issued == null || issued!.trim().isEmpty || validYears <= 0) {
+      return null;
+    }
+    final d = DateTime.tryParse(issued!);
+    if (d == null) return null;
+    final next = DateTime(d.year + validYears, d.month, d.day);
+    return '${next.year.toString().padLeft(4, '0')}-'
+        '${next.month.toString().padLeft(2, '0')}-'
+        '${next.day.toString().padLeft(2, '0')}';
+  }
+
+  /// الانتهاء الفعلى: اللى المستخدم كتبه، وإلا المحسوب.
+  String? get effectiveExpiry =>
+      (expiry != null && expiry!.trim().isNotEmpty) ? expiry : computedExpiry;
 
   /// الصور مضمونة إنها متسقة مع الغلاف — مستند قديم (قبل الصور المتعددة)
   /// بيرجّع صورته الواحدة كقايمة من عنصر.
@@ -1175,6 +1219,13 @@ class DocItem {
       remindDays: m['remind_days'] as int? ?? 30,
       notes: m['notes'] as String? ?? '',
       images: list,
+      type: m['type'] as String? ?? 'other',
+      docNumber: m['doc_number'] as String? ?? '',
+      issuer: m['issuer'] as String? ?? '',
+      owner: m['owner'] as String? ?? '',
+      issued: m['issued'] as String?,
+      validYears: (m['valid_years'] as num?)?.toInt() ?? 0,
+      renewCost: (m['renew_cost'] as num?)?.toDouble() ?? 0,
     );
   }
 
@@ -1188,6 +1239,13 @@ class DocItem {
         'images': jsonEncode(images.isNotEmpty
             ? images
             : (imagePath.isEmpty ? <String>[] : [imagePath])),
+        'type': type,
+        'doc_number': docNumber,
+        'issuer': issuer,
+        'owner': owner,
+        'issued': issued,
+        'valid_years': validYears,
+        'renew_cost': renewCost,
       };
 }
 

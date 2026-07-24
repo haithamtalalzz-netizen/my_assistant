@@ -18,7 +18,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 61,
+      version: 62,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -407,6 +407,24 @@ class AppDb {
       await db.execute(_archiveTableDdl);
       for (final t in _v59DroppedTables) {
         await _archiveThenDrop(db, t);
+      }
+    }
+    if (oldV < 62 && newV >= 62) {
+      // بيانات المستند الكاملة: النوع/الرقم/الجهة/لمين/الإصدار/الصلاحية/
+      // تكلفة التجديد. كلها أعمدة بقيم افتراضية → المستندات القديمة
+      // بتفضل صالحة من غير ترحيل.
+      const cols = {
+        'type': "TEXT NOT NULL DEFAULT 'other'",
+        'doc_number': "TEXT NOT NULL DEFAULT ''",
+        'issuer': "TEXT NOT NULL DEFAULT ''",
+        'owner': "TEXT NOT NULL DEFAULT ''",
+        'issued': 'TEXT',
+        'valid_years': 'INTEGER NOT NULL DEFAULT 0',
+        'renew_cost': 'REAL NOT NULL DEFAULT 0',
+      };
+      for (final e in cols.entries) {
+        await db.execute(
+            'ALTER TABLE documents ADD COLUMN ${e.key} ${e.value}');
       }
     }
     if (oldV < 61 && newV >= 61) {
@@ -1393,7 +1411,14 @@ class AppDb {
         expiry TEXT,
         remind_days INTEGER NOT NULL DEFAULT 30,
         notes TEXT NOT NULL DEFAULT '',
-        images TEXT NOT NULL DEFAULT ''
+        images TEXT NOT NULL DEFAULT '',
+        type TEXT NOT NULL DEFAULT 'other',
+        doc_number TEXT NOT NULL DEFAULT '',
+        issuer TEXT NOT NULL DEFAULT '',
+        owner TEXT NOT NULL DEFAULT '',
+        issued TEXT,
+        valid_years INTEGER NOT NULL DEFAULT 0,
+        renew_cost REAL NOT NULL DEFAULT 0
       )''');
     batch.execute('''
       CREATE TABLE habits(

@@ -96,3 +96,104 @@ DateTime? bestExpiryDate(String rawText, DateTime now) {
   }
   return best;
 }
+
+/// اللى اتقرا من صورة مستند — أى حقل ممكن يكون null لو ماتلاقاش.
+class DocScan {
+  final String? number;
+  final String? issuer;
+  final DateTime? issued;
+  final DateTime? expiry;
+
+  const DocScan({this.number, this.issuer, this.issued, this.expiry});
+
+  bool get isEmpty =>
+      number == null && issuer == null && issued == null && expiry == null;
+}
+
+/// كلمات بتدل على رقم المستند (عربى وإنجليزى).
+const List<String> _kNumberHints = [
+  'رقم', 'الرقم', 'رقم قومى', 'الرقم القومى', 'no', 'no.', 'number',
+  'id', 'serial', 'passport',
+];
+
+/// كلمات بتدل على جهة الإصدار.
+const List<String> _kIssuerHints = [
+  'جهة', 'الجهة', 'اصدار', 'إصدار', 'صادر', 'وزارة', 'مصلحة', 'هيئة', 'إدارة',
+  'issued by', 'authority', 'ministry',
+];
+
+/// بيستخرج بيانات المستند من نص الـOCR — **دالة نقية** عشان تتّست من غير
+/// كاميرا ولا جهاز.
+///
+/// المنطق متحفّظ عن قصد: بيرجّع حاجة **لما يبقى واثق** بس؛ اقتراح غلط
+/// بيتكتب فى خانة أسوأ من مفيش اقتراح (المستخدم ممكن مايراجعوش).
+DocScan scanDocument(String rawText, DateTime now) {
+  final lines = rawText
+      .split('\n')
+      .map((l) => l.trim())
+      .where((l) => l.isNotEmpty)
+      .toList();
+
+  String? number;
+  String? issuer;
+
+  bool hasHint(String lower, List<String> hints) =>
+      hints.any((h) => lower.contains(h));
+
+  for (final line in lines) {
+    final lower = line.toLowerCase();
+    // ----- رقم المستند -----
+    if (number == null && hasHint(lower, _kNumberHints)) {
+      final digits = toEnglishDigits(line);
+      // أطول سلسلة أرقام فى السطر (≥٦ أرقام) = الرقم غالبًا.
+      String? best;
+      for (final m in RegExp(r'\d[\d\s/-]{5,}').allMatches(digits)) {
+        final cleaned = m[0]!.replaceAll(RegExp(r'\s'), '');
+        if (best == null || cleaned.length > best.length) best = cleaned;
+      }
+      if (best != null && best.replaceAll(RegExp(r'\D'), '').length >= 6) {
+        number = best;
+      }
+    }
+    // ----- جهة الإصدار -----
+    if (issuer == null && hasHint(lower, _kIssuerHints)) {
+      // شيل الكلمة الدالة نفسها وخد الباقى لو فيه كلام معقول.
+      var rest = line;
+      for (final h in _kIssuerHints) {
+        rest = rest.replaceAll(RegExp(h, caseSensitive: false), '');
+      }
+      rest = rest.replaceAll(RegExp(r'[:：\-]'), ' ');
+      // «الإصدار» ناقص «إصدار» بيسيب «ال» — بقايا زى دى مش اسم جهة.
+      rest = rest
+          .split(RegExp(r'\s+'))
+          .where((w) => w.isNotEmpty && w != 'ال' && w != 'the')
+          .join(' ')
+          .trim();
+      // لازم يبقى فيه حروف حقيقية (٣ على الأقل) — سطر أرقام أو بقايا
+      // كلمة مش جهة إصدار.
+      final letters = rest.replaceAll(RegExp(r'[\d\s/\-.,]'), '');
+      if (letters.length >= 3) issuer = rest;
+    }
+  }
+
+  // ----- التواريخ: الماضى = إصدار، المستقبل = انتهاء -----
+  final dates = extractDates(rawText);
+  DateTime? issued;
+  DateTime? expiry;
+  for (final d in dates) {
+    if (d.isAfter(now)) {
+      if (d.isBefore(now.add(const Duration(days: 365 * 20))) &&
+          (expiry == null || d.isAfter(expiry))) {
+        expiry = d;
+      }
+    } else {
+      if (d.isAfter(now.subtract(const Duration(days: 365 * 30))) &&
+          (issued == null || d.isAfter(issued))) {
+        issued = d;
+      }
+    }
+  }
+
+  return DocScan(
+      number: number, issuer: issuer, issued: issued, expiry: expiry);
+}

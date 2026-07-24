@@ -1,8 +1,42 @@
+import 'package:flutter/material.dart';
 import '../core/ar.dart';
 import '../core/db.dart';
 import '../core/l10n.dart';
 import '../core/notifications.dart';
 import '../models/models.dart';
+
+
+/// مفتاح إعداد قفل المستندات بالبصمة.
+const String kDocsLockSetting = 'docs_lock';
+
+/// أنواع المستندات — المفتاح بيتخزّن والعرض عبر [docTypeLabel].
+const List<String> kDocTypes = [
+  'license', 'passport', 'id', 'insurance', 'contract',
+  'certificate', 'warranty', 'other',
+];
+
+String docTypeLabel(String t) => switch (t) {
+      'license' => tr('رخصة', 'License'),
+      'passport' => tr('جواز سفر', 'Passport'),
+      'id' => tr('بطاقة', 'ID card'),
+      'insurance' => tr('تأمين', 'Insurance'),
+      'contract' => tr('عقد', 'Contract'),
+      'certificate' => tr('شهادة', 'Certificate'),
+      'warranty' => tr('ضمان', 'Warranty'),
+      _ => tr('أخرى', 'Other'),
+    };
+
+/// أيقونة النوع — بتخلّى القايمة تتقري بنظرة.
+IconData docTypeIcon(String t) => switch (t) {
+      'license' => Icons.badge_outlined,
+      'passport' => Icons.airplane_ticket_outlined,
+      'id' => Icons.credit_card_outlined,
+      'insurance' => Icons.shield_outlined,
+      'contract' => Icons.description_outlined,
+      'certificate' => Icons.workspace_premium_outlined,
+      'warranty' => Icons.verified_outlined,
+      _ => Icons.folder_outlined,
+    };
 
 class DocsRepo {
   Future<List<DocItem>> all() async {
@@ -13,14 +47,20 @@ class DocsRepo {
   }
 
   /// المستندات اللي هتنتهي خلال [days] يوم — وتشمل المنتهية بالفعل.
+  /// المستندات اللى قربت تنتهى.
+  ///
+  /// بيفلتر فى Dart مش SQL عن قصد: الانتهاء ممكن يكون **محسوب** من
+  /// (الإصدار + مدة الصلاحية) ومش متخزّن فى عمود `expiry`، واستعلام SQL
+  /// على العمود لوحده كان هيسيب المستندات دى تفوت من غير تنبيه.
   Future<List<DocItem>> expiringSoon({int days = 30}) async {
-    final db = await AppDb.instance;
     final limit = dayKey(DateTime.now().add(Duration(days: days)));
-    final rows = await db.query('documents',
-        where: 'expiry IS NOT NULL AND expiry <= ?',
-        whereArgs: [limit],
-        orderBy: 'expiry');
-    return rows.map(DocItem.fromMap).toList();
+    final out = <DocItem>[];
+    for (final d in await all()) {
+      final exp = d.effectiveExpiry;
+      if (exp != null && exp.compareTo(limit) <= 0) out.add(d);
+    }
+    out.sort((a, b) => a.effectiveExpiry!.compareTo(b.effectiveExpiry!));
+    return out;
   }
 
   Future<int> save(DocItem d) async {
@@ -45,8 +85,11 @@ class DocsRepo {
 
   Future<void> _reschedule(int id, DocItem d) async {
     await Notifications.cancel(Notifications.docNotifId(id));
-    if (d.expiry == null) return;
-    final exp = DateTime.parse(d.expiry!);
+    // الانتهاء الفعلى (المكتوب أو المحسوب من الإصدار + المدة).
+    final expStr = d.effectiveExpiry;
+    if (expStr == null) return;
+    final exp = DateTime.tryParse(expStr);
+    if (exp == null) return;
     final remindAt = DateTime(exp.year, exp.month, exp.day, 9)
         .subtract(Duration(days: d.remindDays));
     await Notifications.scheduleOnce(

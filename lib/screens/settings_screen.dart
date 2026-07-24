@@ -27,6 +27,7 @@ import '../core/prayers.dart';
 import '../core/seed_demo.dart';
 import '../core/theme.dart';
 import '../core/widget_bridge.dart';
+import '../data/docs_repo.dart';
 import '../data/settings_repo.dart';
 import '../widgets/common.dart';
 import '../widgets/location_fields.dart';
@@ -58,6 +59,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _geminiSendHealth = true;
   int _waterGoalMl = 2000;
   bool _appLock = false;
+  bool _docsLock = false;
   bool _prayerNotifs = true;
   bool _healthSync = false;
   bool _ramadan = false;
@@ -87,6 +89,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final goalMl = await _settings.waterGoalMl();
     final budget = await _settings.monthlyBudget();
     final appLock = await _settings.appLockEnabled();
+    final docsLock = await _settings.get(kDocsLockSetting) == '1';
     final prayerNotifs = await _settings.prayerNotificationsEnabled();
     final healthSync = await _settings.healthSyncEnabled();
     final governorate = await _settings.governorateName();
@@ -115,6 +118,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _waterGoalMl = goalMl;
       _budget.text = budget > 0 ? budget.toStringAsFixed(0) : '';
       _appLock = appLock;
+      _docsLock = docsLock;
       _prayerNotifs = prayerNotifs;
       _healthSync = healthSync;
       _governorate = governorate;
@@ -1127,6 +1131,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'Fingerprint on open & after 1 min away — emergency card stays unlocked')),
                   value: _appLock,
                   onChanged: _toggleAppLock,
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                      tr('قفل المستندات بالبصمة', 'Lock documents')),
+                  subtitle: Text(tr(
+                      'خزنة المستندات فيها صور بطاقات وجوازات — تتفتح ببصمة لوحدها',
+                      'Your documents hold ID & passport photos — unlock separately')),
+                  value: _docsLock,
+                  onChanged: (v) async {
+                    await _settings.set(kDocsLockSetting, v ? '1' : '0');
+                    setState(() => _docsLock = v);
+                  },
                 ),
                 ],
                 if (_openCat == 'backup') ...[

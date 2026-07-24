@@ -4918,4 +4918,98 @@ void main() {
     });
   });
 
+
+  group('بيانات المستند الكاملة', () {
+    test('الانتهاء بيتحسب من الإصدار + مدة الصلاحية', () {
+      const d = DocItem(
+          title: 'رخصة', issued: '2026-03-15', validYears: 7);
+      expect(d.computedExpiry, '2033-03-15');
+      expect(d.effectiveExpiry, '2033-03-15');
+    });
+
+    test('الانتهاء المكتوب بإيد بيغلب المحسوب', () {
+      const d = DocItem(
+          title: 'رخصة',
+          issued: '2026-03-15',
+          validYears: 7,
+          expiry: '2030-01-01');
+      expect(d.effectiveExpiry, '2030-01-01');
+    });
+
+    test('من غير إصدار أو مدة مفيش حساب', () {
+      expect(const DocItem(title: 'x').computedExpiry, isNull);
+      expect(const DocItem(title: 'x', issued: '2026-01-01').computedExpiry,
+          isNull);
+      expect(const DocItem(title: 'x', validYears: 5).computedExpiry, isNull);
+      // تاريخ بايظ مايرميش استثناء.
+      expect(const DocItem(title: 'x', issued: 'مش تاريخ', validYears: 5)
+          .computedExpiry, isNull);
+    });
+
+    test('كل الحقول الجديدة بتروح وترجع من القاعدة', () async {
+      final repo = DocsRepo();
+      final id = await repo.save(const DocItem(
+        title: 'جواز السفر',
+        type: 'passport',
+        docNumber: 'A12345678',
+        issuer: 'مصلحة الجوازات',
+        owner: 'ابنى',
+        issued: '2024-05-10',
+        validYears: 7,
+        renewCost: 500,
+      ));
+      final d = (await repo.all()).firstWhere((x) => x.id == id);
+      expect(d.type, 'passport');
+      expect(d.docNumber, 'A12345678');
+      expect(d.issuer, 'مصلحة الجوازات');
+      expect(d.owner, 'ابنى');
+      expect(d.validYears, 7);
+      expect(d.renewCost, 500);
+      expect(d.effectiveExpiry, '2031-05-10');
+    });
+
+    test('«قربت تنتهى» بتشوف المستند اللى انتهاؤه محسوب', () async {
+      final repo = DocsRepo();
+      final now = DateTime.now();
+      // إصدار من ٤ سنين ومدة ٤ سنين → بينتهى النهاردة تقريبًا.
+      final issued = DateTime(now.year - 4, now.month, now.day);
+      await repo.save(DocItem(
+        title: 'رخصة محسوبة',
+        issued:
+            '${issued.year}-${issued.month.toString().padLeft(2, '0')}-${issued.day.toString().padLeft(2, '0')}',
+        validYears: 4,
+      ));
+      final soon = await repo.expiringSoon(days: 30);
+      // قبل الإصلاح كان استعلام SQL على عمود expiry بيسيبها تفوت.
+      expect(soon.any((d) => d.title == 'رخصة محسوبة'), isTrue);
+    });
+  });
+
+  group('قراءة بيانات المستند من الـOCR', () {
+    test('بيستخرج الرقم والجهة والتواريخ', () {
+      final now = DateTime(2026, 7, 22);
+      final scan = scanDocument('''
+رخصة قيادة
+الرقم القومى 29801011234567
+جهة الإصدار مرور القاهرة
+تاريخ الإصدار 10/05/2024
+تاريخ الانتهاء 10/05/2031
+''', now);
+      expect(scan.number, '29801011234567');
+      expect(scan.issuer, contains('مرور'));
+      expect(scan.issued!.year, 2024);
+      expect(scan.expiry!.year, 2031);
+    });
+
+    test('نص مالوش علاقة مابيرجّعش خردة', () {
+      final scan = scanDocument('اهلا بيك\nكلام عادى', DateTime(2026, 7, 22));
+      expect(scan.isEmpty, isTrue);
+    });
+
+    test('سطر أرقام بس مش جهة إصدار', () {
+      final scan = scanDocument('جهة الإصدار 12345', DateTime(2026, 7, 22));
+      expect(scan.issuer, isNull);
+    });
+  });
+
 }
