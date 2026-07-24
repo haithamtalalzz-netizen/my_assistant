@@ -38,6 +38,9 @@ class _DocsScreenState extends State<DocsScreen> {
   /// فلتر النوع (null = الكل).
   String? _typeFilter;
 
+  /// فلتر المالك (null = الكل).
+  String? _ownerFilter;
+
   /// القفل بالبصمة — اختيارى من الإعدادات. `_authed` بيبقى true على طول
   /// لو القفل مقفول، فالشاشة مابتتغيّرش لمين مش مفعّله.
   bool _authed = true;
@@ -153,6 +156,7 @@ class _DocsScreenState extends State<DocsScreen> {
                       children: [
                         _renewalBanner(context),
                         _typeFilterBar(context),
+                        _ownerFilterBar(context),
                         for (final d in _visibleDocs) _docTile(context, d),
                       ],
                     ),
@@ -195,8 +199,17 @@ class _DocsScreenState extends State<DocsScreen> {
   }
 
   /// المستندات المعروضة بعد فلتر النوع.
-  List<DocItem> get _visibleDocs =>
-      _typeFilter == null ? _docs : _docs.where((d) => d.type == _typeFilter).toList();
+  List<DocItem> get _visibleDocs => _docs.where((d) {
+        if (_typeFilter != null && d.type != _typeFilter) return false;
+        if (_ownerFilter != null) {
+          final o = d.owner.trim().isEmpty ? _meLabel : d.owner.trim();
+          if (o != _ownerFilter) return false;
+        }
+        return true;
+      }).toList();
+
+  /// اسم «أنا» للمستندات اللى مالهاش مالك محدّد.
+  String get _meLabel => tr('أنا', 'Me');
 
   /// شرايط النوع — بتظهر بس لما يبقى فيه أكتر من نوع (مالهاش لازمة قبل كده).
   Widget _typeFilterBar(BuildContext context) {
@@ -221,6 +234,42 @@ class _DocsScreenState extends State<DocsScreen> {
                 label: Text(docTypeLabel(t)),
                 selected: _typeFilter == t,
                 onSelected: (_) => setState(() => _typeFilter = t),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// شرايط المالك — بتظهر بس لو فيه مستندات لأكتر من شخص (مستندات العيلة).
+  Widget _ownerFilterBar(BuildContext context) {
+    final owners = <String>{};
+    for (final d in _docs) {
+      owners.add(d.owner.trim().isEmpty ? _meLabel : d.owner.trim());
+    }
+    if (owners.length < 2) return const SizedBox.shrink();
+    final sorted = owners.toList()
+      ..sort((a, b) => a == _meLabel ? -1 : (b == _meLabel ? 1 : a.compareTo(b)));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            ChoiceChip(
+              avatar: const Icon(Icons.people_outline, size: 16),
+              label: Text(tr('الكل', 'Everyone')),
+              selected: _ownerFilter == null,
+              onSelected: (_) => setState(() => _ownerFilter = null),
+            ),
+            for (final o in sorted) ...[
+              const SizedBox(width: 6),
+              ChoiceChip(
+                avatar: const Icon(Icons.person_outline, size: 16),
+                label: Text(o),
+                selected: _ownerFilter == o,
+                onSelected: (_) => setState(() => _ownerFilter = o),
               ),
             ],
           ],

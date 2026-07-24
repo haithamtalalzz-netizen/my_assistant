@@ -18,6 +18,7 @@ import 'growth/reading_screen.dart';
 import 'growth/habit_analytics_screen.dart';
 import 'passwords/passwords_screen.dart';
 import '../data/bills_repo.dart';
+import '../data/docs_repo.dart';
 import '../data/income_repo.dart';
 import 'alerts_center_screen.dart';
 import 'reports_hub_screen.dart';
@@ -370,7 +371,10 @@ class AppDrawer extends StatelessWidget {
                       tr('التخطيط الأسبوعي', 'Weekly planning'),
                       screen: const WeeklyPlanningScreen()),
                   GroupHubItem(Icons.folder_outlined,
-                      tr('المستندات', 'Documents'), tabIndex: 4),
+                      tr('المستندات', 'Documents'),
+                      tabIndex: 4,
+                      badge: () async =>
+                          (await DocsRepo().expiringSoon()).length),
                   GroupHubItem(Icons.notifications_none, tr('مركز التنبيهات', 'Alerts'),
                       screen: const AlertsCenterScreen()),
                 ]),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/l10n.dart';
 import '../widgets/reorderable_cards.dart';
+import '../core/ar.dart';
 import '../widgets/search_action.dart';
 
 /// عنصر في هَب المجموعة — إما بيفتح شاشة (screen) أو بيبدّل تبويب في الـShell.
@@ -12,12 +13,17 @@ class GroupHubItem {
   final int? tabIndex;
   final Color? color;
 
+  /// دالة بترجّع عدد يتعرض كشارة حمرا على الكارت (مثلًا مستندات قربت
+  /// تنتهى). null = مفيش شارة. بتتنادى مرة عند بناء الهَب.
+  final Future<int> Function()? badge;
+
   const GroupHubItem(
     this.icon,
     this.label, {
     this.screen,
     this.tabIndex,
     this.color,
+    this.badge,
   });
 }
 
@@ -76,14 +82,49 @@ class GroupHubScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: color.withValues(alpha: 0.15),
-              ),
-              child: Icon(it.icon, color: color, size: 27),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: color.withValues(alpha: 0.15),
+                  ),
+                  child: Icon(it.icon, color: color, size: 27),
+                ),
+                if (it.badge != null)
+                  PositionedDirectional(
+                    top: -2,
+                    end: -2,
+                    child: FutureBuilder<int>(
+                      future: it.badge!(),
+                      builder: (_, snap) {
+                        final n = snap.data ?? 0;
+                        if (n <= 0) return const SizedBox.shrink();
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 1),
+                          constraints: const BoxConstraints(minWidth: 18),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.error,
+                            borderRadius: BorderRadius.circular(9),
+                          ),
+                          child: Text(
+                            n > 9 ? tr('٩+', '9+') : arNum(n),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color:
+                                    Theme.of(context).colorScheme.onError,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 10),
             Padding(

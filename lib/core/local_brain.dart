@@ -852,12 +852,27 @@ class LocalBrain {
     final all = await DocsRepo().all();
     // بحث باسم المستند (مطابقة جذر مبسّطة تتحمّل «رخصتي» ↔ «رخصة»).
     for (final d in all) {
-      if (_docMatch(t, d.title)) {
-        final exp = d.expiry != null
-            ? tr(' — صلاحية ${arShortDate(DateTime.parse(d.expiry!))}',
-                ' — expires ${arShortDate(DateTime.parse(d.expiry!))}')
-            : '';
-        return tr('لقيت «${d.title}»$exp.', 'Found "${d.title}"$exp.');
+      if (_docMatch(t, d.title) ||
+          (d.docNumber.isNotEmpty && _docMatch(t, d.docNumber)) ||
+          (d.owner.isNotEmpty && _docMatch(t, d.owner))) {
+        // الانتهاء الفعلى (المكتوب أو المحسوب من الإصدار + المدة).
+        final expStr = d.effectiveExpiry;
+        final parts = <String>[];
+        if (d.docNumber.isNotEmpty) {
+          parts.add(tr('رقمه ${d.docNumber}', 'no. ${d.docNumber}'));
+        }
+        if (d.owner.isNotEmpty) {
+          parts.add(tr('بتاع ${d.owner}', 'owner ${d.owner}'));
+        }
+        if (expStr != null) {
+          final ex = DateTime.tryParse(expStr);
+          if (ex != null) {
+            parts.add(tr('صلاحيته ${arShortDate(ex)}',
+                'expires ${arShortDate(ex)}'));
+          }
+        }
+        final detail = parts.isEmpty ? '' : ' — ${parts.join(' · ')}';
+        return tr('لقيت «${d.title}»$detail.', 'Found "${d.title}"$detail.');
       }
     }
     final soon = await DocsRepo().expiringSoon();
@@ -870,10 +885,10 @@ class LocalBrain {
     final b = StringBuffer();
     b.writeln(tr('مستندات قربت تنتهي:', 'Documents expiring soon:'));
     for (final d in soon.take(8)) {
-      final exp = d.expiry != null
-          ? ' — ${arShortDate(DateTime.parse(d.expiry!))}'
-          : '';
-      b.writeln('• ${d.title}$exp');
+      final ex = d.effectiveExpiry;
+      final parsed = ex == null ? null : DateTime.tryParse(ex);
+      final exStr = parsed == null ? '' : ' — ${arShortDate(parsed)}';
+      b.writeln('• ${d.title}$exStr');
     }
     return b.toString().trim();
   }

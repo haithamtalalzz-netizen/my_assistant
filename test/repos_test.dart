@@ -5113,4 +5113,28 @@ void main() {
     });
   });
 
+
+  group('العقل المساعد بيعرف بيانات المستند', () {
+    test('بيلاقى المستند برقمه ويعرض الرقم والانتهاء المحسوب', () async {
+      await DocsRepo().save(const DocItem(
+        title: 'رخصة القيادة',
+        docNumber: 'XY55443322',
+        issued: '2024-03-01',
+        validYears: 7,
+      ));
+      final ans = (await LocalBrain.answer('رخصتى بتخلص امتى؟')).text;
+      expect(ans, contains('رخصة'));
+      // الانتهاء المحسوب = ٢٠٣١ (مش من عمود expiry اللى فاضى).
+      expect(ans, contains('2031'));
+    });
+
+    test('بيلاقى المستند برقمه لما السؤال فيه كلمة «جواز»', () async {
+      await DocsRepo().save(const DocItem(
+          title: 'جواز', docNumber: 'A11223344', owner: 'مها'));
+      final ans = (await LocalBrain.answer('جواز رقم A11223344')).text;
+      expect(ans, contains('جواز'));
+      expect(ans, contains('مها')); // المالك بيتعرض
+    });
+  });
+
 }

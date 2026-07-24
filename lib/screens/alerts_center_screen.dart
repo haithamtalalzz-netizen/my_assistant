@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/attention.dart';
+import '../core/ar.dart';
 import '../core/l10n.dart';
 import '../widgets/common.dart';
 import '../widgets/search_action.dart';
@@ -113,12 +114,41 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
     });
   }
 
+  /// «خلّص المتاح» — بينفّذ إجراء كل بند له زرار (تمّت/اتاخد/…) دفعة
+  /// واحدة. البنود اللى مالهاش إجراء (زى الاشتراك) بتفضل زى ما هى.
+  Future<void> _clearActionable() async {
+    final actionable = _items.where((i) => i.actionLabel != null).toList();
+    if (actionable.isEmpty) return;
+    final ok = await confirmAction(
+      context,
+      title: tr('خلّص ${arNum(actionable.length)} بند؟',
+          'Clear ${arNum(actionable.length)} items?'),
+      message: tr('هنفّذ كل اللى ليه زرار (تمّت / اتاخد / اتدفعت …) مرة واحدة.',
+          "I'll run every item's action (Done / Taken / Paid …) at once."),
+      confirmLabel: tr('خلّص الكل', 'Clear all'),
+    );
+    if (!ok) return;
+    for (final it in actionable) {
+      await performAttentionAction(it);
+    }
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr('اتخلّصوا ✓', 'All cleared ✓'))));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('التنبيهات', 'Alerts')),
           actions: [
+            if (_items.any((i) => i.actionLabel != null))
+              IconButton(
+                tooltip: tr('خلّص المتاح', 'Clear actionable'),
+                icon: const Icon(Icons.done_all),
+                onPressed: _clearActionable,
+              ),
             if (_snoozed.isNotEmpty)
               IconButton(
                 tooltip: tr('رجّع المؤجّل', 'Un-snooze'),
