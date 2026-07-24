@@ -5012,4 +5012,82 @@ void main() {
     });
   });
 
+
+  group('التنبيهات: البنود الجديدة والإجراءات', () {
+    test('دَين معدّى عليه شهر بيظهر، والجديد لأ', () async {
+      final now = DateTime(2026, 7, 22);
+      await DebtsRepo().add(Debt(
+          person: 'أحمد',
+          amount: 500,
+          direction: 'لى',
+          createdAt: DateTime(2026, 5, 1).toIso8601String()));
+      await DebtsRepo().add(Debt(
+          person: 'سامى',
+          amount: 100,
+          direction: 'لى',
+          createdAt: DateTime(2026, 7, 20).toIso8601String()));
+      final items = await collectAttention(now);
+      final debts =
+          items.where((i) => i.kind == AttentionKind.debt).toList();
+      expect(debts.length, 1, reason: 'الجديد (يومين) مالوش لازمة');
+      expect(debts.first.text, contains('أحمد'));
+    });
+
+    test('«اتسدد» بيقفل الدَين فيختفى من التنبيهات', () async {
+      final now = DateTime(2026, 7, 22);
+      await DebtsRepo().add(Debt(
+          person: 'كريم',
+          amount: 200,
+          direction: 'لى',
+          createdAt: DateTime(2026, 4, 1).toIso8601String()));
+      var items = await collectAttention(now);
+      final it = items.firstWhere((i) => i.kind == AttentionKind.debt);
+      expect(await performAttentionAction(it, nowArg: now), isTrue);
+      items = await collectAttention(now);
+      expect(items.any((i) => i.kind == AttentionKind.debt), isFalse);
+    });
+
+    test('اشتراك بيتجدّد قريّب بيظهر — والبعيد لأ', () async {
+      final iso = DateTime(2026, 1, 1).toIso8601String();
+      await SubscriptionsRepo().save(
+          Subscription(name: 'نتفليكس', amount: 200, dayOfMonth: 12, createdAt: iso));
+      await SubscriptionsRepo().save(
+          Subscription(name: 'سبوتيفاى', amount: 60, dayOfMonth: 28, createdAt: iso));
+      // النهاردة ١٠ → نتفليكس بعد يومين (يظهر)، سبوتيفاى بعد ١٨ (لأ).
+      final items = await collectAttention(DateTime(2026, 7, 10));
+      final subs =
+          items.where((i) => i.kind == AttentionKind.subscription).toList();
+      expect(subs.length, 1);
+      expect(subs.first.text, contains('نتفليكس'));
+    });
+
+    test('قسط الجمعية بيظهر ويختفى بعد «دفعت»', () async {
+      final now = DateTime(2026, 7, 22);
+      await GameyaRepo().save(Gameya(
+          name: 'جمعية الشغل',
+          amount: 1000,
+          dayOfMonth: 1,
+          totalMonths: 10,
+          myTurn: 4,
+          startMonth: '2026-01'));
+      var items = await collectAttention(now);
+      final it = items.firstWhere((i) => i.kind == AttentionKind.gameya);
+      expect(await performAttentionAction(it, nowArg: now), isTrue);
+      items = await collectAttention(now);
+      expect(items.any((i) => i.kind == AttentionKind.gameya), isFalse);
+    });
+
+    test('كل نوع له إجراء بيتنفّذ فعلاً (مفيش زرار ميت)', () async {
+      // الاشتراك هو الوحيد اللى مالوش إجراء عن قصد (بيتجدّد لوحده).
+      final now = DateTime(2026, 7, 22);
+      await HomeMaintenanceRepo().save(const HomeMaintenance(
+          name: 'فلتر المياه', intervalMonths: 6, lastDone: '2020-01-01'));
+      final items = await collectAttention(now);
+      for (final it in items.where((i) => i.actionLabel != null)) {
+        expect(await performAttentionAction(it, nowArg: now), isTrue,
+            reason: 'الإجراء بتاع ${it.kind} مانفّذش');
+      }
+    });
+  });
+
 }

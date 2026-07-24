@@ -1,21 +1,26 @@
 import 'package:flutter/material.dart';
 
-import '../core/ar.dart';
+import '../core/attention.dart';
 import '../core/l10n.dart';
-import '../widgets/search_action.dart';
-import '../data/appointments_repo.dart';
-import '../data/bills_repo.dart';
-import '../data/docs_repo.dart';
-import '../data/home_maintenance_repo.dart';
-import '../data/plants_repo.dart';
-import '../data/relatives_repo.dart';
 import '../widgets/common.dart';
+import '../widgets/search_action.dart';
+import 'baladna/debts_screen.dart';
+import 'baladna/gameya_screen.dart';
 import 'baladna/home_maintenance_screen.dart';
 import 'baladna/relatives_screen.dart';
 import 'docs/docs_screen.dart';
+import 'home/pharmacy_screen.dart';
 import 'home/plants_screen.dart';
+import 'money/subscriptions_screen.dart';
+import 'schedule/schedule_screen.dart';
+import 'tasks/tasks_screen.dart';
 
-/// مركز التنبيهات — بيجمع كل اللي محتاج انتباه النهارده في مكان واحد.
+/// مركز التنبيهات — كل اللى محتاج انتباهك النهارده فى مكان واحد.
+///
+/// بيقرا من **`collectAttention` وبس**. قبل كده الشاشة كانت بتبنى قايمتها
+/// بنفسها من ٦ مصادر بينما عدّاد الجرس بيحسب من `collectAttention` (٩) —
+/// فالعدّاد كان بيقول رقم والشاشة توريك أقل منه: المهام والأدوية
+/// والتطعيمات كانت **بتتعدّ ومابتظهرش**.
 class AlertsCenterScreen extends StatefulWidget {
   const AlertsCenterScreen({super.key});
 
@@ -23,17 +28,9 @@ class AlertsCenterScreen extends StatefulWidget {
   State<AlertsCenterScreen> createState() => _AlertsCenterScreenState();
 }
 
-class _AlertItem {
-  final IconData icon;
-  final Color color;
-  final String text;
-  final Widget? screen;
-  _AlertItem(this.icon, this.color, this.text, {this.screen});
-}
-
 class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
   bool _loading = true;
-  final List<_AlertItem> _items = [];
+  List<AttentionItem> _items = const [];
 
   @override
   void initState() {
@@ -42,53 +39,65 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
   }
 
   Future<void> _load() async {
-    final now = DateTime.now();
-    final bills = await BillsRepo().due(now);
-    final appts = await AppointmentsRepo().forDay(now);
-    final plants = await PlantsRepo().due(now);
-    final maint = await HomeMaintenanceRepo().due(now);
-    final relatives = await RelativesRepo().due(now);
-    final docs = await DocsRepo().expiringSoon();
-
-    final list = <_AlertItem>[];
-    for (final b in bills) {
-      list.add(_AlertItem(Icons.receipt_long_outlined, Colors.redAccent,
-          tr('فاتورة مستحقة: ${b.name}', 'Bill due: ${b.name}')));
-    }
-    for (final a in appts) {
-      list.add(_AlertItem(Icons.event_outlined, Colors.blue,
-          tr('موعد النهارده: ${a.title} — ${arTime(a.when)}',
-              'Today: ${a.title} — ${arTime(a.when)}')));
-    }
-    for (final p in plants) {
-      list.add(_AlertItem(Icons.yard_outlined, Colors.green,
-          tr('${p.name} محتاجة مياه', '${p.name} needs water'),
-          screen: const PlantsScreen()));
-    }
-    for (final m in maint) {
-      list.add(_AlertItem(Icons.home_repair_service_outlined, Colors.orange,
-          tr('صيانة مستحقة: ${m.name}', 'Maintenance due: ${m.name}'),
-          screen: const HomeMaintenanceScreen()));
-    }
-    for (final r in relatives) {
-      list.add(_AlertItem(Icons.diversity_1_outlined, Colors.purple,
-          tr('اطمن على ${r.name}', 'Check on ${r.name}'),
-          screen: const RelativesScreen()));
-    }
-    for (final d in docs) {
-      list.add(_AlertItem(Icons.folder_outlined, Colors.teal,
-          tr('مستند قرب يخلص: ${d.title}', 'Document expiring: ${d.title}'),
-          screen: const DocsScreen()));
-    }
-
+    final items = await collectAttention();
     if (!mounted) return;
     setState(() {
-      _items
-        ..clear()
-        ..addAll(list);
+      _items = items;
       _loading = false;
     });
   }
+
+  /// تنفيذ الإجراء من التنبيه نفسه — من غير ما تفتح الصفحة.
+  Future<void> _act(AttentionItem it) async {
+    final done = await performAttentionAction(it);
+    if (!mounted) return;
+    if (!done) return;
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(tr('تمام ✓', 'Done ✓'))));
+  }
+
+  /// الصفحة اللى البند بيفتحها لما تدوس عليه.
+  Widget? _screenFor(AttentionKind kind) => switch (kind) {
+        // الفواتير والتطعيمات جوّه شاشات أكبر (تبويب) — الزرار بيكفى.
+        AttentionKind.bill => null,
+        AttentionKind.vaccine => null,
+        AttentionKind.task => const TasksScreen(),
+        AttentionKind.med => const PharmacyScreen(),
+        AttentionKind.appointment => const ScheduleScreen(),
+        AttentionKind.doc => const DocsScreen(),
+        AttentionKind.plant => const PlantsScreen(),
+        AttentionKind.maintenance => const HomeMaintenanceScreen(),
+        AttentionKind.relative => const RelativesScreen(),
+        AttentionKind.debt => const DebtsScreen(),
+        AttentionKind.subscription => const SubscriptionsScreen(),
+        AttentionKind.gameya => const GameyaScreen(),
+      };
+
+  ({IconData icon, Color color}) _look(AttentionKind kind) => switch (kind) {
+        AttentionKind.bill =>
+          (icon: Icons.receipt_long_outlined, color: Colors.redAccent),
+        AttentionKind.task => (icon: Icons.checklist_rtl, color: Colors.orange),
+        AttentionKind.med =>
+          (icon: Icons.medication_outlined, color: Colors.pink),
+        AttentionKind.appointment =>
+          (icon: Icons.event_outlined, color: Colors.blue),
+        AttentionKind.doc => (icon: Icons.folder_outlined, color: Colors.teal),
+        AttentionKind.vaccine =>
+          (icon: Icons.vaccines_outlined, color: Colors.indigo),
+        AttentionKind.plant => (icon: Icons.yard_outlined, color: Colors.green),
+        AttentionKind.maintenance =>
+          (icon: Icons.home_repair_service_outlined, color: Colors.orange),
+        AttentionKind.relative =>
+          (icon: Icons.diversity_1_outlined, color: Colors.purple),
+        AttentionKind.debt =>
+          (icon: Icons.handshake_outlined, color: Color(0xFFFF6F00)),
+        AttentionKind.subscription =>
+          (icon: Icons.subscriptions_outlined, color: Colors.indigo),
+        AttentionKind.gameya =>
+          (icon: Icons.groups_outlined, color: Colors.teal),
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -107,33 +116,41 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
                   onRefresh: _load,
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-                    children: [
-                      for (final it in _items)
-                        Card(
-                          margin: const EdgeInsets.symmetric(vertical: 3),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: it.color.withValues(alpha: 0.15),
-                              child: Icon(it.icon, color: it.color, size: 20),
-                            ),
-                            title: Text(it.text),
-                            trailing: it.screen == null
-                                ? null
-                                : const Icon(Icons.chevron_left, size: 20),
-                            onTap: it.screen == null
-                                ? null
-                                : () async {
-                                    await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) => it.screen!));
-                                    if (mounted) await _load();
-                                  },
-                          ),
-                        ),
-                    ],
+                    children: [for (final it in _items) _tile(it)],
                   ),
                 ),
+    );
+  }
+
+  Widget _tile(AttentionItem it) {
+    final look = _look(it.kind);
+    final screen = _screenFor(it.kind);
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: look.color.withValues(alpha: 0.15),
+          child: Icon(look.icon, color: look.color, size: 20),
+        ),
+        title: Text(it.text),
+        trailing: it.actionLabel == null
+            ? (screen == null ? null : const Icon(Icons.chevron_left, size: 20))
+            : FilledButton.tonal(
+                onPressed: () => _act(it),
+                style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 12)),
+                child:
+                    Text(it.actionLabel!, style: const TextStyle(fontSize: 12.5)),
+              ),
+        onTap: screen == null
+            ? null
+            : () async {
+                await Navigator.push(
+                    context, MaterialPageRoute(builder: (_) => screen));
+                if (mounted) await _load();
+              },
+      ),
     );
   }
 }
