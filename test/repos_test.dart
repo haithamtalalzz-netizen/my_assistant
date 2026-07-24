@@ -5137,4 +5137,20 @@ void main() {
     });
   });
 
+
+  group('ترتيب المستندات بالانتهاء الفعلى', () {
+    test('«قربت تنتهى» بترتّب المحسوب مع المكتوب مش بعده', () async {
+      // مستند انتهاؤه محسوب من (الإصدار + المدة) — قبل مستند مكتوب أبعد.
+      await DocsRepo().save(const DocItem(
+          title: 'رخصة محسوبة', issued: '2020-01-01', validYears: 5)); // 2025
+      await DocsRepo().save(const DocItem(
+          title: 'تأمين مكتوب', expiry: '2030-01-01'));
+      final soon = await DocsRepo().expiringSoon(days: 100000);
+      // الاتنين ظهروا، والمحسوب (٢٠٢٥) قبل المكتوب (٢٠٣٠).
+      final titles = soon.map((d) => d.title).toList();
+      expect(titles.indexOf('رخصة محسوبة') < titles.indexOf('تأمين مكتوب'),
+          isTrue);
+    });
+  });
+
 }

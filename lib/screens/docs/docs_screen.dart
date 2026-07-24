@@ -80,11 +80,15 @@ class _DocsScreenState extends State<DocsScreen> {
   Future<void> _load() async {
     final docs = await _repo.all();
     // الأقرب انتهاءً (والمنتهي) الأول؛ اللي من غير تاريخ في الآخر.
+    // بنرتّب بالانتهاء الفعلى (المحسوب أو المكتوب) عشان المستند اللى
+    // انتهاؤه محسوب ياخد مكانه الصح مش يتحط فى الآخر.
     docs.sort((a, b) {
-      if (a.expiry == null && b.expiry == null) return 0;
-      if (a.expiry == null) return 1;
-      if (b.expiry == null) return -1;
-      return a.expiry!.compareTo(b.expiry!);
+      final ea = a.effectiveExpiry;
+      final eb = b.effectiveExpiry;
+      if (ea == null && eb == null) return 0;
+      if (ea == null) return 1;
+      if (eb == null) return -1;
+      return ea.compareTo(eb);
     });
     if (!mounted) return;
     setState(() {
@@ -98,8 +102,11 @@ class _DocsScreenState extends State<DocsScreen> {
     final today = dateOnly(DateTime.now());
     var n = 0;
     for (final d in _docs) {
-      if (d.expiry == null) continue;
-      final days = dateOnly(DateTime.parse(d.expiry!)).difference(today).inDays;
+      final exp = d.effectiveExpiry;
+      if (exp == null) continue;
+      final parsed = DateTime.tryParse(exp);
+      if (parsed == null) continue;
+      final days = dateOnly(parsed).difference(today).inDays;
       if (days <= d.remindDays) n++;
     }
     return n;
