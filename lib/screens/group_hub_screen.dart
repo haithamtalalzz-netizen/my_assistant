@@ -72,7 +72,10 @@ class GroupHubScreen extends StatelessWidget {
       child: InkWell(
         onTap: () {
           if (it.tabIndex != null) {
-            Navigator.pop(context); // اقفل الهَب وارجع للـShell
+            // اقفل كل الهَبّات المفتوحة (ممكن تكون متداخلة أكتر من مستوى،
+            // زى «العادات» جوّه «الصحة» جوّه «صحتى») وارجع للـShell قبل
+            // تبديل التبويب — pop واحدة كانت بترجع للهَب الأب مش للـShell.
+            Navigator.popUntil(context, (route) => route.isFirst);
             onSelectTab(it.tabIndex!);
           } else if (it.screen != null) {
             Navigator.push(
