@@ -202,6 +202,10 @@ class AppDrawer extends StatelessWidget {
             groupTile(Icons.health_and_safety_outlined, tr('صحتى', 'My health'),
                 accent: Colors.pink,
                 [
+                  GroupHubItem(Icons.dashboard_outlined,
+                      tr('لوحة الصحة', 'Health hub'),
+                      color: Colors.pink,
+                      screen: const HealthHubScreen()),
                   GroupHubItem(Icons.favorite_outline, tr('الصحة', 'Health'),
                       color: Colors.pink,
                       screen: GroupHubScreen(
@@ -209,9 +213,6 @@ class AppDrawer extends StatelessWidget {
                         onSelectTab: onSelect,
                         accent: Colors.pink,
                         items: [
-                          GroupHubItem(Icons.dashboard_outlined,
-                              tr('لوحة الصحة', 'Health hub'),
-                              screen: const HealthHubScreen()),
                           if (AppState.gender.value == 'female')
                             GroupHubItem(Icons.favorite,
                                 tr('الدورة الشهرية', 'Menstrual cycle'),
