@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../data/wishlist_repo.dart';
+import '../../data/savings_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 
@@ -130,6 +131,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
             PopupMenuButton<String>(
               onSelected: (v) async {
                 if (v == 'edit') await _form(w);
+                if (v == 'save') await _convertToGoal(w);
                 if (v == 'delete') {
                   await _repo.delete(w.id!);
                   await _load();
@@ -137,6 +139,10 @@ class _WishlistScreenState extends State<WishlistScreen> {
               },
               itemBuilder: (_) => [
                 PopupMenuItem(value: 'edit', child: Text(tr('تعديل', 'Edit'))),
+                if (w.price > 0)
+                  PopupMenuItem(
+                      value: 'save',
+                      child: Text(tr('حوّل لهدف ادخار', 'Make a savings goal'))),
                 PopupMenuItem(value: 'delete', child: Text(tr('حذف', 'Delete'))),
               ],
             ),
@@ -145,6 +151,19 @@ class _WishlistScreenState extends State<WishlistScreen> {
         onTap: () => _form(w),
       ),
     );
+  }
+
+  /// يحوّل الأمنية لهدف ادخار بسعرها.
+  Future<void> _convertToGoal(WishItem w) async {
+    await SavingsRepo().addGoal(SavingsGoal(
+      name: w.name,
+      target: w.price,
+      createdAt: DateTime.now().toIso8601String(),
+    ));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr('اتحوّلت لهدف ادخار ✓ — تلاقيها فى «الادخار»',
+            'Added as a savings goal ✓ — find it in Savings'))));
   }
 
   Future<void> _form([WishItem? item]) async {

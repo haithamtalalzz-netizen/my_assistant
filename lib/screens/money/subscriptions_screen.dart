@@ -29,12 +29,95 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
   Future<void> _load() async {
     final subs = await _repo.all();
     final monthly = await _repo.monthlyTotal();
+    final now = DateTime.now();
+    // النشطة الأول، مرتّبة بأقرب تجديد.
+    subs.sort((a, b) {
+      if (a.active != b.active) return a.active ? -1 : 1;
+      return _daysUntilRenewal(a, now).compareTo(_daysUntilRenewal(b, now));
+    });
     if (!mounted) return;
     setState(() {
       _subs = subs;
       _monthly = monthly;
       _loading = false;
     });
+  }
+
+  double _monthlyEquiv(Subscription s) =>
+      s.cycle == 'yearly' ? s.amount / 12 : s.amount;
+
+  DateTime _nextRenewal(Subscription s, DateTime now) {
+    final day = s.dayOfMonth.clamp(1, 28);
+    final today = DateTime(now.year, now.month, now.day);
+    var d = DateTime(now.year, now.month, day);
+    if (d.isBefore(today)) d = DateTime(now.year, now.month + 1, day);
+    return d;
+  }
+
+  int _daysUntilRenewal(Subscription s, DateTime now) =>
+      _nextRenewal(s, now).difference(DateTime(now.year, now.month, now.day)).inDays;
+
+  /// تقسيم التكلفة الشهرية على الفئات + الأغلى + تكلفة اليوم.
+  Widget _breakdownCard(ColorScheme scheme) {
+    final active = _subs.where((s) => s.active).toList();
+    if (active.length < 2) return const SizedBox.shrink();
+    final byCat = <String, double>{};
+    for (final s in active) {
+      byCat.update(s.category, (v) => v + _monthlyEquiv(s),
+          ifAbsent: () => _monthlyEquiv(s));
+    }
+    final cats = byCat.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final priciest = active.reduce(
+        (a, b) => _monthlyEquiv(a) >= _monthlyEquiv(b) ? a : b);
+    final maxCat = cats.first.value;
+    return Card(
+      margin: const EdgeInsets.only(top: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(tr('التكلفة حسب الفئة', 'Cost by category'),
+                style: const TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            for (final e in cats)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(children: [
+                  SizedBox(
+                      width: 96,
+                      child: Text(subscriptionCategoryLabel(e.key),
+                          style: const TextStyle(fontSize: 12.5),
+                          overflow: TextOverflow.ellipsis)),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: maxCat > 0 ? e.value / maxCat : 0,
+                        minHeight: 8,
+                        backgroundColor: scheme.surfaceContainerHighest,
+                        valueColor: AlwaysStoppedAnimation(scheme.primary),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(egp(e.value),
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w700)),
+                ]),
+              ),
+            const Divider(height: 18),
+            Text(
+                tr('الأغلى: ${priciest.name} (${egp(_monthlyEquiv(priciest))}/شهر) '
+                    '· ≈ ${egp(_monthly / 30)}/يوم',
+                    'Priciest: ${priciest.name} (${egp(_monthlyEquiv(priciest))}/mo) '
+                    '· ≈ ${egp(_monthly / 30)}/day'),
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -75,6 +158,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                       ),
                     ),
                   ),
+                  _breakdownCard(scheme),
                   const SizedBox(height: 8),
                   if (_subs.isEmpty)
                     EmptyHint(
@@ -110,9 +194,21 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
             style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: s.active ? null : scheme.outline)),
-        subtitle: Text(
-            '${egp(s.amount)} · $cycle · ${tr('يوم', 'day')} ${arNum(s.dayOfMonth)}'
-            '${s.category.isEmpty ? '' : ' · ${subscriptionCategoryLabel(s.category)}'}'),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+                '${egp(s.amount)} · $cycle'
+                '${s.category.isEmpty ? '' : ' · ${subscriptionCategoryLabel(s.category)}'}'),
+            if (s.active)
+              Text(
+                  tr('التجديد الجاى: ${arShortDate(_nextRenewal(s, DateTime.now()))} '
+                      '(باقى ${arNum(_daysUntilRenewal(s, DateTime.now()))} يوم)',
+                      'Renews: ${arShortDate(_nextRenewal(s, DateTime.now()))} '
+                      '(${_daysUntilRenewal(s, DateTime.now())}d)'),
+                  style: TextStyle(fontSize: 11.5, color: scheme.outline)),
+          ],
+        ),
         trailing: PopupMenuButton<String>(
           onSelected: (v) async {
             if (v == 'edit') await _form(s);

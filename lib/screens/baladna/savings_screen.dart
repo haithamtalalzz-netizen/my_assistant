@@ -43,40 +43,73 @@ class _SavingsScreenState extends State<SavingsScreen> {
     final name = TextEditingController(text: goal?.name ?? '');
     final target =
         TextEditingController(text: goal == null ? '' : goal.target.toStringAsFixed(0));
+    String? deadline = goal?.deadline;
     final saved = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
           scrollable: true,
-        title: Text(goal == null
-            ? tr('هدف ادخار جديد', 'New savings goal')
-            : tr('تعديل الهدف', 'Edit goal')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: name,
-              autofocus: goal == null,
-              decoration: InputDecoration(
-                  labelText: tr('الهدف (مثلًا: موبايل جديد)',
-                      'Goal (e.g. new phone)')),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: target,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                  labelText: tr('المبلغ المطلوب (ج.م)', 'Target amount (EGP)')),
-            ),
+          title: Text(goal == null
+              ? tr('هدف ادخار جديد', 'New savings goal')
+              : tr('تعديل الهدف', 'Edit goal')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: name,
+                autofocus: goal == null,
+                decoration: InputDecoration(
+                    labelText: tr('الهدف (مثلًا: موبايل جديد)',
+                        'Goal (e.g. new phone)')),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: target,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                    labelText: tr('المبلغ المطلوب (ج.م)', 'Target amount (EGP)')),
+              ),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.event_outlined, size: 18),
+                    onPressed: () async {
+                      final now = DateTime.now();
+                      final init = deadline == null
+                          ? DateTime(now.year, now.month + 6)
+                          : (DateTime.tryParse(deadline!) ?? now);
+                      final d = await showDatePicker(
+                        context: ctx,
+                        initialDate: init,
+                        firstDate: now,
+                        lastDate: DateTime(now.year + 20),
+                      );
+                      if (d != null) setD(() => deadline = dayKey(d));
+                    },
+                    label: Text(deadline == null
+                        ? tr('موعد مستهدف (اختيارى)', 'Target date (optional)')
+                        : arShortDate(DateTime.parse(deadline!))),
+                  ),
+                ),
+                if (deadline != null)
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: () => setD(() => deadline = null),
+                  ),
+              ]),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(tr('إلغاء', 'Cancel'))),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(tr('حفظ', 'Save'))),
           ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(tr('إلغاء', 'Cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(tr('حفظ', 'Save'))),
-        ],
       ),
     );
     if (saved == true) {
@@ -87,14 +120,16 @@ class _SavingsScreenState extends State<SavingsScreen> {
             name: name.text.trim(),
             target: t,
             createdAt: DateTime.now().toIso8601String(),
+            deadline: deadline,
           ));
         } else {
           await _repo.updateGoal(SavingsGoal(
             id: goal.id,
             name: name.text.trim(),
             target: t,
+            saved: goal.saved,
             createdAt: goal.createdAt,
-            deadline: goal.deadline,
+            deadline: deadline,
           ));
         }
         if (mounted) await _load();
@@ -284,6 +319,25 @@ class _SavingsScreenState extends State<SavingsScreen> {
                             '${egp(g.remaining)} left — about ${arNum(months)} months at your pace'),
                 style: TextStyle(
                     color: done ? Colors.green : scheme.onSurface, fontSize: 13)),
+            if (!done && g.deadline != null)
+              Builder(builder: (_) {
+                final d = DateTime.tryParse(g.deadline!);
+                if (d == null) return const SizedBox.shrink();
+                final now = DateTime.now();
+                var m = (d.year - now.year) * 12 + (d.month - now.month);
+                if (m < 1) m = 1;
+                final req = g.remaining / m;
+                return Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Text(
+                      tr('توصل قبل ${arShortDate(d)}؟ حوّش ${egp(req)}/شهر',
+                          'By ${arShortDate(d)}? save ${egp(req)}/mo'),
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          color: scheme.primary,
+                          fontWeight: FontWeight.w600)),
+                );
+              }),
             const SizedBox(height: 8),
             Align(
               alignment: AlignmentDirectional.centerEnd,
