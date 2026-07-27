@@ -50,6 +50,10 @@ import 'package:my_assistant/core/mawarith.dart';
 import 'package:my_assistant/core/zakat.dart';
 import 'package:my_assistant/core/gold_price.dart';
 import 'package:my_assistant/core/zakat_livestock.dart';
+import 'package:my_assistant/core/health_calc.dart';
+import 'package:my_assistant/core/password_tools.dart';
+import 'package:my_assistant/core/budget_calc.dart';
+import 'package:my_assistant/core/day_progress.dart';
 import 'package:my_assistant/data/mushaf_repo.dart';
 import 'package:my_assistant/core/demo_images.dart';
 import 'package:my_assistant/core/seed_demo.dart';
@@ -5338,6 +5342,79 @@ void main() {
       expect(fmt(camelZakat(121)), '3×بنت لبون');
       expect(fmt(camelZakat(130)), '1×حِقّة,2×بنت لبون');
       expect(fmt(camelZakat(150)), '3×حِقّة');
+    });
+  });
+
+  group('حسابات BMI/BMR', () {
+    test('BMI وتصنيفه', () {
+      expect(bmi(80, 180), closeTo(24.69, 0.01));
+      expect(bmiCategoryAr(17), 'نقص وزن');
+      expect(bmiCategoryAr(22), 'وزن طبيعى');
+      expect(bmiCategoryAr(27), 'زيادة وزن');
+      expect(bmiCategoryAr(32), 'سمنة');
+      expect(bmi(70, 0), 0); // بلا طول
+    });
+    test('BMR — Mifflin-St Jeor للجنسين', () {
+      // ذكر 80كجم/180سم/30سنة = 800+1125-150+5 = 1780
+      expect(
+          bmrMifflin(weightKg: 80, heightCm: 180, ageYears: 30, isMale: true),
+          closeTo(1780, 1e-6));
+      // أنثى نفسها − 161 = 1614
+      expect(
+          bmrMifflin(weightKg: 80, heightCm: 180, ageYears: 30, isMale: false),
+          closeTo(1614, 1e-6));
+    });
+  });
+
+  group('أدوات كلمات السر', () {
+    test('التوليد يعطى كلمة قوية بالطول المطلوب', () {
+      final pw = generatePassword(length: 16);
+      expect(pw.length, 16);
+      expect(RegExp(r'[a-z]').hasMatch(pw), isTrue);
+      expect(RegExp(r'[A-Z]').hasMatch(pw), isTrue);
+      expect(RegExp(r'[0-9]').hasMatch(pw), isTrue);
+      expect(passwordLevel(pw), PwLevel.strong);
+    });
+    test('تقييم القوة', () {
+      expect(passwordLevel('123'), PwLevel.weak);
+      expect(passwordLevel('abcdefgh'), PwLevel.weak); // صنف واحد
+      expect(passwordLevel('Abc12345'), PwLevel.fair);
+      expect(passwordLevel('Abcd1234!xyz'), PwLevel.strong);
+    });
+    test('التدقيق يكشف الضعيف والمكرَّر', () {
+      final a = auditPasswords({1: '123', 2: '123', 3: 'Strong1@pass'});
+      expect(a.weakIds, containsAll([1, 2]));
+      expect(a.weakIds.contains(3), isFalse);
+      expect(a.reusedGroups.length, 1);
+      expect(a.reusedGroups.first, containsAll([1, 2]));
+      expect(a.isClean, isFalse);
+      expect(auditPasswords({1: 'Strong1@pass'}).isClean, isTrue);
+    });
+  });
+
+  group('المتاح للصرف', () {
+    test('عدد أيام الشهر', () {
+      expect(daysInMonth(DateTime(2026, 2, 1)), 28);
+      expect(daysInMonth(DateTime(2024, 2, 1)), 29); // كبيسة
+      expect(daysInMonth(DateTime(2026, 7, 10)), 31);
+    });
+    test('القسمة على باقى الأيام', () {
+      final s = safeToSpend(
+          budget: 3000, spent: 1000, upcomingObligations: 500,
+          now: DateTime(2026, 7, 15));
+      expect(s.remaining, closeTo(1500, 1e-9));
+      expect(s.daysLeft, 17); // 31-15+1
+      expect(s.perDay, closeTo(1500 / 17, 1e-9));
+    });
+  });
+
+  group('إنجاز اليوم', () {
+    test('النسبة المئوية', () {
+      expect(dayCompletionPercent([(done: 2, total: 4), (done: 1, total: 1)]),
+          60); // 3/5
+      expect(dayCompletionPercent([]), 0);
+      expect(dayCompletionPercent([(done: 0, total: 0)]), 0);
+      expect(dayCompletionPercent([(done: 5, total: 3)]), 100); // clamp
     });
   });
 

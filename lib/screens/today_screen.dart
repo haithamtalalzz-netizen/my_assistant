@@ -9,6 +9,7 @@ import 'package:hijri/hijri_calendar.dart';
 
 import '../core/app_state.dart';
 import '../core/ar.dart';
+import '../core/day_progress.dart';
 import '../core/home_layout.dart';
 import '../core/health_service.dart';
 import '../core/attention.dart';
@@ -106,6 +107,8 @@ class _TodayScreenState extends State<TodayScreen> {
   List<String> _shortcutKeys = _defaultShortcuts;
   List<Medication> _activeMeds = [];
   Set<String> _taken = {};
+  int _habitsDone = 0;
+  int _habitsTotal = 0;
   int? _steps;
   int? _calories;
   int? _restingHr;
@@ -152,6 +155,9 @@ class _TodayScreenState extends State<TodayScreen> {
     for (final h in habits) {
       streaks[h.id!] = computeStreak(await _habits.daysFor(h.id!), now);
     }
+    final habitsDoneIds = await _habits.doneOn(day);
+    final habitsDone =
+        habits.where((h) => habitsDoneIds.contains(h.id)).length;
     // بانر التخطيط الأسبوعي يظهر من الجمعة للأحد لو أسبوع ده لسه مااتخططش.
     final ramadan = await _settings.ramadanMode();
     // «محتاج منك دلوقتي» + عدد الصلوات (لحلقات «يومك فى سطر»).
@@ -180,6 +186,8 @@ class _TodayScreenState extends State<TodayScreen> {
       _todayAppts = appts;
       _activeMeds = meds;
       _taken = taken;
+      _habitsTotal = habits.length;
+      _habitsDone = habitsDone;
       _ramadan = ramadan;
       _editingSleep = false;
       _loading = false;
@@ -298,6 +306,62 @@ class _TodayScreenState extends State<TodayScreen> {
   ///
   /// ده كمان بيسدّ ثغرة: الرئيسية الجديدة مفيهاش شريط «محتاج منك دلوقتي»،
   /// فالجرس بقى الطريق المضمون لأى حاجة متأخرة من غير ما يزحم الشاشة.
+  /// شريط «إنجاز اليوم %» — يجمع الماء والدوا والعادات فى نسبة واحدة محفّزة.
+  Widget _dayRibbon(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final medsTotal =
+        _activeMeds.fold<int>(0, (s, m) => s + m.times.length);
+    final parts = <({int done, int total})>[
+      (done: _water.clamp(0, _waterGoal), total: _waterGoal),
+      if (medsTotal > 0)
+        (done: _taken.length.clamp(0, medsTotal), total: medsTotal),
+      if (_habitsTotal > 0) (done: _habitsDone, total: _habitsTotal),
+    ];
+    final total = parts.fold<int>(0, (s, p) => s + p.total);
+    if (total == 0) return const SizedBox.shrink();
+    final pct = dayCompletionPercent(parts);
+    final done = pct >= 100;
+    final color = done ? Colors.green : scheme.primary;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(done ? Icons.emoji_events_outlined : Icons.bolt,
+                size: 18, color: color),
+            const SizedBox(width: 6),
+            Text(tr('إنجاز اليوم', "Today's progress"),
+                style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+            const Spacer(),
+            Text('٪${arNum(pct)}',
+                style: TextStyle(
+                    color: color, fontWeight: FontWeight.w900, fontSize: 18)),
+          ]),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: pct / 100,
+              minHeight: 8,
+              backgroundColor: scheme.surfaceContainerHighest,
+              valueColor: AlwaysStoppedAnimation(color),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(tr(progressMessageAr(pct), progressMessageEn(pct)),
+              style: TextStyle(
+                  fontSize: 12.5, color: scheme.onSurfaceVariant)),
+        ],
+      ),
+    );
+  }
+
   Widget _alertsAction(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final n = _attention.length;
@@ -394,7 +458,9 @@ class _TodayScreenState extends State<TodayScreen> {
           // الترحيب هنا بالمظهر العادى عن قصد (اختيار المستخدم) — التدرّج
           // بيفضل للأشكال التانية.
           _header(context),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          _dayRibbon(context),
+          const SizedBox(height: 4),
           _customSectionHeader(
             context,
             tr('إجراءات سريعة', 'Quick actions'),

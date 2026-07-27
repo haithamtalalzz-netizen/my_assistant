@@ -410,6 +410,12 @@ class _HabitsScreenState extends State<HabitsScreen> {
                 const SizedBox(width: 2),
                 Text(arNum(streak),
                     style: const TextStyle(fontWeight: FontWeight.w700)),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: tr('خريطة الشهر', 'Month heatmap'),
+                  icon: const Icon(Icons.calendar_month_outlined, size: 20),
+                  onPressed: () => _showHeatmap(h),
+                ),
                 PopupMenuButton<String>(
                   onSelected: (v) async {
                     switch (v) {
@@ -474,6 +480,149 @@ class _HabitsScreenState extends State<HabitsScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// خريطة حرارية شهرية لعادة — كل يوم مربّع ملوّن حسب الإنجاز، مع تنقّل بالأشهر.
+  void _showHeatmap(Habit h) {
+    final days = _days[h.id] ?? const <String>{};
+    final now = DateTime.now();
+    var cursor = DateTime(now.year, now.month);
+    const heads = ['س', 'ح', 'ن', 'ث', 'ر', 'خ', 'ج']; // السبت..الجمعة
+    // عمود اليوم فى أسبوع يبدأ بالسبت (Dart: إثنين=1..أحد=7).
+    int col(int weekday) => (weekday + 1) % 7;
+
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final scheme = Theme.of(ctx).colorScheme;
+          final year = cursor.year, month = cursor.month;
+          final dim = DateTime(year, month + 1, 0).day;
+          final lead = col(DateTime(year, month, 1).weekday);
+          // إحصائيات الشهر: تم كام، وأطول سلسلة.
+          var doneCount = 0, longest = 0, run = 0;
+          for (var d = 1; d <= dim; d++) {
+            final isDone = days.contains(dayKey(DateTime(year, month, d)));
+            if (isDone) {
+              doneCount++;
+              run++;
+              if (run > longest) longest = run;
+            } else {
+              run = 0;
+            }
+          }
+          final canNext = !(year == now.year && month == now.month);
+
+          Widget cell(int? day) {
+            if (day == null) return const SizedBox.shrink();
+            final date = DateTime(year, month, day);
+            final isDone = days.contains(dayKey(date));
+            final isToday = dayKey(date) == dayKey(now);
+            final isFuture = date.isAfter(DateTime(now.year, now.month, now.day));
+            return GestureDetector(
+              onTap: isFuture
+                  ? null
+                  : () async {
+                      await _repo.toggle(h.id!, dayKey(date));
+                      await _refreshHabit(h);
+                      setSheet(() => days
+                        ..clear()
+                        ..addAll(_days[h.id] ?? const <String>{}));
+                    },
+              child: Container(
+                margin: const EdgeInsets.all(2.5),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(7),
+                  color: isDone
+                      ? scheme.primary
+                      : scheme.surfaceContainerHighest
+                          .withValues(alpha: isFuture ? .3 : .7),
+                  border: isToday
+                      ? Border.all(color: scheme.primary, width: 1.6)
+                      : null,
+                ),
+                child: Text(arNum(day),
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: isDone ? scheme.onPrimary : scheme.outline,
+                        fontWeight:
+                            isToday ? FontWeight.w800 : FontWeight.w400)),
+              ),
+            );
+          }
+
+          final cells = <Widget>[
+            for (var i = 0; i < lead; i++) const SizedBox.shrink(),
+            for (var d = 1; d <= dim; d++) cell(d),
+          ];
+
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(h.name,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                Row(children: [
+                  IconButton(
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: () => setSheet(
+                          () => cursor = DateTime(year, month - 1)),
+                      tooltip: tr('الشهر السابق', 'Previous month')),
+                  Expanded(
+                    child: Text(arMonth(cursor),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                  IconButton(
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: canNext
+                          ? () => setSheet(
+                              () => cursor = DateTime(year, month + 1))
+                          : null,
+                      tooltip: tr('الشهر التالى', 'Next month')),
+                ]),
+                Row(
+                  children: [
+                    for (final hd in heads)
+                      Expanded(
+                        child: Center(
+                          child: Text(hd,
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: scheme.outline,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                GridView.count(
+                  crossAxisCount: 7,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  childAspectRatio: 1,
+                  children: cells,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  tr('تم ${arNum(doneCount)} من ${arNum(dim)} يوم · أطول سلسلة '
+                      '${arNum(longest)}',
+                      'Done ${arNum(doneCount)} of ${arNum(dim)} · longest '
+                      'streak ${arNum(longest)}'),
+                  style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

@@ -239,6 +239,57 @@ class _MedsTabState extends State<_MedsTab> {
     if (mounted) await _load();
   }
 
+  /// بانر «قرب يخلص» — أدوية الكورس الباقى لها ٣ أيام أو أقل.
+  Widget _refillBanner(BuildContext context) {
+    final now = DateTime.now();
+    final soon = _meds.where((m) {
+      if (!m.active) return false;
+      final d = m.daysLeft(now);
+      return d != null && d >= 0 && d <= 3;
+    }).toList();
+    if (soon.isEmpty) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    const amber = Color(0xFFB26A00);
+    String left(Medication m) {
+      final d = m.daysLeft(now)!;
+      return d == 0
+          ? tr('يخلص النهاردة', 'runs out today')
+          : tr('باقى ${arNum(d)} يوم', '$d day(s) left');
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: amber.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: amber.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.medication_liquid_outlined,
+                size: 18, color: amber),
+            const SizedBox(width: 6),
+            Text(tr('أدوية قربت تخلص — جهّز إعادة الصرف',
+                'Meds running low — arrange a refill'),
+                style: const TextStyle(
+                    color: amber, fontWeight: FontWeight.w700, fontSize: 13.5)),
+          ]),
+          const SizedBox(height: 6),
+          for (final m in soon)
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text('• ${m.name} — ${left(m)}',
+                  style: TextStyle(
+                      fontSize: 13, color: scheme.onSurfaceVariant)),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -257,6 +308,7 @@ class _MedsTabState extends State<_MedsTab> {
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
                       children: [
+                        _refillBanner(context),
                         for (final m in _meds)
                           Card(
                             margin: const EdgeInsets.symmetric(vertical: 3),

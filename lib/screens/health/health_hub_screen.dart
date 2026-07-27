@@ -3,7 +3,10 @@ import 'package:flutter/services.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../core/app_state.dart';
+import '../../core/health_calc.dart';
 import '../../widgets/search_action.dart';
+import '../../data/settings_repo.dart';
 import '../../data/health_repo.dart';
 import '../../data/meals_repo.dart';
 import '../../data/measurements_repo.dart';
@@ -48,6 +51,13 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
   int _labOutOfRange = 0;
   int? _adherence;
 
+  // مؤشرات الجسم (BMI/BMR)
+  double? _weight;
+  double? _heightCm;
+  int? _birthYear;
+  final _heightCtl = TextEditingController();
+  final _birthCtl = TextEditingController();
+
   /// آخر قراءتين لكل نوع قياس (ضغط/سكر/وزن/حرارة) — للأحدث + اتجاه التغيّر.
   final Map<String, List<Measurement>> _vitals = {};
 
@@ -68,6 +78,13 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
     final adherence = await MedsRepo().adherencePercent();
     final vaccineDue = (await VaccinationsRepo().dueSoon()).length;
     final labOutOfRange = await LabResultsRepo().outOfRangeCount();
+
+    // مؤشرات الجسم
+    final s = SettingsRepo();
+    final heightCm = double.tryParse(await s.get('height_cm') ?? '');
+    final birthYear = int.tryParse(await s.get('birth_year') ?? '');
+    final wRows = await MeasurementsRepo().recent(limit: 1, type: 'وزن');
+    final weight = wRows.isEmpty ? null : wRows.first.value;
 
     final vitals = <String, List<Measurement>>{};
     for (final t in kMeasurementTypes) {
@@ -95,11 +112,32 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
       _vaccineDue = vaccineDue;
       _labOutOfRange = labOutOfRange;
       _adherence = adherence;
+      _weight = weight;
+      _heightCm = heightCm;
+      _birthYear = birthYear;
       _vitals
         ..clear()
         ..addAll(vitals);
       _loading = false;
     });
+  }
+
+  Future<void> _saveBodyInfo() async {
+    final h = double.tryParse(_heightCtl.text.trim());
+    final by = int.tryParse(_birthCtl.text.trim());
+    final s = SettingsRepo();
+    if (h != null && h > 0) await s.set('height_cm', h.toString());
+    if (by != null && by > 1900) await s.set('birth_year', by.toString());
+    _heightCtl.clear();
+    _birthCtl.clear();
+    await _load();
+  }
+
+  @override
+  void dispose() {
+    _heightCtl.dispose();
+    _birthCtl.dispose();
+    super.dispose();
   }
 
   Future<void> _open(Widget screen) async {
@@ -214,6 +252,13 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
                   const SizedBox(height: 4),
                   _vitalsStrip(),
                   const SizedBox(height: 20),
+                  // ---- مؤشرات الجسم ----
+                  Text(tr('مؤشرات الجسم', 'Body metrics'),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  _bmiCard(),
+                  const SizedBox(height: 20),
                   // ---- مداخل الصحة ----
                   Text(tr('كل حاجة صحية', 'All things health'),
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -310,6 +355,148 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  /// كارت مؤشر كتلة الجسم ومعدّل الأيض — يطلب الطول والمواليد لو ناقصين.
+  Widget _bmiCard() {
+    final scheme = Theme.of(context).colorScheme;
+    final needSetup = _heightCm == null || _birthYear == null;
+    if (needSetup) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                  tr('اضبط طولك وسنة ميلادك لحساب مؤشر الكتلة ومعدّل الأيض',
+                      'Set your height & birth year to compute BMI & BMR'),
+                  style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13)),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(
+                  child: TextField(
+                    controller: _heightCtl,
+                    keyboardType: const TextInputType.numberWithOptions(),
+                    decoration: InputDecoration(
+                        labelText: tr('الطول (سم)', 'Height (cm)'),
+                        isDense: true, filled: true),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _birthCtl,
+                    keyboardType: const TextInputType.numberWithOptions(),
+                    decoration: InputDecoration(
+                        labelText: tr('سنة الميلاد', 'Birth year'),
+                        isDense: true, filled: true),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                    onPressed: _saveBodyInfo, child: Text(tr('حفظ', 'Save'))),
+              ]),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_weight == null) {
+      return Card(
+        child: ListTile(
+          leading: Icon(Icons.monitor_weight_outlined, color: scheme.primary),
+          title: Text(tr('سجّل وزنك الأول', 'Log your weight first')),
+          subtitle: Text(
+              tr('من «التقدم البدني» عشان نحسب مؤشراتك',
+                  'From “Body progress” to compute your metrics')),
+          trailing: const Icon(Icons.chevron_left),
+          onTap: () => _open(const ProgressScreen()),
+        ),
+      );
+    }
+
+    final b = bmi(_weight!, _heightCm!);
+    final age = DateTime.now().year - _birthYear!;
+    final isMale = AppState.gender.value != 'female';
+    final bmr = bmrMifflin(
+        weightKg: _weight!, heightCm: _heightCm!, ageYears: age, isMale: isMale);
+    final catColor = b < 18.5
+        ? Colors.blueGrey
+        : b < 25
+            ? Colors.green
+            : b < 30
+                ? Colors.orange
+                : Colors.redAccent;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(tr('مؤشر كتلة الجسم (BMI)', 'BMI'),
+                        style: TextStyle(
+                            color: scheme.onSurfaceVariant, fontSize: 12.5)),
+                    const SizedBox(height: 2),
+                    Row(crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic, children: [
+                      Text(arNum(b.toStringAsFixed(1)),
+                          style: const TextStyle(
+                              fontSize: 26, fontWeight: FontWeight.w900)),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                            color: catColor.withValues(alpha: .15),
+                            borderRadius: BorderRadius.circular(20)),
+                        child: Text(
+                            tr(bmiCategoryAr(b), bmiCategoryEn(b)),
+                            style: TextStyle(
+                                color: catColor,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12.5)),
+                      ),
+                    ]),
+                  ],
+                ),
+              ),
+              Container(width: 1, height: 42, color: scheme.outlineVariant),
+              const SizedBox(width: 14),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(tr('الأيض الأساسى', 'BMR'),
+                      style: TextStyle(
+                          color: scheme.onSurfaceVariant, fontSize: 12.5)),
+                  const SizedBox(height: 2),
+                  Text(
+                      tr('${arNum(bmr.round())} سعر/يوم',
+                          '${arNum(bmr.round())} kcal/day'),
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w800)),
+                ],
+              ),
+            ]),
+            const SizedBox(height: 6),
+            Text(
+                tr('وزنك ${arNum(_weight!.toStringAsFixed(0))} كجم · طولك '
+                    '${arNum(_heightCm!.toStringAsFixed(0))} سم · العمر '
+                    '${arNum(age)} سنة',
+                    'Weight ${arNum(_weight!.toStringAsFixed(0))}kg · height '
+                    '${arNum(_heightCm!.toStringAsFixed(0))}cm · age ${arNum(age)}'),
+                style: TextStyle(fontSize: 11, color: scheme.outline)),
+          ],
+        ),
+      ),
     );
   }
 

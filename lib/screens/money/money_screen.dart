@@ -7,6 +7,7 @@ import '../../widgets/search_action.dart';
 import '../../core/month_summary.dart';
 import '../../core/money_export.dart';
 import '../../core/money_trends.dart';
+import '../../core/budget_calc.dart';
 import '../../core/ocr.dart';
 import '../../data/bills_repo.dart';
 import '../../data/debts_repo.dart';
@@ -399,6 +400,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
                   const SizedBox(height: 8),
                   _budgetCard(context),
                   const SizedBox(height: 8),
+                  _safeToSpendCard(context),
                   _compareCard(context),
                   const SizedBox(height: 8),
                   _categoryDeltaCard(context),
@@ -1072,6 +1074,68 @@ class _MoneyScreenState extends State<MoneyScreen> {
       }
     }
     amount.dispose();
+  }
+
+  /// «المتاح للصرف النهاردة» — للشهر الحالى فقط، لما فيه ميزانية.
+  Widget _safeToSpendCard(BuildContext context) {
+    final now = DateTime.now();
+    final isCurrentMonth =
+        _month.year == now.year && _month.month == now.month;
+    if (!isCurrentMonth || _budget <= 0) return const SizedBox.shrink();
+
+    final monthKey =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+    final obligations = _bills
+        .where((b) => b.lastPaidMonth != monthKey)
+        .fold<double>(0, (s, b) => s + b.amount);
+    final r = safeToSpend(
+        budget: _budget,
+        spent: _total,
+        upcomingObligations: obligations,
+        now: now);
+    final scheme = Theme.of(context).colorScheme;
+    final over = r.perDay < 0;
+    final color = over ? scheme.error : scheme.primary;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(Icons.savings_outlined, size: 18, color: color),
+              const SizedBox(width: 6),
+              Text(tr('المتاح للصرف النهاردة', "Safe to spend today"),
+                  style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+            ]),
+            const SizedBox(height: 6),
+            Text(over ? tr('تعدّيت الميزانية', 'Over budget') : egp(r.perDay),
+                style: TextStyle(
+                    fontSize: 27, fontWeight: FontWeight.w900, color: color)),
+            const SizedBox(height: 4),
+            Text(
+              over
+                  ? tr('المتبقّى بعد الالتزامات: ${egp(r.remaining)}',
+                      'After obligations: ${egp(r.remaining)}')
+                  : tr(
+                      'المتبقّى ${egp(r.remaining)} على ${arNum(r.daysLeft)} يوم'
+                      '${obligations > 0 ? ' · بعد خصم فواتير ${egp(obligations)}' : ''}',
+                      'Remaining ${egp(r.remaining)} over ${arNum(r.daysLeft)} days'
+                      '${obligations > 0 ? ' · after ${egp(obligations)} bills' : ''}'),
+              style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _budgetCard(BuildContext context) {

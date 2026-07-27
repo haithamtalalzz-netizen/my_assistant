@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../core/attention.dart';
 import '../core/ar.dart';
 import '../core/l10n.dart';
+import '../data/settings_repo.dart';
 import '../widgets/common.dart';
 import '../widgets/search_action.dart';
 import 'baladna/debts_screen.dart';
@@ -33,10 +36,10 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
   bool _loading = true;
   List<AttentionItem> _items = const [];
 
-  /// البنود اللى المستخدم قال عليها «بعدين» — بتتخبّى لباقى الجلسة بس
-  /// (مؤقت عن قصد: التأجيل معناه «مش وقته دلوقتى»، مش إنه اتعمل).
-  /// المفتاح = النوع + الـid عشان يفضل ثابت عبر إعادة التحميل.
-  final Set<String> _snoozed = {};
+  /// البنود المؤجَّلة: المفتاح → وقت الرجوع (ISO). بتتحفظ محليًا فى الإعدادات،
+  /// فالتأجيل بيفضل بعد إعادة فتح الشاشة/التطبيق لحد ما وقته يجى.
+  static const _kSnooze = 'alerts_snooze';
+  Map<String, String> _snooze = {};
 
   String _keyOf(AttentionItem it) => '${it.kind.name}_${it.id}_${it.slot ?? ''}';
 
@@ -47,10 +50,28 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
   }
 
   Future<void> _load() async {
+    final s = SettingsRepo();
+    final now = DateTime.now();
+    final map = <String, String>{};
+    final raw = await s.get(_kSnooze) ?? '';
+    if (raw.isNotEmpty) {
+      try {
+        (jsonDecode(raw) as Map).forEach((k, v) => map[k as String] = '$v');
+      } on FormatException {
+        // مخزَّن تالف — نتجاهله.
+      }
+    }
+    // شيل المؤجَّل اللى وقته عدّى.
+    map.removeWhere((k, v) {
+      final t = DateTime.tryParse(v);
+      return t == null || !t.isAfter(now);
+    });
+    await s.set(_kSnooze, jsonEncode(map));
     final items = await collectAttention();
     if (!mounted) return;
     setState(() {
-      _items = items.where((it) => !_snoozed.contains(_keyOf(it))).toList();
+      _snooze = map;
+      _items = items.where((it) => !map.containsKey(_keyOf(it))).toList();
       _loading = false;
     });
   }
@@ -110,11 +131,47 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
           (icon: Icons.backup_outlined, color: Colors.blueGrey),
       };
 
-  void _snooze(AttentionItem it) {
-    setState(() {
-      _snoozed.add(_keyOf(it));
-      _items = _items.where((x) => _keyOf(x) != _keyOf(it)).toList();
-    });
+  /// يؤجّل بندًا لحد وقت معيّن ويحفظه محليًا.
+  Future<void> _snoozeUntil(AttentionItem it, DateTime until) async {
+    _snooze[_keyOf(it)] = until.toIso8601String();
+    await SettingsRepo().set(_kSnooze, jsonEncode(_snooze));
+    if (!mounted) return;
+    setState(
+        () => _items = _items.where((x) => _keyOf(x) != _keyOf(it)).toList());
+  }
+
+  /// خيارات التأجيل: ساعة / ٣ ساعات / بكرة الصبح.
+  Future<void> _snoozeMenu(AttentionItem it) async {
+    final now = DateTime.now();
+    final choice = await showModalBottomSheet<DateTime>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.schedule),
+              title: Text(tr('بعد ساعة', 'In an hour')),
+              onTap: () =>
+                  Navigator.pop(context, now.add(const Duration(hours: 1))),
+            ),
+            ListTile(
+              leading: const Icon(Icons.schedule),
+              title: Text(tr('بعد ٣ ساعات', 'In 3 hours')),
+              onTap: () =>
+                  Navigator.pop(context, now.add(const Duration(hours: 3))),
+            ),
+            ListTile(
+              leading: const Icon(Icons.wb_sunny_outlined),
+              title: Text(tr('بكرة الصبح', 'Tomorrow morning')),
+              onTap: () => Navigator.pop(
+                  context, DateTime(now.year, now.month, now.day + 1, 9)),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (choice != null) await _snoozeUntil(it, choice);
   }
 
   /// «خلّص المتاح» — بينفّذ إجراء كل بند له زرار (تمّت/اتاخد/…) دفعة
@@ -155,13 +212,14 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
                 icon: const Icon(Icons.done_all),
                 onPressed: _clearActionable,
               ),
-            if (_snoozed.isNotEmpty)
+            if (_snooze.isNotEmpty)
               IconButton(
                 tooltip: tr('رجّع المؤجّل', 'Un-snooze'),
                 icon: const Icon(Icons.unarchive_outlined),
-                onPressed: () {
-                  _snoozed.clear();
-                  _load();
+                onPressed: () async {
+                  _snooze.clear();
+                  await SettingsRepo().set(_kSnooze, jsonEncode(_snooze));
+                  await _load();
                 },
               ),
             searchAction(context),
@@ -208,10 +266,10 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
               ),
             // «بعدين» — يخبّى البند لباقى الجلسة عشان القايمة تفضل معبّرة.
             IconButton(
-              tooltip: tr('بعدين', 'Later'),
+              tooltip: tr('أجّل لوقت', 'Snooze'),
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.schedule, size: 18),
-              onPressed: () => _snooze(it),
+              onPressed: () => _snoozeMenu(it),
             ),
           ],
         ),
