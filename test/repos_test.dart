@@ -49,6 +49,7 @@ import 'package:my_assistant/core/quran_data.dart';
 import 'package:my_assistant/core/mawarith.dart';
 import 'package:my_assistant/core/zakat.dart';
 import 'package:my_assistant/core/gold_price.dart';
+import 'package:my_assistant/core/zakat_livestock.dart';
 import 'package:my_assistant/data/mushaf_repo.dart';
 import 'package:my_assistant/core/demo_images.dart';
 import 'package:my_assistant/core/seed_demo.dart';
@@ -5271,6 +5272,72 @@ void main() {
       expect(egpPerGram24(kGramsPerTroyOz, 1), closeTo(1.0, 1e-9));
       // 3110.34768 دولار/أونصة × صرف 10 ÷ 31.1034768 = 1000 ج.م/جم.
       expect(egpPerGram24(3110.34768, 10), closeTo(1000.0, 1e-6));
+    });
+  });
+
+  group('زكاة الزروع والثمار', () {
+    test('دون النصاب = لا زكاة', () {
+      final r = cropZakat(500, irrigatedWithCost: false);
+      expect(r.isDue, isFalse);
+      expect(r.zakatKg, closeTo(0, 1e-9));
+    });
+    test('عُشر لِما سُقى بلا كلفة', () {
+      final r = cropZakat(1000, irrigatedWithCost: false);
+      expect(r.isDue, isTrue);
+      expect(r.rate, 0.10);
+      expect(r.zakatKg, closeTo(100, 1e-9));
+    });
+    test('نصف العُشر لِما سُقى بكلفة', () {
+      final r = cropZakat(1000, irrigatedWithCost: true);
+      expect(r.rate, 0.05);
+      expect(r.zakatKg, closeTo(50, 1e-9));
+    });
+    test('عند النصاب بالضبط تجب', () {
+      expect(cropZakat(kCropNisabKg, irrigatedWithCost: false).isDue, isTrue);
+    });
+  });
+
+  group('زكاة الأنعام', () {
+    String fmt(List<ZakatDueItem> d) =>
+        d.map((e) => '${e.count}×${e.label}').join(',');
+
+    test('الغنم — جدول النصاب', () {
+      expect(sheepZakat(39), isEmpty);
+      expect(fmt(sheepZakat(40)), '1×شاة');
+      expect(fmt(sheepZakat(120)), '1×شاة');
+      expect(fmt(sheepZakat(121)), '2×شاة');
+      expect(fmt(sheepZakat(200)), '2×شاة');
+      expect(fmt(sheepZakat(201)), '3×شاة');
+      expect(fmt(sheepZakat(399)), '3×شاة');
+      expect(fmt(sheepZakat(400)), '4×شاة');
+      expect(fmt(sheepZakat(500)), '5×شاة');
+    });
+
+    test('البقر — تبيع/مسنّة', () {
+      expect(cattleZakat(29), isEmpty);
+      expect(fmt(cattleZakat(30)), '1×تبيع');
+      expect(fmt(cattleZakat(40)), '1×مسنّة');
+      expect(fmt(cattleZakat(60)), '2×تبيع');
+      expect(fmt(cattleZakat(70)), '1×مسنّة,1×تبيع');
+      expect(fmt(cattleZakat(80)), '2×مسنّة');
+      expect(fmt(cattleZakat(90)), '3×تبيع');
+      expect(fmt(cattleZakat(100)), '1×مسنّة,2×تبيع');
+      expect(fmt(cattleZakat(120)), '3×مسنّة');
+    });
+
+    test('الإبل — الجدول والاطّراد بعد ١٢٠', () {
+      expect(camelZakat(4), isEmpty);
+      expect(fmt(camelZakat(5)), '1×شاة');
+      expect(fmt(camelZakat(20)), '4×شاة');
+      expect(fmt(camelZakat(25)), '1×بنت مخاض');
+      expect(fmt(camelZakat(36)), '1×بنت لبون');
+      expect(fmt(camelZakat(46)), '1×حِقّة');
+      expect(fmt(camelZakat(61)), '1×جَذَعة');
+      expect(fmt(camelZakat(76)), '2×بنت لبون');
+      expect(fmt(camelZakat(91)), '2×حِقّة');
+      expect(fmt(camelZakat(121)), '3×بنت لبون');
+      expect(fmt(camelZakat(130)), '1×حِقّة,2×بنت لبون');
+      expect(fmt(camelZakat(150)), '3×حِقّة');
     });
   });
 

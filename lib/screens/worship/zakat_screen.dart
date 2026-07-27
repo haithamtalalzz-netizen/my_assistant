@@ -6,6 +6,7 @@ import '../../core/l10n.dart';
 import '../../core/zakat.dart';
 import '../../data/settings_repo.dart';
 import 'zakat_guide_screen.dart';
+import 'zakat_livestock_screen.dart';
 
 /// حاسبة زكاة المال — أعمق وأشمل: نقود، ذهب (عدّة قطع بعيارات مختلفة)،
 /// فضة، عروض تجارة، استثمارات، وديون مرجوّة لك، ناقص الديون المستحقة عليك.
@@ -144,6 +145,9 @@ class _ZakatScreenState extends State<ZakatScreen> {
   void _openGuide() => Navigator.push(
       context, MaterialPageRoute(builder: (_) => const ZakatGuideScreen()));
 
+  void _openLivestock() => Navigator.push(context,
+      MaterialPageRoute(builder: (_) => const ZakatLivestockScreen()));
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -213,6 +217,12 @@ class _ZakatScreenState extends State<ZakatScreen> {
             icon: const Icon(Icons.menu_book_outlined),
             label: Text(tr('دليل الزكاة ومصارفها وبنودها',
                 'Guide: recipients & rulings')),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _openLivestock,
+            icon: const Icon(Icons.grass_outlined),
+            label: Text(tr('زكاة الأنعام والزروع', 'Livestock & crops zakat')),
           ),
           const SizedBox(height: 10),
           Text(
