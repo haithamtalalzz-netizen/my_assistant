@@ -26,6 +26,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
   List<(int, double)> _steps = [];
   List<(int, double)> _water = [];
   List<(String, double)> _monthTotals = [];
+  List<(String, double)> _catTotals = [];
   List<Measurement> _weights = [];
   KcalBalance? _kcal;
 
@@ -104,6 +105,14 @@ class _ChartsScreenState extends State<ChartsScreen> {
       }
     }
 
+    // المصروف بالفئة — الشهر الحالى.
+    final cats = await money.byCategory(now.year, now.month);
+    final catTotals = cats.entries
+        .where((e) => e.value > 0)
+        .map((e) => (e.key, e.value))
+        .toList()
+      ..sort((a, b) => b.$2.compareTo(a.$2));
+
     final weights =
         (await MeasurementsRepo().recent(limit: 60, type: 'وزن'))
             .reversed
@@ -118,6 +127,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
       _steps = steps;
       _water = water;
       _monthTotals = monthTotals;
+      _catTotals = catTotals;
       _weights = weights;
       _kcal = kcal;
       _loading = false;
@@ -352,6 +362,12 @@ class _ChartsScreenState extends State<ChartsScreen> {
                       ],
                     )),
                   ),
+                if (_catTotals.isNotEmpty)
+                  _chartCard(
+                    context,
+                    tr('المصروف بالفئة — الشهر ده', 'Spending by category'),
+                    _categoryDonut(scheme),
+                  ),
                 if (_kcal != null) _kcalCard(context, _kcal!),
                 if (_weights.length >= 2)
                   _chartCard(
@@ -400,6 +416,74 @@ class _ChartsScreenState extends State<ChartsScreen> {
         label: Text(tr('سجل وزنك', 'Log weight')),
       ),
     );
+  }
+
+  /// دونات المصروف بالفئة (أعلى ٦ + «أخرى») مع مفتاح ألوان.
+  Widget _categoryDonut(ColorScheme scheme) {
+    const palette = [
+      Colors.blue, Colors.orange, Colors.green, Colors.purple,
+      Colors.redAccent, Colors.teal, Colors.brown,
+    ];
+    final top = _catTotals.take(6).toList();
+    final rest = _catTotals.skip(6).fold<double>(0, (s, e) => s + e.$2);
+    final data = <(String, double)>[
+      ...top,
+      if (rest > 0) (tr('أخرى', 'Other'), rest),
+    ];
+    final total = data.fold<double>(0, (s, e) => s + e.$2);
+    if (total <= 0) return const SizedBox.shrink();
+    return Row(children: [
+      Expanded(
+        flex: 2,
+        child: PieChart(PieChartData(
+          sectionsSpace: 2,
+          centerSpaceRadius: 34,
+          sections: [
+            for (var i = 0; i < data.length; i++)
+              PieChartSectionData(
+                value: data[i].$2,
+                color: palette[i % palette.length],
+                radius: 42,
+                title: '${(data[i].$2 / total * 100).round()}٪',
+                titleStyle: const TextStyle(
+                    fontSize: 10,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700),
+              ),
+          ],
+        )),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        flex: 3,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = 0; i < data.length; i++)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(children: [
+                  Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                          color: palette[i % palette.length],
+                          shape: BoxShape.circle)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                      child: Text(data[i].$1,
+                          style: const TextStyle(fontSize: 12),
+                          overflow: TextOverflow.ellipsis)),
+                  Text(egp(data[i].$2),
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w700)),
+                ]),
+              ),
+          ],
+        ),
+      ),
+    ]);
   }
 
   /// ميزان السعرات: متوسط الأكل المتسجّل مقابل الهدف + معدل الوزن الفعلى.

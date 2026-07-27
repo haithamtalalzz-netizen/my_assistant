@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../core/health_calc.dart';
 
-/// حاسبات مفيدة — كتلة الجسم، القسط، البقشيش، الخصم، محوّل الوحدات.
+/// حاسبات مفيدة — كتلة الجسم، القسط، البقشيش، الخصم، محوّل الوحدات،
+/// الزكاة، معدّل الأيض، وفرق التواريخ.
 class CalculatorsScreen extends StatefulWidget {
   const CalculatorsScreen({super.key});
 
@@ -30,12 +32,21 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
   // محوّل
   final _conv = TextEditingController();
   String _convType = 'kg_lb';
+  // زكاة
+  final _zakatWealth = TextEditingController();
+  // أيض
+  final _bmrAge = TextEditingController();
+  bool _bmrMale = true;
+  double _activity = 1.375;
+  // فرق تواريخ
+  DateTime? _dateFrom;
+  DateTime? _dateTo;
 
   @override
   void dispose() {
     for (final c in [
       _weight, _height, _loanAmount, _loanRate, _loanYears,
-      _bill, _price, _discount, _conv
+      _bill, _price, _discount, _conv, _zakatWealth, _bmrAge
     ]) {
       c.dispose();
     }
@@ -53,6 +64,9 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
         padding: const EdgeInsets.all(12),
         children: [
           _bmiCard(),
+          _bmrCard(),
+          _zakatCard(),
+          _dateDiffCard(),
           _loanCard(),
           _tipCard(),
           _discountCard(),
@@ -122,6 +136,130 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
       _num(_height, tr('الطول (سم)', 'Height (cm)')),
       if (bmi > 0)
         _result('BMI = ${bmi.toStringAsFixed(1)} · $cat'),
+    ]);
+  }
+
+  Widget _zakatCard() {
+    final w = _n(_zakatWealth);
+    return _card(tr('الزكاة', 'Zakat'), Icons.volunteer_activism_outlined, [
+      _num(_zakatWealth, tr('المال الزكوى (ج.م)', 'Zakatable wealth (EGP)')),
+      if (w > 0)
+        _result(tr('الزكاة (٢.٥٪) = ${egp(w * 0.025)}',
+            'Zakat (2.5%) = ${egp(w * 0.025)}')),
+    ]);
+  }
+
+  Widget _bmrCard() {
+    final w = _n(_weight), h = _n(_height);
+    final age = _n(_bmrAge).round();
+    final ok = w > 0 && h > 0 && age > 0;
+    final bmr = ok
+        ? bmrMifflin(weightKg: w, heightCm: h, ageYears: age, isMale: _bmrMale)
+        : 0.0;
+    final tdee = bmr * _activity;
+    return _card(tr('الأيض والسعرات (BMR/TDEE)', 'Metabolism (BMR/TDEE)'),
+        Icons.local_fire_department_outlined, [
+      Text(tr('يستخدم الوزن والطول من حاسبة الكتلة فوق',
+          'Uses weight & height from the BMI card above'),
+          style: TextStyle(
+              fontSize: 11.5, color: Theme.of(context).colorScheme.outline)),
+      _num(_bmrAge, tr('العمر (سنة)', 'Age (years)')),
+      const SizedBox(height: 4),
+      SegmentedButton<bool>(
+        segments: [
+          ButtonSegment(value: true, label: Text(tr('ذكر', 'Male'))),
+          ButtonSegment(value: false, label: Text(tr('أنثى', 'Female'))),
+        ],
+        selected: {_bmrMale},
+        onSelectionChanged: (s) => setState(() => _bmrMale = s.first),
+      ),
+      const SizedBox(height: 8),
+      DropdownButton<double>(
+        value: _activity,
+        isExpanded: true,
+        items: [
+          DropdownMenuItem(value: 1.2, child: Text(tr('خامل', 'Sedentary'))),
+          DropdownMenuItem(
+              value: 1.375, child: Text(tr('نشاط خفيف', 'Light'))),
+          DropdownMenuItem(
+              value: 1.55, child: Text(tr('نشاط متوسط', 'Moderate'))),
+          DropdownMenuItem(value: 1.725, child: Text(tr('نشيط', 'Active'))),
+          DropdownMenuItem(
+              value: 1.9, child: Text(tr('نشيط جدًا', 'Very active'))),
+        ],
+        onChanged: (v) => setState(() => _activity = v ?? _activity),
+      ),
+      if (ok) ...[
+        _result(tr('الأيض الأساسى ≈ ${arNum(bmr.round())} سعر/يوم',
+            'BMR ≈ ${arNum(bmr.round())} kcal/day')),
+        Text(
+            tr('احتياجك اليومى ≈ ${arNum(tdee.round())} سعر',
+                'Daily need ≈ ${arNum(tdee.round())} kcal'),
+            style: TextStyle(
+                fontSize: 12.5,
+                color: Theme.of(context).colorScheme.onSurfaceVariant)),
+      ],
+    ]);
+  }
+
+  Widget _dateDiffCard() {
+    Future<void> pick(bool from) async {
+      final now = DateTime.now();
+      final d = await showDatePicker(
+        context: context,
+        initialDate: (from ? _dateFrom : _dateTo) ?? now,
+        firstDate: DateTime(now.year - 120),
+        lastDate: DateTime(now.year + 50),
+      );
+      if (d != null) {
+        setState(() => from ? _dateFrom = d : _dateTo = d);
+      }
+    }
+
+    String diff() {
+      var a = _dateFrom!, b = _dateTo!;
+      if (a.isAfter(b)) {
+        final t = a;
+        a = b;
+        b = t;
+      }
+      var y = b.year - a.year, m = b.month - a.month, d = b.day - a.day;
+      if (d < 0) {
+        m--;
+        d += DateTime(b.year, b.month, 0).day;
+      }
+      if (m < 0) {
+        y--;
+        m += 12;
+      }
+      final total = b.difference(a).inDays;
+      return tr(
+          '${arNum(y)} سنة · ${arNum(m)} شهر · ${arNum(d)} يوم  (=${arNum(total)} يوم)',
+          '${arNum(y)}y · ${arNum(m)}m · ${arNum(d)}d  (=${arNum(total)} days)');
+    }
+
+    return _card(tr('فرق التواريخ / العمر', 'Date / age difference'),
+        Icons.event_outlined, [
+      Row(children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () => pick(true),
+            child: Text(_dateFrom == null
+                ? tr('من تاريخ', 'From')
+                : arShortDate(_dateFrom!)),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () => pick(false),
+            child: Text(_dateTo == null
+                ? tr('إلى تاريخ', 'To')
+                : arShortDate(_dateTo!)),
+          ),
+        ),
+      ]),
+      if (_dateFrom != null && _dateTo != null) _result(diff()),
     ]);
   }
 
