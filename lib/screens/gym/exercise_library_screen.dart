@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../../core/exercise_library.dart';
 import '../../core/l10n.dart';
+import '../../data/settings_repo.dart';
 import '../../widgets/search_action.dart';
 
 /// مكتبة التمارين — استعراض التمارين بالعضلة والمعدّات مع طريقة الأداء.
@@ -15,9 +18,43 @@ class ExerciseLibraryScreen extends StatefulWidget {
 class _ExerciseLibraryScreenState extends State<ExerciseLibraryScreen> {
   String _muscle = 'all';
   String _equip = 'all'; // all / none / <equipment key>
+  String _query = '';
+  bool _favOnly = false;
+  Set<String> _favs = {};
+  static const _kFavs = 'gym_fav_exercises';
 
-  List<Exercise> get _filtered =>
-      filterExercises(muscle: _muscle, equipment: _equip);
+  @override
+  void initState() {
+    super.initState();
+    _loadFavs();
+  }
+
+  Future<void> _loadFavs() async {
+    final raw = await SettingsRepo().get(_kFavs) ?? '';
+    if (raw.isEmpty) return;
+    try {
+      final list = (jsonDecode(raw) as List).map((e) => '$e').toSet();
+      if (mounted) setState(() => _favs = list);
+    } on FormatException {
+      // مخزّن تالف — نتجاهله.
+    }
+  }
+
+  Future<void> _toggleFav(String name) async {
+    setState(() =>
+        _favs.contains(name) ? _favs.remove(name) : _favs.add(name));
+    await SettingsRepo().set(_kFavs, jsonEncode(_favs.toList()));
+  }
+
+  List<Exercise> get _filtered {
+    final q = _query.trim().toLowerCase();
+    return filterExercises(muscle: _muscle, equipment: _equip).where((e) {
+      if (_favOnly && !_favs.contains(e.name)) return false;
+      if (q.isEmpty) return true;
+      return e.name.toLowerCase().contains(q) ||
+          muscleLabel(e.muscle).toLowerCase().contains(q);
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +66,19 @@ class _ExerciseLibraryScreenState extends State<ExerciseLibraryScreen> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: TextField(
+              onChanged: (v) => setState(() => _query = v),
+              decoration: InputDecoration(
+                isDense: true,
+                prefixIcon: const Icon(Icons.search, size: 20),
+                hintText: tr('ابحث عن تمرين…', 'Search exercises…'),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
           // فلتر العضلات.
           SizedBox(
             height: 44,
@@ -36,6 +86,8 @@ class _ExerciseLibraryScreenState extends State<ExerciseLibraryScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               children: [
+                _chip('⭐ ${tr('المفضّلة', 'Favorites')}', _favOnly,
+                    () => setState(() => _favOnly = !_favOnly)),
                 _chip(tr('كل العضلات', 'All muscles'), _muscle == 'all',
                     () => setState(() => _muscle = 'all')),
                 for (final m in kMuscles)
@@ -92,6 +144,12 @@ class _ExerciseLibraryScreenState extends State<ExerciseLibraryScreen> {
         title: Text(e.name, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text('${muscleLabel(e.muscle)} • ${equipmentLabel(e.equipment)} • ${e.reps}',
             style: const TextStyle(fontSize: 12)),
+        trailing: IconButton(
+          icon: Icon(
+              _favs.contains(e.name) ? Icons.star : Icons.star_border,
+              color: _favs.contains(e.name) ? Colors.amber : scheme.outline),
+          onPressed: () => _toggleFav(e.name),
+        ),
         onTap: () => _showDetail(e),
       ),
     );

@@ -21,6 +21,17 @@ class _RecipesScreenState extends State<RecipesScreen> {
   final _repo = RecipesRepo();
   bool _loading = true;
   List<Recipe> _items = [];
+  String _query = '';
+
+  List<Recipe> get _filtered {
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return _items;
+    return _items
+        .where((r) =>
+            r.name.toLowerCase().contains(q) ||
+            r.ingredients.toLowerCase().contains(q))
+        .toList();
+  }
 
   @override
   void initState() {
@@ -114,17 +125,34 @@ class _RecipesScreenState extends State<RecipesScreen> {
                   icon: Icons.restaurant_menu_outlined,
                   text: tr('احفظ وصفات البيت — بمقاديرها وصورتها + ضيفها للتسوق بضغطة',
                       'Save home recipes — ingredients, photo + add to shopping in a tap'))
-              : GridView.builder(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: 0.9,
+              : Column(children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                    child: TextField(
+                      onChanged: (v) => setState(() => _query = v),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        hintText: tr('ابحث بالاسم أو المقادير…',
+                            'Search name or ingredients…'),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
                   ),
-                  itemCount: _items.length,
-                  itemBuilder: (context, i) {
-                    final r = _items[i];
+                  Expanded(
+                    child: GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 80),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
+                        childAspectRatio: 0.9,
+                      ),
+                      itemCount: _filtered.length,
+                      itemBuilder: (context, i) {
+                        final r = _filtered[i];
                     return InkWell(
                       onTap: () => _open(r),
                       onLongPress: () async {
@@ -162,8 +190,10 @@ class _RecipesScreenState extends State<RecipesScreen> {
                         ],
                       ),
                     );
-                  },
-                ),
+                      },
+                    ),
+                  ),
+                ]),
       floatingActionButton: FloatingActionButton(
         heroTag: 'recipe_fab',
         onPressed: () => _form(),

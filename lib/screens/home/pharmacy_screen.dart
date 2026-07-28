@@ -26,7 +26,9 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
   final _repo = PharmacyRepo();
   final _searchCtrl = TextEditingController();
   bool _loading = true;
+  bool _expiredOnly = false;
   List<PharmacyItem> _items = [];
+  static const _lowStock = 2;
 
   @override
   void initState() {
@@ -56,11 +58,12 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
     });
   }
 
-  /// عدد المنتهي + القريب من الانتهاء (خلال ٦٠ يوم).
-  ({int expired, int soon}) _expiryCounts() {
+  /// عدد المنتهي + القريب من الانتهاء (خلال ٦٠ يوم) + المخزون المنخفض.
+  ({int expired, int soon, int low}) _expiryCounts() {
     final now = DateTime.now();
-    var expired = 0, soon = 0;
+    var expired = 0, soon = 0, low = 0;
     for (final it in _items) {
+      if (it.quantity > 0 && it.quantity <= _lowStock) low++;
       final exp = it.expiry == null ? null : DateTime.tryParse(it.expiry!);
       if (exp == null) continue;
       if (exp.isBefore(now)) {
@@ -69,7 +72,12 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
         soon++;
       }
     }
-    return (expired: expired, soon: soon);
+    return (expired: expired, soon: soon, low: low);
+  }
+
+  bool _isExpired(PharmacyItem it, DateTime now) {
+    final e = it.expiry == null ? null : DateTime.tryParse(it.expiry!);
+    return e != null && e.isBefore(now);
   }
 
   Future<void> _form([PharmacyItem? item]) async {
@@ -225,13 +233,18 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
 
   Widget _expiryBanner(BuildContext context) {
     final c = _expiryCounts();
-    if (c.expired == 0 && c.soon == 0) return const SizedBox.shrink();
+    if (c.expired == 0 && c.soon == 0 && c.low == 0) {
+      return const SizedBox.shrink();
+    }
     final scheme = Theme.of(context).colorScheme;
     final parts = [
       if (c.expired > 0) tr('${arNum(c.expired)} منتهي', '${arNum(c.expired)} expired'),
       if (c.soon > 0)
         tr('${arNum(c.soon)} قربت تنتهي', '${arNum(c.soon)} expiring soon'),
+      if (c.low > 0)
+        tr('${arNum(c.low)} مخزون منخفض', '${arNum(c.low)} low stock'),
     ];
+    if (parts.isEmpty) return const SizedBox.shrink();
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -261,8 +274,18 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final now = DateTime.now();
+    final visible =
+        _expiredOnly ? _items.where((it) => _isExpired(it, now)).toList() : _items;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('صيدلية البيت', 'Home pharmacy'))),
+      appBar: AppBar(title: Text(tr('صيدلية البيت', 'Home pharmacy')), actions: [
+        IconButton(
+          tooltip: tr('المنتهى فقط', 'Expired only'),
+          isSelected: _expiredOnly,
+          icon: const Icon(Icons.filter_alt_outlined),
+          selectedIcon: const Icon(Icons.filter_alt),
+          onPressed: () => setState(() => _expiredOnly = !_expiredOnly),
+        ),
+      ]),
       body: Column(
         children: [
           Padding(
@@ -291,23 +314,26 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : _items.isEmpty
+                : visible.isEmpty
                     ? EmptyHint(
                         icon: Icons.medication_outlined,
-                        actionLabel: _searchCtrl.text.isEmpty
+                        actionLabel: _searchCtrl.text.isEmpty && !_expiredOnly
                             ? tr('ضيف دوا', 'Add medicine')
                             : null,
-                        onAction:
-                            _searchCtrl.text.isEmpty ? () => _form() : null,
-                        text: _searchCtrl.text.isEmpty
-                            ? tr('سجّل أدوية البيت وصلاحيتها — تعرف عندك إيه وتتنبّه قبل ما تخلص',
-                                'Log home meds & expiry — know what you have and get alerts')
-                            : tr('مش موجود عندك', "You don't have it"))
+                        onAction: _searchCtrl.text.isEmpty && !_expiredOnly
+                            ? () => _form()
+                            : null,
+                        text: _expiredOnly
+                            ? tr('مفيش دوا منتهى 👍', 'No expired meds 👍')
+                            : _searchCtrl.text.isEmpty
+                                ? tr('سجّل أدوية البيت وصلاحيتها — تعرف عندك إيه وتتنبّه قبل ما تخلص',
+                                    'Log home meds & expiry — know what you have and get alerts')
+                                : tr('مش موجود عندك', "You don't have it"))
                     : ListView.builder(
                         padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
-                        itemCount: _items.length,
+                        itemCount: visible.length,
                         itemBuilder: (context, i) {
-                          final it = _items[i];
+                          final it = visible[i];
                           final exp = it.expiry == null
                               ? null
                               : DateTime.tryParse(it.expiry!);
@@ -326,6 +352,9 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
                                   '${it.name}  ×${arNum(it.quantity)}'),
                               subtitle: Text([
                                 if (it.notes.isNotEmpty) it.notes,
+                                if (it.quantity > 0 &&
+                                    it.quantity <= _lowStock)
+                                  tr('⚠ مخزون منخفض', '⚠ Low stock'),
                                 if (exp != null)
                                   expired
                                       ? tr('منتهي ${arShortDate(exp)}',

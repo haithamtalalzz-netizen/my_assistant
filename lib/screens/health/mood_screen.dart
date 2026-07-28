@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
@@ -129,6 +130,7 @@ class _MoodScreenState extends State<MoodScreen> {
                   ),
                 ],
                 const SizedBox(height: 8),
+                if (_history.length >= 3) _trendCard(scheme),
                 if (_history.isEmpty)
                   EmptyHint(
                       icon: Icons.mood,
@@ -140,6 +142,54 @@ class _MoodScreenState extends State<MoodScreen> {
                 ],
               ],
             ),
+    );
+  }
+
+  /// منحنى المزاج آخر ٣٠ تسجيل.
+  Widget _trendCard(ColorScheme scheme) {
+    final sorted = [..._history]
+      ..sort((a, b) => a.day.compareTo(b.day));
+    final data = sorted.length > 30
+        ? sorted.sublist(sorted.length - 30)
+        : sorted;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(tr('منحنى المزاج', 'Mood trend'),
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 140,
+              child: LineChart(LineChartData(
+                minY: 1,
+                maxY: 5,
+                gridData: const FlGridData(show: true, horizontalInterval: 1),
+                titlesData: const FlTitlesData(show: false),
+                borderData: FlBorderData(show: false),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: [
+                      for (var i = 0; i < data.length; i++)
+                        FlSpot(i.toDouble(), data[i].score.toDouble())
+                    ],
+                    isCurved: true,
+                    color: scheme.primary,
+                    barWidth: 3,
+                    dotData: const FlDotData(show: true),
+                    belowBarData: BarAreaData(
+                        show: true,
+                        color: scheme.primary.withValues(alpha: .12)),
+                  ),
+                ],
+              )),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
