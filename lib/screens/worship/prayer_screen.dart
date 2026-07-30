@@ -21,6 +21,7 @@ import 'islamic_occasions_screen.dart';
 import 'khatma_screen.dart';
 import 'memorization_screen.dart';
 import 'mawarith_screen.dart';
+import 'religious_content_screen.dart';
 import 'monthly_times_screen.dart';
 import 'names_screen.dart';
 import 'quran_screen.dart';
@@ -718,6 +719,8 @@ class _PrayerScreenState extends State<PrayerScreen> {
       // الصلاة/المواقف/الوِرد/تذكير الأذكار جوّه هَب واحد).
       _Tool('adhkar', Icons.menu_book_outlined, tr('الأذكار', 'Adhkar'),
           const Color(0xFFCC8A2E), () => const AdhkarHubScreen()),
+      _Tool('stories', Icons.auto_stories, tr('القصص والسيرة', 'Stories & seerah'),
+          const Color(0xFF1E7A5A), () => const ReligiousContentScreen()),
       _Tool('names', Icons.star, tr('أسماء الله الحسنى', 'Names of Allah'),
           const Color(0xFF2FA36B), () => const NamesScreen()),
       _Tool('duas', Icons.volunteer_activism, tr('أدعية مأثورة', 'Supplications'),

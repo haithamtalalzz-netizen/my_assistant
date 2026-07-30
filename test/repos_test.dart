@@ -92,6 +92,7 @@ import 'package:my_assistant/data/gameya_repo.dart';
 import 'package:my_assistant/data/home_maintenance_repo.dart';
 import 'package:my_assistant/data/inbox_repo.dart';
 import 'package:my_assistant/data/notes_repo.dart';
+import 'package:my_assistant/core/religious_stories.dart';
 import 'package:my_assistant/data/income_repo.dart';
 import 'package:my_assistant/data/meals_repo.dart';
 import 'package:my_assistant/data/measurements_repo.dart';
@@ -5371,6 +5372,27 @@ void main() {
       // معامل غير معروف → يرجع لأقل مستوى (1.2).
       expect(tdee(bmr: 1000, activity: 'unknown'), closeTo(1200, 1e-6));
       expect(kActivityLevels.length, 5);
+    });
+  });
+
+  group('القصص الدينية', () {
+    test('نطاقات الآيات كلها صالحة (سورة 1..114 و from<=to)', () {
+      final all = [...kProphetStories, ...kQuranicStories];
+      expect(all.length, greaterThan(20));
+      for (final s in all) {
+        expect(s.passages, isNotEmpty, reason: 'قصة ${s.name} بلا مقاطع');
+        for (final p in s.passages) {
+          expect(p.surah, inInclusiveRange(1, 114),
+              reason: '${s.name}: سورة ${p.surah}');
+          expect(p.from, greaterThanOrEqualTo(1));
+          expect(p.to, greaterThanOrEqualTo(p.from),
+              reason: '${s.name}: ${p.surah}:${p.from}-${p.to}');
+        }
+      }
+    });
+    test('خط زمن السيرة غير فارغ', () {
+      expect(kSeerahTimeline.length, greaterThanOrEqualTo(10));
+      expect(kSeerahTimeline.every((e) => e.title.isNotEmpty), isTrue);
     });
   });
 
