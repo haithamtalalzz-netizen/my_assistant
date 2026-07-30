@@ -36,3 +36,42 @@ double bmrMifflin({
   final base = 10 * weightKg + 6.25 * heightCm - 5 * ageYears;
   return base + (isMale ? 5 : -161);
 }
+
+/// معاملات النشاط البدنى لحساب إجمالى الطاقة اليومية (TDEE = BMR × المعامل).
+const Map<String, double> kActivityFactors = {
+  'sedentary': 1.2,
+  'light': 1.375,
+  'moderate': 1.55,
+  'active': 1.725,
+  'very': 1.9,
+};
+
+const List<String> kActivityLevels = [
+  'sedentary',
+  'light',
+  'moderate',
+  'active',
+  'very',
+];
+
+/// إجمالى الطاقة المطلوبة يوميًا (TDEE) بحسب مستوى النشاط.
+double tdee({required double bmr, required String activity}) =>
+    bmr * (kActivityFactors[activity] ?? 1.2);
+
+String activityLabelAr(String key) => switch (key) {
+      'sedentary' => 'خامل (مكتبى)',
+      'light' => 'نشاط خفيف',
+      'moderate' => 'نشاط متوسط',
+      'active' => 'نشيط',
+      'very' => 'نشيط جدًا',
+      _ => key,
+    };
+
+String activityLabelEn(String key) => switch (key) {
+      'sedentary' => 'Sedentary',
+      'light' => 'Light',
+      'moderate' => 'Moderate',
+      'active' => 'Active',
+      'very' => 'Very active',
+      _ => key,
+    };

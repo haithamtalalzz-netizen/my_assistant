@@ -292,6 +292,22 @@ class WorshipRepo {
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  /// عدد الأيام المتتالية اللى فيها ورد مسجّل (count>0) — بينتهى عند اليوم.
+  Future<int> wirdStreak() async {
+    final db = await AppDb.instance;
+    final rows = await db
+        .rawQuery('SELECT DISTINCT day FROM wird_log WHERE count > 0');
+    final days = rows.map((r) => r['day'] as String).toSet();
+    var streak = 0;
+    var d = dateOnly(DateTime.now());
+    if (!days.contains(dayKey(d))) d = d.subtract(const Duration(days: 1));
+    while (days.contains(dayKey(d))) {
+      streak++;
+      d = d.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
+
   // ---- سجل/تقويم العبادات ----
 
   /// أيام الشهر التى فيها أى نشاط عبادى (لنقاط التقويم).

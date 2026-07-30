@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
+import '../../core/book_search.dart';
 import '../../core/l10n.dart';
 import '../../data/reading_repo.dart';
 import '../../models/models.dart';
@@ -47,7 +48,16 @@ class _ReadingScreenState extends State<ReadingScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('القراءة', 'Reading'))),
+      appBar: AppBar(
+        title: Text(tr('القراءة', 'Reading')),
+        actions: [
+          IconButton(
+            tooltip: tr('ابحث عن كتاب', 'Search a book'),
+            icon: const Icon(Icons.travel_explore),
+            onPressed: _openSearch,
+          ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -187,11 +197,116 @@ class _ReadingScreenState extends State<ReadingScreen> {
     ctrl.dispose();
   }
 
-  Future<void> _form([Book? book]) async {
-    final title = TextEditingController(text: book?.title ?? '');
-    final author = TextEditingController(text: book?.author ?? '');
+  /// شيت بحث Open Library — اكتب اسم الكتاب واختر نتيجة تتملى فى النموذج.
+  Future<void> _openSearch() async {
+    final ctrl = TextEditingController();
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) {
+        var loading = false;
+        List<BookHit> results = [];
+        String? error;
+        return StatefulBuilder(
+          builder: (ctx, setSheet) {
+            Future<void> run() async {
+              setSheet(() {
+                loading = true;
+                error = null;
+              });
+              final r = await BookSearch.search(ctrl.text);
+              setSheet(() {
+                results = r;
+                loading = false;
+                if (r.isEmpty) {
+                  error = tr('مفيش نتائج أو تعذّر الاتصال — جرّب تانى أو ضيف يدويًا',
+                      'No results or connection failed — retry or add manually');
+                }
+              });
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 4,
+                  bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: ctrl,
+                    autofocus: true,
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: (_) => run(),
+                    decoration: InputDecoration(
+                      hintText: tr('اسم الكتاب أو المؤلف…', 'Book or author…'),
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: IconButton(
+                          icon: const Icon(Icons.arrow_forward),
+                          onPressed: run),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (loading)
+                    const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: CircularProgressIndicator())
+                  else if (error != null)
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(error!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
+                    )
+                  else
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                          maxHeight: MediaQuery.of(ctx).size.height * 0.5),
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                          for (final h in results)
+                            ListTile(
+                              leading: const Icon(Icons.menu_book_outlined),
+                              title: Text(h.title),
+                              subtitle: Text([
+                                if (h.author.isNotEmpty) h.author,
+                                if (h.pages > 0)
+                                  tr('${arNum(h.pages)} صفحة',
+                                      '${arNum(h.pages)} pp'),
+                              ].join(' · ')),
+                              onTap: () {
+                                Navigator.pop(ctx);
+                                _form(null, h);
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+    ctrl.dispose();
+  }
+
+  Future<void> _form([Book? book, BookHit? prefill]) async {
+    final title =
+        TextEditingController(text: book?.title ?? prefill?.title ?? '');
+    final author =
+        TextEditingController(text: book?.author ?? prefill?.author ?? '');
     final total = TextEditingController(
-        text: book == null || book.totalPages == 0 ? '' : '${book.totalPages}');
+        text: book != null && book.totalPages > 0
+            ? '${book.totalPages}'
+            : (prefill != null && prefill.pages > 0
+                ? '${prefill.pages}'
+                : ''));
     final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(

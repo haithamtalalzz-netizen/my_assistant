@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../data/settings_repo.dart';
 
 /// أذكار ما بعد الصلاة — تسلسل موجّه بالضغط.
 class PostPrayerDhikrScreen extends StatefulWidget {
@@ -29,9 +32,68 @@ const List<_Step> _seq = [
 ];
 
 class _PostPrayerDhikrScreenState extends State<PostPrayerDhikrScreen> {
+  static const _kLog = 'post_prayer_log'; // JSON: {dayKey: count}
   int _step = 0;
   int _left = _seq.first.count;
   bool _done = false;
+  int _todayCount = 0;
+  int _streak = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
+  }
+
+  Future<Map<String, int>> _readLog() async {
+    final raw = await SettingsRepo().get(_kLog) ?? '';
+    if (raw.isEmpty) return {};
+    try {
+      return (jsonDecode(raw) as Map)
+          .map((k, v) => MapEntry(k as String, (v as num).toInt()));
+    } on FormatException {
+      return {};
+    }
+  }
+
+  Future<void> _loadStats() async {
+    final log = await _readLog();
+    if (!mounted) return;
+    setState(() {
+      _todayCount = log[dayKey(DateTime.now())] ?? 0;
+      _streak = _streakOf(log);
+    });
+  }
+
+  int _streakOf(Map<String, int> log) {
+    var streak = 0;
+    var d = dateOnly(DateTime.now());
+    if ((log[dayKey(d)] ?? 0) == 0) d = d.subtract(const Duration(days: 1));
+    while ((log[dayKey(d)] ?? 0) > 0) {
+      streak++;
+      d = d.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
+
+  Future<void> _recordDone() async {
+    final log = await _readLog();
+    final k = dayKey(DateTime.now());
+    log[k] = (log[k] ?? 0) + 1;
+    // نحتفظ بآخر ٤٥ يوم بس عشان الإعدادات ما تكبرش.
+    if (log.length > 45) {
+      final keys = log.keys.toList()..sort();
+      for (final old in keys.take(log.length - 45)) {
+        log.remove(old);
+      }
+    }
+    await SettingsRepo().set(_kLog, jsonEncode(log));
+    if (!mounted) return;
+    setState(() {
+      _todayCount = log[k]!;
+      _streak = _streakOf(log);
+    });
+  }
 
   void _tap() {
     if (_done) return;
@@ -46,6 +108,7 @@ class _PostPrayerDhikrScreenState extends State<PostPrayerDhikrScreen> {
         } else {
           _done = true;
           HapticFeedback.heavyImpact();
+          _recordDone();
         }
       }
     });
@@ -79,8 +142,26 @@ class _PostPrayerDhikrScreenState extends State<PostPrayerDhikrScreen> {
                 minHeight: 6,
               ),
               const SizedBox(height: 8),
-              Text(tr('${arNum(_step + 1)} من ${arNum(_seq.length)}',
-                  '${arNum(_step + 1)} of ${arNum(_seq.length)}')),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(tr('${arNum(_step + 1)} من ${arNum(_seq.length)}',
+                      '${arNum(_step + 1)} of ${arNum(_seq.length)}')),
+                  if (_todayCount > 0) ...[
+                    const SizedBox(width: 12),
+                    Text(
+                        tr('· أتممتها ${arNum(_todayCount)} اليوم',
+                            '· done ${arNum(_todayCount)}× today'),
+                        style: TextStyle(color: scheme.onSurfaceVariant)),
+                  ],
+                  if (_streak > 0) ...[
+                    const SizedBox(width: 8),
+                    Text(tr('🔥 ${arNum(_streak)}', '🔥 ${arNum(_streak)}'),
+                        style:
+                            const TextStyle(fontWeight: FontWeight.w800)),
+                  ],
+                ],
+              ),
               Expanded(
                 child: Center(
                   child: _done

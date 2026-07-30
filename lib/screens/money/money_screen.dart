@@ -435,6 +435,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
                       trailing: TextButton(
                           onPressed: () => _billForm(),
                           child: Text(tr('ضيف فاتورة', 'Add bill')))),
+                  if (_bills.isNotEmpty) _billsProjectionCard(context),
                   if (_bills.isEmpty)
                     Text(
                         tr('سجل الكهربا والنت والاشتراكات مرة واحدة — وهفكرك كل شهر',
@@ -1352,6 +1353,88 @@ class _MoneyScreenState extends State<MoneyScreen> {
     for (final ctl in controllers.values) {
       ctl.dispose();
     }
+  }
+
+  /// كارت توقّع الالتزامات الشهرية: إجمالى الفواتير الدورية + المتبقى الشهر ده.
+  Widget _billsProjectionCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final now = DateTime.now();
+    final monthKey =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+    final total = _bills.fold<double>(0, (s, b) => s + b.amount);
+    final paid = _bills
+        .where((b) => b.lastPaidMonth == monthKey)
+        .fold<double>(0, (s, b) => s + b.amount);
+    final remaining = total - paid;
+    // الفواتير اللى لسه مادفعتش الشهر ده، مرتبة بأقرب يوم استحقاق.
+    final upcoming = _bills.where((b) => b.lastPaidMonth != monthKey).toList()
+      ..sort((a, b) => a.dayOfMonth.compareTo(b.dayOfMonth));
+    final next = upcoming.isEmpty ? null : upcoming.first;
+
+    return Card(
+      color: scheme.secondaryContainer.withValues(alpha: 0.35),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.event_repeat, color: scheme.primary, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(tr('التزاماتك الشهرية', 'Monthly commitments'),
+                      style: const TextStyle(fontWeight: FontWeight.w800)),
+                ),
+                Text(egp(total),
+                    style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        color: scheme.primary)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(children: [
+              _projCell(tr('اتدفع', 'Paid'), egp(paid), Colors.green),
+              const SizedBox(width: 8),
+              _projCell(tr('متبقّى الشهر', 'Left this month'), egp(remaining),
+                  remaining > 0 ? scheme.error : Colors.green),
+            ]),
+            if (next != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                  tr('التالى: ${next.name} — ${egp(next.amount)} يوم ${arNum(next.dayOfMonth)}',
+                      'Next: ${next.name} — ${egp(next.amount)} on day ${arNum(next.dayOfMonth)}'),
+                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _projCell(String label, String value, Color color) {
+    final scheme = Theme.of(context).colorScheme;
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        decoration: BoxDecoration(
+          color: scheme.surface.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label,
+                style: TextStyle(fontSize: 11, color: scheme.outline)),
+            const SizedBox(height: 2),
+            Text(value,
+                style: TextStyle(
+                    fontWeight: FontWeight.w800, fontSize: 14, color: color)),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _billTile(BuildContext context, RecurringBill b) {

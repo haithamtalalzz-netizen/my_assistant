@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../../core/app_images.dart';
 import '../../core/l10n.dart';
+import '../../data/settings_repo.dart';
 import '../../data/wardrobe_repo.dart';
 import '../../models/models.dart';
 
@@ -78,6 +81,150 @@ class _OutfitScreenState extends State<OutfitScreen> {
     });
   }
 
+  // ---- الإطلالات المحفوظة (تخزين JSON فى الإعدادات، بلا هجرة) ----
+  static const _kSaved = 'wardrobe_saved_outfits';
+
+  Future<List<Map<String, dynamic>>> _readSaved() async {
+    final raw = await SettingsRepo().get(_kSaved) ?? '';
+    if (raw.isEmpty) return [];
+    try {
+      return (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+    } on FormatException {
+      return [];
+    }
+  }
+
+  Future<void> _saveOutfit() async {
+    final picked =
+        _outfit.values.whereType<ClothingItem>().toList();
+    if (picked.isEmpty) return;
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('احفظ الإطلالة', 'Save this look')),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: InputDecoration(
+              hintText: tr('اسم الإطلالة (شغل، مناسبة…)',
+                  'Look name (work, event…)')),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('إلغاء', 'Cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(tr('حفظ', 'Save'))),
+        ],
+      ),
+    );
+    final name = ctrl.text.trim();
+    ctrl.dispose();
+    if (ok != true) return;
+    final list = await _readSaved();
+    list.add({
+      'name': name.isEmpty
+          ? clothingFormalityLabel(_formality)
+          : name,
+      'formality': _formality,
+      'items': [
+        for (final it in picked) {'id': it.id, 'name': it.name},
+      ],
+    });
+    await SettingsRepo().set(_kSaved, jsonEncode(list));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr('اتحفظت الإطلالة 🔖', 'Look saved 🔖'))));
+  }
+
+  Future<void> _openSaved() async {
+    final list = await _readSaved();
+    if (!mounted) return;
+    await showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final scheme = Theme.of(ctx).colorScheme;
+          return SafeArea(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(ctx).size.height * 0.7),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                shrinkWrap: true,
+                children: [
+                  Text(tr('إطلالاتى المحفوظة', 'My saved looks'),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 8),
+                  if (list.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Text(
+                          tr('مفيش إطلالات محفوظة. اعمل طقم واضغط 🔖 حفظ.',
+                              'No saved looks yet. Build one and tap 🔖 Save.'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: scheme.onSurfaceVariant)),
+                    ),
+                  for (var i = 0; i < list.length; i++)
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.checkroom),
+                        title: Text(list[i]['name']?.toString() ?? '',
+                            style: const TextStyle(fontWeight: FontWeight.w700)),
+                        subtitle: Text([
+                          for (final it in (list[i]['items'] as List))
+                            (it as Map)['name']?.toString() ?? ''
+                        ].where((s) => s.isNotEmpty).join(' · ')),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: tr('لبستها', 'Wear it'),
+                              icon: const Icon(Icons.check_circle_outline),
+                              onPressed: () async {
+                                for (final it
+                                    in (list[i]['items'] as List)) {
+                                  final id = (it as Map)['id'];
+                                  if (id is int) await _repo.markWorn(id);
+                                }
+                                _changed = true;
+                                if (ctx.mounted) Navigator.pop(ctx);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content: Text(tr('لبستها ✓',
+                                              'Marked as worn ✓'))));
+                                }
+                              },
+                            ),
+                            IconButton(
+                              tooltip: tr('حذف', 'Delete'),
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () async {
+                                list.removeAt(i);
+                                await SettingsRepo()
+                                    .set(_kSaved, jsonEncode(list));
+                                setSheet(() {});
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final picked = _outfit.entries.where((e) => e.value != null).toList();
@@ -92,6 +239,11 @@ class _OutfitScreenState extends State<OutfitScreen> {
         appBar: AppBar(
           title: Text(tr('ألبس إيه النهارده؟', 'What to wear today?')),
           actions: [
+            IconButton(
+              tooltip: tr('إطلالاتى المحفوظة', 'Saved looks'),
+              icon: const Icon(Icons.bookmarks_outlined),
+              onPressed: _openSaved,
+            ),
             IconButton(
               tooltip: tr('اقترح غيره', 'Suggest another'),
               icon: const Icon(Icons.refresh),
@@ -144,13 +296,28 @@ class _OutfitScreenState extends State<OutfitScreen> {
                           _pieceCard(context, picked[i].key, picked[i].value!),
                     ),
                     const SizedBox(height: 16),
-                    SizedBox(
-                      height: 50,
-                      child: FilledButton.icon(
-                        onPressed: _wearIt,
-                        icon: const Icon(Icons.check),
-                        label: Text(tr('لبستها ✓', 'Wearing this ✓')),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 50,
+                            child: FilledButton.icon(
+                              onPressed: _wearIt,
+                              icon: const Icon(Icons.check),
+                              label: Text(tr('لبستها ✓', 'Wearing this ✓')),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          height: 50,
+                          child: OutlinedButton.icon(
+                            onPressed: _saveOutfit,
+                            icon: const Icon(Icons.bookmark_add_outlined),
+                            label: Text(tr('احفظ', 'Save')),
+                          ),
+                        ),
+                      ],
                     ),
                     if (missing.isNotEmpty) ...[
                       const SizedBox(height: 12),

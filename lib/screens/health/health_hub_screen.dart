@@ -51,10 +51,11 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
   int _labOutOfRange = 0;
   int? _adherence;
 
-  // مؤشرات الجسم (BMI/BMR)
+  // مؤشرات الجسم (BMI/BMR/TDEE)
   double? _weight;
   double? _heightCm;
   int? _birthYear;
+  String _activity = 'light';
   final _heightCtl = TextEditingController();
   final _birthCtl = TextEditingController();
 
@@ -83,6 +84,7 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
     final s = SettingsRepo();
     final heightCm = double.tryParse(await s.get('height_cm') ?? '');
     final birthYear = int.tryParse(await s.get('birth_year') ?? '');
+    final activity = await s.get('activity_level') ?? 'light';
     final wRows = await MeasurementsRepo().recent(limit: 1, type: 'وزن');
     final weight = wRows.isEmpty ? null : wRows.first.value;
 
@@ -115,6 +117,7 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
       _weight = weight;
       _heightCm = heightCm;
       _birthYear = birthYear;
+      _activity = activity;
       _vitals
         ..clear()
         ..addAll(vitals);
@@ -423,6 +426,7 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
     final isMale = AppState.gender.value != 'female';
     final bmr = bmrMifflin(
         weightKg: _weight!, heightCm: _heightCm!, ageYears: age, isMale: isMale);
+    final tdeeVal = tdee(bmr: bmr, activity: _activity).round();
     final catColor = b < 18.5
         ? Colors.blueGrey
         : b < 25
@@ -494,10 +498,83 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
                     'Weight ${arNum(_weight!.toStringAsFixed(0))}kg · height '
                     '${arNum(_heightCm!.toStringAsFixed(0))}cm · age ${arNum(age)}'),
                 style: TextStyle(fontSize: 11, color: scheme.outline)),
+            const Divider(height: 20),
+            // ---- احتياجك اليومى (TDEE) + المستهلك ----
+            Row(children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(tr('احتياجك اليومى', 'Daily needs (TDEE)'),
+                        style: TextStyle(
+                            color: scheme.onSurfaceVariant, fontSize: 12.5)),
+                    Text(
+                        tr('${arNum(tdeeVal)} سعر/يوم', '${arNum(tdeeVal)} kcal/day'),
+                        style: const TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.w900)),
+                  ],
+                ),
+              ),
+              PopupMenuButton<String>(
+                initialValue: _activity,
+                onSelected: _setActivity,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: scheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text(tr(activityLabelAr(_activity), activityLabelEn(_activity)),
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: scheme.onSecondaryContainer)),
+                    const SizedBox(width: 2),
+                    Icon(Icons.arrow_drop_down,
+                        size: 18, color: scheme.onSecondaryContainer),
+                  ]),
+                ),
+                itemBuilder: (_) => [
+                  for (final a in kActivityLevels)
+                    PopupMenuItem(
+                        value: a,
+                        child: Text(tr(activityLabelAr(a), activityLabelEn(a)))),
+                ],
+              ),
+            ]),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: (_eatenCalories / tdeeVal).clamp(0.0, 1.0),
+                minHeight: 9,
+                backgroundColor: scheme.surfaceContainerHighest,
+                color: _eatenCalories > tdeeVal
+                    ? Colors.redAccent
+                    : Colors.green,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+                _eatenCalories == 0
+                    ? tr('لسه ماسجّلتش أكل النهارده', 'No food logged today yet')
+                    : _eatenCalories > tdeeVal
+                        ? tr('استهلكت ${arNum(_eatenCalories)} — تجاوزت بـ ${arNum(_eatenCalories - tdeeVal)} سعر',
+                            'Ate ${arNum(_eatenCalories)} — ${arNum(_eatenCalories - tdeeVal)} over')
+                        : tr('استهلكت ${arNum(_eatenCalories)} — باقى ${arNum(tdeeVal - _eatenCalories)} سعر',
+                            'Ate ${arNum(_eatenCalories)} — ${arNum(tdeeVal - _eatenCalories)} left'),
+                style: TextStyle(fontSize: 11.5, color: scheme.outline)),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _setActivity(String a) async {
+    await SettingsRepo().set('activity_level', a);
+    if (mounted) setState(() => _activity = a);
   }
 
   Widget _metric(String emoji, String label, String value,

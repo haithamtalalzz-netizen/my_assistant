@@ -139,7 +139,11 @@ class _MedicalScreenState extends State<MedicalScreen> {
                             itemCount: shown.length,
                             itemBuilder: (context, i) {
                               final r = shown[i];
-                              return Card(
+                              // ترويسة السنة (تايم-لاين) عند تغيّر السنة.
+                              final year = DateTime.parse(r.day).year;
+                              final showHeader = i == 0 ||
+                                  DateTime.parse(shown[i - 1].day).year != year;
+                              final card = Card(
                                 margin: const EdgeInsets.symmetric(vertical: 3),
                                 child: ListTile(
                                   leading: CircleAvatar(
@@ -182,6 +186,31 @@ class _MedicalScreenState extends State<MedicalScreen> {
                                   ),
                                   onTap: () => _openForm(r),
                                 ),
+                              );
+                              if (!showHeader) return card;
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Padding(
+                                    padding:
+                                        const EdgeInsets.fromLTRB(6, 12, 6, 4),
+                                    child: Row(children: [
+                                      Icon(Icons.event_outlined,
+                                          size: 15, color: scheme.primary),
+                                      const SizedBox(width: 6),
+                                      Text(arNum(year),
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              color: scheme.primary)),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                          child: Divider(
+                                              color: scheme.outlineVariant
+                                                  .withValues(alpha: 0.5))),
+                                    ]),
+                                  ),
+                                  card,
+                                ],
                               );
                             },
                           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
@@ -40,11 +41,48 @@ class _SpiritualStatsScreenState extends State<SpiritualStatsScreen> {
     });
   }
 
+  void _share(SpiritualWeek w) {
+    final m = _month;
+    final lines = <String>[
+      tr('📊 إحصائيتى الروحية — آخر ٧ أيام', '📊 My spiritual week — last 7 days'),
+      tr('🕌 صلوات فى وقتها: ${arNum(w.prayers)}/${arNum(35)}',
+          '🕌 Prayers logged: ${arNum(w.prayers)}/35'),
+      tr('✅ أيام كاملة: ${arNum(w.fullPrayerDays)}/${arNum(7)}',
+          '✅ Full-prayer days: ${arNum(w.fullPrayerDays)}/7'),
+      tr('📿 أيام الأذكار: ${arNum(w.dhikrDays)}/${arNum(7)}',
+          '📿 Adhkar days: ${arNum(w.dhikrDays)}/7'),
+      tr('🌙 أيام الصيام: ${arNum(w.fastingDays)}',
+          '🌙 Fasting days: ${arNum(w.fastingDays)}'),
+      tr('🤲 سنن ونوافل: ${arNum(w.sunnahCount)}',
+          '🤲 Sunnah acts: ${arNum(w.sunnahCount)}'),
+      if (w.khatmaPercent != null)
+        tr('📖 تقدّم الختمة: ${arNum(w.khatmaPercent!)}٪',
+            '📖 Khatma: ${arNum(w.khatmaPercent!)}%'),
+      if (_prayerStreak > 0)
+        tr('🔥 سلسلة الصلاة الكاملة: ${arNum(_prayerStreak)} يوم',
+            '🔥 Full-prayer streak: ${arNum(_prayerStreak)}d'),
+      if (m != null)
+        tr('🗓 التزام صلاة الشهر: ${arNum(m.percent)}٪',
+            '🗓 Month prayer rate: ${arNum(m.percent)}%'),
+    ];
+    Share.share(lines.join('\n'));
+  }
+
   @override
   Widget build(BuildContext context) {
     final w = _week;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('إحصائيتك الروحية', 'Your spiritual week'))),
+      appBar: AppBar(
+        title: Text(tr('إحصائيتك الروحية', 'Your spiritual week')),
+        actions: [
+          if (w != null)
+            IconButton(
+              tooltip: tr('مشاركة', 'Share'),
+              icon: const Icon(Icons.ios_share),
+              onPressed: () => _share(w),
+            ),
+        ],
+      ),
       body: w == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(

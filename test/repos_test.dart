@@ -5364,6 +5364,13 @@ void main() {
           bmrMifflin(weightKg: 80, heightCm: 180, ageYears: 30, isMale: false),
           closeTo(1614, 1e-6));
     });
+    test('TDEE — BMR × معامل النشاط', () {
+      expect(tdee(bmr: 1780, activity: 'sedentary'), closeTo(2136, 1e-6));
+      expect(tdee(bmr: 1780, activity: 'moderate'), closeTo(2759, 1e-6));
+      // معامل غير معروف → يرجع لأقل مستوى (1.2).
+      expect(tdee(bmr: 1000, activity: 'unknown'), closeTo(1200, 1e-6));
+      expect(kActivityLevels.length, 5);
+    });
   });
 
   group('أدوات كلمات السر', () {

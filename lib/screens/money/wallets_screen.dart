@@ -244,7 +244,9 @@ class _WalletsScreenState extends State<WalletsScreen> {
                           leading: Icon(_iconFor(e.wallet.type),
                               color: scheme.primary),
                           title: Text(e.wallet.name),
-                          subtitle: Text(walletTypeLabel(e.wallet.type)),
+                          subtitle: Text(_total > 0 && e.balance > 0
+                              ? '${walletTypeLabel(e.wallet.type)} · ${arNum((e.balance / _total * 100).round())}٪ ${tr('من إجمالى فلوسك', 'of total')}'
+                              : walletTypeLabel(e.wallet.type)),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [

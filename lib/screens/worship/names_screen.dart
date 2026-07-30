@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 
@@ -92,6 +93,12 @@ class _NamesScreenState extends State<NamesScreen> {
       appBar: AppBar(
         title: Text(tr('أسماء الله الحسنى', 'Names of Allah')),
         actions: [
+          IconButton(
+            tooltip: tr('اختبار الأسماء', 'Names quiz'),
+            icon: const Icon(Icons.quiz_outlined),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const _NamesQuizPage())),
+          ),
           IconButton(
             tooltip: tr('وضع الحفظ', 'Memorize mode'),
             isSelected: _memorize,
@@ -190,6 +197,203 @@ class _NamesScreenState extends State<NamesScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// اختبار أسماء الله الحسنى — يُعرض المعنى وتختار الاسم الصحيح من ٤ (١٠ أسئلة).
+class _NamesQuizPage extends StatefulWidget {
+  const _NamesQuizPage();
+
+  @override
+  State<_NamesQuizPage> createState() => _NamesQuizPageState();
+}
+
+class _NamesQuizPageState extends State<_NamesQuizPage> {
+  static const _total = 10;
+  final _rnd = Random();
+  late List<int> _order; // فهارس الأسئلة
+  int _q = 0;
+  int _score = 0;
+  int? _picked; // الفهرس المختار للسؤال الحالى
+  late List<int> _options;
+
+  @override
+  void initState() {
+    super.initState();
+    _order = List.generate(kNames99.length, (i) => i)..shuffle(_rnd);
+    _order = _order.take(_total).toList();
+    _buildOptions();
+  }
+
+  void _buildOptions() {
+    final answer = _order[_q];
+    final opts = <int>{answer};
+    while (opts.length < 4) {
+      opts.add(_rnd.nextInt(kNames99.length));
+    }
+    _options = opts.toList()..shuffle(_rnd);
+    _picked = null;
+  }
+
+  void _pick(int i) {
+    if (_picked != null) return;
+    setState(() {
+      _picked = i;
+      if (i == _order[_q]) _score++;
+    });
+  }
+
+  void _next() {
+    if (_q >= _total - 1) {
+      setState(() => _q = _total); // شاشة النتيجة
+      return;
+    }
+    setState(() {
+      _q++;
+      _buildOptions();
+    });
+  }
+
+  void _restart() {
+    setState(() {
+      _order = (List.generate(kNames99.length, (i) => i)..shuffle(_rnd))
+          .take(_total)
+          .toList();
+      _q = 0;
+      _score = 0;
+      _buildOptions();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      appBar: AppBar(title: Text(tr('اختبار الأسماء', 'Names quiz'))),
+      body: _q >= _total ? _result(scheme) : _question(scheme),
+    );
+  }
+
+  Widget _result(ColorScheme scheme) {
+    final pct = (_score / _total * 100).round();
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(pct >= 70 ? '🎉' : '📿', style: const TextStyle(fontSize: 64)),
+            const SizedBox(height: 16),
+            Text(
+              tr('نتيجتك: ${arNum(_score)} من ${arNum(_total)}',
+                  'Score: ${arNum(_score)} / ${arNum(_total)}'),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 6),
+            Text('${arNum(pct)}٪',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: pct >= 70 ? Colors.green : scheme.primary)),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: _restart,
+              icon: const Icon(Icons.refresh),
+              label: Text(tr('اختبار جديد', 'New quiz')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _question(ColorScheme scheme) {
+    final answer = _order[_q];
+    return Column(
+      children: [
+        LinearProgressIndicator(value: _q / _total, minHeight: 6),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Row(
+            children: [
+              Text(tr('سؤال ${arNum(_q + 1)} من ${arNum(_total)}',
+                  'Q ${arNum(_q + 1)} of ${arNum(_total)}')),
+              const Spacer(),
+              Text(tr('النتيجة: ${arNum(_score)}', 'Score: ${arNum(_score)}'),
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                Text(tr('ما الاسم الذى معناه؟', 'Which name means?'),
+                    style: TextStyle(color: scheme.onSurfaceVariant)),
+                const SizedBox(height: 10),
+                Text(kNames99Meaning[answer],
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 19, height: 1.9, fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            children: [
+              for (final opt in _options) _optionTile(opt, answer, scheme),
+            ],
+          ),
+        ),
+        if (_picked != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+            child: FilledButton(
+              onPressed: _next,
+              child: Text(_q >= _total - 1
+                  ? tr('النتيجة', 'Result')
+                  : tr('التالى', 'Next')),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _optionTile(int opt, int answer, ColorScheme scheme) {
+    Color? bg;
+    if (_picked != null) {
+      if (opt == answer) {
+        bg = Colors.green.withValues(alpha: 0.2);
+      } else if (opt == _picked) {
+        bg = scheme.error.withValues(alpha: 0.15);
+      }
+    }
+    return Card(
+      color: bg,
+      child: ListTile(
+        onTap: () => _pick(opt),
+        title: Text(kNames99[opt],
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+        trailing: _picked == null
+            ? null
+            : opt == answer
+                ? const Icon(Icons.check_circle, color: Colors.green)
+                : opt == _picked
+                    ? Icon(Icons.cancel, color: scheme.error)
+                    : null,
       ),
     );
   }

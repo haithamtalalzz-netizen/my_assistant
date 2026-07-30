@@ -6,6 +6,7 @@ import '../widgets/search_action.dart';
 import '../data/habits_repo.dart';
 import '../data/inbox_repo.dart';
 import '../data/meals_repo.dart';
+import '../data/tasks_repo.dart';
 import '../models/models.dart';
 import '../widgets/common.dart';
 import '../widgets/quick_add_field.dart';
@@ -80,6 +81,18 @@ class _InboxScreenState extends State<InboxScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(tr('بقت عادة يومية ✓', 'Added as a habit ✓'))));
+    await _load();
+  }
+
+  Future<void> _toTask(InboxNote note) async {
+    await TasksRepo().save(Task(
+      title: note.text,
+      createdAt: DateTime.now().toIso8601String(),
+    ));
+    await _repo.delete(note.id!);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr('بقت مهمة ✓', 'Added as a task ✓'))));
     await _load();
   }
 
@@ -176,6 +189,8 @@ class _InboxScreenState extends State<InboxScreen> {
                                     trailing: PopupMenuButton<String>(
                                       onSelected: (v) async {
                                         switch (v) {
+                                          case 'task':
+                                            await _toTask(note);
                                           case 'appt':
                                             await _toAppointment(note);
                                           case 'shop':
@@ -188,6 +203,10 @@ class _InboxScreenState extends State<InboxScreen> {
                                         }
                                       },
                                       itemBuilder: (_) => [
+                                        PopupMenuItem(
+                                            value: 'task',
+                                            child: Text(tr('حوّلها لمهمة',
+                                                'Make a task'))),
                                         PopupMenuItem(
                                             value: 'appt',
                                             child: Text(tr('حوّلها لموعد',

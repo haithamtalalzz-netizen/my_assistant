@@ -17,6 +17,7 @@ class DailyWirdScreen extends StatefulWidget {
 class _DailyWirdScreenState extends State<DailyWirdScreen> {
   final _repo = WorshipRepo();
   Map<int, int> _counts = {};
+  int _streak = 0;
   bool _loading = true;
 
   @override
@@ -27,9 +28,11 @@ class _DailyWirdScreenState extends State<DailyWirdScreen> {
 
   Future<void> _load() async {
     final c = await _repo.wirdCounts(DateTime.now());
+    final s = await _repo.wirdStreak();
     if (!mounted) return;
     setState(() {
       _counts = c;
+      _streak = s;
       _loading = false;
     });
   }
@@ -43,6 +46,11 @@ class _DailyWirdScreenState extends State<DailyWirdScreen> {
     setState(() => _counts = {..._counts, idx: next});
     await _repo.setWird(DateTime.now(), idx, next);
     if (next >= goal) HapticFeedback.mediumImpact();
+    if (cur == 0) {
+      // أول تسجيل النهارده — حدّث السلسلة (النهارده بقى فيه ورد).
+      final s = await _repo.wirdStreak();
+      if (mounted) setState(() => _streak = s);
+    }
   }
 
   Future<void> _reset(int idx) async {
@@ -62,11 +70,32 @@ class _DailyWirdScreenState extends State<DailyWirdScreen> {
           : Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Text(
-                    tr('أكملت ${arNum(doneCount)} من ${arNum(kWirdPhrases.length)} أذكار اليوم',
-                        'Completed ${arNum(doneCount)} of ${arNum(kWirdPhrases.length)} today'),
-                    style: TextStyle(color: scheme.onSurfaceVariant),
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          tr('أكملت ${arNum(doneCount)} من ${arNum(kWirdPhrases.length)} أذكار اليوم',
+                              'Completed ${arNum(doneCount)} of ${arNum(kWirdPhrases.length)} today'),
+                          style: TextStyle(color: scheme.onSurfaceVariant),
+                        ),
+                      ),
+                      if (_streak > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: scheme.primaryContainer.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            tr('🔥 ${arNum(_streak)} يوم', '🔥 ${arNum(_streak)}d'),
+                            style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: scheme.onPrimaryContainer),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 Expanded(
