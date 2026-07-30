@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:hijri/hijri_calendar.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -120,17 +121,39 @@ class _MonthlyTimesScreenState extends State<MonthlyTimesScreen> {
     final date = DateTime(_month.year, _month.month, day);
     final pr = prayerTimesFor(date, _gov!);
     final isToday = dayKey(date) == dayKey(DateTime.now());
+    final isFriday = date.weekday == DateTime.friday;
+    final h = HijriCalendar.fromDate(date);
     return Container(
-      color: isToday ? scheme.primaryContainer.withValues(alpha: 0.4) : null,
-      padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
       decoration: BoxDecoration(
+        color: isToday
+            ? scheme.primaryContainer.withValues(alpha: 0.4)
+            : isFriday
+                ? scheme.tertiary.withValues(alpha: 0.08)
+                : null,
         border: Border(
             bottom: BorderSide(
                 color: scheme.outlineVariant.withValues(alpha: 0.4))),
       ),
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
       child: Row(
         children: [
-          _cell(arNum(day), flex: 2, bold: isToday),
+          Expanded(
+            flex: 2,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(arNum(day),
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: (isToday || isFriday)
+                            ? FontWeight.w800
+                            : FontWeight.w500)),
+                Text('${arNum(h.hDay)}/${arNum(h.hMonth)} هـ',
+                    style: TextStyle(
+                        fontSize: 9.5, color: scheme.onSurfaceVariant)),
+              ],
+            ),
+          ),
           for (final t in pr.times) _cell(arTime(t), flex: 3),
         ],
       ),

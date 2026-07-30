@@ -1,9 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/religion_data.dart';
+import '../../data/settings_repo.dart';
 import '../../data/worship_repo.dart';
 
 /// المسبحة الإلكترونية — دوس عشان تسبّح، بيعدّ فى مجموعات من 33.
@@ -21,11 +24,85 @@ class _TasbihScreenState extends State<TasbihScreen> {
   int _phraseIdx = 0;
   int _target = 33;
   int _lifetime = 0;
+  List<String> _custom = [];
+  static const _kCustom = 'tasbih_custom_phrases';
+
+  List<String> get _phrases => [...kTasbihPhrases, ..._custom];
 
   @override
   void initState() {
     super.initState();
     _repo.tasbihTotal().then((v) => setState(() => _lifetime = v));
+    _loadCustom();
+  }
+
+  Future<void> _loadCustom() async {
+    final raw = await SettingsRepo().get(_kCustom) ?? '';
+    if (raw.isEmpty) return;
+    try {
+      final list = (jsonDecode(raw) as List).map((e) => '$e').toList();
+      if (mounted) setState(() => _custom = list);
+    } on FormatException {
+      // مخزّن تالف — نتجاهله.
+    }
+  }
+
+  Future<void> _addPhrase() async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('صيغة تسبيح مخصّصة', 'Custom phrase')),
+        content: TextField(controller: ctrl, autofocus: true),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('إلغاء', 'Cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(tr('إضافة', 'Add'))),
+        ],
+      ),
+    );
+    final text = ctrl.text.trim();
+    if (ok == true && text.isNotEmpty && !_phrases.contains(text)) {
+      setState(() {
+        _custom = [..._custom, text];
+        _phraseIdx = _phrases.length - 1;
+      });
+      await SettingsRepo().set(_kCustom, jsonEncode(_custom));
+    }
+    ctrl.dispose();
+  }
+
+  Future<void> _customTarget() async {
+    final ctrl = TextEditingController(text: '$_target');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('هدف مخصّص', 'Custom target')),
+        content: TextField(
+            controller: ctrl,
+            autofocus: true,
+            keyboardType: TextInputType.number),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('إلغاء', 'Cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(tr('حفظ', 'Save'))),
+        ],
+      ),
+    );
+    final n = int.tryParse(toEnglishDigits(ctrl.text.trim()));
+    if (ok == true && n != null && n > 0) {
+      setState(() {
+        _target = n;
+        _count = 0;
+      });
+    }
+    ctrl.dispose();
   }
 
   void _tap() {
@@ -70,26 +147,44 @@ class _TasbihScreenState extends State<TasbihScreen> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: kTasbihPhrases.length,
+              itemCount: _phrases.length + 1,
               separatorBuilder: (_, _) => const SizedBox(width: 8),
-              itemBuilder: (_, i) => ChoiceChip(
-                label: Text(kTasbihPhrases[i]),
-                selected: i == _phraseIdx,
-                onSelected: (_) => setState(() => _phraseIdx = i),
-              ),
+              itemBuilder: (_, i) {
+                if (i == _phrases.length) {
+                  return ActionChip(
+                    avatar: const Icon(Icons.add, size: 18),
+                    label: Text(tr('صيغة', 'Phrase')),
+                    onPressed: _addPhrase,
+                  );
+                }
+                return ChoiceChip(
+                  label: Text(_phrases[i]),
+                  selected: i == _phraseIdx,
+                  onSelected: (_) => setState(() => _phraseIdx = i),
+                );
+              },
             ),
           ),
           const SizedBox(height: 8),
           // اختيار الهدف.
           Wrap(
             spacing: 8,
-            children: [33, 99, 100, 500]
-                .map((t) => ChoiceChip(
-                      label: Text(arNum(t)),
-                      selected: _target == t,
-                      onSelected: (_) => setState(() => _target = t),
-                    ))
-                .toList(),
+            alignment: WrapAlignment.center,
+            children: [
+              for (final t in [33, 99, 100, 500])
+                ChoiceChip(
+                  label: Text(arNum(t)),
+                  selected: _target == t,
+                  onSelected: (_) => setState(() => _target = t),
+                ),
+              ChoiceChip(
+                label: Text(([33, 99, 100, 500].contains(_target))
+                    ? tr('هدف آخر…', 'Other…')
+                    : arNum(_target)),
+                selected: ![33, 99, 100, 500].contains(_target),
+                onSelected: (_) => _customTarget(),
+              ),
+            ],
           ),
           Expanded(
             child: GestureDetector(
@@ -100,7 +195,7 @@ class _TasbihScreenState extends State<TasbihScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      kTasbihPhrases[_phraseIdx],
+                      _phrases[_phraseIdx.clamp(0, _phrases.length - 1)],
                       style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
                       textAlign: TextAlign.center,
                     ),
