@@ -335,6 +335,56 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
                 'Your average: ${arNum(_avg.toStringAsFixed(1))} pages/day'),
             style: TextStyle(color: scheme.onSurfaceVariant),
           ),
+        _juzGrid(k, scheme),
+      ],
+    );
+  }
+
+  /// شبكة الأجزاء الثلاثين — المكتمل بلون، الجارى مميّز، والباقى باهت.
+  Widget _juzGrid(Khatma k, ColorScheme scheme) {
+    final per = k.totalPages / 30;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 18),
+        Text(tr('الأجزاء الثلاثون', "The 30 juz'"),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        GridView.count(
+          crossAxisCount: 6,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 6,
+          crossAxisSpacing: 6,
+          childAspectRatio: 1.5,
+          children: [
+            for (var i = 1; i <= 30; i++)
+              Builder(builder: (_) {
+                final done = k.currentPage >= i * per;
+                final current = !done && k.currentPage > (i - 1) * per;
+                final bg = done
+                    ? scheme.primary
+                    : current
+                        ? scheme.primaryContainer
+                        : scheme.surfaceContainerHighest;
+                final fg = done
+                    ? scheme.onPrimary
+                    : current
+                        ? scheme.onPrimaryContainer
+                        : scheme.onSurfaceVariant;
+                return Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                      color: bg, borderRadius: BorderRadius.circular(8)),
+                  child: Text(arNum(i),
+                      style: TextStyle(
+                          color: fg,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12)),
+                );
+              }),
+          ],
+        ),
       ],
     );
   }

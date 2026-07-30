@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/religion_data.dart';
+import '../../data/settings_repo.dart';
 import '../../data/worship_repo.dart';
 
 /// قارئ الأذكار (الصباح/المساء) — كل ذِكر معاه عدّاد، دوس عليه ينقص لحد ما يخلص.
@@ -19,8 +20,24 @@ class _AdhkarScreenState extends State<AdhkarScreen> {
   late final List<Dhikr> _items = widget.morning ? kMorningAdhkar : kEveningAdhkar;
   late final List<int> _remaining = _items.map((d) => d.count).toList();
   bool _marked = false;
+  double _fontSize = 19;
+  static const _kFont = 'adhkar_font_size';
 
   int get _doneCount => _remaining.where((r) => r == 0).length;
+
+  @override
+  void initState() {
+    super.initState();
+    SettingsRepo().get(_kFont).then((v) {
+      final f = double.tryParse(v ?? '');
+      if (f != null && mounted) setState(() => _fontSize = f.clamp(14, 32));
+    });
+  }
+
+  void _adjustFont(double delta) {
+    setState(() => _fontSize = (_fontSize + delta).clamp(14, 32));
+    SettingsRepo().set(_kFont, _fontSize.toString());
+  }
 
   void _tap(int i) {
     if (_remaining[i] == 0) return;
@@ -48,6 +65,18 @@ class _AdhkarScreenState extends State<AdhkarScreen> {
         title: Text(widget.morning
             ? tr('أذكار الصباح', 'Morning adhkar')
             : tr('أذكار المساء', 'Evening adhkar')),
+        actions: [
+          IconButton(
+            tooltip: tr('تصغير الخط', 'Smaller text'),
+            icon: const Icon(Icons.text_decrease),
+            onPressed: () => _adjustFont(-2),
+          ),
+          IconButton(
+            tooltip: tr('تكبير الخط', 'Larger text'),
+            icon: const Icon(Icons.text_increase),
+            onPressed: () => _adjustFont(2),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -82,7 +111,7 @@ class _AdhkarScreenState extends State<AdhkarScreen> {
                           Text(
                             _items[i].text,
                             style: TextStyle(
-                              fontSize: 19,
+                              fontSize: _fontSize,
                               height: 1.9,
                               color: done ? scheme.onSurfaceVariant : scheme.onSurface,
                             ),
