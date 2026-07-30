@@ -93,6 +93,8 @@ import 'package:my_assistant/data/home_maintenance_repo.dart';
 import 'package:my_assistant/data/inbox_repo.dart';
 import 'package:my_assistant/data/notes_repo.dart';
 import 'package:my_assistant/core/religious_stories.dart';
+import 'package:my_assistant/core/quran_topics.dart';
+import 'package:my_assistant/core/worship_program.dart';
 import 'package:my_assistant/data/income_repo.dart';
 import 'package:my_assistant/data/meals_repo.dart';
 import 'package:my_assistant/data/measurements_repo.dart';
@@ -5393,6 +5395,52 @@ void main() {
     test('خط زمن السيرة غير فارغ', () {
       expect(kSeerahTimeline.length, greaterThanOrEqualTo(10));
       expect(kSeerahTimeline.every((e) => e.title.isNotEmpty), isTrue);
+    });
+    test('الفهرس الموضوعى وأدعية القرآن — نطاقات صالحة', () {
+      expect(kQuranTopics.length, greaterThanOrEqualTo(10));
+      expect(kQuranDuas.length, greaterThanOrEqualTo(15));
+      for (final t in kQuranTopics) {
+        expect(t.passages, isNotEmpty, reason: t.name);
+        for (final p in t.passages) {
+          expect(p.surah, inInclusiveRange(1, 114), reason: t.name);
+          expect(p.to, greaterThanOrEqualTo(p.from), reason: t.name);
+        }
+      }
+      for (final d in kQuranDuas) {
+        expect(d.passage.surah, inInclusiveRange(1, 114), reason: d.title);
+        expect(d.passage.to, greaterThanOrEqualTo(d.passage.from),
+            reason: d.title);
+      }
+    });
+  });
+
+  group('برنامجى الدينى', () {
+    ProgramTask t(String id, int done, int target, int w) => ProgramTask(
+        id: id, title: id, emoji: '•', done: done, target: target, weight: w);
+
+    test('النسبة موزونة بأوزان البنود', () {
+      // صلوات ٢ من ٥ (وزن ٥) = 0.4 · بند مكتمل (وزن ١) = 1
+      // (0.4×5 + 1×1) ÷ 6 = 0.5 → ٥٠٪
+      final d = ProgramDay([t('prayers', 2, 5, 5), t('x', 1, 1, 1)]);
+      expect(d.percent, 50);
+    });
+    test('اكتمال البنود والنسبة القصوى', () {
+      final d = ProgramDay([t('a', 5, 5, 5), t('b', 2, 2, 3)]);
+      expect(d.percent, 100);
+      expect(d.remaining, isEmpty);
+      expect(d.completedCount, 2);
+      expect(d.nextUp, isNull);
+    });
+    test('التالى = أعلى بند ناقص وزنًا', () {
+      final d = ProgramDay([t('light', 0, 1, 1), t('heavy', 0, 5, 5)]);
+      expect(d.nextUp?.id, 'heavy');
+      expect(d.percent, 0);
+    });
+    test('المستويات', () {
+      expect(levelFor(95), ProgramLevel.excelling);
+      expect(levelFor(75), ProgramLevel.committed);
+      expect(levelFor(50), ProgramLevel.regular);
+      expect(levelFor(10), ProgramLevel.starting);
     });
   });
 

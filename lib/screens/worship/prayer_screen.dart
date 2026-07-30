@@ -15,6 +15,10 @@ import '../../data/settings_repo.dart';
 import '../../data/worship_repo.dart';
 import 'adhkar_hub_screen.dart';
 import 'duas_screen.dart';
+import 'hadith_library_screen.dart';
+import 'quran_topics_screen.dart';
+import 'sadaqah_screen.dart';
+import 'worship_program_screen.dart';
 import 'fasting_screen.dart';
 import 'hajj_umrah_screen.dart';
 import 'islamic_occasions_screen.dart';
@@ -242,6 +246,8 @@ class _PrayerScreenState extends State<PrayerScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 _timesCard(now),
+                const SizedBox(height: 16),
+                _programCard(),
                 const SizedBox(height: 16),
                 _duaCard(now),
                 const SizedBox(height: 12),
@@ -477,6 +483,50 @@ class _PrayerScreenState extends State<PrayerScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// مدخل «برنامجى الدينى» — الخطة اليومية الموجّهة (أهم كارت بعد المواقيت).
+  Widget _programCard() {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () async {
+        await Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const WorshipProgramScreen()));
+        if (mounted) await _load();
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: scheme.primaryContainer.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: scheme.primary.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            const Text('🧭', style: TextStyle(fontSize: 30)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(tr('برنامجى الدينى', 'My worship program'),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Text(
+                      tr('خطة اليوم: صلوات · ورد قرآن · أذكار · سنّة · حفظ · صدقة',
+                          "Today's plan: prayers · Quran · adhkar · sunnah · charity"),
+                      style: TextStyle(
+                          fontSize: 12, color: scheme.onSurfaceVariant)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_left),
+          ],
+        ),
       ),
     );
   }
@@ -721,6 +771,12 @@ class _PrayerScreenState extends State<PrayerScreen> {
           const Color(0xFFCC8A2E), () => const AdhkarHubScreen()),
       _Tool('stories', Icons.auto_stories, tr('القصص والسيرة', 'Stories & seerah'),
           const Color(0xFF1E7A5A), () => const ReligiousContentScreen()),
+      _Tool('hadith_lib', Icons.library_books, tr('مكتبة الحديث', 'Hadith library'),
+          const Color(0xFF2E7D6B), () => const HadithLibraryScreen()),
+      _Tool('topics', Icons.travel_explore, tr('آيات ودعوات', 'Topics & duas'),
+          const Color(0xFF4A6FB5), () => const QuranTopicsScreen()),
+      _Tool('sadaqah', Icons.volunteer_activism, tr('صدقاتى', 'My charity'),
+          const Color(0xFF2FA36B), () => const SadaqahScreen()),
       _Tool('names', Icons.star, tr('أسماء الله الحسنى', 'Names of Allah'),
           const Color(0xFF2FA36B), () => const NamesScreen()),
       _Tool('duas', Icons.volunteer_activism, tr('أدعية مأثورة', 'Supplications'),
