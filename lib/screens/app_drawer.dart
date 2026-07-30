@@ -57,6 +57,93 @@ import 'wardrobe/wardrobe_screen.dart';
 import 'weekly/weekly_planning_screen.dart';
 import 'worship/prayer_screen.dart';
 
+// ألوان أيقونات بنود السايدبار — كل بند له لون ثابت (زى التصميم).
+const _cHome = Color(0xFF2FA36B);
+const _cCalendar = Color(0xFF3B9BE8);
+const _cTasks = Color(0xFF4F7FE8);
+const _cNotes = Color(0xFF8B5CF6);
+const _cGoals = Color(0xFFE8A33B);
+const _cPrayer = Color(0xFF2FA36B);
+const _cClothes = Color(0xFF9B6BE8);
+const _cEmergency = Color(0xFFE85C5C);
+
+/// صفّ بند فى السايدبار: أيقونة مربّعة ملوّنة + العنوان + مؤشّر جانبى للمختار.
+Widget _navRow({
+  required BuildContext context,
+  required IconData icon,
+  required String label,
+  required Color color,
+  required VoidCallback onTap,
+  bool selected = false,
+  Widget? trailing,
+}) {
+  final scheme = Theme.of(context).colorScheme;
+  return Material(
+    color: selected ? color.withValues(alpha: 0.14) : Colors.transparent,
+    child: InkWell(
+      onTap: onTap,
+      child: Stack(
+        children: [
+          // المؤشّر على حافة البداية (يمين فى العربى).
+          if (selected)
+            PositionedDirectional(
+              start: 0,
+              top: 10,
+              bottom: 10,
+              child: Container(
+                width: 4,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(13),
+                    border:
+                        Border.all(color: color.withValues(alpha: 0.28)),
+                  ),
+                  child: Icon(icon, color: color, size: 21),
+                ),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                      color: selected
+                          ? scheme.onSurface
+                          : scheme.onSurface.withValues(alpha: 0.92),
+                    ),
+                  ),
+                ),
+                // الشارة جنب الاسم مباشرةً (زى التصميم) مش فى آخر الصف.
+                // ملاحظة: مافيش Spacer هنا — كان بيزاحم النص على المساحة
+                // فيتقصّ («المتابعة والأدوات»)؛ الصف بيبدأ من الحافة أصلاً.
+                if (trailing != null) ...[
+                  const SizedBox(width: 8),
+                  trailing,
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 /// الدرج الجانبي (زي طارة): بنود التطبيق الرئيسية بتبدّل الشاشة،
 /// وباقي الأدوات بتتفتح كصفحات ليها سهم رجوع.
 class AppDrawer extends StatelessWidget {
@@ -68,23 +155,25 @@ class AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    // خط موحّد لكل بنود السايدبار (نفس الحجم والوزن).
-    const navStyle = TextStyle(fontSize: 15, fontWeight: FontWeight.w500);
 
-    Widget top(int index, IconData icon, String label) => ListTile(
+    Widget top(int index, IconData icon, String label, Color color) => _navRow(
+          context: context,
+          icon: icon,
+          label: label,
+          color: color,
           selected: current == index,
-          selectedTileColor: scheme.secondaryContainer,
-          leading: Icon(icon),
-          title: Text(label, style: navStyle),
           onTap: () {
             Navigator.pop(context);
             onSelect(index);
           },
         );
 
-    Widget push(IconData icon, String label, Widget screen) => ListTile(
-          leading: Icon(icon),
-          title: Text(label, style: navStyle),
+    Widget push(IconData icon, String label, Widget screen, Color color) =>
+        _navRow(
+          context: context,
+          icon: icon,
+          label: label,
+          color: color,
           onTap: () {
             Navigator.pop(context);
             Navigator.push(
@@ -94,32 +183,29 @@ class AppDrawer extends StatelessWidget {
 
     // شارة عدد صغيرة (مثلًا «٢ مستحق» جنب مجموعة).
     Widget badge(int n) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+          width: 24,
+          height: 24,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: scheme.error,
-            borderRadius: BorderRadius.circular(999),
+            shape: BoxShape.circle,
           ),
           child: Text(arNum(n),
               style: TextStyle(
                   color: scheme.onError,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700)),
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800)),
         );
 
     // مجموعة → بتفتح صفحة فيها بنودها على شكل مربعات (زي هَبّات ملف المركبة).
     Widget groupTile(IconData icon, String title, List<GroupHubItem> items,
             {Widget? trailingBadge, Color? accent}) =>
-        ListTile(
-          leading: Icon(icon, color: accent),
-          title: Row(
-            children: [
-              Flexible(child: Text(title, style: navStyle)),
-              if (trailingBadge != null) ...[
-                const SizedBox(width: 8),
-                trailingBadge,
-              ],
-            ],
-          ),
+        _navRow(
+          context: context,
+          icon: icon,
+          label: title,
+          color: accent ?? scheme.primary,
+          trailing: trailingBadge,
           onTap: () {
             Navigator.pop(context);
             Navigator.push(
@@ -134,43 +220,38 @@ class AppDrawer extends StatelessWidget {
           },
         );
 
+    // فاصل رفيع بين البنود (يبدأ بعد الأيقونة زى التصميم).
+    final rowDivider = Divider(
+      height: 1,
+      thickness: 0.7,
+      indent: 66,
+      endIndent: 14,
+      color: scheme.outlineVariant.withValues(alpha: 0.35),
+    );
+    // فاصل أقسام (أعرض شوية).
+    final sectionDivider = Divider(
+      height: 17,
+      thickness: 0.7,
+      indent: 30,
+      endIndent: 30,
+      color: scheme.outlineVariant.withValues(alpha: 0.5),
+    );
+
     return Drawer(
       child: SafeArea(
         child: ListView(
-          padding: EdgeInsets.zero,
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
           children: [
-            // حساب المستخدم — فوق (زي طارة): أفاتار + الاسم، يفتح صفحة الحساب.
+            // ---- كارت الحساب ----
             FutureBuilder<String>(
               future: SettingsRepo().userName(),
               builder: (context, snap) {
                 final name = (snap.data ?? '').trim();
-                return Container(
-                  color: scheme.primaryContainer,
-                  child: ListTile(
-                    contentPadding:
-                        const EdgeInsets.fromLTRB(16, 12, 8, 12),
-                    leading: CircleAvatar(
-                      radius: 24,
-                      backgroundColor: scheme.primary,
-                      child: Text(
-                          name.isNotEmpty ? name.characters.first : '★',
-                          style: TextStyle(
-                              color: scheme.onPrimary,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700)),
-                    ),
-                    title: Text(name.isEmpty ? tr('حسابك', 'Your account') : name,
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                            color: scheme.onPrimaryContainer)),
-                    subtitle: Text(tr('إدارة حسابك', 'Manage your account'),
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: scheme.onPrimaryContainer
-                                .withValues(alpha: 0.75))),
-                    trailing: Icon(Icons.chevron_left,
-                        color: scheme.onPrimaryContainer),
+                return Material(
+                  color: scheme.primaryContainer.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(20),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(
@@ -178,28 +259,95 @@ class AppDrawer extends StatelessWidget {
                           MaterialPageRoute(
                               builder: (_) => const AccountScreen()));
                     },
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 54,
+                            height: 54,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  scheme.primary,
+                                  scheme.primary.withValues(alpha: 0.65),
+                                ],
+                              ),
+                            ),
+                            child: name.isNotEmpty
+                                ? Text(name.characters.first,
+                                    style: TextStyle(
+                                        color: scheme.onPrimary,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w800))
+                                : Icon(Icons.star,
+                                    color: scheme.onPrimary, size: 28),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                    name.isEmpty
+                                        ? tr('حسابك', 'Your account')
+                                        : name,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 19)),
+                                const SizedBox(height: 2),
+                                Text(tr('إدارة حسابك', 'Manage your account'),
+                                    style: TextStyle(
+                                        fontSize: 12.5,
+                                        color: scheme.onSurfaceVariant)),
+                              ],
+                            ),
+                          ),
+                          // فى العربى بيتقلب لـ«‹» ناحية الحافة (زى التصميم).
+                          Icon(Icons.chevron_left,
+                              color: scheme.primary, size: 26),
+                        ],
+                      ),
+                    ),
                   ),
                 );
               },
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 12),
+            // ---- لوحة البنود ----
+            Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(children: [
             // مثبّت فوق — أكتر ٣ حاجات بتتفتح.
-            top(0, Icons.home_outlined, tr('الرئيسية', 'Home')),
+            top(0, Icons.home_outlined, tr('الرئيسية', 'Home'), _cHome),
+            rowDivider,
             // ---- بنود مستقلة ورا بعض ----
             // مواعيدى = شاشة الجدول (تذكيرات + مواعيد) · مهامى = المهام ·
             // تذكيراتى = ملاحظات حرّة · الأهداف = بند مستقل.
-            top(1, Icons.calendar_month_outlined,
-                tr('مواعيدى', 'My calendar')),
+            top(1, Icons.calendar_month_outlined, tr('مواعيدى', 'My calendar'),
+                _cCalendar),
+            rowDivider,
             push(Icons.checklist_rtl, tr('مهامى', 'My tasks'),
-                const TasksScreen()),
+                const TasksScreen(), _cTasks),
+            rowDivider,
             push(Icons.sticky_note_2_outlined, tr('تذكيراتى', 'My notes'),
-                const NotesScreen()),
+                const NotesScreen(), _cNotes),
+            rowDivider,
             push(Icons.flag_outlined, tr('الأهداف', 'Goals'),
-                const GoalsScreen()),
-            const Divider(),
+                const GoalsScreen(), _cGoals),
+            sectionDivider,
             // الصلاة والأذكار — فوق الفلوس مباشرة (المصحف جوّاها).
             push(Icons.mosque_outlined, tr('صلاتى', 'My prayers'),
-                const PrayerScreen()),
+                const PrayerScreen(), _cPrayer),
+            rowDivider,
             // ---- صحتى (يجمع الصحة + الرياضة + النظام الغذائي) ----
             groupTile(Icons.health_and_safety_outlined, tr('صحتى', 'My health'),
                 accent: Colors.pink,
@@ -285,6 +433,7 @@ class AppDrawer extends StatelessWidget {
                         ],
                       )),
                 ]),
+            rowDivider,
             // ---- فلوسى ----
             groupTile(
                 Icons.account_balance_wallet_outlined,
@@ -314,9 +463,11 @@ class AppDrawer extends StatelessWidget {
                     return n == 0 ? const SizedBox.shrink() : badge(n);
                   },
                 )),
+            rowDivider,
             // ---- ملابس (بند مستقل) ----
             push(Icons.checkroom_outlined, tr('ملابسى', 'My clothes'),
-                const WardrobeScreen()),
+                const WardrobeScreen(), _cClothes),
+            rowDivider,
             groupTile(Icons.self_improvement, tr('تطوّري', 'Growth'),
                 accent: Colors.indigo,
                 [
@@ -343,6 +494,7 @@ class AppDrawer extends StatelessWidget {
                       tr('كلمات السر', 'Passwords'),
                       screen: const PasswordsScreen()),
                 ]),
+            rowDivider,
             groupTile(Icons.insights_outlined,
                 tr('المتابعة والأدوات', 'Review & tools'),
                 accent: Colors.blue,
@@ -380,73 +532,148 @@ class AppDrawer extends StatelessWidget {
                   GroupHubItem(Icons.notifications_none, tr('مركز التنبيهات', 'Alerts'),
                       screen: const AlertsCenterScreen()),
                 ]),
-            const Divider(),
+            sectionDivider,
             // دايمًا ظاهرة في الآخر.
             push(Icons.medical_services_outlined,
                 tr('كارت الطوارئ', 'Emergency card'),
-                const EmergencyView()),
-            // صف سفلي: الإعدادات + اللغة + المظهر جنب بعض (زي طارة).
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _footerBtn(context, Icons.settings_outlined,
-                      tr('الإعدادات', 'Settings'), () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const SettingsScreen()));
-                  }),
-                  _footerBtn(
-                      context,
-                      Icons.translate,
-                      AppState.isEnglish ? 'العربية' : 'English',
-                      () => AppState.setLanguage(
-                          AppState.isEnglish ? 'ar' : 'en')),
-                  ValueListenableBuilder<ThemeMode>(
-                    valueListenable: AppState.themeMode,
-                    builder: (context, mode, _) {
-                      final isDark = mode == ThemeMode.dark ||
-                          (mode == ThemeMode.system &&
-                              MediaQuery.platformBrightnessOf(context) ==
-                                  Brightness.dark);
-                      return _footerBtn(
+                const EmergencyView(), _cEmergency),
+              ]),
+            ),
+            const SizedBox(height: 12),
+            // ---- كارت التحكّم السفلى: الإعدادات + اللغة + المظهر ----
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: IntrinsicHeight(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _footerBtn(
                           context,
-                          isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                          isDark ? tr('فاتح', 'Light') : tr('غامق', 'Dark'),
-                          () => AppState.setThemeMode(
-                              isDark ? ThemeMode.light : ThemeMode.dark));
-                    },
-                  ),
-                ],
+                          Icons.settings_outlined,
+                          tr('الإعدادات', 'Settings'),
+                          tr('تخصيص التطبيق', 'Customize'),
+                          const Color(0xFF9B6BE8), () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const SettingsScreen()));
+                      }),
+                    ),
+                    VerticalDivider(
+                        width: 1,
+                        thickness: 0.7,
+                        indent: 4,
+                        endIndent: 4,
+                        color:
+                            scheme.outlineVariant.withValues(alpha: 0.5)),
+                    Expanded(
+                      child: _footerBtn(
+                          context,
+                          Icons.language,
+                          AppState.isEnglish ? 'العربية' : 'English',
+                          tr('اللغة', 'Language'),
+                          const Color(0xFF3B9BE8),
+                          () => AppState.setLanguage(
+                              AppState.isEnglish ? 'ar' : 'en')),
+                    ),
+                    VerticalDivider(
+                        width: 1,
+                        thickness: 0.7,
+                        indent: 4,
+                        endIndent: 4,
+                        color:
+                            scheme.outlineVariant.withValues(alpha: 0.5)),
+                    Expanded(
+                      child: ValueListenableBuilder<ThemeMode>(
+                        valueListenable: AppState.themeMode,
+                        builder: (context, mode, _) {
+                          final isDark = mode == ThemeMode.dark ||
+                              (mode == ThemeMode.system &&
+                                  MediaQuery.platformBrightnessOf(context) ==
+                                      Brightness.dark);
+                          return _footerBtn(
+                              context,
+                              isDark
+                                  ? Icons.light_mode_outlined
+                                  : Icons.dark_mode_outlined,
+                              isDark ? tr('فاتح', 'Light') : tr('غامق', 'Dark'),
+                              tr('الوضع الليلى', 'Night mode'),
+                              const Color(0xFFE8A33B),
+                              () => AppState.setThemeMode(
+                                  isDark ? ThemeMode.light : ThemeMode.dark));
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const Divider(height: 1),
-            ListTile(
-              leading: Icon(Icons.logout, color: scheme.error),
-              title: Text(tr('تسجيل الخروج', 'Log out'),
-                  style: navStyle.copyWith(color: scheme.error)),
-              onTap: () async {
-                final ok = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: Text(tr('تسجيل الخروج', 'Log out')),
-                    content: Text(tr('هيتقفل التطبيق. تحب تكمل؟',
-                        'The app will close. Continue?')),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          child: Text(tr('إلغاء', 'Cancel'))),
-                      FilledButton(
-                          onPressed: () => Navigator.pop(ctx, true),
-                          child: Text(tr('خروج', 'Log out'))),
+            const SizedBox(height: 12),
+            // ---- تسجيل الخروج ----
+            Material(
+              color: scheme.error.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(18),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () async {
+                  final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: Text(tr('تسجيل الخروج', 'Log out')),
+                      content: Text(tr('هيتقفل التطبيق. تحب تكمل؟',
+                          'The app will close. Continue?')),
+                      actions: [
+                        TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: Text(tr('إلغاء', 'Cancel'))),
+                        FilledButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: Text(tr('خروج', 'Log out'))),
+                      ],
+                    ),
+                  );
+                  if (ok == true) await SystemNavigator.pop();
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                        color: scheme.error.withValues(alpha: 0.35)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: scheme.error.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.logout, color: scheme.error, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Center(
+                          child: Text(tr('تسجيل الخروج', 'Log out'),
+                              style: TextStyle(
+                                  color: scheme.error,
+                                  fontSize: 15.5,
+                                  fontWeight: FontWeight.w800)),
+                        ),
+                      ),
+                      const SizedBox(width: 52),
                     ],
                   ),
-                );
-                if (ok == true) await SystemNavigator.pop();
-              },
+                ),
+              ),
             ),
           ],
         ),
@@ -454,22 +681,31 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
-  /// زر أداة سفلي (أيقونة + عنوان صغير تحتها).
-  Widget _footerBtn(
-      BuildContext context, IconData icon, String label, VoidCallback onTap) {
+  /// زر أداة سفلي (أيقونة ملوّنة + عنوان + وصف صغير تحته).
+  Widget _footerBtn(BuildContext context, IconData icon, String label,
+      String sub, Color color, VoidCallback onTap) {
     final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: scheme.onSurfaceVariant),
-            const SizedBox(height: 4),
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 6),
             Text(label,
-                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 13.5, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 1),
+            Text(sub,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 10.5, color: scheme.onSurfaceVariant)),
           ],
         ),
       ),
