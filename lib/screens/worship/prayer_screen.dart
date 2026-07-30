@@ -13,20 +13,16 @@ import '../../core/prayers.dart';
 import '../../core/religion_data.dart';
 import '../../data/settings_repo.dart';
 import '../../data/worship_repo.dart';
-import 'adhkar_screen.dart';
-import 'adhkar_situations_screen.dart';
-import 'daily_wird_screen.dart';
+import 'adhkar_hub_screen.dart';
 import 'duas_screen.dart';
 import 'fasting_screen.dart';
 import 'hajj_umrah_screen.dart';
 import 'islamic_occasions_screen.dart';
 import 'khatma_screen.dart';
 import 'memorization_screen.dart';
-import 'adhkar_reminders_screen.dart';
 import 'mawarith_screen.dart';
 import 'monthly_times_screen.dart';
 import 'names_screen.dart';
-import 'post_prayer_dhikr_screen.dart';
 import 'quran_screen.dart';
 import 'qibla_screen.dart';
 import 'ruqyah_screen.dart';
@@ -718,10 +714,10 @@ class _PrayerScreenState extends State<PrayerScreen> {
           const Color(0xFF2E7D6B), () => const QiblaScreen()),
       _Tool('tasbih', Icons.radio_button_checked, tr('المسبحة', 'Tasbih'),
           const Color(0xFF6A4C93), () => const TasbihScreen()),
-      _Tool('adhkar_m', Icons.wb_sunny, tr('أذكار الصباح', 'Morning adhkar'),
-          const Color(0xFFCC8A2E), () => const AdhkarScreen(morning: true)),
-      _Tool('adhkar_e', Icons.nightlight_round, tr('أذكار المساء', 'Evening adhkar'),
-          const Color(0xFF3C5A99), () => const AdhkarScreen(morning: false)),
+      // كل كروت الأذكار اندمجت فى كارت واحد «الأذكار» (أذكار الصباح/المساء/بعد
+      // الصلاة/المواقف/الوِرد/تذكير الأذكار جوّه هَب واحد).
+      _Tool('adhkar', Icons.menu_book_outlined, tr('الأذكار', 'Adhkar'),
+          const Color(0xFFCC8A2E), () => const AdhkarHubScreen()),
       _Tool('names', Icons.star, tr('أسماء الله الحسنى', 'Names of Allah'),
           const Color(0xFF2FA36B), () => const NamesScreen()),
       _Tool('duas', Icons.volunteer_activism, tr('أدعية مأثورة', 'Supplications'),
@@ -730,14 +726,8 @@ class _PrayerScreenState extends State<PrayerScreen> {
           const Color(0xFF1E7A5A), () => const KhatmaScreen()),
       _Tool('memorize', Icons.psychology, tr('حفظ ومراجعة', 'Memorization'),
           const Color(0xFF2E7D6B), () => const MemorizationScreen()),
-      _Tool('adhkar_rem', Icons.notifications_active,
-          tr('تذكير الأذكار', 'Adhkar reminders'),
-          const Color(0xFFCC8A2E), () => const AdhkarRemindersScreen()),
       _Tool('monthly', Icons.calendar_month, tr('مواقيت الشهر', 'Monthly times'),
           const Color(0xFF4A6FB5), () => const MonthlyTimesScreen()),
-      _Tool('post_prayer', Icons.self_improvement,
-          tr('أذكار بعد الصلاة', 'Post-prayer adhkar'),
-          const Color(0xFF6A4C93), () => const PostPrayerDhikrScreen()),
       _Tool('fasting', Icons.wb_twilight, tr('الصيام', 'Fasting'),
           const Color(0xFFCC8A2E), () => const FastingScreen()),
       _Tool('stats', Icons.insights, tr('إحصائيتك الروحية', 'Spiritual week'),
@@ -750,10 +740,6 @@ class _PrayerScreenState extends State<PrayerScreen> {
           const Color(0xFFB5654A), () => const MawarithScreen()),
       _Tool('occasions', Icons.event, tr('المناسبات الإسلامية', 'Islamic occasions'),
           const Color(0xFF1E7A5A), () => const IslamicOccasionsScreen()),
-      _Tool('situations', Icons.bedtime, tr('أذكار المواقف', 'Daily-life adhkar'),
-          const Color(0xFF3C5A99), () => const AdhkarSituationsScreen()),
-      _Tool('wird', Icons.track_changes, tr('الوِرد اليومى', 'Daily wird'),
-          const Color(0xFF2FA36B), () => const DailyWirdScreen()),
       _Tool('ruqyah', Icons.healing, tr('الرقية الشرعية', 'Ruqyah'),
           const Color(0xFF6A4C93), () => const RuqyahScreen()),
       _Tool('hajj', Icons.mosque, tr('العمرة والحج', 'Umrah & Hajj'),
