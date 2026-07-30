@@ -5,6 +5,7 @@ import '../core/l10n.dart';
 import '../data/notes_repo.dart';
 import '../widgets/common.dart';
 import '../widgets/quick_add_field.dart';
+import 'voice/dictation_sheet.dart';
 
 /// «تذكيراتى» — ملاحظات حرّة تكتبها بسرعة وتلاقيها. المثبّت فوق.
 class NotesScreen extends StatefulWidget {
@@ -42,19 +43,48 @@ class _NotesScreenState extends State<NotesScreen> {
     await _load();
   }
 
+  /// إضافة ملاحظة بالصوت — بتتكلم، الكلام يتحوّل نص، وتقدر تعدّله قبل الحفظ.
+  Future<void> _addByVoice() async {
+    final text = await showDictationSheet(
+      context,
+      title: tr('ملاحظة بصوتك', 'Note by voice'),
+    );
+    if (text == null || text.trim().isEmpty) return;
+    await _repo.add(text);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr('اتسجّلت الملاحظة 🎙', 'Note saved 🎙'))));
+    await _load();
+  }
+
   Future<void> _edit(Note note) async {
     final ctrl = TextEditingController(text: note.text);
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(tr('تعديل الملاحظة', 'Edit note')),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          maxLines: null,
-          minLines: 3,
-          keyboardType: TextInputType.multiline,
-          decoration: InputDecoration(hintText: tr('اكتب…', 'Write…')),
+        content: StatefulBuilder(
+          builder: (ctx, setDialog) => TextField(
+            controller: ctrl,
+            autofocus: true,
+            maxLines: null,
+            minLines: 3,
+            keyboardType: TextInputType.multiline,
+            decoration: InputDecoration(
+              hintText: tr('اكتب…', 'Write…'),
+              // إملاء صوتى يكمّل على النص الموجود.
+              suffixIcon: IconButton(
+                tooltip: tr('أكمل بصوتك', 'Continue by voice'),
+                icon: const Icon(Icons.mic),
+                onPressed: () async {
+                  final said = await showDictationSheet(ctx,
+                      initial: ctrl.text,
+                      title: tr('أكمل بصوتك', 'Continue by voice'));
+                  if (said != null) setDialog(() => ctrl.text = said);
+                },
+              ),
+            ),
+          ),
         ),
         actions: [
           TextButton(
@@ -78,14 +108,44 @@ class _NotesScreenState extends State<NotesScreen> {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       drawer: widget.drawer,
-      appBar: AppBar(title: Text(tr('تذكيراتى', 'My notes'))),
+      appBar: AppBar(
+        title: Text(tr('تذكيراتى', 'My notes')),
+        actions: [
+          IconButton(
+            tooltip: tr('ملاحظة بصوتك', 'Note by voice'),
+            icon: const Icon(Icons.mic_none),
+            onPressed: _addByVoice,
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: QuickAddField(
-              label: tr('اكتب تذكرة أو ملاحظة…', 'Write a note…'),
-              onSubmit: _add,
+            child: Row(
+              children: [
+                Expanded(
+                  child: QuickAddField(
+                    label: tr('اكتب تذكرة أو ملاحظة…', 'Write a note…'),
+                    onSubmit: _add,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // زر الإملاء الصوتى جنب خانة الكتابة.
+                Material(
+                  color: scheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(14),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: _addByVoice,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Icon(Icons.mic,
+                          color: scheme.onPrimaryContainer, size: 22),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           Padding(
