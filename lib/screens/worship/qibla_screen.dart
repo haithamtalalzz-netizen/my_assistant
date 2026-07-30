@@ -23,6 +23,7 @@ class QiblaScreen extends StatefulWidget {
 class _QiblaScreenState extends State<QiblaScreen> {
   double? _heading; // اتجاه الجهاز (درجة من الشمال) — null على الويب/غير مدعوم.
   double _bearing = 0; // اتجاه القبلة من الموقع.
+  double _distanceKm = 0; // المسافة لمكة.
   String _place = '';
   bool _loading = true;
   bool _noSensor = false;
@@ -38,6 +39,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
   Future<void> _init() async {
     final gov = await resolvePlace(SettingsRepo());
     _bearing = qiblaBearing(gov.lat, gov.lng);
+    _distanceKm = _haversineKm(gov.lat, gov.lng, 21.4225, 39.8262); // الكعبة
     _place = gov.name;
     if (!kIsWeb) {
       final stream = FlutterCompass.events;
@@ -54,6 +56,19 @@ class _QiblaScreenState extends State<QiblaScreen> {
       _noSensor = true;
     }
     if (mounted) setState(() => _loading = false);
+  }
+
+  /// مسافة القوس الأكبر بالكيلومتر (haversine).
+  double _haversineKm(double lat1, double lng1, double lat2, double lng2) {
+    const r = 6371.0;
+    double rad(double d) => d * math.pi / 180;
+    final dLat = rad(lat2 - lat1), dLng = rad(lng2 - lng1);
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(rad(lat1)) *
+            math.cos(rad(lat2)) *
+            math.sin(dLng / 2) *
+            math.sin(dLng / 2);
+    return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
   }
 
   void _maybeHaptic() {
@@ -149,6 +164,9 @@ class _QiblaScreenState extends State<QiblaScreen> {
                   const SizedBox(height: 24),
                   _infoRow(tr('القبلة من الشمال', 'Qibla from North'),
                       '${arNum(_bearing.round())}°'),
+                  _infoRow(tr('المسافة لمكة', 'Distance to Mecca'),
+                      tr('${arNum(_distanceKm.round())} كم',
+                          '${arNum(_distanceKm.round())} km')),
                   if (_heading != null)
                     _infoRow(tr('اتجاه الهاتف', 'Phone heading'),
                         '${arNum(_heading!.round())}°'),

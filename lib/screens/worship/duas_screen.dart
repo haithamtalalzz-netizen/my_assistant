@@ -1,8 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/l10n.dart';
 import '../../core/religion_data.dart';
+import '../../data/settings_repo.dart';
 
 /// أدعية مأثورة مصنّفة + بحث.
 class DuasScreen extends StatefulWidget {
@@ -15,6 +19,31 @@ class DuasScreen extends StatefulWidget {
 class _DuasScreenState extends State<DuasScreen> {
   String _query = '';
   int _cat = 0; // 0 = الكل
+  bool _favOnly = false;
+  Set<String> _favs = {};
+  static const _kFavs = 'dua_favs';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFavs();
+  }
+
+  Future<void> _loadFavs() async {
+    final raw = await SettingsRepo().get(_kFavs) ?? '';
+    if (raw.isEmpty) return;
+    try {
+      final list = (jsonDecode(raw) as List).map((e) => '$e').toSet();
+      if (mounted) setState(() => _favs = list);
+    } on FormatException {
+      // مخزّن تالف — نتجاهله.
+    }
+  }
+
+  Future<void> _toggleFav(String dua) async {
+    setState(() => _favs.contains(dua) ? _favs.remove(dua) : _favs.add(dua));
+    await SettingsRepo().set(_kFavs, jsonEncode(_favs.toList()));
+  }
 
   List<({String cat, String emoji, String dua})> get _results {
     final out = <({String cat, String emoji, String dua})>[];
@@ -22,6 +51,7 @@ class _DuasScreenState extends State<DuasScreen> {
       if (_cat != 0 && _cat - 1 != i) continue;
       final c = kDuaCategories[i];
       for (final d in c.duas) {
+        if (_favOnly && !_favs.contains(d)) continue;
         if (_query.isEmpty || d.contains(_query) || c.name.contains(_query)) {
           out.add((cat: c.name, emoji: c.emoji, dua: d));
         }
@@ -49,6 +79,19 @@ class _DuasScreenState extends State<DuasScreen> {
               onChanged: (v) => setState(() => _query = v.trim()),
             ),
           ),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: FilterChip(
+                avatar: const Text('⭐'),
+                label: Text(tr('المفضّلة', 'Favorites')),
+                selected: _favOnly,
+                onSelected: (v) => setState(() => _favOnly = v),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
           SizedBox(
             height: 44,
             child: ListView.separated(
@@ -62,8 +105,11 @@ class _DuasScreenState extends State<DuasScreen> {
                     : '${kDuaCategories[i - 1].emoji} ${kDuaCategories[i - 1].name}';
                 return ChoiceChip(
                   label: Text(label),
-                  selected: _cat == i,
-                  onSelected: (_) => setState(() => _cat = i),
+                  selected: _cat == i && !_favOnly,
+                  onSelected: (_) => setState(() {
+                    _cat = i;
+                    _favOnly = false;
+                  }),
                 );
               },
             ),
@@ -93,6 +139,24 @@ class _DuasScreenState extends State<DuasScreen> {
                                           fontWeight: FontWeight.w700,
                                           fontSize: 13)),
                                   const Spacer(),
+                                  InkWell(
+                                    onTap: () => _toggleFav(r.dua),
+                                    child: Icon(
+                                        _favs.contains(r.dua)
+                                            ? Icons.star
+                                            : Icons.star_border,
+                                        size: 20,
+                                        color: _favs.contains(r.dua)
+                                            ? Colors.amber
+                                            : scheme.onSurfaceVariant),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  InkWell(
+                                    onTap: () => Share.share(r.dua),
+                                    child: Icon(Icons.share,
+                                        size: 18, color: scheme.onSurfaceVariant),
+                                  ),
+                                  const SizedBox(width: 12),
                                   InkWell(
                                     onTap: () {
                                       Clipboard.setData(
