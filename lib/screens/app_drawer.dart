@@ -6,9 +6,9 @@ import '../core/app_state.dart';
 import '../core/l10n.dart';
 import '../data/settings_repo.dart';
 import 'account_screen.dart';
-import 'schedule/appointments_calendar_screen.dart';
 import 'schedule/schedule_screen.dart';
 import 'tasks/tasks_screen.dart';
+import 'notes_screen.dart';
 import 'money/subscriptions_screen.dart';
 import 'growth/goals_screen.dart';
 import 'food/fasting_screen.dart';
@@ -185,15 +185,17 @@ class AppDrawer extends StatelessWidget {
             const SizedBox(height: 4),
             // مثبّت فوق — أكتر ٣ حاجات بتتفتح.
             top(0, Icons.home_outlined, tr('الرئيسية', 'Home')),
-            // ---- تلات بنود مستقلة ورا بعض ----
-            // تذكيراتى = قايمة التذكيرات · مهامى = المهام · مواعيدى = نفس
-            // بيانات التذكيرات بس بعرض التقويم الشهرى (عرض تانى مش تكرار).
-            top(1, Icons.notifications_active_outlined,
-                tr('تذكيراتى', 'My reminders')),
+            // ---- بنود مستقلة ورا بعض ----
+            // مواعيدى = شاشة الجدول (تذكيرات + مواعيد) · مهامى = المهام ·
+            // تذكيراتى = ملاحظات حرّة · الأهداف = بند مستقل.
+            top(1, Icons.calendar_month_outlined,
+                tr('مواعيدى', 'My calendar')),
             push(Icons.checklist_rtl, tr('مهامى', 'My tasks'),
                 const TasksScreen()),
-            push(Icons.calendar_month_outlined, tr('مواعيدى', 'My calendar'),
-                const AppointmentsCalendarScreen()),
+            push(Icons.sticky_note_2_outlined, tr('تذكيراتى', 'My notes'),
+                const NotesScreen()),
+            push(Icons.flag_outlined, tr('الأهداف', 'Goals'),
+                const GoalsScreen()),
             const Divider(),
             // الصلاة والأذكار — فوق الفلوس مباشرة (المصحف جوّاها).
             push(Icons.mosque_outlined, tr('صلاتى', 'My prayers'),
@@ -318,8 +320,7 @@ class AppDrawer extends StatelessWidget {
             groupTile(Icons.self_improvement, tr('تطوّري', 'Growth'),
                 accent: Colors.indigo,
                 [
-                  GroupHubItem(Icons.flag_outlined, tr('الأهداف', 'Goals'),
-                      screen: const GoalsScreen()),
+                  // «الأهداف» بقى بند مستقل فوق (تحت «تذكيراتى»).
                   GroupHubItem(Icons.school_outlined, tr('التعلّم', 'Learning'),
                       screen: const CoursesScreen()),
                   GroupHubItem(Icons.menu_book_outlined, tr('القراءة', 'Reading'),

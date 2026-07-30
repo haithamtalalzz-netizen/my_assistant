@@ -22,8 +22,9 @@ class ScheduleScreen extends StatelessWidget {
     return Scaffold(
       drawer: drawer,
       appBar: AppBar(
-        // البند فى السايدبار اسمه «تذكيراتى» وبيفتح الصفحة دى مباشرةً.
-        title: Text(tr('تذكيراتى', 'My reminders')),
+        // البند فى السايدبار اسمه «مواعيدى» وبيفتح الصفحة دى مباشرةً
+        // (زر «عرض شهري» جوّاها بيفتح التقويم — البند المستقل القديم اتشال).
+        title: Text(tr('مواعيدى', 'My calendar')),
         actions: [
           searchAction(context),
           IconButton(

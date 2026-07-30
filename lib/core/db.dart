@@ -18,7 +18,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 62,
+      version: 63,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -440,7 +440,22 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 63 && newV >= 63) {
+      // بند «تذكيراتى» الجديد = ملاحظات حرة (notes). ترقية إضافية آمنة تمامًا
+      // (CREATE فقط — مافيش بيانات بتتأثّر).
+      await db.execute(_notesTableDdl);
+    }
   }
+
+  /// جدول «تذكيراتى» — ملاحظات حرّة (بند مستقل فى السايدبار).
+  static const String _notesTableDdl = '''
+    CREATE TABLE IF NOT EXISTS notes(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      text TEXT NOT NULL,
+      pinned INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )''';
 
   /// صور متخزّنة جوه القاعدة (الويب) — `AppImages`.
   static const List<String> _v60Tables = [
@@ -1375,6 +1390,7 @@ class AppDb {
         text TEXT NOT NULL,
         created_at TEXT NOT NULL
       )''');
+    batch.execute(_notesTableDdl);
     batch.execute('''
       CREATE TABLE med_logs(
         id INTEGER PRIMARY KEY AUTOINCREMENT,

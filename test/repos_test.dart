@@ -91,6 +91,7 @@ import 'package:my_assistant/data/debts_repo.dart';
 import 'package:my_assistant/data/gameya_repo.dart';
 import 'package:my_assistant/data/home_maintenance_repo.dart';
 import 'package:my_assistant/data/inbox_repo.dart';
+import 'package:my_assistant/data/notes_repo.dart';
 import 'package:my_assistant/data/income_repo.dart';
 import 'package:my_assistant/data/meals_repo.dart';
 import 'package:my_assistant/data/measurements_repo.dart';
@@ -5370,6 +5371,36 @@ void main() {
       // معامل غير معروف → يرجع لأقل مستوى (1.2).
       expect(tdee(bmr: 1000, activity: 'unknown'), closeTo(1200, 1e-6));
       expect(kActivityLevels.length, 5);
+    });
+  });
+
+  group('تذكيراتى (notes)', () {
+    test('إضافة/بحث/تثبيت/حذف', () async {
+      final repo = NotesRepo();
+      await repo.add('اشترى هدية');
+      await repo.add('اتصل بأحمد');
+      expect(await repo.count(), 2);
+
+      // البحث بالنص.
+      final hit = await repo.all(search: 'هدية');
+      expect(hit.length, 1);
+      expect(hit.first.text, 'اشترى هدية');
+
+      // التثبيت بيطلّع الملاحظة فوق فى الترتيب.
+      final all = await repo.all();
+      final callNote = all.firstWhere((n) => n.text == 'اتصل بأحمد');
+      await repo.setPinned(callNote.id!, true);
+      final reordered = await repo.all();
+      expect(reordered.first.text, 'اتصل بأحمد');
+      expect(reordered.first.pinned, isTrue);
+
+      // التعديل + الحذف.
+      await repo.update(callNote.id!, 'اتصل بأحمد بكرة');
+      final edited =
+          (await repo.all()).firstWhere((n) => n.id == callNote.id);
+      expect(edited.text, 'اتصل بأحمد بكرة');
+      await repo.delete(callNote.id!);
+      expect(await repo.count(), 1);
     });
   });
 
