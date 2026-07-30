@@ -1,4 +1,12 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
@@ -17,6 +25,7 @@ class _MawarithScreenState extends State<MawarithScreen> {
   String _spouse = 'none';
   int _wives = 1, _sons = 0, _daughters = 0, _brothers = 0, _sisters = 0;
   bool _father = false, _mother = false;
+  bool _sharing = false;
 
   @override
   void dispose() {
@@ -24,24 +33,40 @@ class _MawarithScreenState extends State<MawarithScreen> {
     super.dispose();
   }
 
+  MawarithInput _input() => MawarithInput(
+        estate: parseNumber(_estate.text) ?? 0,
+        spouse: _spouse,
+        wives: _wives,
+        sons: _sons,
+        daughters: _daughters,
+        father: _father,
+        mother: _mother,
+        fullBrothers: _brothers,
+        fullSisters: _sisters,
+      );
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final estate = parseNumber(_estate.text) ?? 0;
-    final res = computeMawarith(MawarithInput(
-      estate: estate,
-      spouse: _spouse,
-      wives: _wives,
-      sons: _sons,
-      daughters: _daughters,
-      father: _father,
-      mother: _mother,
-      fullBrothers: _brothers,
-      fullSisters: _sisters,
-    ));
+    final res = computeMawarith(_input());
 
     return Scaffold(
-      appBar: AppBar(title: Text(tr('حاسبة المواريث', 'Inheritance'))),
+      appBar: AppBar(
+        title: Text(tr('حاسبة المواريث', 'Inheritance')),
+        actions: [
+          if (res.shares.isNotEmpty)
+            IconButton(
+              tooltip: tr('طباعة / مشاركة', 'Print / share'),
+              icon: _sharing
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.ios_share),
+              onPressed: _sharing ? null : _share,
+            ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -130,6 +155,69 @@ class _MawarithScreenState extends State<MawarithScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _share() async {
+    setState(() => _sharing = true);
+    try {
+      final res = computeMawarith(_input());
+      final estate = parseNumber(_estate.text) ?? 0;
+      final rows = <List<String>>[
+        ['الوارث', 'النسبة', 'النصيب'],
+        for (final h in res.shares)
+          [
+            h.name,
+            '${(h.fraction * 100).toStringAsFixed(1)}%',
+            egp(h.amount),
+          ],
+      ];
+
+      if (kIsWeb) {
+        final text = rows.map((r) => r.join('\t')).join('\n');
+        await Share.share('توزيع التركة (${egp(estate)})\n$text');
+        return;
+      }
+
+      final fontData = await rootBundle.load('assets/fonts/Cairo-Regular.ttf');
+      final font = pw.Font.ttf(fontData);
+      final doc = pw.Document();
+      doc.addPage(pw.MultiPage(
+        textDirection: pw.TextDirection.rtl,
+        theme: pw.ThemeData.withFont(base: font),
+        build: (context) => [
+          pw.Text('توزيع التركة',
+              style: pw.TextStyle(font: font, fontSize: 18)),
+          pw.Text('قيمة التركة: ${egp(estate)}',
+              style: pw.TextStyle(font: font, fontSize: 12)),
+          pw.SizedBox(height: 10),
+          pw.TableHelper.fromTextArray(
+            headers: rows.first,
+            data: rows.sublist(1),
+            cellAlignment: pw.Alignment.center,
+            headerAlignment: pw.Alignment.center,
+            headerStyle:
+                pw.TextStyle(font: font, fontWeight: pw.FontWeight.bold),
+            cellStyle: pw.TextStyle(font: font, fontSize: 11),
+          ),
+          if (res.notes.isNotEmpty) ...[
+            pw.SizedBox(height: 10),
+            for (final n in res.notes)
+              pw.Text('• $n', style: pw.TextStyle(font: font, fontSize: 10)),
+          ],
+          pw.SizedBox(height: 12),
+          pw.Text(
+              'تقدير مبدئى للحالات الشائعة فقط — المسائل المركّبة تحتاج مختصًّا فى الفرائض.',
+              style: pw.TextStyle(font: font, fontSize: 9)),
+        ],
+      ));
+      final bytes = await doc.save();
+      final temp = await getTemporaryDirectory();
+      final file = File(p.join(temp.path, 'mawarith.pdf'));
+      await file.writeAsBytes(bytes);
+      await Share.shareXFiles([XFile(file.path)], text: 'توزيع التركة');
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
   }
 
   Widget _choice(String label, String val) => ChoiceChip(
