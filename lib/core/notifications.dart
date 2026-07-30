@@ -56,22 +56,29 @@ class Notifications {
   static const int fastingEndNotifId = 1170001; // انتهاء نافذة الصيام المتقطّع
   static const int proactiveNotifId = 1180001; // رؤية استباقية يومية من العقل
   static int vaccineNotifId(int id) => 1190000 + id; // جرعة تطعيم جاية
+  static int noteNotifId(int id) => 1200000 + id; // تذكير ملاحظة («تذكيراتى»)
 
   /// تفاصيل إشعار الأذان بخصائص المنبّه. [sound] = ملف المستخدم المخصّص، أو null
   /// (تنبيه صوتى قوى بالنغمة الافتراضية لحد ما المستخدم يختار ملف أذانه).
   /// لكل ملف قناة منفصلة لأن صوت القناة مابيتغيّرش بعد إنشائها.
-  static NotificationDetails _adhanDetailsFor(
-      {required String channelId, AndroidNotificationSound? sound}) =>
+  static NotificationDetails _adhanDetailsFor({
+    required String channelId,
+    AndroidNotificationSound? sound,
+    String channelName = 'أذان الصلاة',
+    String channelDesc = 'أذان صوتى عند دخول وقت الصلاة',
+    List<AndroidNotificationAction>? actions,
+  }) =>
       NotificationDetails(
         android: AndroidNotificationDetails(
           channelId,
-          'أذان الصلاة',
-          channelDescription: 'أذان صوتى عند دخول وقت الصلاة',
+          channelName,
+          channelDescription: channelDesc,
           importance: Importance.max,
           priority: Priority.high,
           category: AndroidNotificationCategory.alarm,
           audioAttributesUsage: AudioAttributesUsage.alarm,
           sound: sound,
+          actions: actions,
         ),
         iOS: const DarwinNotificationDetails(
           interruptionLevel: InterruptionLevel.timeSensitive,
@@ -79,14 +86,33 @@ class Notifications {
       );
 
   /// يبنى تفاصيل الأذان: ملف المستخدم لو موجود، وإلا تنبيه منبّه افتراضى.
-  static NotificationDetails _adhanDetails({String? uri, String? channel}) {
+  static NotificationDetails _adhanDetails(
+      {String? uri, String? channel, List<AndroidNotificationAction>? actions}) {
     if (uri != null && uri.isNotEmpty) {
       return _adhanDetailsFor(
           channelId: channel ?? 'prayer_adhan_custom',
-          sound: UriAndroidNotificationSound(uri));
+          sound: UriAndroidNotificationSound(uri),
+          actions: actions);
     }
-    return _adhanDetailsFor(channelId: 'prayer_adhan_default');
+    return _adhanDetailsFor(
+        channelId: 'prayer_adhan_default', actions: actions);
   }
+
+  /// تفاصيل **منبّه عام** (لتذكيرات الملاحظات) — نفس خصائص المنبّه القوى
+  /// لكن بقناة واسم مستقلّين عن الأذان.
+  static NotificationDetails alarmDetails(
+          {String? uri, String? channel, List<AndroidNotificationAction>? actions}) =>
+      _adhanDetailsFor(
+        channelId: (uri != null && uri.isNotEmpty)
+            ? (channel ?? 'note_alarm_custom')
+            : 'note_alarm_default',
+        sound: (uri != null && uri.isNotEmpty)
+            ? UriAndroidNotificationSound(uri)
+            : null,
+        channelName: 'منبّه التذكيرات',
+        channelDesc: 'صوت منبّه قوى لتذكيرات الملاحظات',
+        actions: actions,
+      );
 
   static const NotificationDetails _details = NotificationDetails(
     android: AndroidNotificationDetails(
@@ -156,13 +182,17 @@ class Notifications {
     bool adhan = false,
     String? adhanUri,
     String? adhanChannel,
+    bool noteAlarm = false,
   }) async {
     if (!_ready) return;
     if (when.isBefore(DateTime.now())) return;
     final at = tz.TZDateTime.from(when, tz.local);
-    final details = adhan
-        ? _adhanDetails(uri: adhanUri, channel: adhanChannel)
-        : _detailsWith(actions);
+    final details = noteAlarm
+        ? alarmDetails(uri: adhanUri, channel: adhanChannel, actions: actions)
+        : adhan
+            ? _adhanDetails(
+                uri: adhanUri, channel: adhanChannel, actions: actions)
+            : _detailsWith(actions);
     try {
       await _plugin.zonedSchedule(id, title, body, at, details,
           payload: payload,
@@ -183,12 +213,21 @@ class Notifications {
     required int minute,
     String? payload,
     List<AndroidNotificationAction>? actions,
+    bool adhan = false,
+    String? adhanUri,
+    String? adhanChannel,
+    bool noteAlarm = false,
   }) async {
     if (!_ready) return;
     final now = tz.TZDateTime.now(tz.local);
     var at = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
     if (at.isBefore(now)) at = at.add(const Duration(days: 1));
-    final details = _detailsWith(actions);
+    final details = noteAlarm
+        ? alarmDetails(uri: adhanUri, channel: adhanChannel, actions: actions)
+        : adhan
+            ? _adhanDetails(
+                uri: adhanUri, channel: adhanChannel, actions: actions)
+            : _detailsWith(actions);
     try {
       await _plugin.zonedSchedule(id, title, body, at, details,
           payload: payload,
@@ -244,6 +283,12 @@ class Notifications {
     required int weekday,
     required int hour,
     required int minute,
+    String? payload,
+    List<AndroidNotificationAction>? actions,
+    bool adhan = false,
+    String? adhanUri,
+    String? adhanChannel,
+    bool noteAlarm = false,
   }) async {
     if (!_ready) return;
     final now = tz.TZDateTime.now(tz.local);
@@ -251,13 +296,21 @@ class Notifications {
     while (at.weekday != weekday || at.isBefore(now)) {
       at = at.add(const Duration(days: 1));
     }
+    final details = noteAlarm
+        ? alarmDetails(uri: adhanUri, channel: adhanChannel, actions: actions)
+        : adhan
+            ? _adhanDetails(
+                uri: adhanUri, channel: adhanChannel, actions: actions)
+            : _detailsWith(actions);
     try {
-      await _plugin.zonedSchedule(id, title, body, at, _details,
+      await _plugin.zonedSchedule(id, title, body, at, details,
+          payload: payload,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime);
     } on PlatformException catch (e) {
       logError('فشل التنبيه الأسبوعي الدقيق #$id — هنجرب غير دقيق', e);
-      await _plugin.zonedSchedule(id, title, body, at, _details,
+      await _plugin.zonedSchedule(id, title, body, at, details,
+          payload: payload,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime);
     }

@@ -39,4 +39,31 @@ class AdhanCustom {
         uri: uri, label: label, channel: 'prayer_adhan_c$stamp');
     return label;
   }
+
+  /// نفس الفكرة لكن **عام**: يختار ملف صوت ويرجّع بياناته من غير ما يحفظه فى
+  /// إعدادات الأذان — بيستخدمه منبّه التذكيرات. null لو اتلغى/فشل.
+  static Future<({String uri, String label, String channel})?> pickSound() async {
+    if (kIsWeb) return null;
+    final res = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['mp3', 'ogg', 'wav', 'm4a', 'aac'],
+    );
+    final path = res?.files.single.path;
+    if (path == null) return null;
+
+    final ext = p.extension(path).toLowerCase();
+    final dir = await getApplicationSupportDirectory();
+    // قناة جديدة لكل ملف — صوت القناة ثابت بعد إنشائها.
+    final stamp = DateTime.now().millisecondsSinceEpoch;
+    final dest = File(p.join(dir.path, 'alarm_custom_$stamp$ext'));
+    await File(path).copy(dest.path);
+
+    final uri = await _ch.invokeMethod<String>('contentUri', {'path': dest.path});
+    if (uri == null) return null;
+    return (
+      uri: uri,
+      label: res!.files.single.name,
+      channel: 'note_alarm_c$stamp',
+    );
+  }
 }

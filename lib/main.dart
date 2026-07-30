@@ -28,6 +28,8 @@ import 'data/gameya_repo.dart';
 import 'data/income_repo.dart';
 import 'data/cycle_repo.dart';
 import 'data/pharmacy_repo.dart';
+import 'data/note_reminders_repo.dart';
+import 'data/notes_repo.dart';
 import 'data/plants_repo.dart';
 import 'data/tasks_repo.dart';
 import 'data/subscriptions_repo.dart';
@@ -112,6 +114,10 @@ Future<void> _startup() async {
   unawaited(PharmacyRepo().rescheduleAll());
   unawaited(RelativesRepo().rescheduleAll());
   unawaited(PlantsRepo().rescheduleAll());
+  // تذكيرات الملاحظات («تذكيراتى») — بتتجدول من جديد كل فتحة عشان تعيش بعد
+  // إعادة تشغيل الجهاز، وبتتنضّف لو الملاحظة اتمسحت.
+  unawaited(NotesRepo().all().then((notes) => NoteRemindersRepo()
+      .rescheduleAll({for (final n in notes) n.id!: n.text})));
   unawaited(CycleRepo().ensureReminders());
   unawaited(TasksRepo().rescheduleAll());
   unawaited(SubscriptionsRepo().rescheduleAll());

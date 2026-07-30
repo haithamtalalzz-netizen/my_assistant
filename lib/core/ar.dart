@@ -53,6 +53,9 @@ String arMonthShort(DateTime d) => _west(DateFormat('MMM', _dl()).format(d));
 String arTime(DateTime d) => _west(DateFormat('h:mm a', _dl()).format(d));
 String arDateTime(DateTime d) => '${arShortDate(d)} · ${arTime(d)}';
 
+/// اسم اليوم فى الأسبوع (السبت/الأحد… أو Sat/Sun بالإنجليزى).
+String arWeekday(DateTime d) => _west(DateFormat('EEEE', _dl()).format(d));
+
 /// وقت جرعة مخزن كـ HH:mm.
 String arTimeOfSlot(String hhmm) {
   final parts = hhmm.split(':');

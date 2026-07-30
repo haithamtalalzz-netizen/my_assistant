@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../core/ar.dart';
 import '../core/l10n.dart';
+import '../data/note_reminders_repo.dart';
 import '../data/notes_repo.dart';
 import '../widgets/common.dart';
 import '../widgets/quick_add_field.dart';
+import 'note_reminder_sheet.dart';
 import 'voice/dictation_sheet.dart';
 
 /// «تذكيراتى» — ملاحظات حرّة تكتبها بسرعة وتلاقيها. المثبّت فوق.
@@ -18,8 +20,10 @@ class NotesScreen extends StatefulWidget {
 
 class _NotesScreenState extends State<NotesScreen> {
   final _repo = NotesRepo();
+  final _reminders = NoteRemindersRepo();
   bool _loading = true;
   List<Note> _notes = [];
+  Map<int, NoteReminder> _rem = {};
   String _search = '';
 
   @override
@@ -30,11 +34,32 @@ class _NotesScreenState extends State<NotesScreen> {
 
   Future<void> _load() async {
     final notes = await _repo.all(search: _search);
+    final rem = await _reminders.byNote();
     if (!mounted) return;
     setState(() {
       _notes = notes;
+      _rem = rem;
       _loading = false;
     });
+  }
+
+  /// ضبط/تعديل/شيل تذكير للملاحظة (بمنبّه صوتى أو تنبيه عادى).
+  Future<void> _setReminder(Note n) async {
+    final res = await showNoteReminderSheet(context,
+        noteId: n.id!, existing: _rem[n.id]);
+    if (res == null) return;
+    if (res is ReminderRemoved) {
+      await _reminders.removeFor(n.id!);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('اتشال التذكير', 'Reminder removed'))));
+    } else if (res is NoteReminder) {
+      await _reminders.setFor(res, n.text);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('اتظبط التذكير ⏰', 'Reminder set ⏰'))));
+    }
+    await _load();
   }
 
   Future<void> _add(String text) async {
@@ -194,6 +219,39 @@ class _NotesScreenState extends State<NotesScreen> {
     );
   }
 
+  /// شارة التذكير تحت الملاحظة: الميعاد + التكرار + نوع الرنين.
+  Widget _reminderChip(NoteReminder r, ColorScheme scheme) {
+    final t = r.time;
+    final past = r.repeat == NoteRepeat.once &&
+        t != null &&
+        t.isBefore(DateTime.now());
+    final label = t == null
+        ? ''
+        : switch (r.repeat) {
+            NoteRepeat.daily =>
+              tr('كل يوم ${arTime(t)}', 'Daily ${arTime(t)}'),
+            NoteRepeat.weekly => tr('كل ${arWeekday(t)} ${arTime(t)}',
+                'Weekly ${arWeekday(t)} ${arTime(t)}'),
+            NoteRepeat.once => '${arShortDate(t)} · ${arTime(t)}',
+          };
+    final color = past ? scheme.outline : scheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(r.alarm ? Icons.alarm : Icons.notifications_none,
+            size: 12, color: color),
+        const SizedBox(width: 4),
+        Text(past ? tr('فات · $label', 'Passed · $label') : label,
+            style: TextStyle(
+                fontSize: 10.5, fontWeight: FontWeight.w700, color: color)),
+      ]),
+    );
+  }
+
   Widget _card(Note n, ColorScheme scheme) {
     final date = DateTime.tryParse(n.updatedAt);
     return Card(
@@ -223,6 +281,8 @@ class _NotesScreenState extends State<NotesScreen> {
                   PopupMenuButton<String>(
                     onSelected: (v) async {
                       switch (v) {
+                        case 'remind':
+                          await _setReminder(n);
                         case 'edit':
                           await _edit(n);
                         case 'pin':
@@ -239,6 +299,11 @@ class _NotesScreenState extends State<NotesScreen> {
                     },
                     itemBuilder: (_) => [
                       PopupMenuItem(
+                          value: 'remind',
+                          child: Text(_rem.containsKey(n.id)
+                              ? tr('عدّل التذكير ⏰', 'Edit reminder ⏰')
+                              : tr('ذكّرنى ⏰', 'Remind me ⏰'))),
+                      PopupMenuItem(
                           value: 'pin',
                           child: Text(n.pinned
                               ? tr('إلغاء التثبيت', 'Unpin')
@@ -251,12 +316,18 @@ class _NotesScreenState extends State<NotesScreen> {
                   ),
                 ],
               ),
-              if (date != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2, right: 2),
-                  child: Text(arShortDate(date),
-                      style: TextStyle(fontSize: 11, color: scheme.outline)),
-                ),
+              Row(children: [
+                if (date != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2, right: 2),
+                    child: Text(arShortDate(date),
+                        style: TextStyle(fontSize: 11, color: scheme.outline)),
+                  ),
+                if (_rem[n.id] != null) ...[
+                  const SizedBox(width: 8),
+                  _reminderChip(_rem[n.id]!, scheme),
+                ],
+              ]),
             ],
           ),
         ),

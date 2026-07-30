@@ -40,6 +40,13 @@ class NotesRepo {
     return rows.map(Note.fromMap).toList();
   }
 
+  Future<Note?> byId(int id) async {
+    final db = await AppDb.instance;
+    final rows =
+        await db.query('notes', where: 'id = ?', whereArgs: [id], limit: 1);
+    return rows.isEmpty ? null : Note.fromMap(rows.first);
+  }
+
   Future<int> count() async {
     final db = await AppDb.instance;
     final r = await db.rawQuery('SELECT COUNT(*) c FROM notes');

@@ -6,6 +6,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../data/appointments_repo.dart';
 import '../data/bills_repo.dart';
 import '../data/meds_repo.dart';
+import '../data/note_reminders_repo.dart';
+import '../data/notes_repo.dart';
 import 'ar.dart';
 import 'l10n.dart';
 import 'notifications.dart';
@@ -47,11 +49,47 @@ Future<void> handleNotificationResponse(NotificationResponse response) async {
         if (parts.length >= 2 && parts[0] == 'appt') {
           await _snoozeAppt(int.parse(parts[1]));
         }
+      // «تمّ» على تذكير ملاحظة: يشيل التذكير (والإشعار اتقفل بالفعل).
+      case 'note_done':
+        if (parts.length >= 2 && parts[0] == 'note') {
+          await Notifications.init();
+          await NoteRemindersRepo().removeFor(int.parse(parts[1]));
+        }
+      case 'note_snooze':
+        if (parts.length >= 2 && parts[0] == 'note') {
+          await _snoozeNote(int.parse(parts[1]));
+        }
     }
     await WidgetBridge.push();
   } on Exception catch (e, st) {
     logError('فشل تنفيذ زرار الإشعار ($action)', e, st);
   }
+}
+
+/// «أجّل ١٠ دقايق» لتذكير ملاحظة — بيعيد نفس الرنين (منبّه/عادى + الصوت
+/// المخصّص) بعد ١٠ دقايق، من غير ما يغيّر التذكير المحفوظ.
+Future<void> _snoozeNote(int id) async {
+  await Notifications.init();
+  final rem = await NoteRemindersRepo().forNote(id);
+  if (rem == null) return;
+  final note = await NotesRepo().byId(id);
+  if (note == null) return;
+  await Notifications.scheduleOnce(
+    id: Notifications.noteNotifId(id),
+    title: tr('تذكير مؤجَّل', 'Snoozed reminder'),
+    body: note.text.length > 120 ? '${note.text.substring(0, 120)}…' : note.text,
+    when: DateTime.now().add(const Duration(minutes: 10)),
+    payload: 'note|$id',
+    noteAlarm: rem.alarm,
+    adhanUri: rem.soundUri.isEmpty ? null : rem.soundUri,
+    adhanChannel: rem.soundChannel.isEmpty ? null : rem.soundChannel,
+    actions: [
+      AndroidNotificationAction('note_done', tr('تمّ ✓', 'Done ✓'),
+          showsUserInterface: false, cancelNotification: true),
+      AndroidNotificationAction('note_snooze', tr('⏰ أجّل ١٠ د', '⏰ +10m'),
+          showsUserInterface: false, cancelNotification: true),
+    ],
+  );
 }
 
 /// «أجّل ساعة»: يعيد جدولة تذكير الموعد بعد ساعة من دلوقتي. بيشتغل من الـ

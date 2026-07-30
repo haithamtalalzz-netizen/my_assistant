@@ -92,6 +92,7 @@ import 'package:my_assistant/data/gameya_repo.dart';
 import 'package:my_assistant/data/home_maintenance_repo.dart';
 import 'package:my_assistant/data/inbox_repo.dart';
 import 'package:my_assistant/data/notes_repo.dart';
+import 'package:my_assistant/data/note_reminders_repo.dart';
 import 'package:my_assistant/core/religious_stories.dart';
 import 'package:my_assistant/core/quran_topics.dart';
 import 'package:my_assistant/core/worship_program.dart';
@@ -5471,6 +5472,47 @@ void main() {
       expect(edited.text, 'اتصل بأحمد بكرة');
       await repo.delete(callNote.id!);
       expect(await repo.count(), 1);
+    });
+
+    test('التذكير: حفظ/قراءة/شيل + تنضيف تذكير ملاحظة اتمسحت', () async {
+      final notes = NotesRepo();
+      final rem = NoteRemindersRepo();
+      final id = await notes.add('ادفع الفاتورة');
+
+      await rem.setFor(
+          NoteReminder(
+            noteId: id,
+            at: DateTime.now().add(const Duration(days: 1)).toIso8601String(),
+            repeat: NoteRepeat.daily,
+            alarm: true,
+          ),
+          'ادفع الفاتورة');
+      final saved = await rem.forNote(id);
+      expect(saved, isNotNull);
+      expect(saved!.repeat, NoteRepeat.daily);
+      expect(saved.alarm, isTrue);
+      expect((await rem.byNote())[id], isNotNull);
+
+      // ملاحظة اتمسحت → إعادة الجدولة بتشيل تذكيرها.
+      await rem.rescheduleAll({});
+      expect(await rem.forNote(id), isNull);
+
+      // الشيل اليدوى.
+      await rem.setFor(
+          NoteReminder(
+              noteId: id,
+              at: DateTime.now().add(const Duration(hours: 2)).toIso8601String()),
+          'ادفع الفاتورة');
+      expect(await rem.forNote(id), isNotNull);
+      await rem.removeFor(id);
+      expect(await rem.forNote(id), isNull);
+    });
+
+    test('مفاتيح التكرار بتتحوّل ذهابًا وإيابًا', () {
+      for (final r in NoteRepeat.values) {
+        expect(noteRepeatFrom(noteRepeatKey(r)), r);
+      }
+      expect(noteRepeatFrom('حاجة غريبة'), NoteRepeat.once);
     });
   });
 
