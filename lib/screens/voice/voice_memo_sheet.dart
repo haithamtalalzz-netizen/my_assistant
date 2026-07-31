@@ -47,9 +47,17 @@ class _VoiceMemoSheetState extends State<_VoiceMemoSheet> {
 
   bool _recording = false;
   bool _playing = false;
-  int _elapsed = 0; // ثوانى التسجيل الجارى
+
+  /// لحظة بدء التسجيل — المدّة بتتحسب **من الوقت الحقيقى** مش بعدّ نبضات
+  /// المؤقّت، عشان ماتغلطش لو التطبيق راح للخلفية أو نبضة اتأخّرت/اتكرّرت.
+  DateTime? _startedAt;
   Timer? _tick;
   bool _unavailable = false;
+
+  /// ثوانى التسجيل الجارى (محسوبة، مش معدودة).
+  int get _elapsed => _startedAt == null
+      ? 0
+      : DateTime.now().difference(_startedAt!).inSeconds;
 
   /// مسار التسجيل الجديد قبل الحفظ (null = مفيش تسجيل جديد).
   String? _newPath;
@@ -101,13 +109,14 @@ class _VoiceMemoSheetState extends State<_VoiceMemoSheet> {
       await _rec.start(
           const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
       _tick?.cancel();
+      // المؤقّت بيحدّث العرض بس — الرقم نفسه محسوب من [_startedAt].
       _tick = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (mounted) setState(() => _elapsed++);
+        if (mounted) setState(() {});
       });
       if (mounted) {
         setState(() {
           _recording = true;
-          _elapsed = 0;
+          _startedAt = DateTime.now();
           _newPath = path;
         });
       }
@@ -118,13 +127,16 @@ class _VoiceMemoSheetState extends State<_VoiceMemoSheet> {
   }
 
   Future<void> _stop() async {
+    // المدّة تتقفل قبل أى await عشان تبقى وقت الإيقاف بالظبط.
+    final secs = _elapsed;
     _tick?.cancel();
     try {
       final path = await _rec.stop();
       if (mounted) {
         setState(() {
           _recording = false;
-          _newSeconds = _elapsed;
+          _startedAt = null;
+          _newSeconds = secs;
           _newPath = path ?? _newPath;
           // تسجيل قصير جدًا = على الأغلب دوسة غلط.
           if (_newSeconds < 1) _newPath = null;
@@ -132,7 +144,12 @@ class _VoiceMemoSheetState extends State<_VoiceMemoSheet> {
       }
     } on Exception catch (e, st) {
       logError('فشل إيقاف التسجيل الصوتى', e, st);
-      if (mounted) setState(() => _recording = false);
+      if (mounted) {
+        setState(() {
+          _recording = false;
+          _startedAt = null;
+        });
+      }
     }
   }
 

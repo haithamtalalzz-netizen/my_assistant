@@ -93,6 +93,16 @@ class _NotesScreenState extends State<NotesScreen> {
     await _load();
   }
 
+  /// حذف ملاحظة **مع** ما يخصّها: إلغاء المنبّه المجدول ومسح ملف المذكرة
+  /// الصوتية. من غير ده المنبّه كان يفضل مجدول فى النظام ويرنّ بنص ملاحظة
+  /// اتمسحت (لحد ما التطبيق يتفتح من جديد وينضّف).
+  Future<void> _deleteNote(Note n) async {
+    await _reminders.removeFor(n.id!);
+    await _memos.removeFor(n.id!);
+    await _repo.delete(n.id!);
+    if (mounted) await _load();
+  }
+
   /// إضافة ملاحظة بالصوت — بتتكلم، الكلام يتحوّل نص، وتقدر تعدّله قبل الحفظ.
   Future<void> _addByVoice() async {
     final text = await showDictationSheet(
@@ -320,8 +330,7 @@ class _NotesScreenState extends State<NotesScreen> {
                               context, tr('الملاحظة', 'this note'))) {
                             return;
                           }
-                          await _repo.delete(n.id!);
-                          if (mounted) await _load();
+                          await _deleteNote(n);
                       }
                     },
                     itemBuilder: (_) => [

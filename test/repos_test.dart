@@ -5516,6 +5516,34 @@ void main() {
       expect(noteRepeatFrom('حاجة غريبة'), NoteRepeat.once);
     });
 
+    test('حذف ملاحظة بيشيل تذكيرها ومذكرتها (مش بس بيانات الملاحظة)', () async {
+      final notes = NotesRepo();
+      final rem = NoteRemindersRepo();
+      final memos = VoiceMemosRepo();
+      final id = await notes.add('ملاحظة هتتمسح');
+      await rem.setFor(
+          NoteReminder(
+              noteId: id,
+              at: DateTime.now().add(const Duration(days: 1)).toIso8601String()),
+          'ملاحظة هتتمسح');
+      await memos.setFor(VoiceMemo(
+          noteId: id,
+          file: 'note_${id}_x.m4a',
+          seconds: 5,
+          createdAt: DateTime.now().toIso8601String()));
+      expect(await rem.forNote(id), isNotNull);
+      expect(await memos.forNote(id), isNotNull);
+
+      // نفس ترتيب شاشة الملاحظات فى الحذف.
+      await rem.removeFor(id);
+      await memos.removeFor(id);
+      await notes.delete(id);
+
+      expect(await notes.byId(id), isNull);
+      expect(await rem.forNote(id), isNull, reason: 'التذكير لازم يتلغى');
+      expect(await memos.forNote(id), isNull, reason: 'المذكرة لازم تتشال');
+    });
+
     test('المذكرة الصوتية: ربط/قراءة/شيل + صيغة المدة', () async {
       final memos = VoiceMemosRepo();
       const m = VoiceMemo(
