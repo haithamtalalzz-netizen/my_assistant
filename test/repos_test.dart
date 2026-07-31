@@ -93,6 +93,7 @@ import 'package:my_assistant/data/home_maintenance_repo.dart';
 import 'package:my_assistant/data/inbox_repo.dart';
 import 'package:my_assistant/data/notes_repo.dart';
 import 'package:my_assistant/data/note_reminders_repo.dart';
+import 'package:my_assistant/data/voice_memos_repo.dart';
 import 'package:my_assistant/core/religious_stories.dart';
 import 'package:my_assistant/core/quran_topics.dart';
 import 'package:my_assistant/core/worship_program.dart';
@@ -5513,6 +5514,23 @@ void main() {
         expect(noteRepeatFrom(noteRepeatKey(r)), r);
       }
       expect(noteRepeatFrom('حاجة غريبة'), NoteRepeat.once);
+    });
+
+    test('المذكرة الصوتية: ربط/قراءة/شيل + صيغة المدة', () async {
+      final memos = VoiceMemosRepo();
+      const m = VoiceMemo(
+          noteId: 77, file: 'note_77_1.m4a', seconds: 95, createdAt: '2026-07-31');
+      await memos.setFor(m);
+      final got = await memos.forNote(77);
+      expect(got, isNotNull);
+      expect(got!.file, 'note_77_1.m4a');
+      expect(got.seconds, 95);
+      // ٩٥ ثانية = 1:35
+      expect(got.durationLabel, '1:35');
+      expect((await memos.byNote())[77], isNotNull);
+
+      await memos.removeFor(77);
+      expect(await memos.forNote(77), isNull);
     });
   });
 

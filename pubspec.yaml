@@ -68,6 +68,9 @@ dependencies:
   mobile_scanner: ^5.2.3
   # قراءة ردود «اسأل مديرك» صوتيًا (TTS مدمج فى الجهاز — مجانى).
   flutter_tts: ^4.2.0
+  # تسجيل مذكرات صوتية مرفقة بالملاحظات (التشغيل عبر audioplayers فوق).
+  record: ^7.1.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

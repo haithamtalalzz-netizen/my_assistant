@@ -31,6 +31,7 @@ import 'data/pharmacy_repo.dart';
 import 'data/note_reminders_repo.dart';
 import 'data/notes_repo.dart';
 import 'data/plants_repo.dart';
+import 'data/voice_memos_repo.dart';
 import 'data/tasks_repo.dart';
 import 'data/subscriptions_repo.dart';
 import 'data/pets_repo.dart';
@@ -116,8 +117,12 @@ Future<void> _startup() async {
   unawaited(PlantsRepo().rescheduleAll());
   // تذكيرات الملاحظات («تذكيراتى») — بتتجدول من جديد كل فتحة عشان تعيش بعد
   // إعادة تشغيل الجهاز، وبتتنضّف لو الملاحظة اتمسحت.
-  unawaited(NotesRepo().all().then((notes) => NoteRemindersRepo()
-      .rescheduleAll({for (final n in notes) n.id!: n.text})));
+  unawaited(NotesRepo().all().then((notes) async {
+    await NoteRemindersRepo()
+        .rescheduleAll({for (final n in notes) n.id!: n.text});
+    // مذكرات صوتية لملاحظات اتمسحت → نشيلها هى وملفاتها.
+    await VoiceMemosRepo().prune({for (final n in notes) n.id!});
+  }));
   unawaited(CycleRepo().ensureReminders());
   unawaited(TasksRepo().rescheduleAll());
   unawaited(SubscriptionsRepo().rescheduleAll());

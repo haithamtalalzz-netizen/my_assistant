@@ -23,6 +23,14 @@ class BackupService {
     return Directory(p.join(docs.path, 'doc_images'));
   }
 
+  /// اسم مجلّد المذكرات الصوتية جوّه ملف النسخة (ونفسه على القرص).
+  static const String memosEntryDir = 'voice_memos';
+
+  static Future<Directory> _memosDir() async {
+    final docs = await getApplicationDocumentsDirectory();
+    return Directory(p.join(docs.path, memosEntryDir));
+  }
+
   /// يبني ملف النسخة ويفتح شاشة المشاركة (Drive / واتساب / الملفات...).
   static Future<void> exportBackup() async {
     final dbPath = await AppDb.dbPath();
@@ -37,6 +45,17 @@ class BackupService {
         if (entity is File) {
           archive.addFile(ArchiveFile.bytes(
               'doc_images/${p.basename(entity.path)}',
+              await entity.readAsBytes()));
+        }
+      }
+    }
+    // المذكرات الصوتية المرفقة بالملاحظات — تتحفظ مع النسخة زى الصور.
+    final memosDir = await _memosDir();
+    if (await memosDir.exists()) {
+      await for (final entity in memosDir.list()) {
+        if (entity is File) {
+          archive.addFile(ArchiveFile.bytes(
+              '$memosEntryDir/${p.basename(entity.path)}',
               await entity.readAsBytes()));
         }
       }
@@ -102,10 +121,13 @@ class BackupService {
   ///
   /// بيرمى [FormatException] برسالة عربية لو الملف مش نسخة صحيحة.
   /// مفصول عن [restoreBackup] عشان يبقى قابل للاختبار (من غير منتقى ملفات).
+  /// [memosDirPath] مجلّد المذكرات الصوتية — اختيارى عشان النداءات القديمة
+  /// تفضل شغّالة؛ لو اتبعت بيترجّع من النسخة زى الصور.
   static Future<void> applyBackupBytes(
     List<int> zipBytes, {
     required String dbPath,
     required String imagesDirPath,
+    String? memosDirPath,
   }) async {
     final Archive archive;
     try {
@@ -151,6 +173,22 @@ class BackupService {
         await dest.writeAsBytes(f.content as List<int>);
       }
     }
+
+    // المذكرات الصوتية — نفس المعالجة. النسخ القديمة مافيهاش المجلّد ده،
+    // فالحلقة ببساطة مابتلاقيش حاجة.
+    if (memosDirPath != null) {
+      final memosDir = Directory(memosDirPath);
+      if (await memosDir.exists()) {
+        await memosDir.delete(recursive: true);
+      }
+      await memosDir.create(recursive: true);
+      for (final f in archive.files) {
+        if (f.isFile && f.name.startsWith('$memosEntryDir/')) {
+          final dest = File(p.join(memosDir.path, p.basename(f.name)));
+          await dest.writeAsBytes(f.content as List<int>);
+        }
+      }
+    }
   }
 
   /// يرجع true لو الاستعادة تمت، false لو المستخدم لغى الاختيار.
@@ -162,11 +200,13 @@ class BackupService {
 
     final dbPath = await AppDb.dbPath();
     final imagesDir = await _imagesDir();
+    final memosDir = await _memosDir();
     await AppDb.close();
     await applyBackupBytes(
       await File(path).readAsBytes(),
       dbPath: dbPath,
       imagesDirPath: imagesDir.path,
+      memosDirPath: memosDir.path,
     );
 
     // مسارات الصور في النسخة جاية من جهاز/تثبيت مختلف — نعيد كتابتها.

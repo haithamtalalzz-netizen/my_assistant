@@ -4,10 +4,12 @@ import '../core/ar.dart';
 import '../core/l10n.dart';
 import '../data/note_reminders_repo.dart';
 import '../data/notes_repo.dart';
+import '../data/voice_memos_repo.dart';
 import '../widgets/common.dart';
 import '../widgets/quick_add_field.dart';
 import 'note_reminder_sheet.dart';
 import 'voice/dictation_sheet.dart';
+import 'voice/voice_memo_sheet.dart';
 
 /// «تذكيراتى» — ملاحظات حرّة تكتبها بسرعة وتلاقيها. المثبّت فوق.
 class NotesScreen extends StatefulWidget {
@@ -21,9 +23,11 @@ class NotesScreen extends StatefulWidget {
 class _NotesScreenState extends State<NotesScreen> {
   final _repo = NotesRepo();
   final _reminders = NoteRemindersRepo();
+  final _memos = VoiceMemosRepo();
   bool _loading = true;
   List<Note> _notes = [];
   Map<int, NoteReminder> _rem = {};
+  Map<int, VoiceMemo> _memo = {};
   String _search = '';
 
   @override
@@ -35,10 +39,12 @@ class _NotesScreenState extends State<NotesScreen> {
   Future<void> _load() async {
     final notes = await _repo.all(search: _search);
     final rem = await _reminders.byNote();
+    final memos = await _memos.byNote();
     if (!mounted) return;
     setState(() {
       _notes = notes;
       _rem = rem;
+      _memo = memos;
       _loading = false;
     });
   }
@@ -58,6 +64,25 @@ class _NotesScreenState extends State<NotesScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(tr('اتظبط التذكير ⏰', 'Reminder set ⏰'))));
+    }
+    await _load();
+  }
+
+  /// تسجيل/تشغيل/مسح مذكرة صوتية مرفقة بالملاحظة.
+  Future<void> _recordMemo(Note n) async {
+    final res = await showVoiceMemoSheet(context,
+        noteId: n.id!, existing: _memo[n.id]);
+    if (res == null) return;
+    if (res is MemoRemoved) {
+      await _memos.removeFor(n.id!);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('اتمسحت المذكرة', 'Memo deleted'))));
+    } else if (res is VoiceMemo) {
+      await _memos.setFor(res);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('اتحفظت المذكرة 🎙', 'Memo saved 🎙'))));
     }
     await _load();
   }
@@ -283,6 +308,8 @@ class _NotesScreenState extends State<NotesScreen> {
                       switch (v) {
                         case 'remind':
                           await _setReminder(n);
+                        case 'memo':
+                          await _recordMemo(n);
                         case 'edit':
                           await _edit(n);
                         case 'pin':
@@ -303,6 +330,11 @@ class _NotesScreenState extends State<NotesScreen> {
                           child: Text(_rem.containsKey(n.id)
                               ? tr('عدّل التذكير ⏰', 'Edit reminder ⏰')
                               : tr('ذكّرنى ⏰', 'Remind me ⏰'))),
+                      PopupMenuItem(
+                          value: 'memo',
+                          child: Text(_memo.containsKey(n.id)
+                              ? tr('المذكرة الصوتية 🎙', 'Voice memo 🎙')
+                              : tr('سجّل مذكرة صوتية 🎙', 'Record voice memo 🎙'))),
                       PopupMenuItem(
                           value: 'pin',
                           child: Text(n.pinned
@@ -326,6 +358,10 @@ class _NotesScreenState extends State<NotesScreen> {
                 if (_rem[n.id] != null) ...[
                   const SizedBox(width: 8),
                   _reminderChip(_rem[n.id]!, scheme),
+                ],
+                if (_memo[n.id] != null) ...[
+                  const SizedBox(width: 6),
+                  VoiceMemoChip(memo: _memo[n.id]!),
                 ],
               ]),
             ],
