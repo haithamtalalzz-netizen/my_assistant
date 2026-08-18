@@ -4756,7 +4756,12 @@ void main() {
     });
 
     test('بيحترم اختيار المستخدم وترتيبه', () {
-      expect(selectedHomeCards(all, 'prayer,money'), ['prayer', 'money']);
+      // «tasks» كارت مفروض (kForcedHomeCards) فبيتحقن فى المقدّمة.
+      expect(selectedHomeCards(all, 'prayer,money'),
+          ['tasks', 'prayer', 'money']);
+      // من غير الكروت المفروضة الترتيب بيفضل زى ما هو بالظبط.
+      expect(selectedHomeCards(const ['money', 'prayer'], 'prayer,money'),
+          ['prayer', 'money']);
     });
 
     test('كارت اتشال من التطبيق بيتجاهَل بدل ما يكسر الشاشة', () {
@@ -4764,7 +4769,19 @@ void main() {
           ['money', 'tasks']);
     });
 
-    test('كارت جديد فى التطبيق مابيتحشرش فى اختيار المستخدم', () {
+    test('الكروت المفروضة بتظهر حتى لو اختيار المستخدم قديم', () {
+      // المستخدم طلب رجوع «المهام» + كارت «الدورة» — الاتنين لازم يبانوا.
+      const withCycle = ['money', 'tasks', 'cycle', 'prayer'];
+      final got = selectedHomeCards(withCycle, 'money,prayer');
+      expect(got, containsAll(<String>['tasks', 'cycle']));
+      expect(got, containsAll(<String>['money', 'prayer']));
+      // مش بيتكرّر لو موجود أصلاً.
+      expect(selectedHomeCards(withCycle, 'tasks,money').where((k) => k == 'tasks').length, 1);
+      // كارت مفروض مش موجود فى [all] مايتحقنش.
+      expect(selectedHomeCards(const ['money'], 'money'), ['money']);
+    });
+
+    test('كارت جديد (غير مفروض) مابيتحشرش فى اختيار المستخدم', () {
       // «reading» اتضاف للتطبيق بعد ما المستخدم اختار — مايظهرش لوحده.
       expect(selectedHomeCards([...all, 'reading'], 'money,tasks'),
           ['money', 'tasks']);

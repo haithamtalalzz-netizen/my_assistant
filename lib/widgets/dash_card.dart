@@ -6,6 +6,7 @@ import '../screens/docs/docs_screen.dart';
 import '../screens/food/food_card_screen.dart';
 import '../screens/growth/reading_screen.dart';
 import '../screens/habits/habits_screen.dart';
+import '../screens/health/cycle_screen.dart';
 import '../screens/health/health_hub_screen.dart';
 import '../screens/health/lab_results_screen.dart';
 import '../screens/home/plants_screen.dart';
@@ -42,6 +43,11 @@ import '../screens/worship/prayer_screen.dart';
           icon: Icons.restaurant_outlined,
           color: Colors.deepOrange,
           screen: FoodCardScreen.new
+        ),
+      'cycle' => (
+          icon: Icons.favorite,
+          color: Color(0xFFE8567C),
+          screen: CycleScreen.new
         ),
       'health' => (
           icon: Icons.favorite_outline,

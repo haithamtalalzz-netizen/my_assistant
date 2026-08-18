@@ -1,5 +1,6 @@
 import 'log.dart';
 
+import '../data/cycle_repo.dart';
 import '../data/debts_repo.dart';
 import '../data/docs_repo.dart';
 import '../data/habits_repo.dart';
@@ -13,6 +14,7 @@ import '../data/plants_repo.dart';
 import '../data/reading_repo.dart';
 import '../data/settings_repo.dart';
 import '../data/subscriptions_repo.dart';
+import '../data/tasks_repo.dart';
 import '../data/vaccinations_repo.dart';
 import '../data/wallets_repo.dart';
 import '../data/worship_repo.dart';
@@ -71,8 +73,54 @@ Future<List<DashStat>> collectDashboard([DateTime? at]) async {
     );
   });
 
-  // المهام اتشالت من كروت الرئيسية (بطلب المستخدم) — الميزة لسه متاحة
-  // كاختصار من زرار الـ＋. لو رجّعتها كارت، ضيف add('tasks', …) هنا تانى.
+  // ————— المهام (رجعت كارت بطلب المستخدم) —————
+  await add('tasks', () async {
+    final repo = TasksRepo();
+    final due = await repo.dueTasks(now);
+    final open = await repo.openCount();
+    // مفيش مهام خالص → مانزحمش الرئيسية بكارت فاضى.
+    if (open == 0 && due.isEmpty) return null;
+    return DashStat(
+      key: 'tasks',
+      title: tr('مهامى', 'My tasks'),
+      value: arNum(due.length),
+      sub: due.isEmpty
+          ? tr('مفيش مستحق النهارده · ${arNum(open)} مفتوحة',
+              'nothing due today · ${arNum(open)} open')
+          : tr('مستحقة النهارده · ${arNum(open)} مفتوحة',
+              'due today · ${arNum(open)} open'),
+    );
+  });
+
+  // ————— الدورة الشهرية (للحساب الأنثى فقط) —————
+  await add('cycle', () async {
+    if (await SettingsRepo().get('gender') != 'female') return null;
+    final p = await CycleRepo().predict();
+    if (p.loggedCount == 0) {
+      return DashStat(
+        key: 'cycle',
+        title: tr('الدورة', 'Cycle'),
+        value: '—',
+        sub: tr('سجّلى أول دورة', 'log your first period'),
+      );
+    }
+    final next = p.nextStart;
+    final days = next?.difference(dateOnly(now)).inDays;
+    return DashStat(
+      key: 'cycle',
+      title: tr('الدورة', 'Cycle'),
+      value: days == null
+          ? arNum(p.avgCycleLength)
+          : (days >= 0 ? arNum(days) : arNum(-days)),
+      sub: days == null
+          ? tr('متوسط طول الدورة', 'avg cycle length')
+          : days > 0
+              ? tr('يوم على الدورة الجاية', 'days to next period')
+              : days == 0
+                  ? tr('الدورة متوقّعة النهارده', 'period expected today')
+                  : tr('يوم تأخير', 'days late'),
+    );
+  });
 
   // ————— العادات —————
   await add('habits', () async {

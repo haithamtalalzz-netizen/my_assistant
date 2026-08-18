@@ -98,6 +98,9 @@ class _TodayScreenState extends State<TodayScreen> {
   /// عدد المهام المستحقة — لبادج زرار «المهام».
   int _dueTasks = 0;
 
+  /// مهام النهارده (المستحقة/الفايتة) — لقسم «مهام النهارده» فى الرئيسية.
+  List<Task> _todayTasks = const [];
+
   /// كروت الأقسام بأرقامها الحية.
   List<DashStat> _dash = [];
 
@@ -162,7 +165,8 @@ class _TodayScreenState extends State<TodayScreen> {
     final ramadan = await _settings.ramadanMode();
     // «محتاج منك دلوقتي» + عدد الصلوات (لحلقات «يومك فى سطر»).
     final attention = await collectAttention(now);
-    final dueTasks = (await TasksRepo().dueTasks(now)).length;
+    final dueList = await TasksRepo().dueTasks(now);
+    final dueTasks = dueList.length;
     final dash = await collectDashboard(now);
     final shortcutsRaw = await SettingsRepo().get('home_shortcuts') ?? '';
     // «قفل اليوم» بيظهر مساءً بس — مانحمّلوش الصبح.
@@ -171,6 +175,7 @@ class _TodayScreenState extends State<TodayScreen> {
     setState(() {
       _attention = attention;
       _dueTasks = dueTasks;
+      _todayTasks = dueList;
       _dash = dash;
       final sc = shortcutsRaw.split(',').where((e) => e.isNotEmpty).toList();
       _shortcutKeys = sc.isEmpty ? _defaultShortcuts : sc;
@@ -468,6 +473,11 @@ class _TodayScreenState extends State<TodayScreen> {
           ),
           const SizedBox(height: 8),
           _quickActions(context),
+          // ———— مهام النهارده (اختصار سريع: علّم تمّ من هنا) ————
+          if (_todayTasks.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            _todayTasksSection(context),
+          ],
           const SizedBox(height: 18),
           _customSectionHeader(
             context,
@@ -502,6 +512,91 @@ class _TodayScreenState extends State<TodayScreen> {
         ],
       ),
     );
+  }
+
+  /// قسم «مهام النهارده» — المستحق والفايت، وتقدر تعلّم «تمّ» من الرئيسية
+  /// على طول من غير ما تفتح صفحة المهام.
+  Widget _todayTasksSection(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(tr('مهام النهارده', "Today's tasks"),
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(arNum(_todayTasks.length),
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: scheme.onPrimaryContainer)),
+            ),
+            const Spacer(),
+            TextButton(
+              onPressed: () => _reloadAfter(() => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const TasksScreen()))),
+              child: Text(tr('الكل', 'All')),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        for (final t in _todayTasks.take(6))
+          Card(
+            margin: const EdgeInsets.symmetric(vertical: 2),
+            child: ListTile(
+              dense: true,
+              visualDensity: VisualDensity.compact,
+              leading: IconButton(
+                tooltip: tr('تمّ', 'Done'),
+                icon: const Icon(Icons.radio_button_unchecked),
+                onPressed: () => _completeTask(t),
+              ),
+              title: Text(t.title,
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: t.due == null
+                  ? null
+                  : Text(
+                      t.overdue
+                          ? tr('فات · ${arShortDate(t.due!)}',
+                              'overdue · ${arShortDate(t.due!)}')
+                          : arTime(t.due!),
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          color: t.overdue ? scheme.error : scheme.outline)),
+              trailing: t.priority >= 2
+                  ? Icon(Icons.priority_high, size: 18, color: scheme.error)
+                  : null,
+              onTap: () => _reloadAfter(() => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const TasksScreen()))),
+            ),
+          ),
+        if (_todayTasks.length > 6)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+                tr('و${arNum(_todayTasks.length - 6)} كمان…',
+                    'and ${arNum(_todayTasks.length - 6)} more…'),
+                style: TextStyle(fontSize: 12, color: scheme.outline)),
+          ),
+      ],
+    );
+  }
+
+  /// يقفل مهمة من الرئيسية (نفس منطق صفحة المهام: `done` + وقت الإنجاز).
+  Future<void> _completeTask(Task t) async {
+    await TasksRepo().setDone(t.id!, true);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr('تمّت ✓', 'Done ✓'))));
+    await _load();
   }
 
   /// عنوان قسم فى «على مزاجك» + زرار ＋ للتعديل.

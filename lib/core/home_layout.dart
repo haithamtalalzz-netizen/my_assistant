@@ -20,5 +20,15 @@ List<String> selectedHomeCards(List<String> all, String? saved) {
     for (final k in raw)
       if (all.contains(k)) k,
   ];
-  return picked.isEmpty ? List<String>.from(all) : picked;
+  if (picked.isEmpty) return List<String>.from(all);
+  // استثناء مقصود: كروت رجعت/اتضافت بطلب صريح من المستخدم — بتتحقن فى
+  // اختياره القديم مرة واحدة، وإلا ماكانش هيشوفها أبدًا. لو شالها بإيده
+  // مش هترجع (`kHomeCardsSetting` بيتخزّن من غيرها).
+  for (final k in kForcedHomeCards) {
+    if (all.contains(k) && !picked.contains(k)) picked.insert(0, k);
+  }
+  return picked;
 }
+
+/// كروت لازم تظهر حتى لو المستخدم عامل اختيار قديم مش فيه (طلب صريح منه).
+const List<String> kForcedHomeCards = ['tasks', 'cycle'];
