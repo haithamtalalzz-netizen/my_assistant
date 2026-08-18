@@ -3889,6 +3889,52 @@ void main() {
     });
   });
 
+  group('كارت الدورة على الرئيسية (حساب السيدات)', () {
+    test('مايظهرش للحساب الذكر ولا للحساب غير المحدّد', () async {
+      final now = DateTime.now();
+      await SettingsRepo().set('gender', '');
+      expect(
+          (await collectDashboard(now)).map((s) => s.key), isNot(contains('cycle')));
+      await SettingsRepo().set('gender', 'male');
+      expect(
+          (await collectDashboard(now)).map((s) => s.key), isNot(contains('cycle')));
+    });
+
+    test('يظهر للحساب الأنثى — «سجّلى أول دورة» قبل أى تسجيل', () async {
+      await SettingsRepo().set('gender', 'female');
+      final byKey = {
+        for (final s in await collectDashboard(DateTime.now())) s.key: s
+      };
+      expect(byKey.containsKey('cycle'), isTrue,
+          reason: 'لازم يظهر لحساب السيدات');
+      expect(byKey['cycle']!.value, '—');
+      expect(byKey['cycle']!.sub, contains('سجّلى'));
+    });
+
+    test('بعد تسجيل دورة: بيعدّ الأيام للدورة الجاية', () async {
+      await SettingsRepo().set('gender', 'female');
+      final now = DateTime.now();
+      // دورتين بفارق ٢٨ يوم → المتوسط ٢٨، والجاية بعد ٢٨ من الأخيرة.
+      final first = dateOnly(now).subtract(const Duration(days: 38));
+      final last = dateOnly(now).subtract(const Duration(days: 10));
+      for (final d in [first, last]) {
+        await CycleRepo().add(CycleLog(
+            startDay: dayKey(d),
+            periodDays: 5,
+            createdAt: d.toIso8601String()));
+      }
+      final byKey = {
+        for (final s in await collectDashboard(now)) s.key: s
+      };
+      expect(byKey.containsKey('cycle'), isTrue);
+      // آخر دورة من ١٠ أيام + ٢٨ = باقى ١٨ يوم.
+      expect(byKey['cycle']!.value, arNum(18));
+      expect(byKey['cycle']!.sub, contains('الدورة الجاية'));
+    });
+
+    tearDown(() async => SettingsRepo().set('gender', ''));
+  });
+
   group('اللوحة الشاملة', () {
     test('بتطلّع أرقام حية للأقسام اللى فيها بيانات وتتخطى الفاضية', () async {
       final now = DateTime.now();
@@ -3897,8 +3943,10 @@ void main() {
       final emptyKeys = empty.map((s) => s.key).toSet();
       expect(emptyKeys.contains('debts'), isFalse, reason: 'مفيش ديون');
       expect(emptyKeys.contains('subs'), isFalse, reason: 'مفيش اشتراكات');
-      // المهام اتشالت من كروت اللوحة (بطلب المستخدم) — مابقاش لها كارت خالص.
-      expect(emptyKeys.contains('tasks'), isFalse);
+      // كارت المهام رجع (بطلب المستخدم) بس مابيظهرش وهو مفيش مهام خالص.
+      expect(emptyKeys.contains('tasks'), isFalse, reason: 'مفيش مهام');
+      // كارت الدورة للحساب الأنثى بس — والحساب هنا مش متحدّد.
+      expect(emptyKeys.contains('cycle'), isFalse, reason: 'الحساب مش أنثى');
 
       // نضيف بيانات حقيقية.
       final iso = now.toIso8601String();
@@ -3916,7 +3964,7 @@ void main() {
       // الاشتراكات ظهرت.
       expect(byKey.containsKey('subs'), isTrue);
       expect(byKey['subs']!.value.contains('200'), isTrue);
-      // المهام مابتظهرش كارت (اتشالت من الرئيسية).
+      // المهام لسه مفيش، فالكارت لسه مايظهرش.
       expect(byKey.containsKey('tasks'), isFalse);
       // كل كارت لازم يبقى ليه عنوان وقيمة (مفيش كارت فاضى).
       for (final s in full) {
