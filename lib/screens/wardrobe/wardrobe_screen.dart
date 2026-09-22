@@ -5,6 +5,8 @@ import '../../core/app_images.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../core/log.dart';
+import '../../core/seed_demo_wardrobe.dart';
 import '../../widgets/search_action.dart';
 import '../../data/wardrobe_repo.dart';
 import '../../models/models.dart';
@@ -29,6 +31,10 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
   bool _laundryMode = false;
   int _laundryCount = 0;
 
+  /// عدد القطع التجريبية الموجودة (بيظهر/بيخفى «امسح الملابس التجريبية»).
+  int _demoCount = 0;
+  bool _demoBusy = false;
+
   @override
   void initState() {
     super.initState();
@@ -39,12 +45,67 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
     final items =
         _laundryMode ? await _repo.laundry() : await _repo.all(category: _filter);
     final laundryCount = await _repo.laundryCount();
+    final demoCount = await demoWardrobeCount();
     if (!mounted) return;
     setState(() {
       _items = items;
       _laundryCount = laundryCount;
+      _demoCount = demoCount;
       _loading = false;
     });
+  }
+
+  /// ٢١ قطعة بصور مرسومة عشان تجرّب البند كله (فلاتر · ألبس إيه · الغسيل).
+  /// بتتشال كلها من نفس القايمة من غير ما تلمس قطعة حقيقية.
+  Future<void> _addDemoClothes() async {
+    if (_demoBusy) return;
+    setState(() => _demoBusy = true);
+    try {
+      final n = await seedDemoWardrobe();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr('اتضافت ${arNum(n)} قطعة تجريبية بصورها',
+              'Added ${arNum(n)} demo items with pictures'))));
+    } on Exception catch (e, st) {
+      logError('فشل إضافة الملابس التجريبية', e, st);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(tr('حصلت مشكلة', 'Something went wrong'))));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _demoBusy = false);
+        await _load();
+      }
+    }
+  }
+
+  Future<void> _removeDemoClothes() async {
+    if (_demoBusy) return;
+    final sure = await confirmAction(
+      context,
+      title: tr('مسح الملابس التجريبية', 'Remove demo clothes'),
+      message: tr(
+          'هتتشال ${arNum(_demoCount)} قطعة تجريبية بصورها. ملابسك اللى ضفتها بنفسك مش هتتلمس.',
+          '${arNum(_demoCount)} demo items (and their pictures) will be removed. Your own items stay.'),
+      confirmLabel: tr('امسح', 'Remove'),
+    );
+    if (!sure || !mounted) return;
+    setState(() => _demoBusy = true);
+    try {
+      final n = await removeDemoWardrobe();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr('اتشالت ${arNum(n)} قطعة تجريبية',
+              'Removed ${arNum(n)} demo items'))));
+    } on Exception catch (e, st) {
+      logError('فشل مسح الملابس التجريبية', e, st);
+    } finally {
+      if (mounted) {
+        setState(() => _demoBusy = false);
+        await _load();
+      }
+    }
   }
 
   Future<void> _openForm([ClothingItem? it]) async {
@@ -110,6 +171,39 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
                   : Icons.local_laundry_service_outlined),
             ),
           ),
+          PopupMenuButton<String>(
+            tooltip: tr('المزيد', 'More'),
+            enabled: !_demoBusy,
+            onSelected: (v) => switch (v) {
+              'demo_add' => _addDemoClothes(),
+              'demo_remove' => _removeDemoClothes(),
+              _ => null,
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'demo_add',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.science_outlined),
+                  title: Text(tr('ضيف ملابس تجريبية', 'Add demo clothes')),
+                  subtitle: Text(
+                      tr('٢١ قطعة بصور — لتجربة البند', '21 items with pictures — to try the section'),
+                      style: const TextStyle(fontSize: 11)),
+                ),
+              ),
+              if (_demoCount > 0)
+                PopupMenuItem(
+                  value: 'demo_remove',
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.delete_sweep_outlined,
+                        color: Theme.of(context).colorScheme.error),
+                    title: Text(tr('امسح الملابس التجريبية (${arNum(_demoCount)})',
+                        'Remove demo clothes (${arNum(_demoCount)})')),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
       body: _loading
@@ -171,7 +265,13 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
                           icon: Icons.checkroom,
                           text: tr(
                               'ضيف ملابسك وصوّرها — والمساعد يقترحلك تلبيسة حسب الطقس',
-                              'Add & photograph your clothes — the assistant suggests an outfit by the weather'))
+                              'Add & photograph your clothes — the assistant suggests an outfit by the weather'),
+                          // فى وضع الغسيل/الفلتر الفاضى مش هنعرض الزر — بس لما
+                          // الخزانة كلها فاضية فعلاً.
+                          actionLabel: (_filter == null && !_laundryMode && !_demoBusy)
+                              ? tr('🧪 جرّب بملابس تجريبية', '🧪 Try with demo clothes')
+                              : null,
+                          onAction: _addDemoClothes)
                       : GridView.builder(
                           padding: const EdgeInsets.fromLTRB(12, 4, 12, 80),
                           gridDelegate:

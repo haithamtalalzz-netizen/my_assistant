@@ -56,6 +56,7 @@ import 'package:my_assistant/core/budget_calc.dart';
 import 'package:my_assistant/core/day_progress.dart';
 import 'package:my_assistant/data/mushaf_repo.dart';
 import 'package:my_assistant/core/demo_images.dart';
+import 'package:my_assistant/core/seed_demo_wardrobe.dart';
 import 'package:my_assistant/core/seed_demo.dart';
 import 'package:my_assistant/data/wallets_repo.dart';
 import 'package:my_assistant/core/voice_parser.dart';
@@ -4930,6 +4931,78 @@ void main() {
         expect(bytes, isNotNull);
         expect(bytes!.length, greaterThan(50));
       }
+    });
+
+    test('كل نوع رسمة بيطلع PNG ٣٢٠×٤٠٠ فيه لون القطعة فعلاً', () {
+      for (final kind in kDemoClothingKinds) {
+        final png = demoClothingPng(kind, 'أحمر');
+        expect(png.sublist(0, 4), [0x89, 0x50, 0x4E, 0x47], reason: kind);
+        final im = img.decodePng(png)!;
+        expect(im.width, 320, reason: kind);
+        expect(im.height, 400, reason: kind);
+        // الركن خلفية فاتحة (مش لون القطعة) — الرسمة مش بتملى الصورة كلها.
+        final corner = im.getPixel(2, 2);
+        expect(corner.r, greaterThan(220), reason: kind);
+        // وفيه عدد معقول من البكسلات بلون القطعة (الأحمر ١٨٦,٦٠,٦٠) أو ظلّه.
+        final (r, g, b) = demoColorOf('أحمر');
+        var reds = 0;
+        for (final px in im) {
+          if ((px.r - r).abs() < 40 && (px.g - g).abs() < 40 &&
+              (px.b - b).abs() < 40) {
+            reds++;
+          }
+        }
+        // على الأقل ٣٪ من المساحة (الساعة والحزام أصغر حاجة).
+        expect(reds, greaterThan(320 * 400 * 0.03), reason: kind);
+      }
+    });
+
+    test('نوع رسمة مش معروف بيرجع سواتش بدل ما يرمى', () {
+      final png = demoClothingPng('spaceship', 'أزرق');
+      final im = img.decodePng(png)!;
+      expect(im.width, 320);
+      expect(im.height, 400);
+      // السواتش بيملى الصورة كلها بلون القطعة.
+      final (r, _, _) = demoColorOf('أزرق');
+      expect(im.getPixel(0, 0).r.round(), closeTo(r, 3));
+    });
+
+    test('الملابس التجريبية بتتضاف وتتشال من غير ما تلمس قطعة المستخدم', () async {
+      await AppDb.wipeAllData(keepSettings: true);
+      final repo = WardrobeRepo();
+      // قطعة حقيقية من غير صورة + واحدة بصورة حقيقية (مش تجريبية).
+      final mine = await repo.save(const ClothingItem(
+          name: 'قميصى الحقيقى', category: 'top'));
+      final realPhoto = await AppImages.storeBytes(
+          demoSwatchPng('أخضر', width: 8, height: 8),
+          mime: 'image/png', namePrefix: 'cloth');
+      final mine2 = await repo.save(ClothingItem(
+          name: 'جاكيتى', category: 'outer', photo: realPhoto));
+      expect(await demoWardrobeCount(), 0);
+
+      final added = await seedDemoWardrobe();
+      expect(added, kDemoClothes.length);
+      expect(await demoWardrobeCount(), kDemoClothes.length);
+      final all = await repo.all_();
+      expect(all.length, kDemoClothes.length + 2);
+      // كل فئة اتغطّت (عشان الفلاتر و«ألبس إيه» يتجرّبوا).
+      for (final cat in kClothingCategories) {
+        expect(all.where((c) => c.category == cat && isDemoClothing(c)),
+            isNotEmpty, reason: cat);
+      }
+      // الصور موجودة فعلاً فى القاعدة.
+      final demoPhoto = all.firstWhere(isDemoClothing).photo;
+      expect(demoPhoto, startsWith(kDemoClothPhotoPrefix));
+      expect(await AppImages.bytesOf(demoPhoto), isNotNull);
+
+      final removed = await removeDemoWardrobe();
+      expect(removed, kDemoClothes.length);
+      expect(await demoWardrobeCount(), 0);
+      final left = await repo.all_();
+      expect(left.map((c) => c.id), unorderedEquals([mine, mine2]));
+      // صورة القطعة التجريبية اتمسحت من القاعدة، وصورة المستخدم فضلت.
+      expect(await AppImages.bytesOf(demoPhoto), isNull);
+      expect(await AppImages.bytesOf(realPhoto), isNotNull);
     });
   });
 

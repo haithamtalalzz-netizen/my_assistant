@@ -23,6 +23,9 @@ import 'log.dart';
 /// **نسخة JSON الاحتياطية بتاخدها معاها أوتوماتيك** من غير أى شغل زيادة.
 class AppImages {
   static const String _prefix = 'img:';
+
+  /// بادئة مفتاح الصورة المخزّنة جوه القاعدة (للى محتاج يبنى مفتاحًا بره).
+  static const String prefix = _prefix;
   static const String table = 'app_images';
 
   /// أقصى بُعد للصورة على الويب — الصور بتتخزّن جوه القاعدة وبتتحوّل base64

@@ -11,7 +11,6 @@ import '../data/subscriptions_repo.dart';
 import '../data/symptoms_repo.dart';
 import '../data/tasks_repo.dart';
 import '../data/vaccinations_repo.dart';
-import '../data/wardrobe_repo.dart';
 import '../data/wishlist_repo.dart';
 import '../data/worship_repo.dart';
 import 'db.dart';
@@ -40,9 +39,8 @@ import '../data/savings_repo.dart';
 import '../data/wallets_repo.dart';
 import '../data/workout_repo.dart';
 import '../models/models.dart';
-import 'app_images.dart';
 import 'ar.dart';
-import 'demo_images.dart';
+import 'seed_demo_wardrobe.dart';
 
 /// يملأ التطبيق ببيانات وهمية لتجربة كل البنود. بيرجّع عدد العناصر المضافة.
 /// (بيضيف من غير ما يمسح — لو اتضغط مرتين هيتضاعف؛ للتجربة بس.)
@@ -294,54 +292,8 @@ Future<int> seedDemoData() async {
   await TasksRepo().setDone(t3, true);
   n += 5;
 
-  // ---- ملابسى: تشكيلة كاملة تغطى كل بند ----
-  // (category, name, color, season, formality) — الفئة/الموسم/الرسمية
-  // لازم تكون المفاتيح المخزّنة (top/summer/formal…) مش أسماء عربية،
-  // عشان تظهر تحت الفلاتر واقتراح الطقم صح.
-  const clothes = [
-    // top × كل موسم × كل رسمية
-    ('top', 'قميص أبيض كلاسيك', 'أبيض', 'all', 'formal'),
-    ('top', 'تيشيرت قطن رمادى', 'رمادى', 'summer', 'casual'),
-    ('top', 'تيشيرت رياضى', 'كحلى', 'summer', 'sport'),
-    ('top', 'قميص كاروهات', 'أحمر', 'winter', 'casual'),
-    ('top', 'بلوفر صوف', 'بيج', 'winter', 'casual'),
-    ('top', 'بولو', 'أخضر', 'all', 'casual'),
-    // bottom
-    ('bottom', 'بنطلون جينز', 'أزرق', 'all', 'casual'),
-    ('bottom', 'بنطلون قماش رسمى', 'أسود', 'all', 'formal'),
-    ('bottom', 'شورت رياضى', 'رمادى', 'summer', 'sport'),
-    ('bottom', 'بنطلون صوف', 'بنى', 'winter', 'casual'),
-    // outer
-    ('outer', 'جاكيت جينز', 'أزرق فاتح', 'all', 'casual'),
-    ('outer', 'بالطو شتوى', 'أسود', 'winter', 'formal'),
-    ('outer', 'جاكيت رياضى', 'كحلى', 'winter', 'sport'),
-    // shoes
-    ('shoes', 'حذاء كلاسيك جلد', 'أسود', 'all', 'formal'),
-    ('shoes', 'كوتشى أبيض', 'أبيض', 'all', 'casual'),
-    ('shoes', 'حذاء جرى', 'رمادى', 'summer', 'sport'),
-    ('shoes', 'بوت شتوى', 'بنى', 'winter', 'casual'),
-    // accessory
-    ('accessory', 'ساعة يد', 'فضى', 'all', 'formal'),
-    ('accessory', 'كاب رياضى', 'أسود', 'summer', 'sport'),
-    ('accessory', 'كوفية صوف', 'رمادى', 'winter', 'casual'),
-    ('accessory', 'حزام جلد', 'بنى', 'all', 'formal'),
-  ];
-  for (final (i, c) in clothes.indexed) {
-    // صورة متولّدة بلون القطعة — بتتخزّن جوه القاعدة زى أى صورة، فبتشتغل
-    // على الموبايل والويب وبتسافر مع النسخة الاحتياطية.
-    final photo = await AppImages.storeBytes(demoSwatchPng(c.$3),
-        mime: 'image/png', namePrefix: 'demo_cloth');
-    await WardrobeRepo().save(ClothingItem(
-        name: c.$2, category: c.$1, color: c.$3, season: c.$4,
-        formality: c.$5, photo: photo,
-        // بعضها متلبِس مؤخرًا، بعضها من زمان، وبعضها لسه.
-        lastWorn: i % 3 == 0 ? d(i * 2) : null,
-        // مفضّلة متنوّعة عبر الفئات.
-        favorite: i % 5 == 0,
-        // شوية محتاجة غسيل (عشان بند «الغسيل» يبان).
-        needsWash: i % 6 == 2));
-    n++;
-  }
+  // ---- ملابسى: ٢١ قطعة بصور مرسومة (نفس اللى زرار «ملابس تجريبية» بيضيفه) ----
+  n += await seedDemoWardrobe(now: now);
 
   // ---- تطوّرى: قراءة + كورسات + أهداف ----
   await ReadingRepo().save(Book(
