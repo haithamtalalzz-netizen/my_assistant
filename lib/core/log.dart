@@ -151,7 +151,11 @@ class AppLog {
     if (f == null) return;
     try {
       if (await f.exists()) await f.delete();
-    } on Exception catch (_) {}
+    } on Exception catch (_) {
+      // مفيش تسجيل هنا **عن قصد**: إحنا جوّه المسجّل نفسه، فنداء `logError`
+      // هيحاول يكتب فى نفس الملف اللى فشل حذفه. وفشل مسح السجل مالوش أثر
+      // على المستخدم.
+    }
   }
 
   /// للاختبارات: ملف مؤقّت بدل مجلد التطبيق.

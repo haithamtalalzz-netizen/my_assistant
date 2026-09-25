@@ -4,6 +4,7 @@ import 'package:hijri/hijri_calendar.dart';
 import '../../core/app_state.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../core/log.dart';
 
 /// المناسبات الإسلامية — عدّ تنازلى لأقرب حدث بالتقويم الهجرى.
 class IslamicOccasionsScreen extends StatelessWidget {
@@ -28,7 +29,9 @@ class IslamicOccasionsScreen extends StatelessWidget {
       try {
         final g = dateOnly(HijriCalendar().hijriToGregorian(y, m, d));
         if (!g.isBefore(today)) return g;
-      } catch (_) {}
+      } catch (e, st) {
+        logError('فشل تحويل مناسبة هجرية ($y/$m/$d)', e, st);
+      }
     }
     return today;
   }

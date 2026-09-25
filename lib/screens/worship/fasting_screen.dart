@@ -6,6 +6,7 @@ import '../../core/l10n.dart';
 import '../../core/prayers.dart';
 import '../../data/settings_repo.dart';
 import '../../data/worship_repo.dart';
+import '../../core/log.dart';
 
 /// تتبّع الصيام — صيام اليوم + الأيام المستحبّة (اثنين/خميس/الأيام البيض)
 /// + تذكير السحور والإفطار.
@@ -76,7 +77,11 @@ class _FastingScreenState extends State<FastingScreen> {
           if (!g.isBefore(today) && g.difference(today).inDays <= 42) {
             out.add((date: g, label: tr('الأيام البيض', 'White days')));
           }
-        } catch (_) {}
+        } catch (e, st) {
+          // تحويل هجرى→ميلادى بيرمى على تاريخ برّه مدى الحزمة — اليوم ده
+          // بس بيتعدّى وباقى الأيام بتتحسب عادى.
+          logError('فشل تحويل يوم هجرى ($y/$m/$day)', e, st);
+        }
       }
     }
     out.sort((a, b) => a.date.compareTo(b.date));

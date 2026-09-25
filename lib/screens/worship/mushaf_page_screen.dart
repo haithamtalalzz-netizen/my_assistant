@@ -13,6 +13,7 @@ import '../../data/mushaf_repo.dart';
 import '../../data/settings_repo.dart';
 import '../../data/worship_repo.dart';
 import 'quran_search_screen.dart';
+import '../../core/log.dart';
 
 /// عرض صفحات المصحف كصور + سحب لأعلى (تفسير الصفحة + نبذة السورة) + تلاوة تُعلّم
 /// الآية الجارية وتمشى مع الصفحات.
@@ -443,17 +444,26 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
       ),
     );
     final cm = DefaultCacheManager();
+    var failed = 0;
     for (var p = 1; p <= kMushafPages; p++) {
       try {
         await cm.downloadFile(mushafPageUrl(p));
-      } catch (_) {}
+      } catch (e) {
+        // صفحة فشل تحميلها (النت قطع مثلاً) — بنكمّل الباقى وبنقول له
+        // فى الآخر إن فيه صفحات ناقصة بدل ما نوعده بمصحف كامل.
+        failed++;
+        if (failed <= 3) logError('فشل تحميل صفحة المصحف $p', e);
+      }
       progress.value = p;
     }
     if (mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(tr('تمّ تحميل المصحف للأوفلاين ✓',
-              'Mushaf downloaded for offline ✓'))));
+          content: Text(failed == 0
+              ? tr('تمّ تحميل المصحف للأوفلاين ✓',
+                  'Mushaf downloaded for offline ✓')
+              : tr('اتحمّل المصحف ماعدا ${arNum(failed)} صفحة — جرّب تانى وانت أونلاين',
+                  '${arNum(failed)} pages failed — retry while online'))));
     }
   }
 

@@ -1,6 +1,8 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 
+import 'log.dart';
+
 /// قارئ للتلاوة (مجلد على everyayah).
 class Reciter {
   final String id;
@@ -57,7 +59,10 @@ class QuranAudio {
     speed = v;
     try {
       await _player.setPlaybackRate(v);
-    } catch (_) {}
+    } catch (e, st) {
+      // بعض الأجهزة مابتدعمش تغيير السرعة — الصوت بيكمّل بسرعته العادية.
+      logError('الجهاز مابيدعمش تغيير سرعة التلاوة', e, st);
+    }
   }
 
   static String _url(int s, int a) =>
@@ -76,7 +81,9 @@ class QuranAudio {
     await _player.play(UrlSource(_url(s, a)));
     try {
       await _player.setPlaybackRate(speed);
-    } catch (_) {}
+    } catch (e, st) {
+      logError('فشل ضبط سرعة التلاوة', e, st);
+    }
   }
 
   /// يشغّل آية واحدة.

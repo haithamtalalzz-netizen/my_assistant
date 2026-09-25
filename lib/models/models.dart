@@ -122,9 +122,16 @@ class Relative {
         'last_contacted': lastContacted,
       };
 
+  /// ميعاد المكالمة الجاية. قريب عمرك ما اتصلت بيه = **مستحق النهارده**،
+  /// فبنرجّع أول اليوم مش `DateTime.now()`: الساعة الحالية بتبقى «بعد» بداية
+  /// اليوم فـ[isDue] كانت بترجّع false طول اليوم — يعنى القريب اللى لسه
+  /// مضفته ماكانش بيظهر فى «المستحق» أبدًا، مع إن التنبيه بيتجدول له فعلاً.
   DateTime nextDue() {
     final last = lastContacted == null ? null : DateTime.tryParse(lastContacted!);
-    if (last == null) return DateTime.now();
+    if (last == null) {
+      final now = DateTime.now();
+      return DateTime(now.year, now.month, now.day);
+    }
     return last.add(Duration(days: intervalDays));
   }
 

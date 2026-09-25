@@ -4,6 +4,7 @@ import '../data/occasions_repo.dart';
 import '../data/vaccinations_repo.dart';
 import 'ar.dart';
 import 'l10n.dart';
+import 'log.dart';
 
 /// اقتراحات سياقية من بيانات المستخدم نفسه — بتتحقن فى الموجز الصباحى
 /// وبريفينج «اسأل مديرك». طبقة core من غير ودجت عشان تتختبر.
@@ -20,7 +21,9 @@ Future<List<String>> contextualTips({DateTime? at, int max = 3}) async {
       tips.add(tr('🧾 فاتورة «${b.name}» مستحقة — ${egp(b.amount)}.',
           '🧾 Bill "${b.name}" is due — ${egp(b.amount)}.'));
     }
-  } on Exception catch (_) {}
+  } on Exception catch (e, st) {
+    logError('فشل اقتراح الفواتير المستحقة', e, st);
+  }
 
   // تطعيمات جرعتها الجاية خلال أسبوع.
   try {
@@ -32,7 +35,9 @@ Future<List<String>> contextualTips({DateTime? at, int max = 3}) async {
       tips.add(tr('💉 تطعيم «${v.name}»$who جرعته الجاية $when.',
           '💉 Vaccination "${v.name}"$who next dose $when.'));
     }
-  } on Exception catch (_) {}
+  } on Exception catch (e, st) {
+    logError('فشل اقتراح التطعيمات', e, st);
+  }
 
   // مناسبات قرّبت (جوه نافذة التذكير بتاعتها).
   try {
@@ -47,7 +52,9 @@ Future<List<String>> contextualTips({DateTime? at, int max = 3}) async {
       tips.add(tr('🎉 «${o.title}» $when — جهّز نفسك.',
           '🎉 "${o.title}" $when — get ready.'));
     }
-  } on Exception catch (_) {}
+  } on Exception catch (e, st) {
+    logError('فشل اقتراح المناسبات', e, st);
+  }
 
   // تحاليل آخر نتيجتها خارج النطاق.
   try {
@@ -57,7 +64,9 @@ Future<List<String>> contextualTips({DateTime? at, int max = 3}) async {
           '🧪 عندك ${arNum(n)} نتيجة تحاليل خارج النطاق — راجعها مع دكتورك.',
           '🧪 ${arNum(n)} lab results out of range — review with your doctor.'));
     }
-  } on Exception catch (_) {}
+  } on Exception catch (e, st) {
+    logError('فشل اقتراح التحاليل', e, st);
+  }
 
   return tips.take(max).toList();
 }

@@ -10,6 +10,7 @@ import '../../core/l10n.dart';
 import '../../core/local_brain.dart';
 import '../../data/brain_context.dart';
 import '../../data/settings_repo.dart';
+import '../../core/log.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -52,7 +53,10 @@ class _ChatScreenState extends State<ChatScreen> {
       await _tts.stop();
       await _tts.setLanguage(AppState.isEnglish ? 'en-US' : 'ar');
       await _tts.speak(text);
-    } catch (_) {}
+    } catch (e, st) {
+      // مافيش TTS عربى مركّب على الجهاز مثلاً — الرد مكتوب قدّامه برضه.
+      logError('فشلت القراءة الصوتية للرد', e, st);
+    }
   }
 
   @override

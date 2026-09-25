@@ -106,6 +106,18 @@ import 'package:my_assistant/data/plants_repo.dart';
 import 'package:my_assistant/data/worship_repo.dart';
 import 'package:my_assistant/data/search_repo.dart';
 import 'package:my_assistant/data/settings_repo.dart';
+import 'package:my_assistant/data/body_progress_repo.dart';
+import 'package:my_assistant/data/challenges_repo.dart';
+import 'package:my_assistant/data/diaries_repo.dart';
+import 'package:my_assistant/data/gym_repo.dart';
+import 'package:my_assistant/data/insights_repo.dart';
+import 'package:my_assistant/data/medical_repo.dart';
+import 'package:my_assistant/data/pharmacy_repo.dart';
+import 'package:my_assistant/data/quit_repo.dart';
+import 'package:my_assistant/data/recipes_repo.dart';
+import 'package:my_assistant/data/relatives_repo.dart';
+import 'package:my_assistant/data/savings_repo.dart';
+import 'package:my_assistant/data/worship_extras_repo.dart';
 import 'package:my_assistant/data/weekly_repo.dart';
 import 'package:my_assistant/data/workout_repo.dart';
 import 'package:my_assistant/models/models.dart';
@@ -4543,6 +4555,78 @@ void main() {
       await dir.delete(recursive: true);
     });
 
+    // أصوات الأذان/المنبّه المخصّصة كانت برّه النسخة تمامًا (مخزّنة فى مجلّد
+    // دعم التطبيق مش المستندات) — استعادة على موبايل جديد كانت بترجّع
+    // التذكير من غير صوته.
+    test('الأصوات المخصّصة بترجع باسمها من غير ما تمسح مجلّد الدعم', () async {
+      final dir = await Directory.systemTemp.createTemp('bk_snd');
+      final dbPath = p.join(dir.path, 'live.db');
+      final db = await databaseFactoryFfi.openDatabase(dbPath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await db.execute('CREATE TABLE t(id INTEGER PRIMARY KEY)');
+      await db.close();
+
+      // مجلّد الدعم على الجهاز الجديد فيه ملفات تانية للتطبيق (السجل مثلاً).
+      final soundsPath = p.join(dir.path, 'support');
+      await Directory(soundsPath).create(recursive: true);
+      final log = File(p.join(soundsPath, 'app.log'));
+      await log.writeAsString('سجل قديم');
+
+      final archive = Archive()
+        ..addFile(ArchiveFile.bytes(
+            BackupService.dbEntryName, await File(dbPath).readAsBytes()))
+        ..addFile(ArchiveFile.bytes(
+            '${BackupService.soundsEntryDir}/adhan_custom_111.mp3', [1, 2, 3]))
+        ..addFile(ArchiveFile.bytes(
+            '${BackupService.soundsEntryDir}/alarm_custom_222.m4a', [4, 5]))
+        // نسخة متلاعب فيها: اسم برّه الأسماء المعروفة ماينفعش يتكتب.
+        ..addFile(ArchiveFile.bytes(
+            '${BackupService.soundsEntryDir}/evil.sh', [6]));
+
+      await BackupService.applyBackupBytes(ZipEncoder().encode(archive),
+          dbPath: dbPath,
+          imagesDirPath: p.join(dir.path, 'img'),
+          soundsDirPath: soundsPath);
+
+      // الصوتين رجعوا **بنفس الاسم** — وده اللى بيخلى الـcontent:// URI
+      // المخزّن يفضل صالح على الجهاز الجديد.
+      expect(await File(p.join(soundsPath, 'adhan_custom_111.mp3')).readAsBytes(),
+          [1, 2, 3]);
+      expect(await File(p.join(soundsPath, 'alarm_custom_222.m4a')).exists(),
+          isTrue);
+      // الملف الغريب اترفض، وملفات التطبيق التانية مااتمسحتش.
+      expect(await File(p.join(soundsPath, 'evil.sh')).exists(), isFalse);
+      expect(await log.readAsString(), 'سجل قديم');
+      await dir.delete(recursive: true);
+    });
+
+    test('نسخة قديمة من غير أصوات مابتكسرش الاستعادة', () async {
+      final dir = await Directory.systemTemp.createTemp('bk_old');
+      final dbPath = p.join(dir.path, 'live.db');
+      final db = await databaseFactoryFfi.openDatabase(dbPath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await db.execute('CREATE TABLE t(id INTEGER PRIMARY KEY)');
+      await db.close();
+      final zip = await buildBackupZip(dbPath);
+      final soundsPath = p.join(dir.path, 'support');
+
+      await BackupService.applyBackupBytes(zip,
+          dbPath: dbPath,
+          imagesDirPath: p.join(dir.path, 'img'),
+          soundsDirPath: soundsPath);
+
+      expect(await Directory(soundsPath).exists(), isTrue);
+      expect(await Directory(soundsPath).list().isEmpty, isTrue);
+      await dir.delete(recursive: true);
+    });
+
+    test('بتتعرّف على ملفات الصوت المخصّصة بس', () {
+      expect(BackupService.isCustomSoundFile('adhan_custom_1.mp3'), isTrue);
+      expect(BackupService.isCustomSoundFile('alarm_custom_9.m4a'), isTrue);
+      expect(BackupService.isCustomSoundFile('app.log'), isFalse);
+      expect(BackupService.isCustomSoundFile('../adhan_custom_1.mp3'), isFalse);
+    });
+
     test('looksLikeSqlite بيفرّق بين قاعدة سليمة وملف تالف', () {
       expect(BackupService.looksLikeSqlite(List<int>.filled(600, 0)), isFalse);
       expect(BackupService.looksLikeSqlite([]), isFalse);
@@ -5749,6 +5833,353 @@ void main() {
       expect(dayCompletionPercent([]), 0);
       expect(dayCompletionPercent([(done: 0, total: 0)]), 0);
       expect(dayCompletionPercent([(done: 5, total: 3)]), 100); // clamp
+    });
+  });
+
+  // ————— الـريبوهات اللى كانت من غير أى غطاء اختبارى —————
+  // ١٢ ريبو بيشتغلوا على بيانات المستخدم من غير ولا تست. كل مجموعة هنا
+  // بتختبر **السلوك اللى ممكن يكسر**، مش مجرد insert/select.
+
+  group('تحدّيات', () {
+    test('العدّ بيتجاهل التكرار، والشيل بيرجّعه', () async {
+      final repo = ChallengesRepo();
+      final id = await repo.add(const Challenge(
+          name: 'صيام الاثنين', startDate: '2026-09-01', days: 30));
+      expect(await repo.doneCount(id), 0);
+
+      await repo.setDone(id, '2026-09-02', true);
+      // نفس اليوم مرتين = يوم واحد (زرار اتداس مرتين بالغلط).
+      await repo.setDone(id, '2026-09-02', true);
+      expect(await repo.doneCount(id), 1);
+      expect(await repo.isDoneOn(id, '2026-09-02'), isTrue);
+
+      await repo.setDone(id, '2026-09-03', true);
+      expect(await repo.doneCount(id), 2);
+
+      await repo.setDone(id, '2026-09-02', false);
+      expect(await repo.doneCount(id), 1);
+      expect(await repo.isDoneOn(id, '2026-09-02'), isFalse);
+    });
+
+    test('حذف التحدى بيشيل أيامه (مايفضلش عدّ ليتيم)', () async {
+      final repo = ChallengesRepo();
+      final id = await repo.add(
+          const Challenge(name: 'مشى', startDate: '2026-09-01'));
+      await repo.setDone(id, '2026-09-01', true);
+      await repo.delete(id);
+      expect(await repo.all(), isEmpty);
+      expect(await repo.doneCount(id), 0);
+    });
+  });
+
+  group('الجيم', () {
+    test('المجموعات بترتيبها، وحذف الجلسة بيشيلها معاها', () async {
+      final repo = GymRepo();
+      final s1 = await repo.addSession(const GymSession(
+          day: '2026-09-20', program: 'push', durationMin: 45));
+      final s2 = await repo.addSession(
+          const GymSession(day: '2026-09-22', program: 'pull'));
+      // بندخّلهم بترتيب مقلوب عشان نتأكد إن الترتيب من الـset_index.
+      await repo.addSet(GymSet(
+          sessionId: s1, exercise: 'بنش', reps: 8, weight: 60, setIndex: 2));
+      await repo.addSet(GymSet(
+          sessionId: s1, exercise: 'بنش', reps: 10, weight: 50, setIndex: 1));
+
+      final sets = await repo.setsFor(s1);
+      expect(sets.map((e) => e.setIndex), [1, 2]);
+      expect(sets.first.weight, 50);
+      // مجموعات جلسة تانية مابتتخلطش.
+      expect(await repo.setsFor(s2), isEmpty);
+
+      // الأحدث أولاً.
+      expect((await repo.recentSessions()).map((e) => e.id), [s2, s1]);
+      expect((await repo.recentSessions(limit: 1)).length, 1);
+
+      await repo.deleteSession(s1);
+      expect(await repo.setsFor(s1), isEmpty);
+      expect((await repo.recentSessions()).map((e) => e.id), [s2]);
+    });
+
+    test('اختيار برنامج بيكتب توزيعه فى الخطة الأسبوعية', () async {
+      final repo = GymRepo();
+      // مفيش برنامج مختار فى الأول.
+      expect(await repo.currentProgram(), '');
+      await repo.setProgram('ppl');
+      expect(await repo.currentProgram(), 'ppl');
+      // ده مش مجرد إعداد — بيتكتب فى الخطة عشان يظهر فى اليوم والتذكيرات.
+      final plan = await WorkoutRepo().plan();
+      expect(plan[6], 'دفع');
+      expect(plan[1], 'أرجل');
+    });
+  });
+
+  group('الصيدلية المنزلية', () {
+    test('استبدال الدفعات بيحدّث الكمية وأقرب صلاحية', () async {
+      final repo = PharmacyRepo();
+      final id = await repo.save(const PharmacyItem(name: 'بانادول'));
+      await repo.replaceBatches(id, [
+        const PharmacyBatch(itemId: 0, quantity: 2, expiry: '2027-05-01'),
+        const PharmacyBatch(itemId: 0, quantity: 3, expiry: '2026-11-01'),
+      ]);
+      final item = (await repo.all()).firstWhere((e) => e.id == id);
+      // الإجمالى ٥، وأقرب صلاحية هى اللى بتتعرض وبيتبنى عليها التنبيه.
+      expect(item.quantity, 5);
+      expect(item.expiry, '2026-11-01');
+      // الدفعات مرتّبة بالصلاحية (الأقرب أولاً).
+      expect((await repo.batchesFor(id)).map((b) => b.expiry),
+          ['2026-11-01', '2027-05-01']);
+
+      // استبدال تانى = **بديل مش إضافة**.
+      await repo.replaceBatches(
+          id, [const PharmacyBatch(itemId: 0, quantity: 1, expiry: '2028-01-01')]);
+      expect((await repo.batchesFor(id)).length, 1);
+      expect((await repo.all()).firstWhere((e) => e.id == id).quantity, 1);
+    });
+
+    test('البحث بجزء من الاسم، والفاضى بيرجّع الكل', () async {
+      final repo = PharmacyRepo();
+      await repo.save(const PharmacyItem(name: 'بانادول إكسترا'));
+      await repo.save(const PharmacyItem(name: 'كونجستال'));
+      expect((await repo.search('بانادول')).map((e) => e.name),
+          ['بانادول إكسترا']);
+      expect((await repo.search('  ')).length, 2);
+      expect(await repo.search('حاجة مش موجودة'), isEmpty);
+    });
+
+    test('حذف الصنف بيشيل دفعاته', () async {
+      final repo = PharmacyRepo();
+      final id = await repo.save(const PharmacyItem(name: 'فيتامين'));
+      await repo.replaceBatches(
+          id, [const PharmacyBatch(itemId: 0, quantity: 1, expiry: '2027-01-01')]);
+      await repo.delete(id);
+      expect(await repo.all(), isEmpty);
+      expect(await repo.batchesFor(id), isEmpty);
+    });
+  });
+
+  group('الادخار', () {
+    test('المدفوع بيتجمّع من المساهمات', () async {
+      final repo = SavingsRepo();
+      final id = await repo.addGoal(SavingsGoal(
+          name: 'عربية', target: 100000, createdAt: DateTime.now().toIso8601String()));
+      await repo.addContribution(id, 5000);
+      await repo.addContribution(id, 2500);
+      final g = (await repo.all()).firstWhere((e) => e.id == id);
+      expect(g.saved, 7500);
+      expect(g.remaining, 92500);
+    });
+
+    test('الشهور المتوقعة: 0 لو خلص، وnull لو مفيش معدّل', () async {
+      final repo = SavingsRepo();
+      final iso = DateTime.now().toIso8601String();
+      final empty = await repo.addGoal(
+          SavingsGoal(name: 'سفر', target: 10000, createdAt: iso));
+      final g = (await repo.all()).firstWhere((e) => e.id == empty);
+      // من غير أى مساهمة مفيش معدّل → مانوعدش بتاريخ.
+      expect(await repo.monthlyRate(empty), 0);
+      expect(await repo.monthsToGoal(g), isNull);
+
+      // هدف مكتمل → صفر شهور.
+      final done = await repo.addGoal(
+          SavingsGoal(name: 'موبايل', target: 1000, createdAt: iso));
+      await repo.addContribution(done, 1000);
+      final g2 = (await repo.all()).firstWhere((e) => e.id == done);
+      expect(await repo.monthsToGoal(g2), 0);
+    });
+
+    test('حذف الهدف بيشيل مساهماته', () async {
+      final repo = SavingsRepo();
+      final id = await repo.addGoal(SavingsGoal(
+          name: 'نضارة', target: 2000, createdAt: DateTime.now().toIso8601String()));
+      await repo.addContribution(id, 500);
+      await repo.deleteGoal(id);
+      expect(await repo.all(), isEmpty);
+      expect(await repo.monthlyRate(id), 0);
+    });
+  });
+
+  group('صلة الرحم', () {
+    test('المستحق حسب الفترة، و«اتصلت» بتطلّعه من القايمة', () async {
+      final repo = RelativesRepo();
+      final now = DateTime(2026, 9, 25);
+      // آخر اتصال بقاله ٢٠ يوم والفترة ١٤ → مستحق.
+      await repo.save(const Relative(
+          name: 'خالى', intervalDays: 14, lastContacted: '2026-09-05'));
+      // اتصال امبارح → لسه بدرى.
+      await repo.save(const Relative(
+          name: 'عمى', intervalDays: 14, lastContacted: '2026-09-24'));
+      expect((await repo.due(now)).map((r) => r.name), ['خالى']);
+
+      final overdue = (await repo.all()).firstWhere((r) => r.name == 'خالى');
+      await repo.markContacted(overdue, now: now);
+      expect(await repo.due(now), isEmpty);
+    });
+
+    // كان باج: `nextDue()` بترجّع `DateTime.now()` بساعتها، والساعة دى
+    // «بعد» بداية اليوم — فقريب لسه ما اتصلتش بيه ماكانش بيظهر فى «المستحق»
+    // طول اليوم، مع إن التنبيه بيتجدول له فعلاً (تناقض بين الشاشة والتنبيه).
+    test('قريب من غير تاريخ اتصال = مستحق النهارده', () async {
+      final repo = RelativesRepo();
+      await repo.save(const Relative(name: 'جدتى'));
+      expect((await repo.due(DateTime.now())).map((r) => r.name), ['جدتى']);
+      // وبعد ما تتصل بيه بيخرج من القايمة لحد ميعاده الجاى.
+      final g = (await repo.all()).single;
+      await repo.markContacted(g);
+      expect(await repo.due(DateTime.now()), isEmpty);
+    });
+  });
+
+  group('السجل الطبى', () {
+    test('الفلترة بالنوع والأحدث أولاً', () async {
+      final repo = MedicalRepo();
+      await repo.save(const MedicalRecord(
+          type: 'زيارة', day: '2026-09-01', title: 'كشف باطنة'));
+      await repo.save(const MedicalRecord(
+          type: 'أشعة', day: '2026-09-20', title: 'أشعة صدر'));
+      await repo.save(const MedicalRecord(
+          type: 'زيارة', day: '2026-09-15', title: 'متابعة'));
+
+      expect((await repo.all()).map((r) => r.title),
+          ['أشعة صدر', 'متابعة', 'كشف باطنة']);
+      expect((await repo.all(type: 'زيارة')).map((r) => r.title),
+          ['متابعة', 'كشف باطنة']);
+    });
+
+    test('«من تاريخ» شاملة لليوم نفسه', () async {
+      final repo = MedicalRepo();
+      await repo.save(const MedicalRecord(
+          type: 'تحليل', day: '2026-08-31', title: 'قديم'));
+      await repo.save(const MedicalRecord(
+          type: 'تحليل', day: '2026-09-01', title: 'على الحدّ'));
+      expect((await repo.since('2026-09-01')).map((r) => r.title),
+          ['على الحدّ']);
+    });
+  });
+
+  group('عدّاد الإقلاع', () {
+    test('إعادة الضبط بترجّع البداية للنهارده', () async {
+      final repo = QuitRepo();
+      final id = await repo.add(const QuitCounter(
+          name: 'سجاير', startDate: '2026-01-01', dailySaving: 50));
+      expect((await repo.all()).first.startDate, '2026-01-01');
+      await repo.reset(id, now: DateTime(2026, 9, 25));
+      final c = (await repo.all()).first;
+      expect(c.startDate, '2026-09-25');
+      // العدّاد بيبدأ من الأول والتوفير بيتحسب من التاريخ الجديد.
+      expect(c.daysSince(DateTime(2026, 9, 25)), 0);
+      expect(c.savedSoFar(DateTime(2026, 9, 27)), 100);
+    });
+  });
+
+  group('الوصفات', () {
+    test('المقادير بتتضاف لقائمة التسوق سطر سطر', () async {
+      final repo = RecipesRepo();
+      const r = Recipe(
+          name: 'كشرى',
+          ingredients: 'رز\n  عدس  \n\nمكرونة\n',
+          steps: 'اسلق');
+      // السطور الفاضية والمسافات مابتدخلش القايمة.
+      expect(r.ingredientList, ['رز', 'عدس', 'مكرونة']);
+      final added = await repo.addIngredientsToShopping(r);
+      expect(added, 3);
+      final names = (await MealsRepo().shoppingItems()).map((i) => i.name);
+      expect(names, containsAll(['رز', 'عدس', 'مكرونة']));
+    });
+
+    test('حفظ/تعديل/حذف', () async {
+      final repo = RecipesRepo();
+      final id = await repo.save(const Recipe(name: 'ملوخية'));
+      await repo.save(Recipe(id: id, name: 'ملوخية بالأرانب'));
+      expect((await repo.all()).single.name, 'ملوخية بالأرانب');
+      await repo.delete(id);
+      expect(await repo.all(), isEmpty);
+    });
+  });
+
+  group('قيام الليل والصدقات', () {
+    test('السلسلة بتعدّ لورا وبتتوقف عند أول يوم ناقص', () async {
+      final repo = WorshipExtrasRepo();
+      final today = dateOnly(DateTime.now());
+      for (final back in [0, 1, 2, 4]) {
+        await repo.setQiyam(today.subtract(Duration(days: back)), true);
+      }
+      // ٣ أيام متتالية (النهارده + ٢) — اليوم الرابع مقطوع.
+      expect(await repo.qiyamStreak(), 3);
+      expect(await repo.qiyamCountLast(7), 4);
+      expect(await repo.qiyamOn(today), isTrue);
+
+      // شيل النهارده → السلسلة بتتحسب من امبارح (اليوم لسه مخلصش).
+      await repo.setQiyam(today, false);
+      expect(await repo.qiyamStreak(), 2);
+      expect(await repo.qiyamOn(today), isFalse);
+    });
+
+    test('صدقات الشهر بتحسب الشهر ده بس', () async {
+      final repo = WorshipExtrasRepo();
+      final now = DateTime(2026, 9, 25);
+      await repo.addSadaqah(100, 'مسجد', at: now);
+      await repo.addSadaqah(50, 'يتيم', at: DateTime(2026, 9, 2));
+      await repo.addSadaqah(999, 'الشهر اللى فات', at: DateTime(2026, 8, 20));
+      expect(await repo.sadaqahThisMonth(now), 150);
+      expect((await repo.sadaqat()).length, 3);
+
+      await repo.setSadaqahGoal(500);
+      expect(await repo.sadaqahGoal(), 500);
+    });
+  });
+
+  group('التقدّم البدنى واليوميات', () {
+    test('قياسات الجسم بتترتّب بالأحدث', () async {
+      final repo = BodyProgressRepo();
+      await repo.add(const BodyProgress(day: '2026-09-01', weight: 90));
+      final newer =
+          await repo.add(const BodyProgress(day: '2026-09-20', weight: 88));
+      expect((await repo.all()).first.day, '2026-09-20');
+      await repo.delete(newer);
+      expect((await repo.all()).single.day, '2026-09-01');
+    });
+
+    test('اليوميات بترجع بالأحدث والحذف بيشيل واحدة بس', () async {
+      final repo = DiariesRepo();
+      final iso = DateTime.now().toIso8601String();
+      await repo.add(Diary(day: '2026-09-01', text: 'يوم قديم', createdAt: iso));
+      final id2 = await repo.add(
+          Diary(day: '2026-09-20', text: 'يوم جديد', createdAt: iso));
+      expect((await repo.all()).first.text, 'يوم جديد');
+      await repo.delete(id2);
+      expect((await repo.all()).single.text, 'يوم قديم');
+    });
+  });
+
+  group('محرّك الرؤى', () {
+    test('بيتجمّع على قاعدة فاضية من غير ما يرمى', () async {
+      final data = await InsightsRepo().assemble(now: DateTime(2026, 9, 25));
+      expect(data, isNotNull);
+    });
+
+    test('بيلمّ بيانات النافذة ويسيب اللى برّاها', () async {
+      final now = DateTime(2026, 9, 25);
+      final db = await AppDb.instance;
+      // يوم جوّه النافذة (٦٠ يوم) ويوم برّاها.
+      await db.insert('water_logs', {'day': dayKey(now), 'glasses': 8});
+      await db.insert('water_logs', {
+        'day': dayKey(now.subtract(const Duration(days: 200))),
+        'glasses': 3
+      });
+      await db.insert('expenses',
+          {'amount': 120.0, 'category': 'أكل', 'note': '', 'day': dayKey(now)});
+
+      final data = await InsightsRepo().assemble(now: now);
+      expect(data.days.length, InsightsRepo.windowDays);
+      // الأقدم أولاً والأحدث آخر حاجة = النهارده.
+      expect(data.days.last.day, dayKey(now));
+      expect(data.days.last.water, 8);
+      expect(data.days.last.spend, 120);
+      // اليوم اللى برّه النافذة مش موجود خالص.
+      expect(
+          data.days.any(
+              (d) => d.day == dayKey(now.subtract(const Duration(days: 200)))),
+          isFalse);
     });
   });
 

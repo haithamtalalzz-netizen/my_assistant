@@ -12,6 +12,7 @@ import '../data/appointments_repo.dart';
 import '../data/docs_repo.dart';
 import '../data/meds_repo.dart';
 import '../data/settings_repo.dart';
+import 'adhan_custom.dart';
 import 'ar.dart';
 import 'db.dart';
 import 'prayers.dart';
@@ -31,6 +32,47 @@ class BackupService {
     return Directory(p.join(docs.path, memosEntryDir));
   }
 
+  /// اسم مجلّد أصوات الأذان/المنبّه المخصّصة جوّه ملف النسخة.
+  static const String soundsEntryDir = 'custom_sounds';
+
+  /// الأصوات المخصّصة بتتخزّن فى **مجلّد دعم التطبيق** (اللى الـFileProvider
+  /// بيقدّمه للنظام)، مش فى مجلّد المستندات — فكانت برّه النسخة الاحتياطية
+  /// تمامًا: استعادة على موبايل جديد كانت بترجّع التذكير من غير صوته.
+  static Future<Directory> _soundsDir() async =>
+      getApplicationSupportDirectory();
+
+  /// مجلّد الدعم فيه ملفات تانية (السجل مثلاً)، فبناخد **ملفات الصوت بس**
+  /// — اللى اتنسخت بأسماء `adhan_custom_*` / `alarm_custom_*`.
+  ///
+  /// مهم: الاسم لازم يفضل زى ما هو عند الاستعادة، لإن الـ`content://` URI
+  /// المخزّن مشتقّ من المسار — نفس الاسم = نفس الـURI = التذكير بيلاقى صوته.
+  static bool isCustomSoundFile(String name) =>
+      name.startsWith('adhan_custom_') || name.startsWith('alarm_custom_');
+
+  /// بيضيف ملفات [dir] للأرشيف تحت [entryDir] (بشرط [where] لو اتبعت).
+  static Future<void> _addDirFiles(Archive archive, Directory dir,
+      String entryDir, {bool Function(String name)? where}) async {
+    if (!await dir.exists()) return;
+    await for (final entity in dir.list()) {
+      if (entity is! File) continue;
+      final name = p.basename(entity.path);
+      if (where != null && !where(name)) continue;
+      archive.addFile(
+          ArchiveFile.bytes('$entryDir/$name', await entity.readAsBytes()));
+    }
+  }
+
+  /// بيحطّ الملفات المرفقة (صور · مذكرات صوتية · أصوات مخصّصة) فى الأرشيف.
+  /// بتستخدمها النسخة اليدوية والتلقائية سوا عشان الاتنين يفضلوا متطابقين.
+  static Future<void> addExtrasTo(Archive archive, Directory docs) async {
+    await _addDirFiles(
+        archive, Directory(p.join(docs.path, 'doc_images')), 'doc_images');
+    await _addDirFiles(
+        archive, Directory(p.join(docs.path, memosEntryDir)), memosEntryDir);
+    await _addDirFiles(archive, await _soundsDir(), soundsEntryDir,
+        where: isCustomSoundFile);
+  }
+
   /// يبني ملف النسخة ويفتح شاشة المشاركة (Drive / واتساب / الملفات...).
   static Future<void> exportBackup() async {
     final dbPath = await AppDb.dbPath();
@@ -39,27 +81,7 @@ class BackupService {
     final archive = Archive();
     archive.addFile(ArchiveFile.bytes(
         'my_assistant.db', await File(dbPath).readAsBytes()));
-    final imagesDir = await _imagesDir();
-    if (await imagesDir.exists()) {
-      await for (final entity in imagesDir.list()) {
-        if (entity is File) {
-          archive.addFile(ArchiveFile.bytes(
-              'doc_images/${p.basename(entity.path)}',
-              await entity.readAsBytes()));
-        }
-      }
-    }
-    // المذكرات الصوتية المرفقة بالملاحظات — تتحفظ مع النسخة زى الصور.
-    final memosDir = await _memosDir();
-    if (await memosDir.exists()) {
-      await for (final entity in memosDir.list()) {
-        if (entity is File) {
-          archive.addFile(ArchiveFile.bytes(
-              '$memosEntryDir/${p.basename(entity.path)}',
-              await entity.readAsBytes()));
-        }
-      }
-    }
+    await addExtrasTo(archive, await getApplicationDocumentsDirectory());
     final bytes = ZipEncoder().encode(archive);
     final temp = await getTemporaryDirectory();
     final out = File(p.join(
@@ -123,11 +145,14 @@ class BackupService {
   /// مفصول عن [restoreBackup] عشان يبقى قابل للاختبار (من غير منتقى ملفات).
   /// [memosDirPath] مجلّد المذكرات الصوتية — اختيارى عشان النداءات القديمة
   /// تفضل شغّالة؛ لو اتبعت بيترجّع من النسخة زى الصور.
+  /// [soundsDirPath] مجلّد دعم التطبيق (أصوات الأذان/المنبّه المخصّصة) —
+  /// **بيتكتب فيه من غير ما يتمسح**، لإن فيه ملفات تانية للتطبيق.
   static Future<void> applyBackupBytes(
     List<int> zipBytes, {
     required String dbPath,
     required String imagesDirPath,
     String? memosDirPath,
+    String? soundsDirPath,
   }) async {
     final Archive archive;
     try {
@@ -189,6 +214,23 @@ class BackupService {
         }
       }
     }
+
+    // أصوات الأذان/المنبّه — **مش زى الصور**: المجلّد ده مجلّد دعم التطبيق
+    // وفيه ملفات تانية (السجل مثلاً)، فبنكتب الملفات المستعادة جوّاه من غير
+    // ما نمسح حاجة. والاسم بيفضل زى ما هو عشان الـcontent:// URI المخزّن
+    // يفضل صالح.
+    if (soundsDirPath != null) {
+      final soundsDir = Directory(soundsDirPath);
+      await soundsDir.create(recursive: true);
+      for (final f in archive.files) {
+        if (!f.isFile || !f.name.startsWith('$soundsEntryDir/')) continue;
+        final name = p.basename(f.name);
+        // حارس: نسخة متلاعب فيها ماتكتبش ملف برّه الأسماء المعروفة.
+        if (!isCustomSoundFile(name)) continue;
+        await File(p.join(soundsDir.path, name))
+            .writeAsBytes(f.content as List<int>);
+      }
+    }
   }
 
   /// يرجع true لو الاستعادة تمت، false لو المستخدم لغى الاختيار.
@@ -201,13 +243,20 @@ class BackupService {
     final dbPath = await AppDb.dbPath();
     final imagesDir = await _imagesDir();
     final memosDir = await _memosDir();
+    final soundsDir = await _soundsDir();
     await AppDb.close();
     await applyBackupBytes(
       await File(path).readAsBytes(),
       dbPath: dbPath,
       imagesDirPath: imagesDir.path,
       memosDirPath: memosDir.path,
+      soundsDirPath: soundsDir.path,
     );
+
+    // الملفات رجعت بأسمائها فالـURI المخزّن صالح، لكن **إذن القراءة للنظام**
+    // مش موجود على الجهاز الجديد — من غيره الإشعار بيرن بالصوت الافتراضى
+    // بالصمت. بنعيد منحه لكل ملف مستعاد.
+    await AdhanCustom.regrantAll();
 
     // مسارات الصور في النسخة جاية من جهاز/تثبيت مختلف — نعيد كتابتها.
     final db = await AppDb.instance;
@@ -268,16 +317,9 @@ class AutoBackup {
       final archive = Archive();
       archive.addFile(ArchiveFile.bytes(
           'my_assistant.db', await snapshot.readAsBytes()));
-      final imagesDir = Directory(p.join(docs.path, 'doc_images'));
-      if (await imagesDir.exists()) {
-        await for (final entity in imagesDir.list()) {
-          if (entity is File) {
-            archive.addFile(ArchiveFile.bytes(
-                'doc_images/${p.basename(entity.path)}',
-                await entity.readAsBytes()));
-          }
-        }
-      }
+      // نفس محتوى النسخة اليدوية بالظبط — كانت بتاخد الصور بس، فالمذكرات
+      // الصوتية والأصوات المخصّصة كانوا بيضيعوا لو الاستعادة من نسخة تلقائية.
+      await BackupService.addExtrasTo(archive, docs);
       final out = File(p.join(dir.path, 'auto_${dayKey(now)}.zip'));
       await out.writeAsBytes(ZipEncoder().encode(archive));
       await snapshot.delete();

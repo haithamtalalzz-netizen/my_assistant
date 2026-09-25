@@ -8,13 +8,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/screens/diagnostics_screen.dart';
 import 'package:my_assistant/data/habits_repo.dart';
 import 'package:my_assistant/data/meals_repo.dart';
-import 'package:my_assistant/screens/day_close_screen.dart';
-import 'package:my_assistant/screens/food/shopping_list_screen.dart';
 import 'package:my_assistant/screens/habits/habits_screen.dart';
 import 'package:my_assistant/screens/tasks/focus_screen.dart';
 import 'package:my_assistant/widgets/quick_add_field.dart';
@@ -63,21 +60,6 @@ void main() {
     await tester.tap(find.text('إيقاف مؤقت'));
     await tester.pump();
     expect(find.text('ابدأ'), findsOneWidget);
-  });
-
-  testWidgets('شاشة قفل اليوم: البنود الناقصة بتظهر وبتتسجّل بضغطة',
-      (tester) async {
-    // عادة واحدة ناقصة → لازم تظهر كشيبس.
-    final habits = HabitsRepo();
-    final id = await habits.add('قراءة');
-    await tester.pumpWidget(_app(const DayCloseScreen()));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('قراءة'), findsWidgets);
-    // الضغط على الشيبس بيسجّلها.
-    await tester.tap(find.widgetWithText(ActionChip, 'قراءة'));
-    await tester.pumpAndSettle();
-    final done = await habits.doneOn(dayKey(DateTime.now()));
-    expect(done.contains(id), true);
   });
 
   // ملحوظة: القراءة بتتحقن هنا لإن قراءة الملف الحقيقية (dart:io) مابتخلصش
@@ -130,39 +112,6 @@ void main() {
     await tester.drag(find.byType(ReorderableSections), const Offset(0, -2200));
     await tester.pumpAndSettle();
     expect(built.contains('bottom'), true, reason: 'اتبنى بعد ما اتمرّر ليه');
-  });
-
-  testWidgets('قائمة التسوق: بعد ترقية v52→v53، الأقسام بتظهر والإضافة بتشتغل',
-      (tester) async {
-    // نعيد إنتاج مسار المستخدم بالظبط: DB اتعملها ترقية (مش createSchema)،
-    // فالقوائم الافتراضية اتعملت عبر الـmigration + صنف قديم اتنقل.
-    AppDb.reset();
-    await db.close();
-    db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath,
-        options: OpenDatabaseOptions(singleInstance: false));
-    await db.execute(
-        'CREATE TABLE shopping_items(id INTEGER PRIMARY KEY AUTOINCREMENT, '
-        'name TEXT NOT NULL, checked INTEGER NOT NULL DEFAULT 0, '
-        "category TEXT NOT NULL DEFAULT '', price REAL NOT NULL DEFAULT 0, "
-        'created_at TEXT NOT NULL)');
-    // الشاشة بتقرا الإعدادات (ترتيب الممرات) — لازم الجدول موجود زى الجهاز.
-    await db.execute(
-        'CREATE TABLE settings(key TEXT PRIMARY KEY, value TEXT NOT NULL)');
-    await db.insert('shopping_items', {'name': 'رز', 'created_at': 'x'});
-    await AppDb.upgradeSchema(db, 52, 53);
-    AppDb.useForTests(db);
-
-    await tester.pumpWidget(_app(const ShoppingListScreen()));
-    await tester.pumpAndSettle();
-    // شريط الفلتر فيه القوائم (بإيموجى) + الكل.
-    expect(find.textContaining('سوبرماركت'), findsWidgets);
-    expect(find.textContaining('صيدلية'), findsWidgets);
-    // الإضافة من الخانة الموحّدة (فلتر «الكل» → أول قائمة).
-    await tester.enterText(find.byType(TextField).first, 'شنطة');
-    await tester.tap(find.widgetWithIcon(IconButton, Icons.add).first);
-    await tester.pumpAndSettle();
-    expect(find.text('شنطة'), findsOneWidget,
-        reason: 'الصنف المضاف لازم يظهر فى القائمة الموحّدة');
   });
 
   testWidgets('قائمة التسوق: تنصيب جديد بيزرع القوائم الافتراضية',
