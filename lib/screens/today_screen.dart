@@ -10,9 +10,11 @@ import 'package:hijri/hijri_calendar.dart';
 import '../core/app_state.dart';
 import '../core/ar.dart';
 import '../core/day_progress.dart';
+import '../core/day_timeline.dart';
 import '../core/home_layout.dart';
 import '../core/health_service.dart';
 import '../core/attention.dart';
+import '../core/prayers.dart';
 import '../core/l10n.dart';
 import '../core/notifications.dart';
 import '../core/water_guard.dart';
@@ -30,7 +32,9 @@ import '../data/meds_repo.dart';
 import '../data/settings_repo.dart';
 import '../data/wallets_repo.dart';
 import '../data/workout_repo.dart';
+import '../data/worship_repo.dart';
 import '../models/models.dart';
+import '../widgets/a_kit.dart';
 import '../widgets/decorations.dart';
 import 'alerts_center_screen.dart';
 import 'brain/chat_screen.dart';
@@ -101,6 +105,16 @@ class _TodayScreenState extends State<TodayScreen> {
   /// مهام النهارده (المستحقة/الفايتة) — لقسم «مهام النهارده» فى الرئيسية.
   List<Task> _todayTasks = const [];
 
+  /// مهام النهارده اللى **مش** ظاهرة على خط اليوم (من غير ميعاد، أو اتقلّمت
+  /// من الخط) — عشان المهمة ماتتعرضش مرتين فى نفس الشاشة ولا تختفى خالص.
+  List<Task> get _tasksNotOnTimeline {
+    final shown = {
+      for (final e in _timeline)
+        if (e.kind == TimelineKind.task && e.id != null) e.id!
+    };
+    return [for (final t in _todayTasks) if (!shown.contains(t.id)) t];
+  }
+
   /// كروت الأقسام بأرقامها الحية.
   List<DashStat> _dash = [];
 
@@ -117,6 +131,14 @@ class _TodayScreenState extends State<TodayScreen> {
   int? _restingHr;
   double? _distanceKm;
   List<AttentionItem> _attention = [];
+
+  /// خط اليوم (صلوات · مواعيد · جرعات · مهام بميعاد) + اللى جاى دلوقتى.
+  /// [_timeline] = المعروض (اللى فات اتقلّم)، و[_timelineAll] = الكامل —
+  /// العدّ بيتحسب من الكامل عشان «خلصوا» مايقلّش لمجرد إن بند اتقلّم.
+  List<TimelineEvent> _timeline = const [];
+  List<TimelineEvent> _timelineAll = const [];
+  TimelineEvent? _next;
+  TimelineEvent? _overdue;
 
 
   /// كروت الرئيسية اللى المستخدم اختارها (فاضى = الكل).
@@ -171,9 +193,36 @@ class _TodayScreenState extends State<TodayScreen> {
     final shortcutsRaw = await SettingsRepo().get('home_shortcuts') ?? '';
     // «قفل اليوم» بيظهر مساءً بس — مانحمّلوش الصبح.
     final homeCards = await _settings.get(kHomeCardsSetting);
+    // مواقيت النهارده — حساب محلى بالكامل (بلا إنترنت) من مدينة المستخدم.
+    List<DateTime> prayerTimes = const [];
+    Set<int> prayed = const {};
+    try {
+      final gov = await resolvePlace(_settings);
+      prayerTimes = prayerTimesFor(now, gov).times;
+      prayed = await WorshipRepo().prayedOn(now);
+    } on Exception catch (e, st) {
+      // مدينة مش متظبطة أو حساب فشل — الخط بيشتغل من غير الصلوات.
+      logError('فشل حساب مواقيت النهارده لخط اليوم', e, st);
+    }
+    List<TimelineEvent> line({int? maxPast}) => buildDayTimeline(
+          now: now,
+          prayers: prayerTimes,
+          prayedIdx: prayed,
+          appointments: appts,
+          meds: meds,
+          takenSlots: taken,
+          tasks: dueList,
+          maxPast: maxPast,
+        );
+    final timeline = line(maxPast: 2);
+    final timelineAll = line();
     if (!mounted) return;
     setState(() {
       _attention = attention;
+      _timeline = timeline;
+      _timelineAll = timelineAll;
+      _next = nextDayEvent(timelineAll, now);
+      _overdue = overdueDayEvent(timelineAll, now);
       _dueTasks = dueTasks;
       _todayTasks = dueList;
       _dash = dash;
@@ -306,67 +355,6 @@ class _TodayScreenState extends State<TodayScreen> {
     });
   }
 
-  /// جرس «مركز التنبيهات» جنب البحث — بيفتح شاشة التنبيهات وعليه عدّاد
-  /// باللى محتاج منك دلوقتى.
-  ///
-  /// ده كمان بيسدّ ثغرة: الرئيسية الجديدة مفيهاش شريط «محتاج منك دلوقتي»،
-  /// فالجرس بقى الطريق المضمون لأى حاجة متأخرة من غير ما يزحم الشاشة.
-  /// شريط «إنجاز اليوم %» — يجمع الماء والدوا والعادات فى نسبة واحدة محفّزة.
-  Widget _dayRibbon(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final medsTotal =
-        _activeMeds.fold<int>(0, (s, m) => s + m.times.length);
-    final parts = <({int done, int total})>[
-      (done: _water.clamp(0, _waterGoal), total: _waterGoal),
-      if (medsTotal > 0)
-        (done: _taken.length.clamp(0, medsTotal), total: medsTotal),
-      if (_habitsTotal > 0) (done: _habitsDone, total: _habitsTotal),
-    ];
-    final total = parts.fold<int>(0, (s, p) => s + p.total);
-    if (total == 0) return const SizedBox.shrink();
-    final pct = dayCompletionPercent(parts);
-    final done = pct >= 100;
-    final color = done ? Colors.green : scheme.primary;
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Icon(done ? Icons.emoji_events_outlined : Icons.bolt,
-                size: 18, color: color),
-            const SizedBox(width: 6),
-            Text(tr('إنجاز اليوم', "Today's progress"),
-                style: TextStyle(color: color, fontWeight: FontWeight.w700)),
-            const Spacer(),
-            Text('٪${arNum(pct)}',
-                style: TextStyle(
-                    color: color, fontWeight: FontWeight.w900, fontSize: 18)),
-          ]),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: pct / 100,
-              minHeight: 8,
-              backgroundColor: scheme.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation(color),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(tr(progressMessageAr(pct), progressMessageEn(pct)),
-              style: TextStyle(
-                  fontSize: 12.5, color: scheme.onSurfaceVariant)),
-        ],
-      ),
-    );
-  }
-
   Widget _alertsAction(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final n = _attention.length;
@@ -460,12 +448,14 @@ class _TodayScreenState extends State<TodayScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          // الترحيب هنا بالمظهر العادى عن قصد (اختيار المستخدم) — التدرّج
-          // بيفضل للأشكال التانية.
-          _header(context),
+          _greetingLine(context),
           const SizedBox(height: 12),
-          _dayRibbon(context),
-          const SizedBox(height: 4),
+          _nextHero(context),
+          if (_timeline.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            _timelineSection(context),
+          ],
+          const SizedBox(height: 18),
           _customSectionHeader(
             context,
             tr('إجراءات سريعة', 'Quick actions'),
@@ -474,7 +464,9 @@ class _TodayScreenState extends State<TodayScreen> {
           const SizedBox(height: 8),
           _quickActions(context),
           // ———— مهام النهارده (اختصار سريع: علّم تمّ من هنا) ————
-          if (_todayTasks.isNotEmpty) ...[
+          // بس اللى **مش** ظاهر على خط اليوم — من غير كده المهمة بتتعرض
+          // مرتين فى نفس الشاشة.
+          if (_tasksNotOnTimeline.isNotEmpty) ...[
             const SizedBox(height: 18),
             _todayTasksSection(context),
           ],
@@ -514,6 +506,187 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
+  /// «إنجاز اليوم» — نفس حساب الشريط القديم بالظبط: مياه + جرعات + عادات.
+  /// (خط اليوم بيعدّ بنود تانية، فبنسيب الرقمين كل واحد باسمه.)
+  ({int done, int total, int pct}) _dayProgress() {
+    final medsTotal = _activeMeds.fold<int>(0, (s, m) => s + m.times.length);
+    final parts = <({int done, int total})>[
+      (done: _water.clamp(0, _waterGoal), total: _waterGoal),
+      if (medsTotal > 0)
+        (done: _taken.length.clamp(0, medsTotal), total: medsTotal),
+      if (_habitsTotal > 0) (done: _habitsDone, total: _habitsTotal),
+    ];
+    final total = parts.fold<int>(0, (s, p) => s + p.total);
+    final done = parts.fold<int>(0, (s, p) => s + p.done);
+    return (done: done, total: total, pct: dayCompletionPercent(parts));
+  }
+
+  /// سطر الترحيب + التاريخ (فوق البطل).
+  Widget _greetingLine(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final now = DateTime.now();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+            _name.isEmpty
+                ? greetingFor(now)
+                : tr('${greetingFor(now)} يا $_name',
+                    '${greetingFor(now)}, $_name'),
+            style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: scheme.primary)),
+        const SizedBox(height: 3),
+        Text('${arFullDate(now)} — ${_hijriLine(now)}',
+            style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
+      ],
+    );
+  }
+
+  /// لون كل نوع بند على خط اليوم.
+  Color _kindColor(TimelineKind k, ColorScheme scheme) => switch (k) {
+        TimelineKind.prayer => scheme.primary,
+        TimelineKind.appointment => const Color(0xFF3B82F6),
+        TimelineKind.med => const Color(0xFFFF6B8A),
+        TimelineKind.task => const Color(0xFFF2A93B),
+      };
+
+  IconData _kindIcon(TimelineKind k) => switch (k) {
+        TimelineKind.prayer => Icons.mosque,
+        TimelineKind.appointment => Icons.event,
+        TimelineKind.med => Icons.medication_outlined,
+        TimelineKind.task => Icons.checklist,
+      };
+
+  /// **البطل**: اللى جاى دلوقتى — أو اللى فات ولسه ما اتعملش لو مفيش جاى.
+  Widget _nextHero(BuildContext context) {
+    final ev = _next ?? _overdue;
+    if (ev == null) {
+      // كل حاجة خلصت (أو مفيش بنود أصلاً).
+      final done = _timeline.isNotEmpty;
+      final p = _dayProgress();
+      return AppHero(
+        icon: done ? Icons.emoji_events_outlined : Icons.wb_sunny_outlined,
+        kicker: tr('يومك', 'Your day'),
+        title: done
+            ? tr('خلّصت كل حاجة النهارده', 'All done for today')
+            : tr('ابدأ يومك', 'Start your day'),
+        primaryLabel: tr('ضيف حاجة', 'Add something'),
+        primaryIcon: Icons.add,
+        onPrimary: _openAddSheet,
+        extra: p.total > 0
+            ? AppHeroBar(p.pct / 100,
+                tr('إنجاز اليوم ${p.pct}٪ — مياه وجرعات وعادات',
+                    "Today's progress ${p.pct}% — water, doses, habits"))
+            : null,
+      );
+    }
+    final late = _next == null;
+    final mins = ev.at.difference(DateTime.now()).inMinutes;
+    final p = _dayProgress();
+    return AppHero(
+      icon: _kindIcon(ev.kind),
+      kicker: late
+          ? tr('فات ميعاده', 'Overdue')
+          : tr('الجاية دلوقتى', 'Up next'),
+      title: ev.title,
+      trailingBig: ev.timeLabel,
+      trailingSmall: late
+          ? tr('من ${_agoLabel(-mins)}', '${_agoLabel(-mins)} ago')
+          : tr('فاضل ${_agoLabel(mins)}', 'in ${_agoLabel(mins)}'),
+      primaryLabel: _heroActionLabel(ev),
+      primaryIcon: Icons.check,
+      onPrimary: () => _completeEvent(ev),
+      secondaryLabel: tr('افتحها', 'Open'),
+      onSecondary: () => _openEvent(ev),
+      colors: late
+          ? [
+              Theme.of(context).colorScheme.error,
+              Color.lerp(Theme.of(context).colorScheme.error, Colors.black,
+                  0.3)!
+            ]
+          : null,
+      extra: p.total > 0
+          ? AppHeroBar(p.pct / 100,
+              tr('إنجاز اليوم ${p.pct}٪ — مياه وجرعات وعادات',
+                  "Today's progress ${p.pct}% — water, doses, habits"))
+          : null,
+    );
+  }
+
+  String _agoLabel(int mins) {
+    if (mins < 1) return tr('دقيقة', 'a minute');
+    if (mins < 60) return tr('$mins دقيقة', '$mins min');
+    final h = mins ~/ 60;
+    final m = mins % 60;
+    return m == 0
+        ? tr('$h ساعة', '${h}h')
+        : tr('$h س و$m د', '${h}h ${m}m');
+  }
+
+  String _heroActionLabel(TimelineEvent ev) => switch (ev.kind) {
+        TimelineKind.prayer => tr('صلّيت', 'Prayed'),
+        TimelineKind.med => tr('اتاخدت', 'Taken'),
+        TimelineKind.appointment => tr('تم', 'Done'),
+        TimelineKind.task => tr('خلّصتها', 'Done'),
+      };
+
+  /// تنفيذ البند من الرئيسية على طول (من غير ما تفتح صفحته).
+  Future<void> _completeEvent(TimelineEvent ev) async {
+    switch (ev.kind) {
+      case TimelineKind.prayer:
+        await WorshipRepo().togglePrayer(DateTime.now(), ev.id ?? 0, true);
+      case TimelineKind.med:
+        if (ev.id != null && ev.slot != null) {
+          await _meds.setTaken(ev.id!, _today, ev.slot!, true);
+        }
+      case TimelineKind.appointment:
+        if (ev.id != null) await _appts.setDone(ev.id!, true);
+      case TimelineKind.task:
+        if (ev.id != null) await TasksRepo().setDone(ev.id!, true);
+    }
+    await _load();
+  }
+
+  /// يفتح صفحة البند.
+  void _openEvent(TimelineEvent ev) {
+    final screen = switch (ev.kind) {
+      TimelineKind.prayer => const PrayerScreen(),
+      TimelineKind.appointment => const ScheduleScreen(),
+      TimelineKind.med => const MedsScreen(),
+      TimelineKind.task => const TasksScreen(),
+    };
+    _reloadAfter(() => Navigator.push(
+        context, MaterialPageRoute(builder: (_) => screen)));
+  }
+
+  /// **خط يومك** — كل بنود النهارده بالساعة، اللى خلص متشطوب.
+  Widget _timelineSection(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final p = dayTimelineProgress(_timelineAll);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AppSectionTitle(tr('خط يومك', 'Your day'),
+            trailing: tr('${p.done} من ${p.total} خلصوا',
+                '${p.done} of ${p.total} done')),
+        AppCard(Column(children: [
+          for (var i = 0; i < _timeline.length; i++)
+            AppTimelineRow(
+              time: _timeline[i].timeLabel,
+              title: _timeline[i].title,
+              sub: _timeline[i].sub,
+              tint: _kindColor(_timeline[i].kind, scheme),
+              done: _timeline[i].done,
+              last: i == _timeline.length - 1,
+              onTap: () => _openEvent(_timeline[i]),
+            ),
+        ])),
+      ],
+    );
+  }
+
   /// قسم «مهام النهارده» — المستحق والفايت، وتقدر تعلّم «تمّ» من الرئيسية
   /// على طول من غير ما تفتح صفحة المهام.
   Widget _todayTasksSection(BuildContext context) {
@@ -533,7 +706,7 @@ class _TodayScreenState extends State<TodayScreen> {
                 color: scheme.primaryContainer,
                 borderRadius: BorderRadius.circular(999),
               ),
-              child: Text(arNum(_todayTasks.length),
+              child: Text(arNum(_tasksNotOnTimeline.length),
                   style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
@@ -548,7 +721,7 @@ class _TodayScreenState extends State<TodayScreen> {
           ],
         ),
         const SizedBox(height: 4),
-        for (final t in _todayTasks.take(6))
+        for (final t in _tasksNotOnTimeline.take(6))
           Card(
             margin: const EdgeInsets.symmetric(vertical: 2),
             child: ListTile(
@@ -578,12 +751,12 @@ class _TodayScreenState extends State<TodayScreen> {
                   MaterialPageRoute(builder: (_) => const TasksScreen()))),
             ),
           ),
-        if (_todayTasks.length > 6)
+        if (_tasksNotOnTimeline.length > 6)
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-                tr('و${arNum(_todayTasks.length - 6)} كمان…',
-                    'and ${arNum(_todayTasks.length - 6)} more…'),
+                tr('و${arNum(_tasksNotOnTimeline.length - 6)} كمان…',
+                    'and ${arNum(_tasksNotOnTimeline.length - 6)} more…'),
                 style: TextStyle(fontSize: 12, color: scheme.outline)),
           ),
       ],
@@ -2238,39 +2411,6 @@ class _TodayScreenState extends State<TodayScreen> {
           ),
         );
       },
-    );
-  }
-
-  Widget _header(BuildContext context) {
-    final now = DateTime.now();
-    final scheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _name.isEmpty
-              ? greetingFor(now)
-              : tr('${greetingFor(now)} يا $_name',
-                  '${greetingFor(now)}, $_name'),
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800, color: scheme.primary),
-        ),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            Icon(Icons.calendar_today_outlined,
-                size: 14, color: scheme.outline),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text('${arFullDate(now)} — ${_hijriLine(now)}',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: scheme.outline)),
-            ),
-          ],
-        ),
-      ],
     );
   }
 

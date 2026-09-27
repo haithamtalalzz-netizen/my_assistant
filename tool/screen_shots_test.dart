@@ -11,10 +11,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/theme.dart';
+import 'package:my_assistant/data/appointments_repo.dart';
+import 'package:my_assistant/data/meds_repo.dart';
 import 'package:my_assistant/data/notes_repo.dart';
+import 'package:my_assistant/data/health_repo.dart';
+import 'package:my_assistant/data/tasks_repo.dart';
+import 'package:my_assistant/models/models.dart';
 import 'package:my_assistant/screens/notes_screen.dart';
+import 'package:my_assistant/screens/today_screen.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'shot_harness.dart';
@@ -68,4 +75,33 @@ void main() {
     );
     expect(f.lengthSync(), greaterThan(10000));
   });
+
+  testWidgets('الرئيسية — الشكل الجديد (بطل + خط اليوم)', (tester) async {
+    final now = DateTime.now();
+    DateTime at(int h, int m) =>
+        DateTime(now.year, now.month, now.day, h, m);
+
+    await AppointmentsRepo().save(Appointment(
+        title: 'د. أحمد — أسنان',
+        category: 'دكتور',
+        when: at(18, 0),
+        location: 'عيادة المهندسين'));
+    await MedsRepo().save(const Medication(
+        name: 'كونكور', dosage: '5 مج', times: ['08:00', '21:00']));
+    await TasksRepo().save(Task(
+        title: 'دفع فاتورة الغاز',
+        dueAt: at(17, 0).toIso8601String(),
+        createdAt: now.toIso8601String()));
+    await HealthRepo().setWaterMl(dayKey(now), 750);
+
+    final f = await shot(
+      tester,
+      'real_home',
+      shotApp(buildTheme(), const TodayScreen()),
+      size: const Size(390, 1100),
+      pixelRatio: 2,
+    );
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
 }

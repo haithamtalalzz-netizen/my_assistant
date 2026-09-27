@@ -24,6 +24,7 @@ import 'package:my_assistant/data/rules_repo.dart';
 import 'package:my_assistant/core/morning_brief.dart';
 import 'package:my_assistant/core/dashboard_stats.dart';
 import 'package:my_assistant/core/data_export.dart';
+import 'package:my_assistant/core/day_timeline.dart';
 import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/usda_food_db.dart';
 import 'package:my_assistant/core/egyptian_dishes.dart';
@@ -6180,6 +6181,172 @@ void main() {
           data.days.any(
               (d) => d.day == dayKey(now.subtract(const Duration(days: 200)))),
           isFalse);
+    });
+  });
+
+
+  // ————— خط اليوم (الشكل الجديد «يومك أولاً») —————
+  // دالة نقية: بتاخد بيانات محمّلة وبترتّبها — فبتتختبر من غير قاعدة ولا وقت
+  // حقيقى، وده اللى بيخلّى «الجاية دلوقتى» رقم نثق فيه.
+  group('خط اليوم', () {
+    final now = DateTime(2026, 9, 27, 15, 0);
+    DateTime at(int h, int m) => DateTime(2026, 9, 27, h, m);
+
+    List<TimelineEvent> build({
+      List<DateTime> prayers = const [],
+      Set<int> prayed = const {},
+      List<Appointment> appts = const [],
+      List<Medication> meds = const [],
+      Set<String> taken = const {},
+      List<Task> tasks = const [],
+      int? maxPast = 2,
+    }) =>
+        buildDayTimeline(
+            now: now,
+            prayers: prayers,
+            prayedIdx: prayed,
+            appointments: appts,
+            meds: meds,
+            takenSlots: taken,
+            tasks: tasks,
+            maxPast: maxPast);
+
+    test('بيلمّ الأنواع الأربعة ويرتّبها بالوقت', () {
+      final ev = build(
+        prayers: [at(5, 12), at(12, 5), at(15, 48), at(18, 20), at(19, 40)],
+        prayed: {0, 1},
+        appts: [
+          Appointment(
+              id: 7,
+              title: 'د. أحمد',
+              category: 'دكتور',
+              when: at(18, 0),
+              location: 'المهندسين')
+        ],
+        meds: [
+          const Medication(
+              id: 3, name: 'كونكور', dosage: '5 مج', times: ['21:00'])
+        ],
+        tasks: [
+          Task(
+              id: 9,
+              title: 'دفع الفاتورة',
+              dueAt: at(17, 0).toIso8601String(),
+              createdAt: '')
+        ],
+        maxPast: null,
+      );
+      expect(ev.map((e) => e.title).toList(),
+          ['الفجر', 'الضهر', 'العصر', 'دفع الفاتورة', 'د. أحمد', 'المغرب',
+           'العشا', 'كونكور']); // العشا 19:40 قبل جرعة 21:00
+      // «اتصلّت» بتتعلّم من prayedIdx.
+      expect(ev.first.done, isTrue);
+      expect(ev[2].done, isFalse);
+      // الجرعة بتاخد رقم الدوا واسم الجرعة عشان الضغط يعرف يعلّمها.
+      final dose = ev.firstWhere((e) => e.kind == TimelineKind.med);
+      expect(dose.id, 3);
+      expect(dose.slot, '21:00');
+    });
+
+    test('الجاية = أول حاجة لسه ما اتعملتش', () {
+      final ev = build(
+        prayers: [at(5, 12), at(12, 5), at(15, 48), at(18, 20), at(19, 40)],
+        prayed: {0, 1},
+        maxPast: null,
+      );
+      expect(nextDayEvent(ev, now)!.title, 'العصر');
+      // لو العصر اتصلّت، الجاية تبقى المغرب.
+      final ev2 = build(
+          prayers: [at(5, 12), at(12, 5), at(15, 48), at(18, 20)],
+          prayed: {0, 1, 2},
+          maxPast: null);
+      expect(nextDayEvent(ev2, now)!.title, 'المغرب');
+      // كل حاجة خلصت → مفيش جاية.
+      final ev3 = build(
+          prayers: [at(5, 12), at(12, 5)], prayed: {0, 1}, maxPast: null);
+      expect(nextDayEvent(ev3, now), isNull);
+    });
+
+    test('اللى فات ولسه ما اتعملش بيتقال (مش بيتبلع)', () {
+      final ev = build(
+          prayers: [at(5, 12), at(12, 5), at(15, 48)],
+          prayed: {0},
+          maxPast: null);
+      // الضهر فات وما اتصلّاش.
+      expect(overdueDayEvent(ev, now)!.title, 'الضهر');
+      // ولو مفيش فايت بيرجّع null.
+      final ev2 = build(
+          prayers: [at(5, 12), at(12, 5), at(15, 48)],
+          prayed: {0, 1},
+          maxPast: null);
+      expect(overdueDayEvent(ev2, now), isNull);
+    });
+
+    test('بيسيب آخر بندين فاتوا بس عشان الخط مايبقاش كله ماضى', () {
+      final ev = build(
+        prayers: [at(5, 12), at(12, 5), at(15, 48), at(18, 20)],
+        prayed: {0, 1},
+        meds: [
+          const Medication(id: 1, name: 'دوا الصبح', times: ['07:00'])
+        ],
+      );
+      // اللى فات: 5:12 · 7:00 · 12:05 → يفضل آخر اتنين بس.
+      final titles = ev.map((e) => e.title).toList();
+      expect(titles.contains('الفجر'), isFalse, reason: 'أقدم بند فات اتشال');
+      expect(titles.contains('دوا الصبح'), isTrue);
+      expect(titles.contains('الضهر'), isTrue);
+      // واللى جاى مابيتشالش أبدًا.
+      expect(titles.contains('العصر'), isTrue);
+      expect(titles.contains('المغرب'), isTrue);
+    });
+
+    test('بنود يوم تانى مابتدخلش خط النهارده', () {
+      final ev = build(
+        appts: [
+          Appointment(
+              id: 1,
+              title: 'بكرة',
+              category: '',
+              when: DateTime(2026, 9, 28, 10, 0))
+        ],
+        tasks: [
+          Task(
+              id: 2,
+              title: 'مهمة امبارح',
+              dueAt: DateTime(2026, 9, 26, 10, 0).toIso8601String(),
+              createdAt: '')
+        ],
+        maxPast: null,
+      );
+      expect(ev, isEmpty);
+    });
+
+    test('مهمة من غير ميعاد ملهاش مكان على الخط', () {
+      final ev = build(
+          tasks: [Task(id: 1, title: 'من غير ميعاد', createdAt: '')],
+          maxPast: null);
+      expect(ev, isEmpty);
+    });
+
+    test('جرعة بصيغة غلط بتتعدّى من غير ما تكسر الخط', () {
+      final ev = build(
+        meds: [
+          const Medication(id: 1, name: 'سليم', times: ['08:00']),
+          const Medication(id: 2, name: 'بايظ', times: ['بعد الأكل']),
+        ],
+        maxPast: null,
+      );
+      expect(ev.map((e) => e.title).toList(), ['سليم']);
+    });
+
+    test('التقدّم = اللى خلص من الإجمالى', () {
+      final ev = build(
+          prayers: [at(5, 12), at(12, 5), at(15, 48)],
+          prayed: {0, 1},
+          maxPast: null);
+      final p = dayTimelineProgress(ev);
+      expect(p.done, 2);
+      expect(p.total, 3);
     });
   });
 
