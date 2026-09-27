@@ -18,6 +18,10 @@ class ReorderableCards extends StatefulWidget {
   final int? crossAxisCount;
   final double? maxCrossAxisExtent;
   final double childAspectRatio;
+
+  /// طول ثابت للكارت بدل النسبة — على شاشة واسعة النسبة بتضرب الطول فى
+  /// العرض الكبير فالكروت تطلع ضخمة وفاضية من جوّه.
+  final double? mainAxisExtent;
   final double spacing;
   final EdgeInsets padding;
   final bool shrinkWrap;
@@ -30,6 +34,7 @@ class ReorderableCards extends StatefulWidget {
     this.crossAxisCount,
     this.maxCrossAxisExtent,
     this.childAspectRatio = 1,
+    this.mainAxisExtent,
     this.spacing = 12,
     this.padding = EdgeInsets.zero,
     this.shrinkWrap = true,
@@ -78,12 +83,14 @@ class _ReorderableCardsState extends State<ReorderableCards> {
         ? SliverGridDelegateWithMaxCrossAxisExtent(
             maxCrossAxisExtent: widget.maxCrossAxisExtent!,
             childAspectRatio: widget.childAspectRatio,
+            mainAxisExtent: widget.mainAxisExtent,
             crossAxisSpacing: widget.spacing,
             mainAxisSpacing: widget.spacing,
           )
         : SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: widget.crossAxisCount ?? 3,
             childAspectRatio: widget.childAspectRatio,
+            mainAxisExtent: widget.mainAxisExtent,
             crossAxisSpacing: widget.spacing,
             mainAxisSpacing: widget.spacing,
           );

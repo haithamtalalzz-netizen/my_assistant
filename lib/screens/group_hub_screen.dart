@@ -52,7 +52,9 @@ class GroupHubScreen extends StatelessWidget {
         // ترتيب لكل مجموعة على حدة (اضغط مطوّل واسحب).
         storageKey: 'group.$title',
         crossAxisCount: cols,
-        childAspectRatio: 0.92,
+        // طول ثابت: على الشاشة العريضة (فولد/تابلت) النسبة كانت بتطوّل
+        // الكروت وتسيبها فاضية من جوّه.
+        mainAxisExtent: 132,
         padding: const EdgeInsets.all(16),
         shrinkWrap: false,
         physics: const AlwaysScrollableScrollPhysics(),
