@@ -5,8 +5,8 @@ import '../core/l10n.dart';
 import '../data/note_reminders_repo.dart';
 import '../data/notes_repo.dart';
 import '../data/voice_memos_repo.dart';
+import '../widgets/a_kit.dart';
 import '../widgets/common.dart';
-import '../widgets/quick_add_field.dart';
 import 'note_reminder_sheet.dart';
 import 'voice/dictation_sheet.dart';
 import 'voice/voice_memo_sheet.dart';
@@ -87,12 +87,6 @@ class _NotesScreenState extends State<NotesScreen> {
     await _load();
   }
 
-  Future<void> _add(String text) async {
-    if (text.trim().isEmpty) return;
-    await _repo.add(text);
-    await _load();
-  }
-
   /// حذف ملاحظة **مع** ما يخصّها: إلغاء المنبّه المجدول ومسح ملف المذكرة
   /// الصوتية. من غير ده المنبّه كان يفضل مجدول فى النظام ويرنّ بنص ملاحظة
   /// اتمسحت (لحد ما التطبيق يتفتح من جديد وينضّف).
@@ -117,12 +111,15 @@ class _NotesScreenState extends State<NotesScreen> {
     await _load();
   }
 
-  Future<void> _edit(Note note) async {
-    final ctrl = TextEditingController(text: note.text);
+  /// حوار الكتابة — بيخدم التعديل **والإضافة** (note == null).
+  Future<void> _edit(Note? note) async {
+    final ctrl = TextEditingController(text: note?.text ?? '');
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(tr('تعديل الملاحظة', 'Edit note')),
+        title: Text(note == null
+            ? tr('ملاحظة جديدة', 'New note')
+            : tr('تعديل الملاحظة', 'Edit note')),
         content: StatefulBuilder(
           builder: (ctx, setDialog) => TextField(
             controller: ctrl,
@@ -157,7 +154,11 @@ class _NotesScreenState extends State<NotesScreen> {
       ),
     );
     if (ok == true && ctrl.text.trim().isNotEmpty) {
-      await _repo.update(note.id!, ctrl.text);
+      if (note == null) {
+        await _repo.add(ctrl.text);
+      } else {
+        await _repo.update(note.id!, ctrl.text);
+      }
       await _load();
     }
     ctrl.dispose();
@@ -166,6 +167,8 @@ class _NotesScreenState extends State<NotesScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final pinned = _notes.where((n) => n.pinned).toList();
+    final rest = _notes.where((n) => !n.pinned).toList();
     return Scaffold(
       drawer: widget.drawer,
       appBar: AppBar(
@@ -178,78 +181,180 @@ class _NotesScreenState extends State<NotesScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: QuickAddField(
-                    label: tr('اكتب تذكرة أو ملاحظة…', 'Write a note…'),
-                    onSubmit: _add,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // زر الإملاء الصوتى جنب خانة الكتابة.
-                Material(
-                  color: scheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(14),
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: _addByVoice,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Icon(Icons.mic,
-                          color: scheme.onPrimaryContainer, size: 22),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'notes_fab',
+        onPressed: () => _edit(null),
+        tooltip: tr('ملاحظة جديدة', 'New note'),
+        child: const Icon(Icons.edit),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 96),
+                children: [
+                  AppPad(
+                    AppHero(
+                      icon: Icons.edit_note,
+                      kicker: tr('اكتب بسرعة', 'Quick capture'),
+                      title: tr('إيه اللى فى دماغك؟', 'What is on your mind?'),
+                      primaryLabel: tr('اكتب', 'Write'),
+                      primaryIcon: Icons.edit,
+                      onPrimary: () => _edit(null),
+                      secondaryLabel: tr('سجّل بصوتك', 'By voice'),
+                      onSecondary: _addByVoice,
                     ),
+                    top: 12,
                   ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-            child: TextField(
-              decoration: InputDecoration(
-                isDense: true,
-                prefixIcon: const Icon(Icons.search, size: 20),
-                hintText: tr('ابحث فى ملاحظاتك…', 'Search notes…'),
-                border: const OutlineInputBorder(),
-              ),
-              onChanged: (v) {
-                _search = v;
-                _load();
-              },
-            ),
-          ),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _notes.isEmpty
-                    ? RefreshIndicator(
-                        onRefresh: _load,
-                        child: ListView(children: [
-                          const SizedBox(height: 60),
-                          EmptyHint(
-                            icon: Icons.sticky_note_2_outlined,
-                            text: _search.isNotEmpty
-                                ? tr('مفيش نتائج', 'No matches')
-                                : tr('اكتب أى تذكرة أو فكرة تحب تفتكرها',
-                                    'Jot any note or reminder you want to keep'),
-                          ),
-                        ]),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _load,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 90),
-                          itemCount: _notes.length,
-                          itemBuilder: (_, i) => _card(_notes[i], scheme),
-                        ),
+                  AppPad(
+                    TextField(
+                      decoration: InputDecoration(
+                        isDense: true,
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        hintText: tr('ابحث فى ملاحظاتك…', 'Search notes…'),
                       ),
-          ),
+                      onChanged: (v) {
+                        _search = v;
+                        _load();
+                      },
+                    ),
+                    top: 18,
+                    bottom: 18,
+                  ),
+                  if (_notes.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 40),
+                      child: EmptyHint(
+                        icon: Icons.sticky_note_2_outlined,
+                        text: _search.isNotEmpty
+                            ? tr('مفيش نتائج', 'No matches')
+                            : tr('اكتب أى تذكرة أو فكرة تحب تفتكرها',
+                                'Jot any note or reminder you want to keep'),
+                        actionLabel: _search.isEmpty
+                            ? tr('اكتب أول ملاحظة', 'Write your first note')
+                            : null,
+                        onAction: () => _edit(null),
+                      ),
+                    ),
+                  if (pinned.isNotEmpty) ...[
+                    AppPad(AppSectionTitle(tr('مثبّتة', 'Pinned'))),
+                    AppPad(AppCard(Column(children: [
+                      for (var i = 0; i < pinned.length; i++)
+                        _row(pinned[i], scheme, last: i == pinned.length - 1),
+                    ]))),
+                    const SizedBox(height: 18),
+                  ],
+                  if (rest.isNotEmpty) ...[
+                    AppPad(AppSectionTitle(
+                        pinned.isEmpty
+                            ? tr('ملاحظاتك', 'Your notes')
+                            : tr('كل الملاحظات', 'All notes'),
+                        trailing:
+                            tr('${rest.length} ملاحظة', '${rest.length} notes'))),
+                    AppPad(AppCard(Column(children: [
+                      for (var i = 0; i < rest.length; i++)
+                        _row(rest[i], scheme, last: i == rest.length - 1),
+                    ]))),
+                  ],
+                ],
+              ),
+            ),
+    );
+  }
+
+  /// قايمة الإجراءات (⋮) — نفس البنود القديمة بالظبط.
+  Widget _menu(Note n) => PopupMenuButton<String>(
+        icon: const Icon(Icons.more_vert, size: 20),
+        onSelected: (v) async {
+          switch (v) {
+            case 'remind':
+              await _setReminder(n);
+            case 'memo':
+              await _recordMemo(n);
+            case 'edit':
+              await _edit(n);
+            case 'pin':
+              await _repo.setPinned(n.id!, !n.pinned);
+              await _load();
+            case 'delete':
+              if (!await confirmDelete(context, tr('الملاحظة', 'this note'))) {
+                return;
+              }
+              await _deleteNote(n);
+          }
+        },
+        itemBuilder: (_) => [
+          PopupMenuItem(
+              value: 'remind',
+              child: Text(_rem.containsKey(n.id)
+                  ? tr('عدّل التذكير ⏰', 'Edit reminder ⏰')
+                  : tr('ذكّرنى ⏰', 'Remind me ⏰'))),
+          PopupMenuItem(
+              value: 'memo',
+              child: Text(_memo.containsKey(n.id)
+                  ? tr('المذكرة الصوتية 🎙', 'Voice memo 🎙')
+                  : tr('سجّل مذكرة صوتية 🎙', 'Record voice memo 🎙'))),
+          PopupMenuItem(
+              value: 'pin',
+              child: Text(n.pinned
+                  ? tr('إلغاء التثبيت', 'Unpin')
+                  : tr('تثبيت فوق', 'Pin to top'))),
+          PopupMenuItem(value: 'edit', child: Text(tr('تعديل', 'Edit'))),
+          PopupMenuItem(value: 'delete', child: Text(tr('حذف', 'Delete'))),
         ],
+      );
+
+  /// سطر ملاحظة جوّه كارت القسم.
+  Widget _row(Note n, ColorScheme scheme, {bool last = false}) {
+    final date = DateTime.tryParse(n.updatedAt);
+    final chips = <Widget>[
+      if (date != null)
+        Text(arShortDate(date),
+            style: TextStyle(fontSize: 11, color: scheme.outline)),
+      if (_rem[n.id] != null) _reminderChip(_rem[n.id]!, scheme),
+      if (_memo[n.id] != null) VoiceMemoChip(memo: _memo[n.id]!),
+    ];
+    return InkWell(
+      onTap: () => _edit(n),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: last
+            ? null
+            : BoxDecoration(
+                border: Border(
+                    bottom: BorderSide(
+                        color: scheme.outlineVariant.withValues(alpha: 0.7)))),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+                color: (n.pinned ? scheme.tertiary : scheme.primary)
+                    .withValues(alpha: 0.13),
+                borderRadius: BorderRadius.circular(12)),
+            child: Icon(n.pinned ? Icons.push_pin : Icons.sticky_note_2_outlined,
+                size: 18, color: n.pinned ? scheme.tertiary : scheme.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(n.text,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 13.5,
+                          height: 1.35,
+                          fontWeight: FontWeight.w600)),
+                  if (chips.isNotEmpty) ...[
+                    const SizedBox(height: 5),
+                    Wrap(spacing: 8, runSpacing: 4, children: chips),
+                  ],
+                ]),
+          ),
+          _menu(n),
+        ]),
       ),
     );
   }
@@ -287,96 +392,4 @@ class _NotesScreenState extends State<NotesScreen> {
     );
   }
 
-  Widget _card(Note n, ColorScheme scheme) {
-    final date = DateTime.tryParse(n.updatedAt);
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 3),
-      color: n.pinned ? scheme.tertiaryContainer.withValues(alpha: 0.35) : null,
-      child: InkWell(
-        onTap: () => _edit(n),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 6, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (n.pinned)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2, left: 6),
-                      child: Icon(Icons.push_pin,
-                          size: 16, color: scheme.tertiary),
-                    ),
-                  Expanded(
-                    child: Text(n.text,
-                        style: const TextStyle(fontSize: 15, height: 1.4)),
-                  ),
-                  PopupMenuButton<String>(
-                    onSelected: (v) async {
-                      switch (v) {
-                        case 'remind':
-                          await _setReminder(n);
-                        case 'memo':
-                          await _recordMemo(n);
-                        case 'edit':
-                          await _edit(n);
-                        case 'pin':
-                          await _repo.setPinned(n.id!, !n.pinned);
-                          await _load();
-                        case 'delete':
-                          if (!await confirmDelete(
-                              context, tr('الملاحظة', 'this note'))) {
-                            return;
-                          }
-                          await _deleteNote(n);
-                      }
-                    },
-                    itemBuilder: (_) => [
-                      PopupMenuItem(
-                          value: 'remind',
-                          child: Text(_rem.containsKey(n.id)
-                              ? tr('عدّل التذكير ⏰', 'Edit reminder ⏰')
-                              : tr('ذكّرنى ⏰', 'Remind me ⏰'))),
-                      PopupMenuItem(
-                          value: 'memo',
-                          child: Text(_memo.containsKey(n.id)
-                              ? tr('المذكرة الصوتية 🎙', 'Voice memo 🎙')
-                              : tr('سجّل مذكرة صوتية 🎙', 'Record voice memo 🎙'))),
-                      PopupMenuItem(
-                          value: 'pin',
-                          child: Text(n.pinned
-                              ? tr('إلغاء التثبيت', 'Unpin')
-                              : tr('تثبيت فوق', 'Pin to top'))),
-                      PopupMenuItem(
-                          value: 'edit', child: Text(tr('تعديل', 'Edit'))),
-                      PopupMenuItem(
-                          value: 'delete', child: Text(tr('حذف', 'Delete'))),
-                    ],
-                  ),
-                ],
-              ),
-              Row(children: [
-                if (date != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2, right: 2),
-                    child: Text(arShortDate(date),
-                        style: TextStyle(fontSize: 11, color: scheme.outline)),
-                  ),
-                if (_rem[n.id] != null) ...[
-                  const SizedBox(width: 8),
-                  _reminderChip(_rem[n.id]!, scheme),
-                ],
-                if (_memo[n.id] != null) ...[
-                  const SizedBox(width: 6),
-                  VoiceMemoChip(memo: _memo[n.id]!),
-                ],
-              ]),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
