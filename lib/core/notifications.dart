@@ -56,7 +56,14 @@ class Notifications {
   static const int fastingEndNotifId = 1170001; // انتهاء نافذة الصيام المتقطّع
   static const int proactiveNotifId = 1180001; // رؤية استباقية يومية من العقل
   static int vaccineNotifId(int id) => 1190000 + id; // جرعة تطعيم جاية
-  static int noteNotifId(int id) => 1200000 + id; // تذكير ملاحظة («تذكيراتى»)
+  /// تذكير ملاحظة («تذكيراتى») — [slot] بيسمح بأكتر من تذكير للملاحظة
+  /// الواحدة (لحد ١٠).
+  static int noteNotifId(int id, [int slot = 0]) =>
+      1200000 + id * 10 + slot.clamp(0, 9);
+
+  /// المعرّف القديم (تذكير واحد لكل ملاحظة) — لازم نلغيه صراحةً بعد
+  /// الترقية، وإلا يفضل مجدول فى النظام ويرنّ من غير ما حاجة تلغيه.
+  static int legacyNoteNotifId(int id) => 1200000 + id;
 
   /// تفاصيل إشعار الأذان بخصائص المنبّه. [sound] = ملف المستخدم المخصّص، أو null
   /// (تنبيه صوتى قوى بالنغمة الافتراضية لحد ما المستخدم يختار ملف أذانه).

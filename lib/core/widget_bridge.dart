@@ -5,9 +5,12 @@ import 'package:home_widget/home_widget.dart';
 import '../data/appointments_repo.dart';
 import '../data/bills_repo.dart';
 import '../data/health_repo.dart';
+import '../data/worship_repo.dart';
+import '../data/meds_repo.dart';
 import '../data/settings_repo.dart';
 import '../data/tasks_repo.dart';
 import 'ar.dart';
+import 'day_timeline.dart';
 import 'prayers.dart';
 import 'water_guard.dart';
 
@@ -27,7 +30,7 @@ class WidgetBridge {
       final gov = await resolvePlace(settings);
       final prayers = prayerTimesFor(now, gov);
       final next = prayers.nextIndex(now);
-      final prayerLine = next == null
+      final prayerOnly = next == null
           ? 'خلصت صلوات النهارده'
           : '${kPrayerNames[next]} ${arTime(prayers.times[next])}';
 
@@ -67,10 +70,33 @@ class WidgetBridge {
         billsLine = extra > 0 ? '$shown\n+${arNum(extra)} كمان' : shown;
       }
 
+      // **السطر الأول = اللى جاى دلوقتى فعلاً** (صلاة · موعد · جرعة · مهمة)
+      // من نفس خط اليوم اللى الرئيسية بتعرضه — كان بيورّى الصلاة دايمًا حتى
+      // لو فيه موعد أقرب.
+      String headline = prayerOnly;
+      try {
+        final line = buildDayTimeline(
+          now: now,
+          prayers: prayers.times,
+          prayedIdx: await WorshipRepo().prayedOn(now),
+          appointments: appts,
+          meds: await MedsRepo().all(activeOnly: true),
+          takenSlots: await MedsRepo().takenOn(day),
+          tasks: dueTasks,
+          maxPast: null,
+        );
+        final nx = nextDayEvent(line, now);
+        if (nx != null) headline = 'الجاية: ${nx.title} ${nx.timeLabel}';
+      } on Exception catch (e) {
+        logError('فشل تركيب سطر الويدجت — هنستخدم الصلاة', e);
+      }
+
       final water = await HealthRepo().waterOn(day);
       final goal = await settings.waterGoal();
 
-      await HomeWidget.saveWidgetData<String>('line_prayer', prayerLine);
+      // المفتاح زى ما هو عشان تخطيط أندرويد مايتغيّرش.
+      await HomeWidget.saveWidgetData<String>('line_prayer', headline);
+      await HomeWidget.saveWidgetData<String>('line_prayer_only', prayerOnly);
       await HomeWidget.saveWidgetData<String>('line_tasks', tasksLine);
       await HomeWidget.saveWidgetData<String>('line_bills', billsLine);
       await HomeWidget.saveWidgetData<String>('line_appts', apptsLine);

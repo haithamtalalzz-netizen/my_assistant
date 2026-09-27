@@ -26,7 +26,8 @@ class _NotesScreenState extends State<NotesScreen> {
   final _memos = VoiceMemosRepo();
   bool _loading = true;
   List<Note> _notes = [];
-  Map<int, NoteReminder> _rem = {};
+  /// تذكيرات كل ملاحظة (ممكن أكتر من واحد).
+  Map<int, List<NoteReminder>> _rem = {};
   Map<int, VoiceMemo> _memo = {};
   String _search = '';
 
@@ -49,23 +50,153 @@ class _NotesScreenState extends State<NotesScreen> {
     });
   }
 
-  /// ضبط/تعديل/شيل تذكير للملاحظة (بمنبّه صوتى أو تنبيه عادى).
-  Future<void> _setReminder(Note n) async {
+  /// ضبط/تعديل/شيل تذكير. [existing] = null يعنى **تذكير جديد** (ملاحظة
+  /// واحدة ممكن يكون عليها أكتر من تذكير — مثلاً فكّرنى الصبح وتانى بالليل).
+  Future<void> _setReminder(Note n, {NoteReminder? existing}) async {
+    var slot = existing?.slot;
+    if (slot == null) {
+      slot = await _reminders.freeSlot(n.id!);
+      if (slot == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(tr('وصلت أقصى عدد تذكيرات للملاحظة دى',
+                'Max reminders reached for this note'))));
+        return;
+      }
+    }
+    if (!mounted) return;
     final res = await showNoteReminderSheet(context,
-        noteId: n.id!, existing: _rem[n.id]);
+        noteId: n.id!, existing: existing);
     if (res == null) return;
     if (res is ReminderRemoved) {
-      await _reminders.removeFor(n.id!);
+      await _reminders.removeOne(n.id!, slot);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(tr('اتشال التذكير', 'Reminder removed'))));
     } else if (res is NoteReminder) {
-      await _reminders.setFor(res, n.text);
+      await _reminders.setFor(
+          NoteReminder(
+            noteId: res.noteId,
+            slot: slot,
+            at: res.at,
+            repeat: res.repeat,
+            alarm: res.alarm,
+            soundUri: res.soundUri,
+            soundChannel: res.soundChannel,
+            soundLabel: res.soundLabel,
+          ),
+          n.text);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(tr('اتظبط التذكير ⏰', 'Reminder set ⏰'))));
     }
     await _load();
+  }
+
+  /// قايمة تذكيرات الملاحظة — تعديل واحد أو إضافة جديد.
+  Future<void> _remindersSheet(Note n) async {
+    final list = _rem[n.id] ?? const <NoteReminder>[];
+    if (list.isEmpty) {
+      await _setReminder(n);
+      return;
+    }
+    final scheme = Theme.of(context).colorScheme;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          for (final r in list)
+            ListTile(
+              leading: Icon(r.alarm ? Icons.alarm : Icons.notifications_none,
+                  color: scheme.primary),
+              title: Text(_reminderText(r)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _setReminder(n, existing: r);
+              },
+            ),
+          const Divider(height: 1),
+          ListTile(
+            leading: Icon(Icons.add_alarm, color: scheme.primary),
+            title: Text(tr('تذكير تانى', 'Another reminder')),
+            onTap: () {
+              Navigator.pop(ctx);
+              _setReminder(n);
+            },
+          ),
+        ]),
+      ),
+    );
+  }
+
+  /// نص مختصر للتذكير (الميعاد + التكرار).
+  String _reminderText(NoteReminder r) {
+    final t = r.time;
+    final when = t == null ? '' : '${arShortDate(t)} • ${arTime(t)}';
+    final rep = switch (r.repeat) {
+      NoteRepeat.daily => tr(' • يوميًا', ' • daily'),
+      NoteRepeat.weekly => tr(' • أسبوعيًا', ' • weekly'),
+      NoteRepeat.once => '',
+    };
+    return '$when$rep';
+  }
+
+  /// **تفريغ المذكرة نصًا** — الصوت نفسه مش قابل للبحث، فالنص بيخلّيك
+  /// تلاقيها. بيتكتب بالإيد أو بالإملاء (سماعة المذكرة شغّالة جنبه).
+  ///
+  /// ليه مش تفريغ تلقائى: محرّك النطق المتاح بيفرّغ **من الميكروفون
+  /// مباشرة** مش من ملف محفوظ، وتشغيل الاتنين مع بعض مش مضمون.
+  Future<void> _memoText(Note n) async {
+    final memo = _memo[n.id];
+    if (memo == null) return;
+    final ctrl = TextEditingController(text: memo.text);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('تفريغ المذكرة', 'Transcript')),
+        content: StatefulBuilder(
+          builder: (ctx, setDialog) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              VoiceMemoChip(memo: memo),
+              const SizedBox(height: 10),
+              TextField(
+                controller: ctrl,
+                autofocus: true,
+                maxLines: null,
+                minLines: 3,
+                decoration: InputDecoration(
+                  hintText: tr('اكتب اللى فى المذكرة…', 'Type what it says…'),
+                  suffixIcon: IconButton(
+                    tooltip: tr('اكتب بصوتك', 'By voice'),
+                    icon: const Icon(Icons.mic),
+                    onPressed: () async {
+                      final said = await showDictationSheet(ctx,
+                          initial: ctrl.text,
+                          title: tr('فرّغ بصوتك', 'Dictate transcript'));
+                      if (said != null) setDialog(() => ctrl.text = said);
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('إلغاء', 'Cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(tr('حفظ', 'Save'))),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await _memos.setText(n.id!, ctrl.text);
+      await _load();
+    }
   }
 
   /// تسجيل/تشغيل/مسح مذكرة صوتية مرفقة بالملاحظة.
@@ -269,9 +400,11 @@ class _NotesScreenState extends State<NotesScreen> {
         onSelected: (v) async {
           switch (v) {
             case 'remind':
-              await _setReminder(n);
+              await _remindersSheet(n);
             case 'memo':
               await _recordMemo(n);
+            case 'memo_text':
+              await _memoText(n);
             case 'edit':
               await _edit(n);
             case 'pin':
@@ -287,14 +420,21 @@ class _NotesScreenState extends State<NotesScreen> {
         itemBuilder: (_) => [
           PopupMenuItem(
               value: 'remind',
-              child: Text(_rem.containsKey(n.id)
-                  ? tr('عدّل التذكير ⏰', 'Edit reminder ⏰')
-                  : tr('ذكّرنى ⏰', 'Remind me ⏰'))),
+              child: Text((_rem[n.id] ?? const []).isEmpty
+                  ? tr('ذكّرنى ⏰', 'Remind me ⏰')
+                  : tr('التذكيرات (${arNum(_rem[n.id]!.length)}) ⏰',
+                      'Reminders (${arNum(_rem[n.id]!.length)}) ⏰'))),
           PopupMenuItem(
               value: 'memo',
               child: Text(_memo.containsKey(n.id)
                   ? tr('المذكرة الصوتية 🎙', 'Voice memo 🎙')
                   : tr('سجّل مذكرة صوتية 🎙', 'Record voice memo 🎙'))),
+          if (_memo[n.id] != null)
+            PopupMenuItem(
+                value: 'memo_text',
+                child: Text((_memo[n.id]!.text).isEmpty
+                    ? tr('فرّغ المذكرة نصًا 📝', 'Transcribe memo 📝')
+                    : tr('عدّل تفريغ المذكرة 📝', 'Edit transcript 📝'))),
           PopupMenuItem(
               value: 'pin',
               child: Text(n.pinned
@@ -312,7 +452,20 @@ class _NotesScreenState extends State<NotesScreen> {
       if (date != null)
         Text(arShortDate(date),
             style: TextStyle(fontSize: 11, color: scheme.outline)),
-      if (_rem[n.id] != null) _reminderChip(_rem[n.id]!, scheme),
+      for (final r in _rem[n.id] ?? const <NoteReminder>[])
+        _reminderChip(r, scheme),
+      if ((_memo[n.id]?.text ?? '').isNotEmpty)
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.mic, size: 12, color: scheme.outline),
+          const SizedBox(width: 3),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 180),
+            child: Text(_memo[n.id]!.text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, color: scheme.outline)),
+          ),
+        ]),
       if (_memo[n.id] != null) VoiceMemoChip(memo: _memo[n.id]!),
     ];
     return InkWell(

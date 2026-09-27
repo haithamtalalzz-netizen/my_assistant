@@ -3,6 +3,7 @@ import '../core/db.dart';
 import '../core/l10n.dart';
 import 'income_repo.dart';
 import 'meals_repo.dart';
+import 'voice_memos_repo.dart';
 import 'medical_repo.dart';
 import 'money_repo.dart';
 
@@ -32,6 +33,67 @@ class SearchRepo {
         hits.add(map(r));
       }
     }
+
+    // الملاحظات («تذكيراتى») — كانت **برّه البحث** رغم إنها أكتر حاجة
+    // بتتكتب بسرعة وبتتنسى.
+    await add(
+        'SELECT text, updated_at FROM notes WHERE text LIKE ? '
+        'ORDER BY pinned DESC, updated_at DESC LIMIT 10',
+        [like], (r) {
+      final t = (r['text'] as String).trim();
+      final d = DateTime.tryParse(r['updated_at'] as String? ?? '');
+      return SearchHit(
+          kind: 'note',
+          title: t.length > 60 ? '${t.substring(0, 60)}…' : t,
+          subtitle: tr('ملاحظة', 'Note') +
+              (d == null ? '' : ' • ${arShortDate(d)}'));
+    });
+
+    // تفريغ المذكرات الصوتية — مخزّن JSON مش جدول، فبنفلتره هنا.
+    final memos = await VoiceMemosRepo().all();
+    for (final m in memos) {
+      if (m.text.isEmpty) continue;
+      if (!m.text.toLowerCase().contains(q.toLowerCase())) continue;
+      hits.add(SearchHit(
+        kind: 'note',
+        title: m.text.length > 60 ? '${m.text.substring(0, 60)}…' : m.text,
+        subtitle: tr('تفريغ مذكرة صوتية', 'Voice memo transcript'),
+      ));
+    }
+
+    // اليوميات.
+    await add(
+        'SELECT text, day FROM diaries WHERE text LIKE ? '
+        'ORDER BY day DESC LIMIT 10',
+        [like], (r) {
+      final t = (r['text'] as String).trim();
+      return SearchHit(
+          kind: 'diary',
+          title: t.length > 60 ? '${t.substring(0, 60)}…' : t,
+          subtitle: '${tr('يومية', 'Diary')} • ${r['day']}');
+    });
+
+    // الوصفات.
+    await add(
+        'SELECT name, ingredients FROM recipes '
+        'WHERE name LIKE ? OR ingredients LIKE ? LIMIT 10',
+        [like, like],
+        (r) => SearchHit(
+            kind: 'recipe',
+            title: r['name'] as String,
+            subtitle: tr('وصفة', 'Recipe')));
+
+    // صلة الرحم.
+    await add(
+        'SELECT name, phone FROM relatives WHERE name LIKE ? LIMIT 10',
+        [like],
+        (r) => SearchHit(
+            kind: 'relative',
+            title: r['name'] as String,
+            subtitle: tr('قريب', 'Relative') +
+                ((r['phone'] as String?)?.isNotEmpty == true
+                    ? ' • ${r['phone']}'
+                    : '')));
 
     // المواعيد.
     await add(

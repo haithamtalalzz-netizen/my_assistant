@@ -21,21 +21,36 @@ class VoiceMemo {
   final int seconds;
   final String createdAt;
 
+  /// تفريغ نصّى اختيارى — بيخلّى المذكرة **قابلة للبحث** (الصوت نفسه
+  /// مش قابل للبحث). بيتكتب بالإيد أو بالإملاء.
+  final String text;
+
   const VoiceMemo({
     required this.noteId,
     required this.file,
     required this.seconds,
     required this.createdAt,
+    this.text = '',
   });
 
+  VoiceMemo copyWith({String? text}) => VoiceMemo(
+        noteId: noteId,
+        file: file,
+        seconds: seconds,
+        createdAt: createdAt,
+        text: text ?? this.text,
+      );
+
   Map<String, Object?> toJson() =>
-      {'n': noteId, 'f': file, 's': seconds, 'c': createdAt};
+      {'n': noteId, 'f': file, 's': seconds, 'c': createdAt, 't': text};
 
   factory VoiceMemo.fromJson(Map<String, dynamic> m) => VoiceMemo(
         noteId: (m['n'] as num?)?.toInt() ?? 0,
         file: m['f'] as String? ?? '',
         seconds: (m['s'] as num?)?.toInt() ?? 0,
         createdAt: m['c'] as String? ?? '',
+        // مذكرات قديمة مافيهاش نص.
+        text: m['t'] as String? ?? '',
       );
 
   /// صيغة العرض م:ث.
@@ -96,6 +111,15 @@ class VoiceMemosRepo {
     await _deleteFile(await forNote(memo.noteId));
     final list = await all()..removeWhere((e) => e.noteId == memo.noteId);
     list.add(memo);
+    await _save(list);
+  }
+
+  /// يحفظ/يعدّل التفريغ النصّى لمذكرة موجودة (الملف مايتلمسش).
+  Future<void> setText(int noteId, String text) async {
+    final list = await all();
+    final i = list.indexWhere((e) => e.noteId == noteId);
+    if (i < 0) return;
+    list[i] = list[i].copyWith(text: text.trim());
     await _save(list);
   }
 

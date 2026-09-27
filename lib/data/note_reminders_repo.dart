@@ -24,6 +24,10 @@ NoteRepeat noteRepeatFrom(String? s) => switch (s) {
 class NoteReminder {
   final int noteId;
 
+  /// خانة التذكير جوّه الملاحظة (0..9) — بتسمح بأكتر من تذكير لنفس
+  /// الملاحظة، وبتحدد معرّف الإشعار.
+  final int slot;
+
   /// وقت التذكير (ISO). للتكرار اليومى/الأسبوعى بنستخدم الساعة/الدقيقة (واليوم
   /// للأسبوعى) منه.
   final String at;
@@ -39,6 +43,7 @@ class NoteReminder {
 
   const NoteReminder({
     required this.noteId,
+    this.slot = 0,
     required this.at,
     this.repeat = NoteRepeat.once,
     this.alarm = true,
@@ -51,6 +56,7 @@ class NoteReminder {
 
   Map<String, Object?> toJson() => {
         'n': noteId,
+        's': slot,
         'at': at,
         'r': noteRepeatKey(repeat),
         'a': alarm,
@@ -61,6 +67,8 @@ class NoteReminder {
 
   factory NoteReminder.fromJson(Map<String, dynamic> m) => NoteReminder(
         noteId: (m['n'] as num?)?.toInt() ?? 0,
+        // تذكيرات قديمة مافيهاش خانة = الخانة صفر.
+        slot: (m['s'] as num?)?.toInt() ?? 0,
         at: m['at'] as String? ?? '',
         repeat: noteRepeatFrom(m['r'] as String?),
         alarm: m['a'] as bool? ?? true,
@@ -88,12 +96,27 @@ class NoteRemindersRepo {
     }
   }
 
-  Future<Map<int, NoteReminder>> byNote() async =>
-      {for (final r in await all()) r.noteId: r};
-
-  Future<NoteReminder?> forNote(int noteId) async {
+  /// كل تذكيرات كل ملاحظة — مرتّبة بالميعاد.
+  Future<Map<int, List<NoteReminder>>> byNote() async {
+    final out = <int, List<NoteReminder>>{};
     for (final r in await all()) {
-      if (r.noteId == noteId) return r;
+      out.putIfAbsent(r.noteId, () => []).add(r);
+    }
+    for (final list in out.values) {
+      list.sort((a, b) => a.at.compareTo(b.at));
+    }
+    return out;
+  }
+
+  /// تذكيرات ملاحظة واحدة.
+  Future<List<NoteReminder>> listFor(int noteId) async =>
+      (await byNote())[noteId] ?? const [];
+
+  /// أقرب خانة فاضية للملاحظة (لتذكير جديد). null = وصلت الحدّ (١٠).
+  Future<int?> freeSlot(int noteId) async {
+    final used = {for (final r in await listFor(noteId)) r.slot};
+    for (var i = 0; i < 10; i++) {
+      if (!used.contains(i)) return i;
     }
     return null;
   }
@@ -101,20 +124,33 @@ class NoteRemindersRepo {
   Future<void> _save(List<NoteReminder> list) async =>
       _s.set(_key, jsonEncode([for (final r in list) r.toJson()]));
 
-  /// يحفظ (أو يستبدل) تذكير ملاحظة ويجدوله.
+  /// يحفظ (أو يستبدل) تذكيرًا فى خانته ويجدوله.
   Future<void> setFor(NoteReminder r, String noteText) async {
     final list = await all()
-      ..removeWhere((e) => e.noteId == r.noteId);
+      ..removeWhere((e) => e.noteId == r.noteId && e.slot == r.slot);
     list.add(r);
     await _save(list);
     await _schedule(r, noteText);
   }
 
-  /// يشيل التذكير ويلغى إشعاره.
+  /// يشيل **كل** تذكيرات ملاحظة (بيتنادى عند حذفها).
   Future<void> removeFor(int noteId) async {
+    for (final r in await listFor(noteId)) {
+      await Notifications.cancel(
+          Notifications.noteNotifId(noteId, r.slot));
+    }
+    // المعرّف القديم (قبل دعم التعدّد) — لو فاضل مجدول من نسخة أقدم.
+    await Notifications.cancel(Notifications.legacyNoteNotifId(noteId));
     final list = await all()..removeWhere((e) => e.noteId == noteId);
     await _save(list);
-    await Notifications.cancel(Notifications.noteNotifId(noteId));
+  }
+
+  /// يشيل تذكيرًا واحدًا بخانته.
+  Future<void> removeOne(int noteId, int slot) async {
+    final list = await all()
+      ..removeWhere((e) => e.noteId == noteId && e.slot == slot);
+    await _save(list);
+    await Notifications.cancel(Notifications.noteNotifId(noteId, slot));
   }
 
   /// يعيد جدولة كل التذكيرات (عند فتح التطبيق) + ينضّف اللى ملاحظته اتمسحت
@@ -123,11 +159,17 @@ class NoteRemindersRepo {
     final list = await all();
     final kept = <NoteReminder>[];
     final now = DateTime.now();
+    // الترقية لدعم التعدّد غيّرت معرّفات الإشعارات — نلغى القديمة صراحةً
+    // وإلا تفضل مجدولة فى النظام وترنّ ومحدش يقدر يوقّفها.
+    for (final noteId in noteTexts.keys) {
+      await Notifications.cancel(Notifications.legacyNoteNotifId(noteId));
+    }
     for (final r in list) {
       final text = noteTexts[r.noteId];
       // الملاحظة اتمسحت → التذكير ملوش لازمة.
       if (text == null) {
-        await Notifications.cancel(Notifications.noteNotifId(r.noteId));
+        await Notifications.cancel(
+            Notifications.noteNotifId(r.noteId, r.slot));
         continue;
       }
       final t = r.time;
@@ -146,7 +188,7 @@ class NoteRemindersRepo {
   Future<void> _schedule(NoteReminder r, String noteText) async {
     final t = r.time;
     if (t == null) return;
-    final id = Notifications.noteNotifId(r.noteId);
+    final id = Notifications.noteNotifId(r.noteId, r.slot);
     await Notifications.cancel(id);
 
     final body = noteText.length > 120
@@ -166,7 +208,7 @@ class NoteRemindersRepo {
           title: 'تذكير',
           body: body,
           when: t,
-          payload: 'note|${r.noteId}',
+          payload: 'note|${r.noteId}|${r.slot}',
           actions: actions,
           noteAlarm: r.alarm,
           adhanUri: r.soundUri.isEmpty ? null : r.soundUri,
@@ -179,7 +221,7 @@ class NoteRemindersRepo {
           body: body,
           hour: t.hour,
           minute: t.minute,
-          payload: 'note|${r.noteId}',
+          payload: 'note|${r.noteId}|${r.slot}',
           actions: actions,
           noteAlarm: r.alarm,
           adhanUri: r.soundUri.isEmpty ? null : r.soundUri,
@@ -193,7 +235,7 @@ class NoteRemindersRepo {
           weekday: t.weekday,
           hour: t.hour,
           minute: t.minute,
-          payload: 'note|${r.noteId}',
+          payload: 'note|${r.noteId}|${r.slot}',
           actions: actions,
           noteAlarm: r.alarm,
           adhanUri: r.soundUri.isEmpty ? null : r.soundUri,

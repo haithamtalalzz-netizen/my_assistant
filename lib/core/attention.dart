@@ -12,6 +12,7 @@ import '../data/relatives_repo.dart';
 import '../data/tasks_repo.dart';
 import '../data/vaccinations_repo.dart';
 import '../models/models.dart';
+import '../data/settings_repo.dart';
 import 'ar.dart';
 import 'l10n.dart';
 
@@ -60,11 +61,22 @@ class AttentionItem {
   });
 }
 
+/// البنود اللى بتفضل ظاهرة فى وضع «يوم صعب» — اللى ليها ميعاد حقيقى
+/// وبتضرّ لو فاتت. الباقى (سلاسل · عادات · تقارير · تذكير النسخة) بيستنى.
+const Set<AttentionKind> _hardDayKeeps = {
+  AttentionKind.med,
+  AttentionKind.appointment,
+  AttentionKind.bill,
+};
+
 /// بيلمّ كل اللى محتاج تصرّف من كل أقسام التطبيق، مرتّب بالإلحاح.
 ///
 /// نقّى ومحلى بالكامل — مجرد قراءة من قواعد البيانات المحلية.
 /// [now] بتتحقن فى الاختبارات.
 Future<List<AttentionItem>> collectAttention([DateTime? nowArg]) async {
+  // **وضع «يوم صعب»**: الإعداد كان بيتحفظ ومحدش بيقراه — زرار بيوعد بحاجة
+  // مابتحصلش. دلوقتى بيهدّى فعلاً.
+  final hardDay = await SettingsRepo().hardDayMode();
   final now = nowArg ?? DateTime.now();
   final today = dayKey(now);
   final out = <AttentionItem>[];
@@ -248,6 +260,20 @@ Future<List<AttentionItem>> collectAttention([DateTime? nowArg]) async {
   // ————— تذكير النسخة الاحتياطية —————
   // كل البيانات محلية (وفيها صور المستندات)، فلو الموبايل ضاع من غير
   // نسخة برّه الجهاز = كله يروح. بند id=0 (مش سجل، إجراء واحد).
+  // نسخة موجودة لكنها **أقدم من دعم الأصوات المخصّصة** — بياناتك محفوظة
+  // بس أصوات الأذان/المنبّه مش معاها، والمستخدم مش هيعرف إلا لما يستعيد.
+  if (await BackupService.lastExportMissesSounds(now: now)) {
+    out.add(AttentionItem(
+      kind: AttentionKind.backup,
+      id: 0,
+      text: tr(
+          'نسختك الاحتياطية مفيهاش أصوات الأذان اللى اخترتها — اعمل واحدة جديدة',
+          'Your backup predates custom adhan sounds — make a new one'),
+      urgency: 5,
+      actionLabel: tr('اعمل نسخة', 'Back up'),
+    ));
+  }
+
   if (await BackupService.needsBackupReminder(now: now)) {
     final days = await BackupService.daysSinceExport(now: now);
     out.add(AttentionItem(
@@ -263,6 +289,9 @@ Future<List<AttentionItem>> collectAttention([DateTime? nowArg]) async {
     ));
   }
 
+  if (hardDay) {
+    out.removeWhere((e) => !_hardDayKeeps.contains(e.kind));
+  }
   out.sort((a, b) => a.urgency.compareTo(b.urgency));
   return out;
 }

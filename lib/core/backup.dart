@@ -95,6 +95,24 @@ class BackupService {
 
   static const String lastExportKey = 'last_manual_export';
 
+  /// أول يوم بقت فيه النسخة بتاخد **أصوات الأذان/المنبّه المخصّصة**.
+  /// أى نسخة أقدم من كده ناقصة أصواتك — والمستخدم مش هيعرف إلا لما
+  /// يستعيد على موبايل جديد ويلاقى التذكير بيرن بالصوت الافتراضى.
+  static final DateTime soundsInBackupSince = DateTime(2026, 9, 25);
+
+  /// هل آخر نسخة طلّعها المستخدم أقدم من دعم الأصوات؟
+  /// (null = عمره ما طلّع نسخة — ده تنبيه تانى مش ده.)
+  static Future<bool> lastExportMissesSounds({DateTime? now}) async {
+    final at = now ?? DateTime.now();
+    // قبل ما الميزة تنزل أصلاً مفيش «نقص» نحذّر منه.
+    if (at.isBefore(soundsInBackupSince)) return false;
+    final raw = await SettingsRepo().get(lastExportKey) ?? '';
+    if (raw.isEmpty) return false;
+    final last = DateTime.tryParse(raw);
+    if (last == null) return false;
+    return last.isBefore(soundsInBackupSince);
+  }
+
   /// كام يوم عدّى على آخر نسخة **طلّعها المستخدم برّه الجهاز** (تصدير/مشاركة).
   ///
   /// النسخة التلقائية بتفضل على الجهاز نفسه، فلو الموبايل ضاع بتروح معاه —

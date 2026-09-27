@@ -5556,15 +5556,15 @@ void main() {
             alarm: true,
           ),
           'ادفع الفاتورة');
-      final saved = await rem.forNote(id);
+      final saved = (await rem.listFor(id)).firstOrNull;
       expect(saved, isNotNull);
       expect(saved!.repeat, NoteRepeat.daily);
       expect(saved.alarm, isTrue);
-      expect((await rem.byNote())[id], isNotNull);
+      expect((await rem.byNote())[id], isNotEmpty);
 
       // ملاحظة اتمسحت → إعادة الجدولة بتشيل تذكيرها.
       await rem.rescheduleAll({});
-      expect(await rem.forNote(id), isNull);
+      expect(await rem.listFor(id), isEmpty);
 
       // الشيل اليدوى.
       await rem.setFor(
@@ -5572,9 +5572,62 @@ void main() {
               noteId: id,
               at: DateTime.now().add(const Duration(hours: 2)).toIso8601String()),
           'ادفع الفاتورة');
-      expect(await rem.forNote(id), isNotNull);
+      expect(await rem.listFor(id), isNotEmpty);
       await rem.removeFor(id);
-      expect(await rem.forNote(id), isNull);
+      expect(await rem.listFor(id), isEmpty);
+    });
+
+
+    test('أكتر من تذكير لنفس الملاحظة — كل واحد بخانته', () async {
+      final notes = NotesRepo();
+      final rem = NoteRemindersRepo();
+      final id = await notes.add('اتصل بماما');
+
+      // أول تذكير بياخد خانة 0، والتانى 1.
+      expect(await rem.freeSlot(id), 0);
+      await rem.setFor(
+          NoteReminder(
+              noteId: id,
+              slot: 0,
+              at: DateTime(2026, 9, 29, 9, 0).toIso8601String()),
+          'اتصل بماما');
+      expect(await rem.freeSlot(id), 1);
+      await rem.setFor(
+          NoteReminder(
+              noteId: id,
+              slot: 1,
+              at: DateTime(2026, 9, 29, 21, 0).toIso8601String(),
+              repeat: NoteRepeat.daily),
+          'اتصل بماما');
+
+      final list = await rem.listFor(id);
+      expect(list.length, 2);
+      // مرتّبين بالميعاد.
+      expect(list.first.slot, 0);
+      expect(list.last.repeat, NoteRepeat.daily);
+
+      // شيل واحد → التانى يفضل.
+      await rem.removeOne(id, 0);
+      final left = await rem.listFor(id);
+      expect(left.length, 1);
+      expect(left.first.slot, 1);
+      // والخانة الفاضية بقت 0 تانى.
+      expect(await rem.freeSlot(id), 0);
+
+      // حذف الملاحظة بيشيل كل تذكيراتها.
+      await rem.removeFor(id);
+      expect(await rem.listFor(id), isEmpty);
+    });
+
+    test('تذكير قديم من غير خانة بيتقرا على الخانة صفر', () {
+      final r = NoteReminder.fromJson({
+        'n': 7,
+        'at': '2026-09-29T09:00:00.000',
+        'r': 'once',
+        'a': true,
+      });
+      expect(r.slot, 0);
+      expect(r.noteId, 7);
     });
 
     test('مفاتيح التكرار بتتحوّل ذهابًا وإيابًا', () {
@@ -5599,7 +5652,7 @@ void main() {
           file: 'note_${id}_x.m4a',
           seconds: 5,
           createdAt: DateTime.now().toIso8601String()));
-      expect(await rem.forNote(id), isNotNull);
+      expect(await rem.listFor(id), isNotEmpty);
       expect(await memos.forNote(id), isNotNull);
 
       // نفس ترتيب شاشة الملاحظات فى الحذف.
@@ -5608,7 +5661,7 @@ void main() {
       await notes.delete(id);
 
       expect(await notes.byId(id), isNull);
-      expect(await rem.forNote(id), isNull, reason: 'التذكير لازم يتلغى');
+      expect((await rem.listFor(id)).firstOrNull, isNull, reason: 'التذكير لازم يتلغى');
       expect(await memos.forNote(id), isNull, reason: 'المذكرة لازم تتشال');
     });
 
@@ -6243,6 +6296,138 @@ void main() {
       expect(await MorningDigest.isEnabled(), isFalse);
       await SettingsRepo().set(MorningDigest.enabledKey, '1');
       expect(await MorningDigest.isEnabled(), isTrue);
+    });
+  });
+
+
+  // ————— البحث الموحّد: البنود اللى كانت برّاه —————
+  group('البحث الموحّد', () {
+    test('بيلاقى الملاحظات (كانت برّه البحث خالص)', () async {
+      await NotesRepo().add('رقم الفنى: 01223456789');
+      await NotesRepo().add('حاجة تانية');
+      final hits = await SearchRepo().search('الفنى');
+      expect(hits.where((h) => h.kind == 'note').length, 1);
+      expect(hits.first.title, contains('الفنى'));
+    });
+
+    test('المثبّت بيطلع الأول فى نتايج الملاحظات', () async {
+      await NotesRepo().add('ملاحظة عادية عن الشغل');
+      final pinned = await NotesRepo().add('ملاحظة مهمة عن الشغل');
+      await NotesRepo().setPinned(pinned, true);
+      final hits = await SearchRepo().search('الشغل');
+      final notes = hits.where((h) => h.kind == 'note').toList();
+      expect(notes.length, 2);
+      expect(notes.first.title, contains('مهمة'));
+    });
+
+    test('بيلاقى اليوميات والوصفات وصلة الرحم', () async {
+      final iso = DateTime.now().toIso8601String();
+      await DiariesRepo()
+          .add(Diary(day: '2026-09-28', text: 'يوم جميل فى الإسكندرية',
+              createdAt: iso));
+      await RecipesRepo().save(const Recipe(name: 'كشرى', ingredients: 'رز'));
+      await RelativesRepo().save(const Relative(name: 'خالد', phone: '0100'));
+
+      expect((await SearchRepo().search('الإسكندرية'))
+          .any((h) => h.kind == 'diary'), isTrue);
+      expect((await SearchRepo().search('كشرى'))
+          .any((h) => h.kind == 'recipe'), isTrue);
+      expect((await SearchRepo().search('خالد'))
+          .any((h) => h.kind == 'relative'), isTrue);
+    });
+
+    test('تفريغ المذكرة الصوتية بيتلاقى (الصوت نفسه مش قابل للبحث)', () async {
+      final id = await NotesRepo().add('مذكرة من الاجتماع');
+      final memos = VoiceMemosRepo();
+      await memos.setFor(VoiceMemo(
+          noteId: id, file: 'x.m4a', seconds: 12, createdAt: ''));
+      // من غير تفريغ مفيش نتيجة.
+      expect((await SearchRepo().search('الميزانية')).any(
+          (h) => h.subtitle.contains('مذكرة')), isFalse);
+      await memos.setText(id, 'اتكلمنا عن الميزانية والتسليم');
+      final hits = await SearchRepo().search('الميزانية');
+      expect(hits.any((h) => h.title.contains('الميزانية')), isTrue);
+    });
+
+    test('حرف واحد مابيرجّعش نتايج (مش بنسحب القاعدة كلها)', () async {
+      await NotesRepo().add('حاجة');
+      expect(await SearchRepo().search('ح'), isEmpty);
+    });
+  });
+
+
+  // ————— إعدادات لازم **تعمل** حاجة فعلاً —————
+  // زرار بيتحفظ ومحدش بيقراه = وعد كاذب. الاختبارات دى بتختبر التوصيل
+  // نفسه، مش وجود الإعداد.
+  group('وضع «يوم صعب»', () {
+    Future<void> seedPressure(DateTime now) async {
+      // دوا النهارده (ميعاد حقيقى) + مهمة فايتة (ضغط).
+      await MedsRepo().save(const Medication(
+          name: 'كونكور', dosage: '5', times: ['08:00']));
+      await TasksRepo().save(Task(
+          title: 'مهمة متأخرة',
+          dueAt: now.subtract(const Duration(days: 1)).toIso8601String(),
+          createdAt: ''));
+    }
+
+    test('مقفول: البنود بتظهر كلها', () async {
+      final now = DateTime(2026, 9, 28, 20);
+      await seedPressure(now);
+      final items = await collectAttention(now);
+      expect(items.any((i) => i.kind == AttentionKind.med), isTrue);
+      expect(items.any((i) => i.kind == AttentionKind.task), isTrue);
+    });
+
+    test('مفتوح: الدوا بيفضل، والضغط بيتأجّل', () async {
+      final now = DateTime(2026, 9, 28, 20);
+      await seedPressure(now);
+      await SettingsRepo().set('hard_day_mode', '1');
+      final items = await collectAttention(now);
+      expect(items.any((i) => i.kind == AttentionKind.med), isTrue,
+          reason: 'الدوا ميعاد حقيقى — مايتأجلش');
+      expect(items.any((i) => i.kind == AttentionKind.task), isFalse,
+          reason: 'المهام ضغط — بتستنى بكرة (ده نصّ الوعد فى الإعدادات)');
+      expect(items.any((i) => i.kind == AttentionKind.backup), isFalse,
+          reason: 'تذكير النسخة مش مستعجل النهارده');
+    });
+  });
+
+  group('تنبيه النسخة القديمة (مفيهاش الأصوات)', () {
+    test('نسخة قبل دعم الأصوات = تنبيه', () async {
+      await SettingsRepo().set(BackupService.lastExportKey,
+          DateTime(2026, 9, 1).toIso8601String());
+      expect(
+          await BackupService.lastExportMissesSounds(
+              now: DateTime(2026, 9, 28)),
+          isTrue);
+    });
+
+    test('نسخة بعد الدعم = مفيش تنبيه', () async {
+      await SettingsRepo().set(BackupService.lastExportKey,
+          DateTime(2026, 9, 26).toIso8601String());
+      expect(
+          await BackupService.lastExportMissesSounds(
+              now: DateTime(2026, 9, 28)),
+          isFalse);
+    });
+
+    test('عمره ما عمل نسخة = ده تنبيه تانى مش ده', () async {
+      expect(
+          await BackupService.lastExportMissesSounds(
+              now: DateTime(2026, 9, 28)),
+          isFalse);
+      // اللى بيتصرف فى الحالة دى هو تذكير النسخة العادى.
+      expect(await BackupService.needsBackupReminder(now: DateTime(2026, 9, 28)),
+          isTrue);
+    });
+
+    test('قبل نزول الميزة أصلاً = مفيش تنبيه', () async {
+      await SettingsRepo().set(BackupService.lastExportKey,
+          DateTime(2026, 7, 1).toIso8601String());
+      expect(
+          await BackupService.lastExportMissesSounds(
+              now: DateTime(2026, 7, 15)),
+          isFalse);
     });
   });
 

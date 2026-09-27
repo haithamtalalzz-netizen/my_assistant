@@ -25,6 +25,10 @@ import 'pets/pets_screen.dart';
 import 'health/vaccinations_screen.dart';
 import 'health/lab_results_screen.dart';
 import 'home/plants_screen.dart';
+import 'notes_screen.dart';
+import 'diary_screen.dart';
+import 'recipes_screen.dart';
+import 'baladna/relatives_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -77,6 +81,10 @@ class _SearchScreenState extends State<SearchScreen> {
 
   /// اسم النوع للعرض فى شرائح الفلتر.
   String _kindLabel(String kind) => switch (kind) {
+        'note' => tr('تذكيراتى', 'Notes'),
+        'diary' => tr('يوميات', 'Diary'),
+        'recipe' => tr('وصفات', 'Recipes'),
+        'relative' => tr('صلة رحم', 'Relatives'),
         'appointment' => tr('مواعيد', 'Appointments'),
         'expense' => tr('مصاريف', 'Expenses'),
         'income' => tr('دخل', 'Income'),
@@ -142,6 +150,10 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   IconData _iconFor(String kind) => switch (kind) {
+        'note' => Icons.sticky_note_2_outlined,
+        'diary' => Icons.book_outlined,
+        'recipe' => Icons.restaurant_menu,
+        'relative' => Icons.diversity_3,
         'appointment' => Icons.event,
         'expense' => Icons.account_balance_wallet_outlined,
         'income' => Icons.south_west,
@@ -169,6 +181,10 @@ class _SearchScreenState extends State<SearchScreen> {
       };
 
   Widget? _screenFor(String kind) => switch (kind) {
+        'note' => const NotesScreen(),
+        'diary' => const DiaryScreen(),
+        'recipe' => const RecipesScreen(),
+        'relative' => const RelativesScreen(),
         'appointment' || 'medication' => const ScheduleScreen(),
         'expense' || 'income' => const MoneyScreen(),
         'document' => const DocsScreen(),

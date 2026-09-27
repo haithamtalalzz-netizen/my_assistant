@@ -49,15 +49,18 @@ Future<void> handleNotificationResponse(NotificationResponse response) async {
         if (parts.length >= 2 && parts[0] == 'appt') {
           await _snoozeAppt(int.parse(parts[1]));
         }
-      // «تمّ» على تذكير ملاحظة: يشيل التذكير (والإشعار اتقفل بالفعل).
+      // «تمّ» على تذكير ملاحظة: يشيل **التذكير اللى رنّ بس** (الملاحظة
+      // ممكن يكون عليها أكتر من تذكير). الجزء التالت = الخانة؛ الإشعارات
+      // القديمة مافيهاش خانة فبتتقرا صفر.
       case 'note_done':
         if (parts.length >= 2 && parts[0] == 'note') {
           await Notifications.init();
-          await NoteRemindersRepo().removeFor(int.parse(parts[1]));
+          await NoteRemindersRepo().removeOne(
+              int.parse(parts[1]), _slotOf(parts));
         }
       case 'note_snooze':
         if (parts.length >= 2 && parts[0] == 'note') {
-          await _snoozeNote(int.parse(parts[1]));
+          await _snoozeNote(int.parse(parts[1]), _slotOf(parts));
         }
     }
     await WidgetBridge.push();
@@ -68,18 +71,25 @@ Future<void> handleNotificationResponse(NotificationResponse response) async {
 
 /// «أجّل ١٠ دقايق» لتذكير ملاحظة — بيعيد نفس الرنين (منبّه/عادى + الصوت
 /// المخصّص) بعد ١٠ دقايق، من غير ما يغيّر التذكير المحفوظ.
-Future<void> _snoozeNote(int id) async {
+int _slotOf(List<String> parts) =>
+    parts.length >= 3 ? (int.tryParse(parts[2]) ?? 0) : 0;
+
+Future<void> _snoozeNote(int id, int slot) async {
   await Notifications.init();
-  final rem = await NoteRemindersRepo().forNote(id);
+  final list = await NoteRemindersRepo().listFor(id);
+  NoteReminder? rem;
+  for (final r in list) {
+    if (r.slot == slot) rem = r;
+  }
   if (rem == null) return;
   final note = await NotesRepo().byId(id);
   if (note == null) return;
   await Notifications.scheduleOnce(
-    id: Notifications.noteNotifId(id),
+    id: Notifications.noteNotifId(id, slot),
     title: tr('تذكير مؤجَّل', 'Snoozed reminder'),
     body: note.text.length > 120 ? '${note.text.substring(0, 120)}…' : note.text,
     when: DateTime.now().add(const Duration(minutes: 10)),
-    payload: 'note|$id',
+    payload: 'note|$id|$slot',
     noteAlarm: rem.alarm,
     adhanUri: rem.soundUri.isEmpty ? null : rem.soundUri,
     adhanChannel: rem.soundChannel.isEmpty ? null : rem.soundChannel,
