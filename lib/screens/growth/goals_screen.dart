@@ -4,6 +4,7 @@ import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../data/goals_repo.dart';
 import '../../models/models.dart';
+import '../../widgets/a_kit.dart';
 import '../../widgets/common.dart';
 
 /// الأهداف بمعالم — كل هدف له معالم، والتقدّم من المعالم المكتملة.
@@ -39,26 +40,89 @@ class _GoalsScreenState extends State<GoalsScreen> {
     });
   }
 
+  /// نسبة إنجاز هدف (من معالمه، أو تمام/لسه لو مفيش معالم).
+  double _ratio(Goal g) {
+    final (done, total) = _progress[g.id] ?? (0, 0);
+    return total == 0 ? (g.done ? 1.0 : 0.0) : done / total;
+  }
+
+  /// أقرب هدف للنهاية — البطل. (اللى خلص مش مرشّح، ولا اللى لسه ما بدأش.)
+  Goal? get _closest {
+    final live = [
+      for (final g in _goals)
+        if (!g.done && _ratio(g) > 0) g
+    ];
+    if (live.isEmpty) return null;
+    live.sort((a, b) => _ratio(b).compareTo(_ratio(a)));
+    return live.first;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final hero = _closest;
+    final openCount = _goals.where((g) => !g.done).length;
     return Scaffold(
       appBar: AppBar(title: Text(tr('الأهداف', 'Goals'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _load,
-              child: _goals.isEmpty
-                  ? ListView(children: [
-                      const SizedBox(height: 60),
-                      EmptyHint(
-                          icon: Icons.flag_outlined,
-                          text: tr('مفيش أهداف — ضيف هدف بزرار +',
-                              'No goals yet — add one with +')),
-                    ])
-                  : ListView(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 90),
-                      children: [for (final g in _goals) _goalCard(g)],
-                    ),
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 96),
+                children: [
+                  AppPad(
+                    hero == null
+                        ? AppHero(
+                            icon: Icons.flag_outlined,
+                            kicker: tr('أهدافك', 'Your goals'),
+                            title: _goals.isEmpty
+                                ? tr('ابدأ بهدف واحد', 'Start with one goal')
+                                : tr('حرّك هدف النهارده',
+                                    'Move a goal today'),
+                            primaryLabel: tr('هدف جديد', 'New goal'),
+                            primaryIcon: Icons.add,
+                            onPrimary: _goalForm,
+                          )
+                        : AppHero(
+                            icon: Icons.flag,
+                            kicker: tr('أقرب هدف للنهاية', 'Closest to done'),
+                            title: hero.title,
+                            trailingBig:
+                                '${arNum((_ratio(hero) * 100).round())}%',
+                            trailingSmall: _milestoneLabel(hero),
+                            primaryLabel: tr('افتحه', 'Open'),
+                            primaryIcon: Icons.arrow_forward,
+                            onPrimary: () => _openGoal(hero),
+                            secondaryLabel: tr('هدف جديد', 'New goal'),
+                            onSecondary: _goalForm,
+                            extra: AppHeroBar(_ratio(hero),
+                                _heroHint(hero)),
+                          ),
+                    top: 12,
+                  ),
+                  const SizedBox(height: 20),
+                  if (_goals.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 30),
+                      child: EmptyHint(
+                        icon: Icons.flag_outlined,
+                        text: tr('مفيش أهداف — ضيف هدف بزرار +',
+                            'No goals yet — add one with +'),
+                        actionLabel: tr('ضيف هدف', 'Add a goal'),
+                        onAction: _goalForm,
+                      ),
+                    )
+                  else ...[
+                    AppPad(AppSectionTitle(tr('أهدافك', 'Your goals'),
+                        trailing: tr('${arNum(openCount)} شغّالة',
+                            '${arNum(openCount)} open'))),
+                    AppPad(AppCard(Column(children: [
+                      for (var i = 0; i < _goals.length; i++)
+                        _goalRow(_goals[i], last: i == _goals.length - 1),
+                    ]))),
+                  ],
+                ],
+              ),
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _goalForm(),
@@ -68,57 +132,84 @@ class _GoalsScreenState extends State<GoalsScreen> {
     );
   }
 
-  Widget _goalCard(Goal g) {
-    final scheme = Theme.of(context).colorScheme;
+  String _milestoneLabel(Goal g) {
     final (done, total) = _progress[g.id] ?? (0, 0);
-    final ratio = total == 0 ? (g.done ? 1.0 : 0.0) : done / total;
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: InkWell(
-        onTap: () => _openGoal(g),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+    return total == 0
+        ? tr('لا معالم', 'No milestones')
+        : tr('${arNum(done)} من ${arNum(total)}',
+            '${arNum(done)} of ${arNum(total)}');
+  }
+
+  String _heroHint(Goal g) {
+    final (done, total) = _progress[g.id] ?? (0, 0);
+    final left = total - done;
+    final target = g.target == null
+        ? ''
+        : tr(' · الموعد ${arShortDate(g.target!)}',
+            ' · due ${arShortDate(g.target!)}');
+    return total == 0
+        ? tr('ضيف معالم عشان تقيس تقدّمك$target',
+            'Add milestones to track progress$target')
+        : tr('باقى ${arNum(left)} معالم$target',
+            '${arNum(left)} milestones left$target');
+  }
+
+  /// سطر هدف جوّه كارت القسم — بشريط تقدّم.
+  Widget _goalRow(Goal g, {bool last = false}) {
+    final scheme = Theme.of(context).colorScheme;
+    final ratio = _ratio(g);
+    return InkWell(
+      onTap: () => _openGoal(g),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        decoration: last
+            ? null
+            : BoxDecoration(
+                border: Border(
+                    bottom: BorderSide(
+                        color: scheme.outlineVariant.withValues(alpha: 0.7)))),
+        child: Column(children: [
+          Row(children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(g.title,
-                        style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            decoration:
-                                g.done ? TextDecoration.lineThrough : null,
-                            color: g.done ? scheme.outline : null)),
-                  ),
-                  Text('${arNum((ratio * 100).round())}%',
+                  Text(g.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontWeight: FontWeight.w800, color: scheme.primary)),
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          decoration:
+                              g.done ? TextDecoration.lineThrough : null,
+                          color: g.done ? scheme.outline : scheme.onSurface)),
+                  const SizedBox(height: 2),
+                  Text(
+                      g.target == null
+                          ? _milestoneLabel(g)
+                          : '${_milestoneLabel(g)} · ${arShortDate(g.target!)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 11, color: scheme.onSurfaceVariant)),
                 ],
               ),
-              if (g.target != null) ...[
-                const SizedBox(height: 2),
-                Text(tr('الموعد: ${arShortDate(g.target!)}',
-                    'Target: ${arShortDate(g.target!)}'),
-                    style: TextStyle(fontSize: 12, color: scheme.outline)),
-              ],
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(value: ratio, minHeight: 7),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                  total == 0
-                      ? tr('لا معالم بعد', 'No milestones yet')
-                      : tr('${arNum(done)} من ${arNum(total)} معالم',
-                          '${arNum(done)} of ${arNum(total)} milestones'),
-                  style: TextStyle(fontSize: 12, color: scheme.outline)),
-            ],
+            ),
+            Text('${arNum((ratio * 100).round())}%',
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: g.done ? scheme.outline : scheme.primary)),
+          ]),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+                value: ratio,
+                minHeight: 6,
+                backgroundColor: scheme.outlineVariant.withValues(alpha: 0.5)),
           ),
-        ),
+        ]),
       ),
     );
   }

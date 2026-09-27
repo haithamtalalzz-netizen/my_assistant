@@ -18,9 +18,13 @@ import 'package:my_assistant/data/appointments_repo.dart';
 import 'package:my_assistant/data/meds_repo.dart';
 import 'package:my_assistant/data/notes_repo.dart';
 import 'package:my_assistant/data/health_repo.dart';
+import 'package:my_assistant/data/goals_repo.dart';
 import 'package:my_assistant/data/tasks_repo.dart';
 import 'package:my_assistant/models/models.dart';
 import 'package:my_assistant/screens/notes_screen.dart';
+import 'package:my_assistant/screens/growth/goals_screen.dart';
+import 'package:my_assistant/screens/schedule/schedule_screen.dart';
+import 'package:my_assistant/screens/tasks/tasks_screen.dart';
 import 'package:my_assistant/screens/today_screen.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -101,6 +105,78 @@ void main() {
       size: const Size(390, 1100),
       pixelRatio: 2,
     );
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+
+  testWidgets('مواعيدى — الشكل الجديد', (tester) async {
+    final now = DateTime.now();
+    final repo = AppointmentsRepo();
+    await repo.save(Appointment(
+        title: 'د. أحمد — أسنان',
+        category: 'دكتور',
+        when: now.add(const Duration(hours: 3)),
+        location: 'عيادة المهندسين'));
+    await repo.save(Appointment(
+        title: 'اجتماع الشغل',
+        category: 'شغل',
+        when: now.add(const Duration(days: 1, hours: 2))));
+    await repo.save(Appointment(
+        title: 'صيانة العربية',
+        category: 'عربية',
+        when: now.subtract(const Duration(days: 2))));
+
+    final f = await shot(tester, 'real_schedule',
+        shotApp(buildTheme(), const ScheduleScreen()),
+        size: const Size(390, 1000), pixelRatio: 2);
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('مهامى — الشكل الجديد', (tester) async {
+    final now = DateTime.now();
+    final repo = TasksRepo();
+    final pid = await repo.saveProject(
+        Project(name: 'تجهيز الشقة', color: 0xFF7C5CFF, createdAt: ''));
+    final t1 = await repo.save(Task(
+        title: 'دهان الأوضة',
+        projectId: pid,
+        priority: 2,
+        dueAt: DateTime(now.year, now.month, now.day, 23, 0)
+            .toIso8601String(),
+        createdAt: ''));
+    await repo.addSubtask(t1, 'شراء الدهانات');
+    await repo.addSubtask(t1, 'تغطية العفش');
+    await repo.save(Task(
+        title: 'اتصل بشركة النت', createdAt: ''));
+    await repo.save(Task(
+        title: 'دفع فاتورة الغاز',
+        dueAt: now.subtract(const Duration(days: 1)).toIso8601String(),
+        createdAt: ''));
+    final done = await repo.save(Task(title: 'تجديد الباقة', createdAt: ''));
+    await repo.setDone(done, true);
+
+    final f = await shot(tester, 'real_tasks',
+        shotApp(buildTheme(), const TasksScreen()),
+        size: const Size(390, 1100), pixelRatio: 2);
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('الأهداف — الشكل الجديد', (tester) async {
+    final repo = GoalsRepo();
+    final g1 = await repo.save(const Goal(title: 'أقرا 12 كتاب', createdAt: ''));
+    for (var i = 0; i < 4; i++) {
+      final m = await repo.addMilestone(g1, 'كتاب ${i + 1}');
+      if (i < 3) await repo.toggleMilestone(m, true);
+    }
+    final g2 = await repo.save(const Goal(title: 'أوصل 80 كيلو', createdAt: ''));
+    final m2 = await repo.addMilestone(g2, 'أول 5 كيلو');
+    await repo.toggleMilestone(m2, true);
+    await repo.addMilestone(g2, 'تانى 5 كيلو');
+    await repo.save(const Goal(title: 'أحفظ جزء عمّ', createdAt: ''));
+
+    final f = await shot(tester, 'real_goals',
+        shotApp(buildTheme(), const GoalsScreen()),
+        size: const Size(390, 900), pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
   });
 

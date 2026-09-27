@@ -8,6 +8,7 @@ import '../../widgets/search_action.dart';
 import '../../data/appointments_repo.dart';
 import '../../data/meds_repo.dart';
 import '../../models/models.dart';
+import '../../widgets/a_kit.dart';
 import '../../widgets/common.dart';
 import 'appointment_form.dart';
 import 'med_form.dart';
@@ -106,37 +107,46 @@ class _AppointmentsTabState extends State<_AppointmentsTab> {
     if (mounted) await _load();
   }
 
-  Widget _tile(Appointment a, {bool faded = false}) {
+  /// سطر موعد جوّه كارت القسم — نفس الإجراءات القديمة بالظبط.
+  Widget _tile(Appointment a, {bool faded = false, bool last = false}) {
     final scheme = Theme.of(context).colorScheme;
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 3),
-      child: Opacity(
-        opacity: faded ? 0.6 : 1,
-        child: ListTile(
-          leading: Checkbox(
-            value: a.done,
-            onChanged: (_) async {
-              HapticFeedback.selectionClick();
-              await _repo.setDone(a.id!, !a.done);
-              if (mounted) await _load();
-            },
-          ),
-          title: Row(
-            children: [
-              Flexible(child: Text(a.title)),
-              if (a.isRecurring) ...[
-                const SizedBox(width: 6),
-                Icon(Icons.repeat, size: 15, color: scheme.primary),
-              ],
-            ],
-          ),
-          subtitle: Text(
-              '${arFullDate(a.when)} • ${arTime(a.when)} • ${a.category}'
-              '${a.isRecurring ? ' • ${repeatLabel(a.repeat)}' : ''}'
-              '${a.postponeCount >= 2 && !a.done ? tr(' • اتأجل ${arNum(a.postponeCount)} مرات', ' • postponed ${arNum(a.postponeCount)}×') : ''}'
-              '${a.notes.isEmpty ? '' : '\n${a.notes}'}'),
-          isThreeLine: a.notes.isNotEmpty,
-          trailing: PopupMenuButton<String>(
+    final overdue = !a.done && a.when.isBefore(dateOnly(DateTime.now()));
+    final sub = StringBuffer()
+      ..write('${arFullDate(a.when)} • ${arTime(a.when)}');
+    if (a.category.isNotEmpty) sub.write(' • ${a.category}');
+    if (a.location.isNotEmpty) sub.write(' • ${a.location}');
+    if (a.isRecurring) sub.write(' • ${repeatLabel(a.repeat)}');
+    if (a.postponeCount >= 2 && !a.done) {
+      sub.write(tr(' • اتأجل ${arNum(a.postponeCount)} مرات',
+          ' • postponed ${arNum(a.postponeCount)}×'));
+    }
+    return Opacity(
+      opacity: faded ? 0.6 : 1,
+      child: AppListRow(
+        title: a.title,
+        sub: sub.toString(),
+        check: true,
+        checked: a.done,
+        divider: !last,
+        onTap: () => _openForm(a),
+        onCheck: () async {
+          HapticFeedback.selectionClick();
+          await _repo.setDone(a.id!, !a.done);
+          if (mounted) await _load();
+        },
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (a.isRecurring)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Icon(Icons.repeat, size: 15, color: scheme.primary),
+            ),
+          if (overdue)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Icon(Icons.priority_high, size: 16, color: scheme.error),
+            ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, size: 20),
             onSelected: (v) async {
               switch (v) {
                 case 'edit':
@@ -147,41 +157,128 @@ class _AppointmentsTabState extends State<_AppointmentsTab> {
             },
             itemBuilder: (_) => [
               PopupMenuItem(value: 'edit', child: Text(tr('تعديل', 'Edit'))),
-              PopupMenuItem(
-                  value: 'delete', child: Text(tr('حذف', 'Delete'))),
+              PopupMenuItem(value: 'delete', child: Text(tr('حذف', 'Delete'))),
             ],
           ),
-        ),
+        ]),
       ),
     );
   }
+
+  /// أقرب موعد جاى — البطل.
+  Appointment? get _next {
+    final now = DateTime.now();
+    final future = [
+      for (final a in _upcoming)
+        if (!a.when.isBefore(now)) a
+    ]..sort((x, y) => x.when.compareTo(y.when));
+    return future.isEmpty ? null : future.first;
+  }
+
+  String _whenLabel(DateTime when) {
+    final mins = when.difference(DateTime.now()).inMinutes;
+    if (mins < 0) return tr('فات', 'passed');
+    if (mins < 60) return tr('بعد ${arNum(mins)} دقيقة', 'in ${arNum(mins)} min');
+    final hours = mins ~/ 60;
+    if (hours < 24) {
+      return tr('بعد ${arNum(hours)} ساعات', 'in ${arNum(hours)}h');
+    }
+    final days = when.difference(dateOnly(DateTime.now())).inDays;
+    return days == 1
+        ? tr('بكرة', 'tomorrow')
+        : tr('بعد ${arNum(days)} أيام', 'in ${arNum(days)} days');
+  }
+
+  Widget _hero() {
+    final a = _next;
+    if (a == null) {
+      return AppHero(
+        icon: Icons.event_available,
+        kicker: tr('مواعيدك', 'Your calendar'),
+        title: _overdue.isEmpty
+            ? tr('مفيش مواعيد قادمة', 'No upcoming appointments')
+            : tr('فيه مواعيد فاتت', 'Some appointments were missed'),
+        primaryLabel: tr('موعد جديد', 'New appointment'),
+        primaryIcon: Icons.add,
+        onPrimary: _openForm,
+      );
+    }
+    return AppHero(
+      icon: Icons.event,
+      kicker: tr('أقرب موعد', 'Next appointment'),
+      title: a.title,
+      trailingBig: arTime(a.when),
+      trailingSmall: _whenLabel(a.when),
+      primaryLabel: tr('تم', 'Done'),
+      primaryIcon: Icons.check,
+      onPrimary: () async {
+        await _repo.setDone(a.id!, true);
+        if (mounted) await _load();
+      },
+      secondaryLabel: tr('التفاصيل', 'Details'),
+      onSecondary: () => _openForm(a),
+      colors: const [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+      extra: (a.location.isEmpty && a.notes.isEmpty)
+          ? null
+          : Row(children: [
+              Icon(a.location.isEmpty ? Icons.notes : Icons.place_outlined,
+                  size: 14, color: Colors.white70),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                    a.location.isEmpty ? a.notes : a.location,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        color: Colors.white.withValues(alpha: 0.9))),
+              ),
+            ]),
+    );
+  }
+
+  Widget _group(String title, List<Appointment> list,
+          {String? trailing, bool faded = false}) =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        AppPad(AppSectionTitle(title, trailing: trailing)),
+        AppPad(AppCard(Column(children: [
+          for (var i = 0; i < list.length; i++)
+            _tile(list[i], faded: faded, last: i == list.length - 1),
+        ]))),
+        const SizedBox(height: 18),
+      ]);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _loading
+
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                padding: const EdgeInsets.only(bottom: 96),
                 children: [
-                  if (_overdue.isNotEmpty) ...[
-                    SectionHeader(tr('فاتت من غير ما تتعمل', 'Missed')),
-                    ..._overdue.map((a) => _tile(a)),
-                  ],
-                  SectionHeader(tr('القادمة', 'Upcoming')),
+                  AppPad(_hero(), top: 12, bottom: 20),
+                  if (_overdue.isNotEmpty)
+                    _group(tr('فاتت من غير ما تتعمل', 'Missed'), _overdue,
+                        trailing: arNum(_overdue.length)),
                   if (_upcoming.isEmpty)
-                    EmptyHint(
+                    Padding(
+                      padding: const EdgeInsets.only(top: 20),
+                      child: EmptyHint(
                         icon: Icons.event_available,
                         text: tr('مفيش مواعيد قادمة — ضيف موعد بزرار +',
-                            'No upcoming appointments — add one with +'))
+                            'No upcoming appointments — add one with +'),
+                        actionLabel: tr('ضيف موعد', 'Add appointment'),
+                        onAction: _openForm,
+                      ),
+                    )
                   else
-                    ..._upcoming.map((a) => _tile(a)),
-                  if (_done.isNotEmpty) ...[
-                    SectionHeader(tr('اللي تمت', 'Done')),
-                    ..._done.map((a) => _tile(a, faded: true)),
-                  ],
+                    _group(tr('القادمة', 'Upcoming'), _upcoming,
+                        trailing: arNum(_upcoming.length)),
+                  if (_done.isNotEmpty)
+                    _group(tr('اللي تمت', 'Done'), _done, faded: true),
                 ],
               ),
             ),

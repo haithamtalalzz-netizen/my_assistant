@@ -66,8 +66,9 @@ class GroupHubScreen extends StatelessWidget {
   Widget _tile(BuildContext context, GroupHubItem it) {
     final scheme = Theme.of(context).colorScheme;
     final color = it.color ?? accent ?? scheme.primary;
-    return Card(
-      margin: EdgeInsets.zero,
+    return Material(
+      color: scheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
@@ -82,64 +83,64 @@ class GroupHubScreen extends StatelessWidget {
                 context, MaterialPageRoute(builder: (_) => it.screen!));
           }
         },
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border:
+                Border.all(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
                 Container(
-                  width: 54,
-                  height: 54,
+                  padding: const EdgeInsets.all(9),
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: color.withValues(alpha: 0.15),
+                    color: color.withValues(alpha: 0.13),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(it.icon, color: color, size: 27),
+                  child: Icon(it.icon, color: color, size: 20),
                 ),
+                const Spacer(),
                 if (it.badge != null)
-                  PositionedDirectional(
-                    top: -2,
-                    end: -2,
-                    child: FutureBuilder<int>(
-                      future: it.badge!(),
-                      builder: (_, snap) {
-                        final n = snap.data ?? 0;
-                        if (n <= 0) return const SizedBox.shrink();
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 1),
-                          constraints: const BoxConstraints(minWidth: 18),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.error,
-                            borderRadius: BorderRadius.circular(9),
-                          ),
-                          child: Text(
-                            n > 9 ? tr('٩+', '9+') : arNum(n),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onError,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900),
-                          ),
-                        );
-                      },
-                    ),
+                  FutureBuilder<int>(
+                    future: it.badge!(),
+                    builder: (_, snap) {
+                      final n = snap.data ?? 0;
+                      if (n <= 0) return const SizedBox.shrink();
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 2),
+                        constraints: const BoxConstraints(minWidth: 18),
+                        decoration: BoxDecoration(
+                          color: scheme.error,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          n > 9 ? tr('٩+', '9+') : arNum(n),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              color: scheme.onError,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800),
+                        ),
+                      );
+                    },
                   ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text(it.label,
-                  textAlign: TextAlign.center,
+              ]),
+              const Spacer(),
+              // سطرين: أسماء زى «الديون والسلف» بتتقصّ على سطر واحد.
+              Text(it.label,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 12.5, fontWeight: FontWeight.w600)),
-            ),
-          ],
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      height: 1.2,
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onSurface)),
+            ],
+          ),
         ),
       ),
     );

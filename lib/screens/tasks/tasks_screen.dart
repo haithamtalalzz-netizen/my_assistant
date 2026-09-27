@@ -5,6 +5,7 @@ import '../../core/l10n.dart';
 import '../../core/section_pdf.dart';
 import '../../data/tasks_repo.dart';
 import '../../models/models.dart';
+import '../../widgets/a_kit.dart';
 import '../../widgets/common.dart';
 import '../../widgets/search_action.dart';
 import 'focus_screen.dart';
@@ -111,30 +112,37 @@ class _TasksScreenState extends State<TasksScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                _filterChips(scheme),
-                Expanded(
-                  child: _tasks.isEmpty
-                      ? RefreshIndicator(
-                          onRefresh: _load,
-                          child: ListView(children: [
-                            const SizedBox(height: 60),
-                            EmptyHint(
-                                icon: Icons.checklist_rtl,
-                                text: tr('مفيش مهام هنا — ضيف مهمة بزرار +',
-                                    'No tasks here — add one with +')),
-                          ]),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: _load,
-                          child: ListView(
-                            padding: const EdgeInsets.fromLTRB(12, 4, 12, 90),
-                            children: [for (final t in _tasks) _taskTile(t, scheme)],
-                          ),
-                        ),
-                ),
-              ],
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 96),
+                children: [
+                  AppPad(_hero(scheme), top: 12, bottom: 16),
+                  _filterChips(scheme),
+                  const SizedBox(height: 10),
+                  if (_tasks.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 30),
+                      child: EmptyHint(
+                        icon: Icons.checklist_rtl,
+                        text: tr('مفيش مهام هنا — ضيف مهمة بزرار +',
+                            'No tasks here — add one with +'),
+                        actionLabel: tr('ضيف مهمة', 'Add a task'),
+                        onAction: _taskForm,
+                      ),
+                    )
+                  else ...[
+                    if (_overdue.isNotEmpty)
+                      _group(tr('فاتت', 'Overdue'), _overdue, scheme),
+                    if (_todayList.isNotEmpty)
+                      _group(tr('النهارده', 'Today'), _todayList, scheme),
+                    if (_later.isNotEmpty)
+                      _group(tr('بعدين', 'Later'), _later, scheme),
+                    if (_doneList.isNotEmpty)
+                      _group(tr('خلصت', 'Done'), _doneList, scheme),
+                  ],
+                ],
+              ),
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _taskForm(),
@@ -143,6 +151,111 @@ class _TasksScreenState extends State<TasksScreen> {
       ),
     );
   }
+
+  /// المهام اللى فات ميعادها ولسه ما خلصتش.
+  List<Task> get _overdue =>
+      [for (final t in _tasks) if (!t.done && t.overdue) t];
+
+  /// مهام النهارده (من غير الفايتة).
+  List<Task> get _todayList {
+    final today = dateOnly(DateTime.now());
+    return [
+      for (final t in _tasks)
+        if (!t.done && !t.overdue && t.due != null && dateOnly(t.due!) == today)
+          t
+    ];
+  }
+
+  /// الباقى اللى لسه ما خلصش (بميعاد بعدين أو من غير ميعاد).
+  List<Task> get _later {
+    final shown = {..._overdue, ..._todayList};
+    return [
+      for (final t in _tasks)
+        if (!t.done && !shown.contains(t)) t
+    ];
+  }
+
+  List<Task> get _doneList => [for (final t in _tasks) if (t.done) t];
+
+  /// المهمة اللى تبدأ بيها: أقدم فايتة، وإلا أول واحدة النهارده، وإلا أى
+  /// مهمة مفتوحة — بترتيب الأولوية.
+  Task? get _startWith {
+    int rank(Task t) => t.overdue ? 0 : (t.due != null ? 1 : 2);
+    final open = [for (final t in _tasks) if (!t.done) t]
+      ..sort((a, b) {
+        final r = rank(a).compareTo(rank(b));
+        if (r != 0) return r;
+        final p = b.priority.compareTo(a.priority);
+        if (p != 0) return p;
+        if (a.due != null && b.due != null) return a.due!.compareTo(b.due!);
+        return 0;
+      });
+    return open.isEmpty ? null : open.first;
+  }
+
+  Widget _hero(ColorScheme scheme) {
+    final t = _startWith;
+    final open = _tasks.where((e) => !e.done).length;
+    final done = _doneList.length;
+    final total = _tasks.length;
+    if (t == null) {
+      return AppHero(
+        icon: total == 0 ? Icons.checklist : Icons.emoji_events_outlined,
+        kicker: tr('مهامك', 'Your tasks'),
+        title: total == 0
+            ? tr('ابدأ بمهمة واحدة', 'Start with one task')
+            : tr('خلّصت كل مهامك', 'All tasks done'),
+        primaryLabel: tr('مهمة جديدة', 'New task'),
+        primaryIcon: Icons.add,
+        onPrimary: _taskForm,
+      );
+    }
+    final prog = _subs[t.id];
+    final pName = _projectName(t.projectId);
+    return AppHero(
+      icon: Icons.bolt,
+      kicker: t.overdue
+          ? tr('فاتت — ابدأ بيها', 'Overdue — start here')
+          : tr('ابدأ بيها دلوقتى', 'Start with this'),
+      title: t.title,
+      trailingBig: prog != null && prog.$2 > 0
+          ? '${arNum(prog.$1)}/${arNum(prog.$2)}'
+          : null,
+      trailingSmall:
+          prog != null && prog.$2 > 0 ? tr('خطوات', 'steps') : null,
+      primaryLabel: tr('خلّصتها', 'Done'),
+      primaryIcon: Icons.check,
+      onPrimary: () => _toggle(t),
+      secondaryLabel: tr('ركّز 25 دقيقة', 'Focus 25 min'),
+      onSecondary: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => FocusScreen(taskId: t.id, taskTitle: t.title))),
+      colors: t.overdue
+          ? [scheme.error, Color.lerp(scheme.error, Colors.black, 0.3)!]
+          : null,
+      extra: total == 0
+          ? null
+          : AppHeroBar(
+              done / total,
+              [
+                ?pName,
+                tr('${arNum(done)} من ${arNum(total)} خلصوا',
+                    '${arNum(done)} of ${arNum(total)} done'),
+                tr('${arNum(open)} مفتوحة', '${arNum(open)} open'),
+              ].join(' · ')),
+    );
+  }
+
+  Widget _group(String title, List<Task> list, ColorScheme scheme) =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        AppPad(AppSectionTitle(title, trailing: arNum(list.length))),
+        AppPad(AppCard(Column(children: [
+          for (var i = 0; i < list.length; i++)
+            _taskTile(list[i], scheme, last: i == list.length - 1),
+        ]))),
+        const SizedBox(height: 18),
+      ]);
 
   Widget _filterChips(ColorScheme scheme) {
     Widget chip(String label, int? value) => Padding(
@@ -170,36 +283,28 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  Widget _taskTile(Task t, ColorScheme scheme) {
+  Widget _taskTile(Task t, ColorScheme scheme, {bool last = false}) {
     final pName = _projectName(t.projectId);
     final prog = _subs[t.id];
     final subtitle = <String>[
       ?pName,
       if (t.due != null) arDateTime(t.due!),
-      if (t.repeatRule.isNotEmpty) '🔁 ${_repeatLabel(t.repeatRule)}',
+      if (t.repeatRule.isNotEmpty)
+        tr('تكرار ${_repeatLabel(t.repeatRule)}',
+            'repeats ${_repeatLabel(t.repeatRule)}'),
       if (prog != null && prog.$2 > 0)
-        '☑ ${arNum(prog.$1)}/${arNum(prog.$2)}',
+        tr('خطوات ${arNum(prog.$1)}/${arNum(prog.$2)}',
+            'steps ${arNum(prog.$1)}/${arNum(prog.$2)}'),
     ].join('  •  ');
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 3),
-      child: ListTile(
-        leading: Checkbox(
-          value: t.done,
-          onChanged: (_) => _toggle(t),
-        ),
-        title: Text(t.title,
-            style: TextStyle(
-                decoration: t.done ? TextDecoration.lineThrough : null,
-                color: t.done ? scheme.outline : null,
-                fontWeight: FontWeight.w600)),
-        subtitle: subtitle.isEmpty
-            ? null
-            : Text(subtitle,
-                style: TextStyle(
-                    fontSize: 12,
-                    color: t.overdue ? scheme.error : scheme.outline,
-                    fontWeight: t.overdue ? FontWeight.w700 : null)),
-        trailing: Row(
+    return AppListRow(
+      title: t.title,
+      sub: subtitle.isEmpty ? null : subtitle,
+      check: true,
+      checked: t.done,
+      divider: !last,
+      onTap: () => _taskForm(t),
+      onCheck: () => _toggle(t),
+      trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
@@ -209,6 +314,7 @@ class _TasksScreenState extends State<TasksScreen> {
                   color: _priorityColors[t.priority], shape: BoxShape.circle),
             ),
             PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, size: 20),
               onSelected: (v) {
                 if (v == 'edit') _taskForm(t);
                 if (v == 'subtasks') _subtasksSheet(t);
@@ -225,17 +331,15 @@ class _TasksScreenState extends State<TasksScreen> {
                 PopupMenuItem(value: 'edit', child: Text(tr('تعديل', 'Edit'))),
                 PopupMenuItem(
                     value: 'subtasks',
-                    child: Text(tr('☑ مهام فرعية', '☑ Subtasks'))),
+                    child: Text(tr('مهام فرعية', 'Subtasks'))),
                 PopupMenuItem(
                     value: 'focus',
-                    child: Text(tr('🍅 جلسة تركيز', '🍅 Focus session'))),
+                    child: Text(tr('جلسة تركيز', 'Focus session'))),
                 PopupMenuItem(value: 'delete', child: Text(tr('حذف', 'Delete'))),
               ],
             ),
           ],
         ),
-        onTap: () => _taskForm(t),
-      ),
     );
   }
 
