@@ -243,7 +243,7 @@ class PrayerScheduler {
   }
 }
 
-/// تذكير أسبوعى يوم الجمعة: سورة الكهف + الإكثار من الصلاة على النبى ﷺ.
+/// تذكير أسبوعى يوم الجمعة: سورة الكهف + الإكثار من الصلاة على النبى صلى الله عليه وسلم.
 class FridayReminder {
   static Future<void> ensureScheduled() async {
     await Notifications.cancel(Notifications.fridayNotifId);
@@ -252,7 +252,7 @@ class FridayReminder {
     await Notifications.scheduleWeekly(
       id: Notifications.fridayNotifId,
       title: 'يوم الجمعة 🕌',
-      body: 'لا تنسَ قراءة سورة الكهف والإكثار من الصلاة على النبى ﷺ',
+      body: 'لا تنسَ قراءة سورة الكهف والإكثار من الصلاة على النبى صلى الله عليه وسلم',
       weekday: DateTime.friday,
       hour: 9,
       minute: 0,

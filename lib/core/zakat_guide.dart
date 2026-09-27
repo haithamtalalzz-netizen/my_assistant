@@ -123,7 +123,7 @@ const List<ZakatGuideSection> kZakatGuideSections = [
         '• الفروع: الأبناء والأحفاد.\n'
         '• الزوجة: نفقتها على زوجها (ويجوز للزوجة إعطاء زوجها الفقير على قول).\n'
         '• الأغنياء ومَن تلزمك نفقتهم.\n'
-        '• آل بيت النبى ﷺ (بنو هاشم) على قول الجمهور.\n'
+        '• آل بيت النبى صلى الله عليه وسلم (بنو هاشم) على قول الجمهور.\n'
         '• غير المسلم من زكاة المال (تجوز له صدقة التطوّع)، إلا سهم المؤلَّفة قلوبهم.',
     '• Ascendants: parents and grandparents (you may owe their upkeep).\n'
         '• Descendants: children and grandchildren.\n'

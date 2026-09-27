@@ -177,6 +177,14 @@ ThemeData _common(ColorScheme scheme,
     useMaterial3: true,
     colorScheme: scheme,
     fontFamily: 'Cairo',
+    // خط Cairo مافيهوش بعض الرموز العربية (زى «ﷺ») فكانت بتطلع **مربّعات
+    // فاضية** جوّه نصوص التفسير والحديث — ودى نصوص مصدرية مايصحّش نعدّلها.
+    // الاحتياطى بيخلّى الجهاز يرسم الرمز الناقص من خطوطه.
+    fontFamilyFallback: const [
+      'Noto Naskh Arabic',
+      'Noto Sans Arabic',
+      'sans-serif',
+    ],
     scaffoldBackgroundColor: scheme.surface,
   );
   final radius = BorderRadius.circular(20);

@@ -26,6 +26,11 @@ import 'package:my_assistant/screens/growth/goals_screen.dart';
 import 'package:my_assistant/screens/schedule/schedule_screen.dart';
 import 'package:my_assistant/screens/tasks/tasks_screen.dart';
 import 'package:my_assistant/screens/today_screen.dart';
+import 'package:my_assistant/screens/emergency_view.dart';
+import 'package:my_assistant/screens/wardrobe/wardrobe_screen.dart';
+import 'package:my_assistant/screens/worship/prayer_screen.dart';
+import 'package:my_assistant/core/seed_demo_wardrobe.dart';
+import 'package:my_assistant/data/settings_repo.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'shot_harness.dart';
@@ -177,6 +182,35 @@ void main() {
     final f = await shot(tester, 'real_goals',
         shotApp(buildTheme(), const GoalsScreen()),
         size: const Size(390, 900), pixelRatio: 2);
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+
+  testWidgets('صلاتى — الشكل الجديد', (tester) async {
+    final f = await shot(tester, 'real_prayer',
+        shotApp(buildTheme(), const PrayerScreen()),
+        size: const Size(390, 1100), pixelRatio: 2);
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('ملابسى — الشكل الجديد', (tester) async {
+    await seedDemoWardrobe();
+    final f = await shot(tester, 'real_wardrobe',
+        shotApp(buildTheme(), const WardrobeScreen()),
+        size: const Size(390, 1100), pixelRatio: 2);
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('كارت الطوارئ — الشكل الجديد', (tester) async {
+    final st = SettingsRepo();
+    await st.set('emergency_blood', 'O+');
+    await st.set('emergency_allergies', 'بنسلين');
+    await st.set('emergency_conditions', 'ضغط');
+    await st.set('emergency_contact_name', 'أحمد');
+    await st.set('emergency_contact_phone', '01001234567');
+    final f = await shot(tester, 'real_emergency',
+        shotApp(buildTheme(), const EmergencyView()),
+        size: const Size(390, 780), pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
   });
 

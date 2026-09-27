@@ -42,7 +42,10 @@ const List<String> kBloodTypes = [
 ];
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  /// يفتح على قسم معيّن على طول (مثلاً 'emergency' من كارت الطوارئ).
+  final String? initialCategory;
+
+  const SettingsScreen({super.key, this.initialCategory});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -89,6 +92,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    _openCat = widget.initialCategory;
     _load();
   }
 

@@ -10,6 +10,7 @@ import '../../core/seed_demo_wardrobe.dart';
 import '../../widgets/search_action.dart';
 import '../../data/wardrobe_repo.dart';
 import '../../models/models.dart';
+import '../../widgets/a_kit.dart';
 import '../../widgets/common.dart';
 import 'clothing_form.dart';
 import 'outfit_screen.dart';
@@ -59,6 +60,23 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
   /// بتتشال كلها من نفس القايمة من غير ما تلمس قطعة حقيقية.
   Future<void> _addDemoClothes() async {
     if (_demoBusy) return;
+    // الزرار بيضيف من غير ما يمسح، فدوستين بيبقوا ٤٢ قطعة مكرّرة — ده حصل
+    // فعلاً. لو فيه تجريبية موجودة بنسأل الأول.
+    if (_demoCount > 0) {
+      final again = await confirmAction(
+        context,
+        title: tr('ملابس تجريبية موجودة', 'Demo clothes already added'),
+        message: tr(
+            'عندك ${arNum(_demoCount)} قطعة تجريبية بالفعل. هشيلهم وأضيف طقم جديد بدل ما يتكرروا.',
+            'You already have ${arNum(_demoCount)} demo items. They will be replaced, not duplicated.'),
+        confirmLabel: tr('استبدال', 'Replace'),
+      );
+      if (!again || !mounted) return;
+      setState(() => _demoBusy = true);
+      await removeDemoWardrobe();
+      if (!mounted) return;
+      setState(() => _demoBusy = false);
+    }
     setState(() => _demoBusy = true);
     try {
       final n = await seedDemoWardrobe();
@@ -119,6 +137,57 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
     final changed = await Navigator.push<bool>(
         context, MaterialPageRoute(builder: (_) => const OutfitScreen()));
     if (changed == true && mounted) await _load();
+  }
+
+  /// **البطل** — «ألبس إيه النهارده؟» + سلة الغسيل.
+  Widget _hero() => AppHero(
+        icon: Icons.auto_awesome,
+        kicker: _laundryCount > 0
+            ? tr('${arNum(_laundryCount)} قطعة محتاجة غسيل',
+                '${arNum(_laundryCount)} items need washing')
+            : tr('خزانتك', 'Your wardrobe'),
+        title: tr('ألبس إيه النهارده؟', 'What to wear today?'),
+        primaryLabel: tr('اقترحلى طقم', 'Suggest an outfit'),
+        primaryIcon: Icons.auto_awesome,
+        onPrimary: _suggestOutfit,
+        secondaryLabel: _laundryMode
+            ? tr('كل الخزانة', 'All clothes')
+            : tr('سلة الغسيل ${arNum(_laundryCount)}',
+                'Laundry ${arNum(_laundryCount)}'),
+        onSecondary: () {
+          setState(() => _laundryMode = !_laundryMode);
+          _load();
+        },
+        colors: const [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+      );
+
+  Widget _filterChip(String label, String? value) {
+    final scheme = Theme.of(context).colorScheme;
+    final on = _filter == value;
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: 8),
+      child: GestureDetector(
+        onTap: () {
+          setState(() => _filter = value);
+          _load();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: on ? scheme.primary : scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+                color: on ? scheme.primary : scheme.outlineVariant),
+          ),
+          child: Text(label,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: on ? scheme.onPrimary : scheme.onSurface)),
+        ),
+      ),
+    );
   }
 
   Widget _thumb(ClothingItem it, double size) {
@@ -208,83 +277,83 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
+          : ListView(
+              padding: const EdgeInsets.only(bottom: 96),
               children: [
+                AppPad(_hero(), top: 12, bottom: 18),
                 if (_laundryMode)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                              tr('سلة الغسيل — ${arNum(_laundryCount)} قطعة',
-                                  'Laundry — ${arNum(_laundryCount)} items'),
-                              style: const TextStyle(fontWeight: FontWeight.w700)),
-                        ),
-                        if (_laundryCount > 0)
-                          TextButton.icon(
-                            icon: const Icon(Icons.done_all, size: 18),
-                            label: Text(tr('غسلت الكل', 'Washed all')),
-                            onPressed: () async {
-                              await _repo.washAll();
-                              await _load();
-                            },
-                          ),
-                      ],
-                    ),
-                  )
-                else
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                    child: Wrap(
-                      spacing: 6,
-                      children: [
-                        ChoiceChip(
-                          label: Text(tr('الكل', 'All')),
-                          selected: _filter == null,
-                          onSelected: (_) {
-                            setState(() => _filter = null);
-                            _load();
+                  AppPad(
+                    Row(children: [
+                      Expanded(
+                        child: Text(
+                            tr('سلة الغسيل — ${arNum(_laundryCount)} قطعة',
+                                'Laundry — ${arNum(_laundryCount)} items'),
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                      if (_laundryCount > 0)
+                        TextButton.icon(
+                          icon: const Icon(Icons.done_all, size: 18),
+                          label: Text(tr('غسلت الكل', 'Washed all')),
+                          onPressed: () async {
+                            await _repo.washAll();
+                            await _load();
                           },
                         ),
+                    ]),
+                    bottom: 8,
+                  )
+                else
+                  SizedBox(
+                    height: 36,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      children: [
+                        _filterChip(tr('الكل', 'All'), null),
                         for (final c in kClothingCategories)
-                          ChoiceChip(
-                            label: Text(clothingCategoryLabel(c)),
-                            selected: _filter == c,
-                            onSelected: (_) {
-                              setState(() => _filter = c);
-                              _load();
-                            },
-                          ),
+                          _filterChip(clothingCategoryLabel(c), c),
                       ],
                     ),
                   ),
-                Expanded(
-                  child: _items.isEmpty
-                      ? EmptyHint(
-                          icon: Icons.checkroom,
-                          text: tr(
-                              'ضيف ملابسك وصوّرها — والمساعد يقترحلك تلبيسة حسب الطقس',
-                              'Add & photograph your clothes — the assistant suggests an outfit by the weather'),
-                          // فى وضع الغسيل/الفلتر الفاضى مش هنعرض الزر — بس لما
-                          // الخزانة كلها فاضية فعلاً.
-                          actionLabel: (_filter == null && !_laundryMode && !_demoBusy)
-                              ? tr('🧪 جرّب بملابس تجريبية', '🧪 Try with demo clothes')
-                              : null,
-                          onAction: _addDemoClothes)
-                      : GridView.builder(
-                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 80),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8,
-                            childAspectRatio: 0.78,
-                          ),
-                          itemCount: _items.length,
-                          itemBuilder: (context, i) => _card(_items[i]),
-                        ),
-                ),
+                const SizedBox(height: 16),
+                if (_items.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 30),
+                    child: EmptyHint(
+                      icon: Icons.checkroom,
+                      text: tr(
+                          'ضيف ملابسك وصوّرها — والمساعد يقترحلك تلبيسة حسب الطقس',
+                          'Add & photograph your clothes — the assistant suggests an outfit by the weather'),
+                      actionLabel: (_filter == null && !_laundryMode && !_demoBusy)
+                          ? tr('🧪 جرّب بملابس تجريبية', '🧪 Try with demo clothes')
+                          : null,
+                      onAction: _addDemoClothes,
+                    ),
+                  )
+                else ...[
+                  AppPad(AppSectionTitle(
+                      _laundryMode
+                          ? tr('محتاجة غسيل', 'Needs washing')
+                          : tr('خزانتك', 'Your wardrobe'),
+                      trailing: tr('${arNum(_items.length)} قطعة',
+                          '${arNum(_items.length)} items'))),
+                  AppPad(
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        mainAxisExtent: 146,
+                      ),
+                      itemCount: _items.length,
+                      itemBuilder: (context, i) => _card(_items[i]),
+                    ),
+                  ),
+                ],
               ],
             ),
       floatingActionButton: FloatingActionButton(

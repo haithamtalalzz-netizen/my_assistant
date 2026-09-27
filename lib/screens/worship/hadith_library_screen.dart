@@ -39,7 +39,7 @@ class HadithLibraryScreen extends StatelessWidget {
         key: 'shamail',
         emoji: '🌙',
         title: 'الشمائل المحمدية',
-        sub: tr('للترمذى — صفته وأخلاقه ﷺ (${arNum(402)} حديث)',
+        sub: tr('للترمذى — صفته وأخلاقه صلى الله عليه وسلم (${arNum(402)} حديث)',
             "At-Tirmidhi — the Prophet's noble features"),
         color: const Color(0xFF3C5A99),
       ),

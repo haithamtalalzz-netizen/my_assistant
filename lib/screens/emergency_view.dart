@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/l10n.dart';
+import '../widgets/a_kit.dart';
+import 'settings_screen.dart';
 import '../data/settings_repo.dart';
 
 /// كارت الطوارئ — متاح من شاشة القفل من غير بصمة عمدًا:
@@ -56,22 +58,41 @@ class _EmergencyViewState extends State<EmergencyView> {
     }
   }
 
-  Widget _row(BuildContext context, String label, String value) {
+  /// سطر بيانات — بيختفى لو فاضى (كارت الطوارئ مايعرضش خانات فاضية).
+  Widget _row(BuildContext context, IconData icon, String label, String value,
+      {bool last = false}) {
     if (value.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.outline,
-                  fontSize: 13)),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.w700)),
-        ],
-      ),
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: last
+          ? null
+          : BoxDecoration(
+              border: Border(
+                  bottom: BorderSide(
+                      color: scheme.outlineVariant.withValues(alpha: 0.7)))),
+      child: Row(children: [
+        Container(
+          padding: const EdgeInsets.all(9),
+          decoration: BoxDecoration(
+              color: scheme.error.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12)),
+          child: Icon(icon, size: 19, color: scheme.error),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label,
+                style: TextStyle(
+                    color: scheme.onSurfaceVariant, fontSize: 11.5)),
+            const SizedBox(height: 2),
+            // كبير عن قصد: حد تانى بيقراه من على بُعد فى لحظة ضغط.
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 19, fontWeight: FontWeight.w700)),
+          ]),
+        ),
+      ]),
     );
   }
 
@@ -83,15 +104,58 @@ class _EmergencyViewState extends State<EmergencyView> {
         _conditions.isEmpty &&
         _contactPhone.isEmpty;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(tr('كارت الطوارئ', 'Emergency card')),
-        backgroundColor: scheme.errorContainer,
-      ),
+      appBar: AppBar(title: Text(tr('كارت الطوارئ', 'Emergency card'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : empty
-              ? Center(
-                  child: Padding(
+          : ListView(
+              padding: const EdgeInsets.only(bottom: 32),
+              children: [
+                AppPad(
+                  AppHero(
+                    icon: Icons.medical_services_outlined,
+                    kicker: tr('فى حالة الطوارئ', 'In an emergency'),
+                    title: empty
+                        ? tr('الكارت فاضى', 'Card is empty')
+                        : (_blood.isEmpty
+                            ? tr('بياناتك الطبية', 'Your medical info')
+                            : tr('فصيلة دمك $_blood', 'Blood type $_blood')),
+                    primaryLabel: _contactPhone.isEmpty
+                        ? tr('املا البيانات', 'Fill it in')
+                        : tr('اتصل بشخص الطوارئ', 'Call emergency contact'),
+                    primaryIcon:
+                        _contactPhone.isEmpty ? Icons.edit : Icons.call,
+                    onPrimary: _contactPhone.isEmpty
+                        // زرار بيقول «املا البيانات» ومايعملش حاجة = وعد
+                        // كاذب؛ بيفتح قسم الطوارئ فى الإعدادات على طول.
+                        ? () async {
+                            await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const SettingsScreen(
+                                        initialCategory: 'emergency')));
+                            if (mounted) await _load();
+                          }
+                        : _call,
+                    colors: [
+                      scheme.error,
+                      Color.lerp(scheme.error, Colors.black, 0.3)!
+                    ],
+                    extra: empty
+                        ? null
+                        : Text(
+                            _contactName.isEmpty
+                                ? _contactPhone
+                                : '$_contactName — $_contactPhone',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color:
+                                    Colors.white.withValues(alpha: 0.9))),
+                  ),
+                  top: 12,
+                  bottom: 20,
+                ),
+                if (empty)
+                  Padding(
                     padding: const EdgeInsets.all(24),
                     child: Text(
                       tr('كارت الطوارئ فاضي — املا بياناته من الإعدادات:\nفصيلة الدم، الحساسيات، الأمراض المزمنة، ورقم للطوارئ',
@@ -99,37 +163,26 @@ class _EmergencyViewState extends State<EmergencyView> {
                       textAlign: TextAlign.center,
                       style: TextStyle(color: scheme.outline),
                     ),
-                  ),
-                )
-              : ListView(
-                  padding: const EdgeInsets.all(20),
-                  children: [
-                    _row(context, tr('فصيلة الدم', 'Blood type'), _blood),
-                    _row(context, tr('الحساسيات', 'Allergies'), _allergies),
-                    _row(context, tr('أمراض مزمنة', 'Chronic conditions'),
-                        _conditions),
+                  )
+                else
+                  AppPad(AppCard(Column(children: [
+                    _row(context, Icons.bloodtype,
+                        tr('فصيلة الدم', 'Blood type'), _blood),
+                    _row(context, Icons.warning_amber_rounded,
+                        tr('الحساسيات', 'Allergies'), _allergies),
+                    _row(context, Icons.monitor_heart_outlined,
+                        tr('أمراض مزمنة', 'Chronic conditions'), _conditions),
                     _row(
                         context,
+                        Icons.contact_phone_outlined,
                         tr('شخص للطوارئ', 'Emergency contact'),
                         _contactName.isEmpty
                             ? _contactPhone
-                            : '$_contactName — $_contactPhone'),
-                    if (_contactPhone.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: scheme.error,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        onPressed: _call,
-                        icon: const Icon(Icons.call),
-                        label: Text(tr('اتصل بشخص الطوارئ', 'Call emergency contact'),
-                            style: TextStyle(fontSize: 18)),
-                      ),
-                    ],
-                  ],
-                ),
+                            : '$_contactName — $_contactPhone',
+                        last: true),
+                  ]))),
+              ],
+            ),
     );
   }
 }
