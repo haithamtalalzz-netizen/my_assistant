@@ -1,5 +1,5 @@
-// ٣ **هياكل** جديدة للشاشة الرئيسية — مختلفة فى الترتيب نفسه، مش فى القشرة.
-// (الجولة الأولى كانت ٤ قشور لهيكل واحد؛ دى بتضيف تنويع حقيقى.)
+// 3 **هياكل** جديدة للشاشة الرئيسية — مختلفة فى الترتيب نفسه، مش فى القشرة.
+// (الجولة الأولى كانت 4 قشور لهيكل واحد؛ دى بتضيف تنويع حقيقى.)
 //
 //   flutter test tool/design_layouts_test.dart
 //   → build/design_shots/layout_<الاسم>.png
@@ -31,15 +31,15 @@ class Ev {
 }
 
 const day = <Ev>[
-  Ev('٥:١٢', 'الفجر', 'اتصلّت', Icons.mosque, _accent, done: true),
-  Ev('١٢:٠٥', 'الظهر', 'اتصلّت', Icons.mosque, _accent, done: true),
-  Ev('٣:٤٨', 'العصر', 'الصلاة الجاية', Icons.mosque, Color(0xFF2FDE9B)),
-  Ev('٦:٠٠', 'د. أحمد — أسنان', 'عيادة المهندسين', Icons.event,
+  Ev('5:12', 'الفجر', 'اتصلّت', Icons.mosque, _accent, done: true),
+  Ev('12:05', 'الظهر', 'اتصلّت', Icons.mosque, _accent, done: true),
+  Ev('3:48', 'العصر', 'الصلاة الجاية', Icons.mosque, Color(0xFF2FDE9B)),
+  Ev('6:00', 'د. أحمد — أسنان', 'عيادة المهندسين', Icons.event,
       Color(0xFF3B82F6)),
-  Ev('٩:٠٠', 'جرعة الدوا', 'كونكور ٥', Icons.medication, Color(0xFFFF6B8A)),
-  Ev('٩:٣٠', 'مشى ٣٠ دقيقة', 'عادة يومية', Icons.directions_walk,
+  Ev('9:00', 'جرعة الدوا', 'كونكور 5', Icons.medication, Color(0xFFFF6B8A)),
+  Ev('9:30', 'مشى 30 دقيقة', 'عادة يومية', Icons.directions_walk,
       Color(0xFFF2A93B)),
-  Ev('١٠:٠٠', 'ورد القرآن', 'صفحتين', Icons.menu_book, Color(0xFF7C5CFF)),
+  Ev('10:00', 'ورد القرآن', 'صفحتين', Icons.menu_book, Color(0xFF7C5CFF)),
 ];
 
 Widget _topBar({bool compact = false}) => Padding(
@@ -60,7 +60,7 @@ Widget _topBar({bool compact = false}) => Padding(
               padding: const EdgeInsets.all(4),
               decoration: const BoxDecoration(
                   color: Color(0xFFEF4444), shape: BoxShape.circle),
-              child: const Text('٥',
+              child: const Text('5',
                   style: TextStyle(
                       fontSize: 9,
                       color: Colors.white,
@@ -218,12 +218,12 @@ Widget focusFirst() {
                       ),
                       const Spacer(),
                       const Column(children: [
-                        Text('٣:٤٨',
+                        Text('3:48',
                             style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white)),
-                        Text('فاضل ٥٢ دقيقة',
+                        Text('فاضل 52 دقيقة',
                             style: TextStyle(
                                 fontSize: 10, color: Colors.white70)),
                       ]),
@@ -278,7 +278,7 @@ Widget focusFirst() {
                         fontWeight: FontWeight.w700,
                         color: _ink)),
                 const Spacer(),
-                Text('٢ من ٧ خلصوا',
+                Text('2 من 7 خلصوا',
                     style: TextStyle(fontSize: 11.5, color: _muted)),
               ]),
               const SizedBox(height: 14),
@@ -321,7 +321,7 @@ Widget focusFirst() {
 }
 
 // ——————————————— ب) «تبويبات تحت» ———————————————
-// الفكرة: التنقّل ينزل لشريط سفلى (٥ بنود بإيدك)، والرئيسية تبقى
+// الفكرة: التنقّل ينزل لشريط سفلى (5 بنود بإيدك)، والرئيسية تبقى
 // «اللى محتاج منك دلوقتى» بس — مش كل الأرقام.
 
 Widget bottomNav() {
@@ -427,15 +427,15 @@ Widget bottomNav() {
                         fontWeight: FontWeight.w700,
                         color: _ink)),
                 const Spacer(),
-                Text('٣ بنود', style: const TextStyle(fontSize: 11.5, color: _muted)),
+                Text('3 بنود', style: const TextStyle(fontSize: 11.5, color: _muted)),
               ]),
               const SizedBox(height: 12),
-              need(Icons.mosque, _accent, 'صلاة العصر', 'فاضل ٥٢ دقيقة',
+              need(Icons.mosque, _accent, 'صلاة العصر', 'فاضل 52 دقيقة',
                   'صلّيت'),
               need(Icons.event, const Color(0xFF3B82F6), 'د. أحمد — أسنان',
-                  'النهارده ٦:٠٠ م', 'تفاصيل'),
+                  'النهارده 6:00 م', 'تفاصيل'),
               need(Icons.medication, const Color(0xFFFF6B8A), 'جرعة كونكور',
-                  '٩:٠٠ م', 'اتاخدت'),
+                  '9:00 م', 'اتاخدت'),
               const SizedBox(height: 10),
               Row(children: [
                 const Text('لمحة سريعة',
@@ -523,7 +523,7 @@ Widget bottomNav() {
 
 // ——————————————— ج) «مدمج» ———————————————
 // الفكرة: كل حاجة فى شاشة واحدة **من غير تمرير** — حلقة إنجاز + كروت
-// صغيرة ٣ فى الصف + قايمة اليوم مضغوطة.
+// صغيرة 3 فى الصف + قايمة اليوم مضغوطة.
 
 Widget dense() {
   Widget mini(Item i) => Container(
@@ -589,7 +589,7 @@ Widget dense() {
                         backgroundColor: Color(0xFFEBEFF4),
                         color: _accent),
                   ),
-                  const Text('٤٠٪',
+                  const Text('40٪',
                       style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -610,7 +610,7 @@ Widget dense() {
                     Text(dateLine,
                         style: TextStyle(fontSize: 10.5, color: _muted)),
                     SizedBox(height: 4),
-                    Text('٢ من ٧ خلصوا — الجاية: العصر ٣:٤٨',
+                    Text('2 من 7 خلصوا — الجاية: العصر 3:48',
                         style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -705,7 +705,7 @@ Widget dense() {
 }
 
 void main() {
-  testWidgets('رندر ٣ هياكل جديدة', (tester) async {
+  testWidgets('رندر 3 هياكل جديدة', (tester) async {
     await loadShotFonts();
     final all = {
       'A_focus': focusFirst(),

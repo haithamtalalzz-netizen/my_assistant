@@ -1,4 +1,4 @@
-// ٦ اتجاهات تصميم للشاشة الرئيسية — **نفس البيانات بالظبط** فى كلها عشان
+// 6 اتجاهات تصميم للشاشة الرئيسية — **نفس البيانات بالظبط** فى كلها عشان
 // المقارنة تبقى عادلة. بترندر صور PNG حقيقية من ودجت Flutter، مش موك HTML.
 //
 //   flutter test tool/design_home_test.dart
@@ -18,17 +18,17 @@ class Item {
 }
 
 const greeting = 'مساء الخير';
-const dateLine = 'الأحد ٢٧ سبتمبر ٢٠٢٦ — ١٦ ربيع الثانى ١٤٤٨هـ';
+const dateLine = 'الأحد 27 سبتمبر 2026 — 16 ربيع الثانى 1448هـ';
 const progressLabel = 'إنجاز اليوم';
 const progressHint = 'ابدأ يومك — أول خطوة تفرق';
 
 const cards = <Item>[
-  Item('الصلاة', '٠/٥', 'صلوات النهارده', Icons.mosque, Color(0xFF2FDE9B)),
-  Item('الصحة', '٠/٢٠٠٠', 'مل مياه النهارده', Icons.favorite, Color(0xFFFF6B8A)),
-  Item('الفلوس', '٠ ج.م', 'مصروف الشهر', Icons.account_balance_wallet,
+  Item('الصلاة', '0/5', 'صلوات النهارده', Icons.mosque, Color(0xFF2FDE9B)),
+  Item('الصحة', '0/2000', 'مل مياه النهارده', Icons.favorite, Color(0xFFFF6B8A)),
+  Item('الفلوس', '0 ج.م', 'مصروف الشهر', Icons.account_balance_wallet,
       Color(0xFF3DC4A0)),
-  Item('مهامى', '٠', 'مفيش مستحق النهارده', Icons.checklist, Color(0xFFF2A93B)),
-  Item('الديون', '٣٠٠٠ ج.م', 'صافى ليك', Icons.sell, Color(0xFF7C5CFF)),
+  Item('مهامى', '0', 'مفيش مستحق النهارده', Icons.checklist, Color(0xFFF2A93B)),
+  Item('الديون', '3000 ج.م', 'صافى ليك', Icons.sell, Color(0xFF7C5CFF)),
   Item('الدورة', '—', 'سجّلى أول دورة', Icons.favorite_border,
       Color(0xFFE85D9E)),
 ];
@@ -67,7 +67,7 @@ Widget _bar(Color fg, {Color? badge}) => Padding(
               decoration: BoxDecoration(
                   color: badge ?? const Color(0xFFEF4444),
                   shape: BoxShape.circle),
-              child: const Text('٥',
+              child: const Text('5',
                   style: TextStyle(
                       fontSize: 9,
                       color: Colors.white,
@@ -80,7 +80,7 @@ Widget _bar(Color fg, {Color? badge}) => Padding(
       ]),
     );
 
-// ————————————————— ١) بطاقات ناعمة —————————————————
+// ————————————————— 1) بطاقات ناعمة —————————————————
 
 Widget soft() {
   const bg = Color(0xFFF6F8FA);
@@ -162,7 +162,7 @@ Widget soft() {
                                 fontWeight: FontWeight.w700,
                                 color: Color(0xFF16B57E))),
                         const Spacer(),
-                        const Text('٠٪',
+                        const Text('0٪',
                             style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
@@ -260,7 +260,7 @@ Widget soft() {
   );
 }
 
-// ————————————————— ٢) خطوط نظيفة —————————————————
+// ————————————————— 2) خطوط نظيفة —————————————————
 
 Widget outline() {
   const ink = Color(0xFF0B1220);
@@ -323,7 +323,7 @@ Widget outline() {
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF475467))),
                   const Spacer(),
-                  const Text('٠٪',
+                  const Text('0٪',
                       style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
@@ -414,7 +414,7 @@ Widget outline() {
   );
 }
 
-// ————————————————— ٣) داكن فاخر —————————————————
+// ————————————————— 3) داكن فاخر —————————————————
 
 Widget dark() {
   const bg = Color(0xFF0C0F14);
@@ -505,7 +505,7 @@ Widget dark() {
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white)),
                         const Spacer(),
-                        const Text('٠٪',
+                        const Text('0٪',
                             style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
@@ -605,7 +605,7 @@ Widget dark() {
   );
 }
 
-// ————————————————— ٤) بلوكات ملوّنة —————————————————
+// ————————————————— 4) بلوكات ملوّنة —————————————————
 
 Widget blocks() {
   const bg = Color(0xFFF2F4F8);
@@ -691,7 +691,7 @@ Widget blocks() {
                               color: Colors.white.withValues(alpha: 0.85))),
                       const SizedBox(height: 16),
                       Row(children: [
-                        const Text('$progressLabel ٠٪',
+                        const Text('$progressLabel 0٪',
                             style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
@@ -781,7 +781,7 @@ Widget blocks() {
   );
 }
 
-// ————————————————— ٥) ورقى هادى —————————————————
+// ————————————————— 5) ورقى هادى —————————————————
 
 Widget paper() {
   const bg = Color(0xFFFBF8F3);
@@ -845,7 +845,7 @@ Widget paper() {
                 Container(height: 1, color: rule),
                 const SizedBox(height: 16),
                 Row(children: [
-                  const Text('٠٪',
+                  const Text('0٪',
                       style: TextStyle(
                           fontSize: 40,
                           fontWeight: FontWeight.w700,
@@ -916,7 +916,7 @@ Widget paper() {
   );
 }
 
-// ————————————————— ٦) ويدجتس —————————————————
+// ————————————————— 6) ويدجتس —————————————————
 
 Widget widgets() {
   const bg = Color(0xFFEFF1F5);
@@ -1091,7 +1091,7 @@ void main() {
     '6_widgets': (widgets(), Brightness.light),
   };
 
-  testWidgets('رندر ٦ اتجاهات تصميم للرئيسية', (tester) async {
+  testWidgets('رندر 6 اتجاهات تصميم للرئيسية', (tester) async {
     await loadShotFonts();
     for (final e in designs.entries) {
       final (w, b) = e.value;
