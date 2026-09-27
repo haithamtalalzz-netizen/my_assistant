@@ -616,8 +616,10 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
   Widget _vitalsStrip() {
     final scheme = Theme.of(context).colorScheme;
     const emoji = {'ضغط': '🩸', 'سكر': '🍬', 'وزن': '⚖️', 'حرارة': '🌡'};
+    // 96 كانت بتقصّ 13 بكسل من كل كارت (خط Cairo سطوره أطول من الافتراضى)،
+    // فسطر التاريخ كان بيتاكل — المشى على كل الشاشات هو اللى كشفها.
     return SizedBox(
-      height: 96,
+      height: 112,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.zero,
@@ -688,6 +690,8 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
                 latest == null
                     ? tr('اضغط للتسجيل', 'Tap to log')
                     : arShortDate(DateTime.parse(latest.day)),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 10, color: scheme.outline)),
           ],
         ),
