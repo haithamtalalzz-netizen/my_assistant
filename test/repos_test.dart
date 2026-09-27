@@ -24,6 +24,7 @@ import 'package:my_assistant/core/morning_brief.dart';
 import 'package:my_assistant/core/dashboard_stats.dart';
 import 'package:my_assistant/core/data_export.dart';
 import 'package:my_assistant/core/day_timeline.dart';
+import 'package:my_assistant/core/morning_digest.dart';
 import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/usda_food_db.dart';
 import 'package:my_assistant/core/egyptian_dishes.dart';
@@ -6191,6 +6192,57 @@ void main() {
       final p = dayTimelineProgress(ev);
       expect(p.done, 2);
       expect(p.total, 3);
+    });
+  });
+
+
+  // ————— إشعار «يومك» الصبح —————
+  // النص دالة نقية: بتاخد خط اليوم وبترجّع عنوان وجسم — أو null لو مفيش
+  // حاجة تستاهل إزعاج. مبنى فوق نفس الخط اللى الرئيسية بتعرضه، فمستحيل
+  // الإشعار يقول رقم مختلف عن الشاشة.
+  group('إشعار الصبح', () {
+    final now = DateTime(2026, 9, 28, 7, 0);
+    TimelineEvent ev(int h, String title, {bool done = false}) => TimelineEvent(
+        at: DateTime(2026, 9, 28, h, 0),
+        title: title,
+        kind: TimelineKind.task,
+        done: done);
+
+    test('بيقول أول حاجة وكام بند باقى', () {
+      final t = MorningDigest.compose(
+          [ev(9, 'اجتماع'), ev(17, 'فاتورة'), ev(21, 'جرعة')], now)!;
+      expect(t.body, contains('اجتماع'));
+      expect(t.body, contains('2'), reason: 'باقى بندين بعد الأول');
+    });
+
+    test('بند واحد بس = مفيش «وبعدها»', () {
+      final t = MorningDigest.compose([ev(9, 'اجتماع')], now)!;
+      expect(t.body, contains('اجتماع'));
+      expect(t.body.contains('وبعدها'), isFalse);
+    });
+
+    test('يوم فاضى أو كله خلص = مفيش إشعار', () {
+      expect(MorningDigest.compose(const [], now), isNull);
+      expect(
+          MorningDigest.compose(
+              [ev(9, 'اتعملت', done: true)], now),
+          isNull);
+    });
+
+    test('كل اللى باقى فات ميعاده = بيقول عددهم من غير «أول حاجة»', () {
+      final late = DateTime(2026, 9, 28, 23, 0);
+      final t = MorningDigest.compose(
+          [ev(9, 'فاتت'), ev(10, 'فاتت كمان')], late)!;
+      expect(t.body, contains('2'));
+      expect(t.body.contains('أول حاجة'), isFalse);
+    });
+
+    test('مفعّل افتراضيًا من غير ما المستخدم يدوّر عليه', () async {
+      expect(await MorningDigest.isEnabled(), isTrue);
+      await SettingsRepo().set(MorningDigest.enabledKey, '0');
+      expect(await MorningDigest.isEnabled(), isFalse);
+      await SettingsRepo().set(MorningDigest.enabledKey, '1');
+      expect(await MorningDigest.isEnabled(), isTrue);
     });
   });
 

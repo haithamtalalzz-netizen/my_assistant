@@ -284,6 +284,10 @@ class AppTimelineRow extends StatelessWidget {
   final bool last;
   final VoidCallback? onTap;
 
+  /// إخفاء نقطة الخط — بيتستخدم لما يكون فيه دايرة «تمّ» قابلة للضغط
+  /// مكانها، عشان مايبانش دايرتين جنب بعض.
+  final bool showDot;
+
   const AppTimelineRow({
     super.key,
     required this.time,
@@ -293,6 +297,7 @@ class AppTimelineRow extends StatelessWidget {
     this.done = false,
     this.last = false,
     this.onTap,
+    this.showDot = true,
   });
 
   @override
@@ -304,16 +309,19 @@ class AppTimelineRow extends StatelessWidget {
       child: IntrinsicHeight(
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Column(children: [
-            Container(
-              width: 11,
-              height: 11,
-              margin: const EdgeInsets.only(top: 5),
-              decoration: BoxDecoration(
-                  color: done ? scheme.primary : scheme.surfaceContainerLow,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                      color: done ? scheme.primary : tint, width: 2.4)),
-            ),
+            if (showDot)
+              Container(
+                width: 11,
+                height: 11,
+                margin: const EdgeInsets.only(top: 5),
+                decoration: BoxDecoration(
+                    color: done ? scheme.primary : scheme.surfaceContainerLow,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: done ? scheme.primary : tint, width: 2.4)),
+              )
+            else
+              const SizedBox(width: 2, height: 16),
             if (!last)
               Expanded(
                   child: Container(

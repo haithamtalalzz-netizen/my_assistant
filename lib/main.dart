@@ -16,6 +16,7 @@ import 'core/log.dart';
 import 'core/proactive_insight.dart';
 import 'core/notification_actions.dart';
 import 'core/adhkar_reminders.dart';
+import 'core/morning_digest.dart';
 import 'core/notifications.dart';
 import 'core/prayers.dart';
 import 'core/month_summary.dart';
@@ -91,6 +92,8 @@ Future<void> _startup() async {
   unawaited(PrayerScheduler.ensureScheduled());
   unawaited(FridayReminder.ensureScheduled());
   unawaited(AdhkarReminders.reschedule());
+  // إشعار «يومك» الصبح — نصّه بيتحدّث كل مرة التطبيق يفتح.
+  unawaited(MorningDigest.reschedule());
   unawaited(WidgetBridge.push());
   unawaited(OccasionsRepo().rescheduleAll());
   unawaited(EveningScheduler.ensureScheduled());

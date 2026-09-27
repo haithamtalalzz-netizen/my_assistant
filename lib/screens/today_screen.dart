@@ -222,7 +222,11 @@ class _TodayScreenState extends State<TodayScreen> {
       _timeline = timeline;
       _timelineAll = timelineAll;
       _next = nextDayEvent(timelineAll, now);
-      _overdue = overdueDayEvent(timelineAll, now);
+      // أحدث فايت — أقدم واحد ممكن يكون من ١٧ ساعة ومش مفيد كـ«اعمل ده».
+      _overdue = [
+        for (final e in timelineAll)
+          if (!e.done && e.at.isBefore(now)) e
+      ].lastOrNull;
       _dueTasks = dueTasks;
       _todayTasks = dueList;
       _dash = dash;
@@ -620,9 +624,10 @@ class _TodayScreenState extends State<TodayScreen> {
     if (mins < 60) return tr('$mins دقيقة', '$mins min');
     final h = mins ~/ 60;
     final m = mins % 60;
+    // كلمات كاملة: «س» و«د» المختصرين جنب أرقام لاتينية بيلخبطوا تحت RTL.
     return m == 0
         ? tr('$h ساعة', '${h}h')
-        : tr('$h س و$m د', '${h}h ${m}m');
+        : tr('$h ساعة و$m دقيقة', '${h}h ${m}m');
   }
 
   String _heroActionLabel(TimelineEvent ev) => switch (ev.kind) {
@@ -661,30 +666,91 @@ class _TodayScreenState extends State<TodayScreen> {
         context, MaterialPageRoute(builder: (_) => screen)));
   }
 
-  /// **خط يومك** — كل بنود النهارده بالساعة، اللى خلص متشطوب.
+  /// **خط يومك** — كل بنود النهارده بالساعة.
+  ///
+  /// بندين مهمّين فى التصميم:
+  /// - **اللى فات ولسه ما اتعملش بيتجمّع فوق** فى قسم أحمر لوحده، عشان
+  ///   مايضيعش وسط باقى اليوم (كان بيتشال من العرض أصلاً لو قديم).
+  /// - **علامة «تمّ» من على الخط نفسه** — مش لازم تفتح الصفحة.
   Widget _timelineSection(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final p = dayTimelineProgress(_timelineAll);
+    final now = DateTime.now();
+    final allMissed = [
+      for (final e in _timelineAll)
+        if (!e.done && e.at.isBefore(now)) e
+    ];
+    // **أحدث ٣ بس**: جدار أحمر من ٩ بنود أسوأ من إنه مايبانش خالص، ومحدش
+    // هيلحق الفجر الساعة ٩ بالليل.
+    final missed = allMissed.length <= 3
+        ? allMissed
+        : allMissed.sublist(allMissed.length - 3);
+    final rest = [
+      for (final e in _timeline)
+        if (!(!e.done && e.at.isBefore(now))) e
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AppSectionTitle(tr('خط يومك', 'Your day'),
-            trailing: tr('${p.done} من ${p.total} خلصوا',
-                '${p.done} of ${p.total} done')),
-        AppCard(Column(children: [
-          for (var i = 0; i < _timeline.length; i++)
-            AppTimelineRow(
-              time: _timeline[i].timeLabel,
-              title: _timeline[i].title,
-              sub: _timeline[i].sub,
-              tint: _kindColor(_timeline[i].kind, scheme),
-              done: _timeline[i].done,
-              last: i == _timeline.length - 1,
-              onTap: () => _openEvent(_timeline[i]),
-            ),
-        ])),
+        if (missed.isNotEmpty) ...[
+          AppSectionTitle(tr('فاتك', 'Missed'),
+              trailing: allMissed.length > missed.length
+                  ? tr('${arNum(missed.length)} من ${arNum(allMissed.length)}',
+                      '${arNum(missed.length)} of ${arNum(allMissed.length)}')
+                  : arNum(allMissed.length)),
+          AppCard(Column(children: [
+            for (var i = 0; i < missed.length; i++)
+              _timelineRow(missed[i], scheme,
+                  last: i == missed.length - 1, missed: true),
+          ])),
+          const SizedBox(height: 18),
+        ],
+        // كارت فاضى مالوش لازمة — لو كل اللى فاضل فايت، «فاتك» يكفى.
+        if (rest.isNotEmpty) ...[
+          AppSectionTitle(tr('خط يومك', 'Your day'),
+              trailing: tr('${arNum(p.done)} من ${arNum(p.total)} خلصوا',
+                  '${arNum(p.done)} of ${arNum(p.total)} done')),
+          AppCard(Column(children: [
+            for (var i = 0; i < rest.length; i++)
+              _timelineRow(rest[i], scheme, last: i == rest.length - 1),
+          ])),
+        ],
       ],
     );
+  }
+
+  /// سطر على الخط — الضغط على الدايرة بيعلّم «تمّ»، والضغط على السطر بيفتح.
+  Widget _timelineRow(TimelineEvent e, ColorScheme scheme,
+      {bool last = false, bool missed = false}) {
+    final tint = missed ? scheme.error : _kindColor(e.kind, scheme);
+    return Row(children: [
+      // دايرة الإنجاز: مساحة ضغط واسعة عشان تتلمس بالإصبع بسهولة.
+      InkWell(
+        onTap: e.done ? null : () => _completeEvent(e),
+        customBorder: const CircleBorder(),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(
+              e.done ? Icons.check_circle : Icons.radio_button_unchecked,
+              size: 22,
+              color: e.done ? scheme.primary : tint),
+        ),
+      ),
+      Expanded(
+        child: AppTimelineRow(
+          time: e.timeLabel,
+          title: e.title,
+          sub: missed && e.sub.isEmpty
+              ? tr('فات ميعاده', 'Overdue')
+              : e.sub,
+          tint: tint,
+          done: e.done,
+          last: last,
+          showDot: false,
+          onTap: () => _openEvent(e),
+        ),
+      ),
+    ]);
   }
 
   /// قسم «مهام النهارده» — المستحق والفايت، وتقدر تعلّم «تمّ» من الرئيسية

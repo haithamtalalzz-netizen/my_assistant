@@ -22,6 +22,7 @@ import '../core/db.dart';
 import '../core/evening.dart';
 import '../core/health_service.dart';
 import '../core/l10n.dart';
+import '../core/morning_digest.dart';
 import '../core/notifications.dart';
 import '../core/prayers.dart';
 import '../core/seed_demo.dart';
@@ -74,6 +75,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _governorate = 'القاهرة';
   String? _customLoc; // مدينة عالمية مخصّصة (null = محافظة)
   String _notifMode = 'both';
+
+  /// إشعار «يومك» الصبح + ميعاده.
+  bool _digest = true;
+  TimeOfDay _digestAt = const TimeOfDay(
+      hour: MorningDigest.defaultHour, minute: MorningDigest.defaultMinute);
   bool _loading = true;
   bool _busy = false;
   String? _openCat; // الفئة المفتوحة حاليًا (null = القائمة الرئيسية)
@@ -111,10 +117,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final geminiKey = await _settings.get('gemini_key') ?? '';
     final geminiSendHealth = await _settings.get('gemini_send_health') != '0';
     final notifMode = await _settings.get('notif_mode') ?? 'both';
+    final digestOn = await MorningDigest.isEnabled(_settings);
+    final digestRaw = await _settings.get(MorningDigest.timeKey) ?? '';
+    final digestParts = toEnglishDigits(digestRaw).split(':');
+    final digestAt = TimeOfDay(
+      hour: int.tryParse(digestParts.isEmpty ? '' : digestParts[0]) ??
+          MorningDigest.defaultHour,
+      minute: digestParts.length > 1
+          ? (int.tryParse(digestParts[1]) ?? MorningDigest.defaultMinute)
+          : MorningDigest.defaultMinute,
+    );
     final catOrder = await _settings.get('settings_order') ?? '';
     if (!mounted) return;
     setState(() {
       _notifMode = notifMode;
+      _digest = digestOn;
+      _digestAt = digestAt;
       _catOrder =
           catOrder.split(',').where((e) => e.isNotEmpty).toList();
       _name.text = name;
@@ -981,6 +999,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ],
                 ),
+                const Divider(height: 26),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(tr('إشعار «يومك» الصبح', 'Morning digest')),
+                  subtitle: Text(tr(
+                      'إشعار واحد الصبح فيه أول حاجة قدامك وكام بند عندك',
+                      'One morning notification: what is first and how much is left')),
+                  value: _digest,
+                  onChanged: (v) async {
+                    setState(() => _digest = v);
+                    await _settings.set(MorningDigest.enabledKey, v ? '1' : '0');
+                    await MorningDigest.reschedule();
+                  },
+                ),
+                if (_digest)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.schedule),
+                    title: Text(tr('ميعاد الإشعار', 'Digest time')),
+                    trailing: Text(_digestAt.format(context),
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    onTap: () async {
+                      final t = await showTimePicker(
+                          context: context, initialTime: _digestAt);
+                      if (t == null) return;
+                      setState(() => _digestAt = t);
+                      await _settings.set(MorningDigest.timeKey,
+                          '${t.hour.toString().padLeft(2, '0')}:'
+                          '${t.minute.toString().padLeft(2, '0')}');
+                      await MorningDigest.reschedule();
+                    },
+                  ),
                 ],
                 if (_openCat == 'health') ...[
                 SwitchListTile(
