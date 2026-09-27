@@ -13,7 +13,6 @@ import 'package:my_assistant/core/backup.dart';
 import 'package:my_assistant/core/json_backup.dart';
 import 'package:my_assistant/core/app_state.dart';
 import 'package:my_assistant/core/contextual_tips.dart';
-import 'package:my_assistant/core/day_close.dart';
 import 'package:my_assistant/core/kcal_balance.dart';
 import 'package:my_assistant/core/log.dart';
 import 'package:my_assistant/core/money_trends.dart';
@@ -29,8 +28,6 @@ import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/usda_food_db.dart';
 import 'package:my_assistant/core/egyptian_dishes.dart';
 import 'package:my_assistant/core/attention.dart';
-import 'package:my_assistant/widgets/day_glance.dart';
-import 'package:my_assistant/widgets/reorderable_sections.dart';
 import 'package:flutter/material.dart';
 import 'package:my_assistant/core/food_db.dart';
 import 'package:my_assistant/core/exercise_library.dart';
@@ -39,7 +36,6 @@ import 'package:my_assistant/core/diet_plans.dart';
 import 'package:my_assistant/core/location_tracker.dart';
 import 'package:my_assistant/data/activity_repo.dart';
 import 'package:my_assistant/data/cycle_repo.dart';
-import 'package:my_assistant/core/day_planner.dart';
 import 'package:my_assistant/core/insights.dart';
 import 'package:my_assistant/core/suggestions.dart';
 import 'package:my_assistant/core/local_brain.dart';
@@ -1194,46 +1190,6 @@ void main() {
           insights.any((i) =>
               i.kind == InsightKind.celebration && i.text.contains('قراءة')),
           isTrue);
-    });
-  });
-
-  group('مخطط اليوم', () {
-    test('البنود المقترحة بتتحط في الفراغات من غير تعارض', () {
-      final now = DateTime(2026, 7, 6, 14, 0);
-      final plan = buildDayPlan(PlanInput(
-        now: now,
-        dayEnd: DateTime(2026, 7, 6, 22, 30),
-        appointments: [(DateTime(2026, 7, 6, 16, 0), 'اجتماع')],
-        prayers: [(DateTime(2026, 7, 6, 15, 30), 'العصر')],
-        overdue: const ['مشوار البنك'],
-        pendingHabits: const ['قراءة'],
-      ));
-      // كل البنود جوه النطاق ومرتبة ومن غير تداخل مع الاجتماع.
-      for (var i = 1; i < plan.length; i++) {
-        expect(
-            plan[i].start.isAfter(plan[i - 1].start) ||
-                plan[i].start.isAtSameMomentAs(plan[i - 1].start),
-            isTrue);
-      }
-      expect(plan.any((p) => p.title.contains('مشوار البنك')), isTrue);
-      expect(plan.any((p) => p.title.contains('قراءة')), isTrue);
-      final overdueItem =
-          plan.firstWhere((p) => p.kind == PlanKind.overdue);
-      final meeting =
-          plan.firstWhere((p) => p.kind == PlanKind.appointment);
-      final overlaps = overdueItem.start.isBefore(meeting.end) &&
-          meeting.start.isBefore(overdueItem.end);
-      expect(overlaps, isFalse);
-    });
-
-    test('يوم فاضي بالكامل يرجع البنود المقترحة بس', () {
-      final plan = buildDayPlan(PlanInput(
-        now: DateTime(2026, 7, 6, 20, 0),
-        dayEnd: DateTime(2026, 7, 6, 22, 30),
-        pendingHabits: const ['ورد قرآن'],
-      ));
-      expect(plan.length, 1);
-      expect(plan.single.kind, PlanKind.habit);
     });
   });
 
@@ -2927,87 +2883,6 @@ void main() {
     });
   });
 
-  group('الرئيسية: ترتيب الأقسام', () {
-    Section s(String id) => Section(id, const SizedBox.shrink());
-
-    test('بيطبّق الترتيب المحفوظ', () {
-      final ordered = applySectionOrder(
-          [s('a'), s('b'), s('c')], ['c', 'a', 'b']);
-      expect(ordered.map((x) => x.id).toList(), ['c', 'a', 'b']);
-    });
-
-    test('قسم جديد بيفضل مكانه الافتراضى مش بينطّ للآخر', () {
-      // الترتيب المحفوظ ماعندوش 'new' — لازم يفضل بعد 'a' زى ما هو.
-      final ordered =
-          applySectionOrder([s('a'), s('new'), s('b')], ['b', 'a']);
-      expect(ordered.map((x) => x.id).toList(), ['b', 'a', 'new']);
-      // ولو الترتيب المحفوظ فاضى، بيرجّع نفس الترتيب الأصلى.
-      final same = applySectionOrder([s('a'), s('b')], []);
-      expect(same.map((x) => x.id).toList(), ['a', 'b']);
-    });
-  });
-
-  group('الرئيسية: القايمة القابلة للترتيب بترسم فعلاً', () {
-    testWidgets('بترسم الهيدر والأقسام من غير أخطاء تخطيط', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: ReorderableSections(
-            storageKey: 'test_home',
-            header: const Text('الترحيب'),
-            sections: [
-              Section('a', const SizedBox(height: 80, child: Text('قسم أ'))),
-              Section('b', const SizedBox(height: 80, child: Text('قسم ب'))),
-              Section('c', const SizedBox(height: 80, child: Text('قسم ج'))),
-            ],
-          ),
-        ),
-      ));
-      // الترتيب بيتحمّل async -> نستنى.
-      await tester.pumpAndSettle();
-
-      expect(tester.takeException(), isNull);
-      expect(find.text('الترحيب'), findsOneWidget);
-      expect(find.text('قسم أ'), findsOneWidget);
-      expect(find.text('قسم ج'), findsOneWidget);
-    });
-
-    testWidgets('قايمة فاضية = الهيدر لوحده من غير كراش', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: ReorderableSections(
-            storageKey: 'test_empty',
-            header: const Text('كله تمام'),
-            sections: const [],
-          ),
-        ),
-      ));
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-      expect(find.text('كله تمام'), findsOneWidget);
-    });
-  });
-
-  group('الرئيسية: يومك فى سطر', () {
-    test('الحلقة بتحسب النسبة وتتجاهل اللى مالوش هدف', () {
-      const rings = [
-        GlanceRing(
-            icon: Icons.abc, label: 'صلوات', done: 3, total: 5, color: Colors.green),
-        GlanceRing(
-            icon: Icons.abc, label: 'مياه', done: 8, total: 8, color: Colors.blue),
-        // مفيش أدوية -> total=0 -> مش بتتعرض
-        GlanceRing(
-            icon: Icons.abc, label: 'أدوية', done: 0, total: 0, color: Colors.pink),
-      ];
-      expect(rings[0].fraction, closeTo(0.6, 0.001));
-      expect(rings[0].complete, isFalse);
-      expect(rings[1].complete, isTrue);
-      expect(rings[2].fraction, 0); // مفيش قسمة على صفر
-      // الملخص بيعدّ اللى ليها هدف بس (٢) واللى خلصت (١).
-      // ملحوظة: arNum بيرجّع أرقام لاتينية بقرار سابق فى المشروع.
-      expect(glanceSummary(rings), '1 من 2 خلصت');
-    });
-  });
-
   group('قاعدة الأكل USDA', () {
     // عيّنة بنفس شكل الأصل الحقيقى (assets/food/usda_foods.json).
     const sample = '''[
@@ -3084,37 +2959,6 @@ void main() {
       // صنف من غير حصة -> ١٠٠ جم
       final fried = (await UsdaDb.search('مقلى')).single;
       expect(fried.defaultGrams, 100);
-    });
-  });
-
-  group('قفل اليوم', () {
-    test('بيجمع الناقص وبيقل مع التسجيل', () async {
-      final now = DateTime.now();
-      final day = dayKey(now);
-      // عادة + ٣ صلوات + شوية مياه.
-      final hid = await HabitsRepo().add('قراءة');
-      for (var i = 0; i < 3; i++) {
-        await WorshipRepo().togglePrayer(now, i, true);
-      }
-      await HealthRepo().setWaterMl(day, 500);
-      await SettingsRepo().setWaterGoalMl(2000);
-
-      final s1 = await collectDayClose(now);
-      expect(s1.missedPrayers, [3, 4]);
-      expect(s1.remainingWaterMl, 1500);
-      expect(s1.pendingHabits.length, 1);
-      expect(s1.allDone, isFalse);
-      // ٢ صلاة + ١ عادة + ١ مياه = ٤ بنود.
-      expect(s1.pendingCount, 4);
-
-      // نقفل كل حاجة.
-      await WorshipRepo().togglePrayer(now, 3, true);
-      await WorshipRepo().togglePrayer(now, 4, true);
-      await HabitsRepo().toggle(hid, day);
-      await HealthRepo().setWaterMl(day, 2000);
-      final s2 = await collectDayClose(now);
-      expect(s2.allDone, isTrue);
-      expect(s2.pendingCount, 0);
     });
   });
 

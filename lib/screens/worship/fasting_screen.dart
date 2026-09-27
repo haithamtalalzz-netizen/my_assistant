@@ -10,14 +10,14 @@ import '../../core/log.dart';
 
 /// تتبّع الصيام — صيام اليوم + الأيام المستحبّة (اثنين/خميس/الأيام البيض)
 /// + تذكير السحور والإفطار.
-class FastingScreen extends StatefulWidget {
-  const FastingScreen({super.key});
+class NafilFastingScreen extends StatefulWidget {
+  const NafilFastingScreen({super.key});
 
   @override
-  State<FastingScreen> createState() => _FastingScreenState();
+  State<NafilFastingScreen> createState() => _NafilFastingScreenState();
 }
 
-class _FastingScreenState extends State<FastingScreen> {
+class _NafilFastingScreenState extends State<NafilFastingScreen> {
   final _repo = WorshipRepo();
   final _settings = SettingsRepo();
   bool _todayFasted = false;

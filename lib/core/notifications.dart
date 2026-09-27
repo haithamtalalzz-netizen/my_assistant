@@ -154,7 +154,7 @@ class Notifications {
         tz.setLocalLocation(tz.getLocation('Africa/Cairo'));
       }
       await _plugin.initialize(
-        const InitializationSettings(
+        settings: const InitializationSettings(
           android: AndroidInitializationSettings('@mipmap/ic_launcher'),
           iOS: DarwinInitializationSettings(),
         ),
@@ -194,12 +194,22 @@ class Notifications {
                 uri: adhanUri, channel: adhanChannel, actions: actions)
             : _detailsWith(actions);
     try {
-      await _plugin.zonedSchedule(id, title, body, at, details,
+      await _plugin.zonedSchedule(
+          id: id,
+          title: title,
+          body: body,
+          scheduledDate: at,
+          notificationDetails: details,
           payload: payload,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle);
     } on PlatformException catch (e) {
       logError('فشل التنبيه الدقيق #$id — هنجرب غير دقيق', e);
-      await _plugin.zonedSchedule(id, title, body, at, details,
+      await _plugin.zonedSchedule(
+          id: id,
+          title: title,
+          body: body,
+          scheduledDate: at,
+          notificationDetails: details,
           payload: payload,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle);
     }
@@ -229,13 +239,23 @@ class Notifications {
                 uri: adhanUri, channel: adhanChannel, actions: actions)
             : _detailsWith(actions);
     try {
-      await _plugin.zonedSchedule(id, title, body, at, details,
+      await _plugin.zonedSchedule(
+          id: id,
+          title: title,
+          body: body,
+          scheduledDate: at,
+          notificationDetails: details,
           payload: payload,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.time);
     } on PlatformException catch (e) {
       logError('فشل التنبيه اليومي الدقيق #$id — هنجرب غير دقيق', e);
-      await _plugin.zonedSchedule(id, title, body, at, details,
+      await _plugin.zonedSchedule(
+          id: id,
+          title: title,
+          body: body,
+          scheduledDate: at,
+          notificationDetails: details,
           payload: payload,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.time);
@@ -262,13 +282,23 @@ class Notifications {
     }
     final details = _detailsWith(actions);
     try {
-      await _plugin.zonedSchedule(id, title, body, at, details,
+      await _plugin.zonedSchedule(
+          id: id,
+          title: title,
+          body: body,
+          scheduledDate: at,
+          notificationDetails: details,
           payload: payload,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime);
     } on PlatformException catch (e) {
       logError('فشل التنبيه الشهري الدقيق #$id — هنجرب غير دقيق', e);
-      await _plugin.zonedSchedule(id, title, body, at, details,
+      await _plugin.zonedSchedule(
+          id: id,
+          title: title,
+          body: body,
+          scheduledDate: at,
+          notificationDetails: details,
           payload: payload,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime);
@@ -303,13 +333,23 @@ class Notifications {
                 uri: adhanUri, channel: adhanChannel, actions: actions)
             : _detailsWith(actions);
     try {
-      await _plugin.zonedSchedule(id, title, body, at, details,
+      await _plugin.zonedSchedule(
+          id: id,
+          title: title,
+          body: body,
+          scheduledDate: at,
+          notificationDetails: details,
           payload: payload,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime);
     } on PlatformException catch (e) {
       logError('فشل التنبيه الأسبوعي الدقيق #$id — هنجرب غير دقيق', e);
-      await _plugin.zonedSchedule(id, title, body, at, details,
+      await _plugin.zonedSchedule(
+          id: id,
+          title: title,
+          body: body,
+          scheduledDate: at,
+          notificationDetails: details,
           payload: payload,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime);
@@ -319,8 +359,11 @@ class Notifications {
   /// تجربة صوت الأذان فورًا (ملف المستخدم لو موجود، وإلا التنبيه الافتراضى).
   static Future<void> showAdhanTest({String? uri, String? channel}) async {
     if (!_ready) return;
-    await _plugin.show(adhanTestNotifId, 'أذان (تجربة)', 'صوت الأذان شغّال ✓',
-        _adhanDetails(uri: uri, channel: channel));
+    await _plugin.show(
+        id: adhanTestNotifId,
+        title: 'أذان (تجربة)',
+        body: 'صوت الأذان شغّال ✓',
+        notificationDetails: _adhanDetails(uri: uri, channel: channel));
   }
 
   /// إشعار فوري (مش مجدول).
@@ -330,12 +373,13 @@ class Notifications {
     required String body,
   }) async {
     if (!_ready) return;
-    await _plugin.show(id, title, body, _details);
+    await _plugin.show(
+        id: id, title: title, body: body, notificationDetails: _details);
   }
 
   static Future<void> cancel(int id) async {
     if (!_ready) return;
-    await _plugin.cancel(id);
+    await _plugin.cancel(id: id);
   }
 
   static Future<void> cancelAll() async {
@@ -352,7 +396,8 @@ class Notifications {
     final sound = mode == 'both' || mode == 'sound';
     final vibrate = mode == 'both' || mode == 'vibration';
     try {
-      await android.deleteNotificationChannel('my_assistant_main');
+      await android.deleteNotificationChannel(
+          channelId: 'my_assistant_main');
       await android.createNotificationChannel(AndroidNotificationChannel(
         'my_assistant_main',
         'تنبيهات المساعد',

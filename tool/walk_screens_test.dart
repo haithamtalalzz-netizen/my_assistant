@@ -90,7 +90,7 @@ import 'package:my_assistant/screens/worship/adhkar_reminders_screen.dart';
 import 'package:my_assistant/screens/worship/adhkar_situations_screen.dart';
 import 'package:my_assistant/screens/worship/daily_wird_screen.dart';
 import 'package:my_assistant/screens/worship/duas_screen.dart';
-import 'package:my_assistant/screens/worship/fasting_screen.dart' as w30;
+import 'package:my_assistant/screens/worship/fasting_screen.dart';
 import 'package:my_assistant/screens/worship/hadith_library_screen.dart';
 import 'package:my_assistant/screens/worship/hajj_umrah_screen.dart';
 import 'package:my_assistant/screens/worship/islamic_occasions_screen.dart';
@@ -145,8 +145,7 @@ void main() {
   });
 
   Future<void> walk(WidgetTester tester, Widget w) async {
-    // استثناء متأخّر من شاشة سابقة بيوصل هنا وينتسب للشاشة الغلط —
-    // نرميه قبل ما نفتح، فاللى يتمسك بعد كده بتاع الشاشة دى فعلاً.
+    // استثناء متأخّر من شاشة سابقة بينتسب للشاشة الغلط — نرميه الأول.
     tester.takeException();
     await tester.pumpWidget(MaterialApp(
       theme: buildTheme(),
@@ -198,7 +197,6 @@ void main() {
   testWidgets('EmergencyView', (t) => walk(t, const EmergencyView()));
   testWidgets('ExerciseLibraryScreen', (t) => walk(t, const ExerciseLibraryScreen()));
   testWidgets('FastingScreen', (t) => walk(t, const FastingScreen()));
-  testWidgets('FastingScreen (worship)', (t) => walk(t, const w30.FastingScreen()));
   testWidgets('FocusScreen', (t) => walk(t, const FocusScreen()));
   testWidgets('FoodCardScreen', (t) => walk(t, const FoodCardScreen()));
   testWidgets('GameyaScreen', (t) => walk(t, const GameyaScreen()));
@@ -226,16 +224,15 @@ void main() {
   testWidgets('MoneyScreen', (t) => walk(t, const MoneyScreen()));
   testWidgets('MonthlyTimesScreen', (t) => walk(t, const MonthlyTimesScreen()));
   testWidgets('MoodScreen', (t) => walk(t, const MoodScreen()));
-  // MushafPageScreen: بتحمّل المصحف (أصل ضخم) بمؤشّر لانهائى؛ هدّها
-  // وهو بيلفّ بيسيب ticker شغّال **يسمّم كل اختبار بعده**
-  // (قيد فى flutter_test مش عطب فى التطبيق). متغطّية فى
-  // tool/probe_test.dart لوحدها وبتنجح.
+  // MushafPageScreen: بتحمّل أصل ضخم بمؤشّر لانهائى؛ هدّها وهو بيلفّ
+  // بيسيب ticker يسمّم كل اختبار بعده (قيد فى flutter_test).
+  // متغطّية فى tool/probe_test.dart لوحدها وبتنجح.
   // testWidgets('MushafPageScreen', (t) => walk(t, const MushafPageScreen()));
-  // MushafScreen: بتحمّل المصحف (أصل ضخم) بمؤشّر لانهائى؛ هدّها
-  // وهو بيلفّ بيسيب ticker شغّال **يسمّم كل اختبار بعده**
-  // (قيد فى flutter_test مش عطب فى التطبيق). متغطّية فى
-  // tool/probe_test.dart لوحدها وبتنجح.
+  // MushafScreen: بتحمّل أصل ضخم بمؤشّر لانهائى؛ هدّها وهو بيلفّ
+  // بيسيب ticker يسمّم كل اختبار بعده (قيد فى flutter_test).
+  // متغطّية فى tool/probe_test.dart لوحدها وبتنجح.
   // testWidgets('MushafScreen', (t) => walk(t, const MushafScreen()));
+  testWidgets('NafilFastingScreen', (t) => walk(t, const NafilFastingScreen()));
   testWidgets('NamesScreen', (t) => walk(t, const NamesScreen()));
   testWidgets('NotesScreen', (t) => walk(t, const NotesScreen()));
   testWidgets('OutfitScreen', (t) => walk(t, const OutfitScreen()));

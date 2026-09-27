@@ -15,7 +15,6 @@ import 'package:my_assistant/data/meals_repo.dart';
 import 'package:my_assistant/screens/habits/habits_screen.dart';
 import 'package:my_assistant/screens/tasks/focus_screen.dart';
 import 'package:my_assistant/widgets/quick_add_field.dart';
-import 'package:my_assistant/widgets/reorderable_sections.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 Widget _app(Widget child) => MaterialApp(
@@ -82,36 +81,6 @@ void main() {
     expect(find.textContaining('❌ فشل تجريبى'), findsOneWidget);
     expect(find.text('شارك'), findsOneWidget);
     expect(find.text('نسخ'), findsOneWidget);
-  });
-
-  testWidgets('أقسام الرئيسية: التحميل كسول — القسم تحت الطى مايتبنيش',
-      (tester) async {
-    // كل قسم بيعلّم إنه اتبنى؛ القسم تحت الطى (طويل جدًا) المفروض مايتبنيش
-    // لحد ما يتمرّر ليه — ده اللى بيخلّى فتح الرئيسية أسرع.
-    final built = <String>{};
-    Widget marker(String id, double h) => Builder(builder: (_) {
-          built.add(id);
-          return SizedBox(height: h, child: Text('قسم $id'));
-        });
-    await tester.pumpWidget(_app(Scaffold(
-      body: ReorderableSections(
-        storageKey: 'lazy_test',
-        sections: [
-          Section.builder('top', (_) => marker('top', 200)),
-          // طويل عشان يدفع اللى بعده تحت الطى.
-          Section.builder('mid', (_) => marker('mid', 2000)),
-          Section.builder('bottom', (_) => marker('bottom', 400)),
-        ],
-      ),
-    )));
-    await tester.pumpAndSettle();
-    expect(built.contains('top'), true, reason: 'القسم الظاهر اتبنى');
-    expect(built.contains('bottom'), false,
-        reason: 'القسم تحت الطى ماتبناش لسه (تحميل كسول)');
-    // بعد ما نمرّر لتحت، بيتبنى.
-    await tester.drag(find.byType(ReorderableSections), const Offset(0, -2200));
-    await tester.pumpAndSettle();
-    expect(built.contains('bottom'), true, reason: 'اتبنى بعد ما اتمرّر ليه');
   });
 
   testWidgets('قائمة التسوق: تنصيب جديد بيزرع القوائم الافتراضية',

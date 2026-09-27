@@ -788,7 +788,7 @@ class _PrayerScreenState extends State<PrayerScreen> {
       _Tool('monthly', Icons.calendar_month, tr('مواقيت الشهر', 'Monthly times'),
           const Color(0xFF4A6FB5), () => const MonthlyTimesScreen()),
       _Tool('fasting', Icons.wb_twilight, tr('الصيام', 'Fasting'),
-          const Color(0xFFCC8A2E), () => const FastingScreen()),
+          const Color(0xFFCC8A2E), () => const NafilFastingScreen()),
       _Tool('stats', Icons.insights, tr('إحصائيتك الروحية', 'Spiritual week'),
           const Color(0xFF3C5A99), () => const SpiritualStatsScreen()),
       _Tool('zakat', Icons.calculate, tr('حاسبة الزكاة', 'Zakat'),
