@@ -1,19 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_images.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../core/med_forms.dart';
 import '../../data/pharmacy_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
-import '../../widgets/wheel_date_picker.dart';
 import '../schedule/med_form.dart';
-
-/// صف دفعة قابل للتعديل داخل الفورم (كمية + صلاحية).
-class _BatchEdit {
-  final TextEditingController qty;
-  DateTime? exp;
-  _BatchEdit(this.qty, this.exp);
-}
+import 'pharmacy_form.dart';
 
 class PharmacyScreen extends StatefulWidget {
   const PharmacyScreen({super.key});
@@ -28,7 +23,6 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
   bool _loading = true;
   bool _expiredOnly = false;
   List<PharmacyItem> _items = [];
-  static const _lowStock = 2;
 
   @override
   void initState() {
@@ -63,7 +57,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
     final now = DateTime.now();
     var expired = 0, soon = 0, low = 0;
     for (final it in _items) {
-      if (it.quantity > 0 && it.quantity <= _lowStock) low++;
+      if (it.quantity > 0 && it.quantity <= it.lowAt) low++;
       final exp = it.expiry == null ? null : DateTime.tryParse(it.expiry!);
       if (exp == null) continue;
       if (exp.isBefore(now)) {
@@ -80,155 +74,14 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
     return e != null && e.isBefore(now);
   }
 
+  /// بيفتح الفورم بالشكل المناسب للمقاس (صفحة على الموبايل · حوار عريض
+  /// على التابلت) — التفاصيل كلها فى `pharmacy_form.dart`.
   Future<void> _form([PharmacyItem? item]) async {
-    final name = TextEditingController(text: item?.name ?? '');
-    final notes = TextEditingController(text: item?.notes ?? '');
-    // دفعات: كل كمية بصلاحية مستقلة.
-    final batches = <_BatchEdit>[];
-    if (item != null) {
-      final existing = await _repo.batchesFor(item.id!);
-      if (existing.isNotEmpty) {
-        for (final b in existing) {
-          batches.add(_BatchEdit(
-              TextEditingController(text: b.quantity.toString()),
-              b.expiry == null ? null : DateTime.tryParse(b.expiry!)));
-        }
-      } else {
-        batches.add(_BatchEdit(
-            TextEditingController(text: item.quantity.toString()),
-            item.expiry == null ? null : DateTime.tryParse(item.expiry!)));
-      }
-    } else {
-      batches.add(_BatchEdit(TextEditingController(text: '1'), null));
-    }
+    final batches =
+        item == null ? const <PharmacyBatch>[] : await _repo.batchesFor(item.id!);
     if (!mounted) return;
-
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) => AlertDialog(
-          scrollable: true,
-          title: Text(item == null
-              ? tr('دوا جديد', 'New medicine')
-              : tr('تعديل', 'Edit')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: name,
-                autofocus: item == null,
-                decoration: InputDecoration(
-                    labelText: tr('الاسم (مثلًا: بانادول)',
-                        'Name (e.g. Panadol)')),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: notes,
-                decoration: InputDecoration(
-                    labelText: tr('ملاحظة (لإيه؟)', 'Note (what for?)')),
-              ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Text(tr('الكميات والصلاحيات', 'Quantities & expiry'),
-                    style: Theme.of(context).textTheme.labelLarge),
-              ),
-              for (var i = 0; i < batches.length; i++)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 56,
-                        child: TextField(
-                          controller: batches[i].qty,
-                          keyboardType: TextInputType.number,
-                          decoration:
-                              InputDecoration(labelText: tr('عدد', 'Qty')),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () async {
-                            final now = DateTime.now();
-                            final picked = await pickWheelDate(
-                              ctx,
-                              initial: batches[i].exp ?? now,
-                              first: DateTime(now.year - 1),
-                              last: DateTime(now.year + 15),
-                            );
-                            if (picked != null) {
-                              setD(() => batches[i].exp = picked);
-                            }
-                          },
-                          child: InputDecorator(
-                            decoration: InputDecoration(
-                                labelText: tr('صلاحية', 'Expiry')),
-                            child: Text(batches[i].exp == null
-                                ? tr('بدون', 'None')
-                                : arShortDate(batches[i].exp!)),
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 18),
-                        onPressed: batches.length == 1
-                            ? null
-                            : () => setD(() => batches.removeAt(i)),
-                      ),
-                    ],
-                  ),
-                ),
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: TextButton.icon(
-                  onPressed: () => setD(() => batches
-                      .add(_BatchEdit(TextEditingController(text: '1'), null))),
-                  icon: const Icon(Icons.add),
-                  label: Text(tr('أضف دفعة بصلاحية مختلفة', 'Add batch')),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(tr('إلغاء', 'Cancel'))),
-            FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: Text(tr('حفظ', 'Save'))),
-          ],
-        ),
-      ),
-    );
-    if (saved == true && name.text.trim().isNotEmpty) {
-      final list = [
-        for (final b in batches)
-          PharmacyBatch(
-              itemId: 0,
-              quantity: int.tryParse(b.qty.text.trim()) ?? 1,
-              expiry: b.exp == null ? null : dayKey(b.exp!)),
-      ];
-      final totalQty = list.fold<int>(0, (s, b) => s + b.quantity);
-      final expiries = list.map((b) => b.expiry).whereType<String>().toList()
-        ..sort();
-      final nearest = expiries.isEmpty ? null : expiries.first;
-      final id = await _repo.save(PharmacyItem(
-        id: item?.id,
-        name: name.text.trim(),
-        quantity: totalQty,
-        expiry: nearest,
-        notes: notes.text.trim(),
-      ));
-      await _repo.replaceBatches(id, list);
-      if (mounted) await _load();
-    }
-    name.dispose();
-    notes.dispose();
-    for (final b in batches) {
-      b.qty.dispose();
-    }
+    final saved = await showPharmacyForm(context, item: item, batches: batches);
+    if (saved == true && mounted) await _load();
   }
 
   Widget _expiryBanner(BuildContext context) {
@@ -324,7 +177,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
                             ? () => _form()
                             : null,
                         text: _expiredOnly
-                            ? tr('مفيش دوا منتهى 👍', 'No expired meds 👍')
+                            ? tr('مفيش دوا منتهى', 'No expired meds')
                             : _searchCtrl.text.isEmpty
                                 ? tr('سجّل أدوية البيت وصلاحيتها — تعرف عندك إيه وتتنبّه قبل ما تخلص',
                                     'Log home meds & expiry — know what you have and get alerts')
@@ -344,17 +197,32 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
                           return Card(
                             margin: const EdgeInsets.symmetric(vertical: 3),
                             child: ListTile(
-                              leading: Icon(Icons.medication,
-                                  color: expired
-                                      ? scheme.error
-                                      : scheme.primary),
+                              leading: it.photo.isEmpty
+                                  ? Icon(medFormIcon(it.form),
+                                      color: expired
+                                          ? scheme.error
+                                          : scheme.primary)
+                                  : ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: AppImage(it.photo,
+                                          width: 40,
+                                          height: 40,
+                                          fit: BoxFit.cover),
+                                    ),
                               title: Text(
-                                  '${it.name}  ×${arNum(it.quantity)}'),
+                                  '${it.display}  ×${arNum(it.quantity)}'),
                               subtitle: Text([
                                 if (it.notes.isNotEmpty) it.notes,
+                                // من غير إيموچى: خط التطبيق (Cairo)
+                                // مافيهوش 📍/❄/👤/⚠ فبتطلع مربّعات فاضية.
+                                if (it.place.isNotEmpty)
+                                  tr('فى ${it.place}', 'in ${it.place}'),
+                                if (it.cold) tr('مبرّد', 'Cold'),
+                                if (it.person.isNotEmpty)
+                                  tr('لـ ${it.person}', 'for ${it.person}'),
                                 if (it.quantity > 0 &&
-                                    it.quantity <= _lowStock)
-                                  tr('⚠ مخزون منخفض', '⚠ Low stock'),
+                                    it.quantity <= it.lowAt)
+                                  tr('مخزون منخفض', 'Low stock'),
                                 if (exp != null)
                                   expired
                                       ? tr('منتهي ${arShortDate(exp)}',
@@ -362,11 +230,15 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
                                       : tr('صلاحية ${arShortDate(exp)}',
                                           'Expires ${arShortDate(exp)}'),
                               ].join(' • ')),
-                              subtitleTextStyle: expired
-                                  ? TextStyle(color: scheme.error)
-                                  : soon
-                                      ? const TextStyle(color: Colors.orange)
-                                      : null,
+                              subtitleTextStyle: expired || soon
+                                  ? Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                          color: expired
+                                              ? scheme.error
+                                              : Colors.orange)
+                                  : null,
                               trailing: PopupMenuButton<String>(
                                 onSelected: (v) async {
                                   if (v == 'edit') {

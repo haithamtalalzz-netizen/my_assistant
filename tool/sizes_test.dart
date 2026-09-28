@@ -51,6 +51,7 @@ import 'package:my_assistant/screens/health/lab_results_screen.dart';
 import 'package:my_assistant/screens/health/mood_screen.dart';
 import 'package:my_assistant/screens/health/symptom_journal_screen.dart';
 import 'package:my_assistant/screens/health/vaccinations_screen.dart';
+import 'package:my_assistant/screens/home/pharmacy_form.dart';
 import 'package:my_assistant/screens/home/pharmacy_screen.dart';
 import 'package:my_assistant/screens/home/plants_screen.dart';
 import 'package:my_assistant/screens/inbox_screen.dart';
@@ -271,6 +272,7 @@ void main() {
   testWidgets('OutfitScreen', (t) => sweep(t, () => const OutfitScreen()));
   testWidgets('PasswordsScreen', (t) => sweep(t, () => const PasswordsScreen()));
   testWidgets('PetsScreen', (t) => sweep(t, () => const PetsScreen()));
+  testWidgets('PharmacyForm', (t) => sweep(t, () => const PharmacyForm()));
   testWidgets('PharmacyScreen', (t) => sweep(t, () => const PharmacyScreen()));
   testWidgets('PlantsScreen', (t) => sweep(t, () => const PlantsScreen()));
   testWidgets('PostPrayerDhikrScreen', (t) => sweep(t, () => const PostPrayerDhikrScreen()));

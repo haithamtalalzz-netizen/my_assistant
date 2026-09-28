@@ -5,34 +5,9 @@ import '../../core/l10n.dart';
 import '../../data/meds_repo.dart';
 import '../../data/pharmacy_repo.dart';
 import '../../models/models.dart';
+import '../../core/med_forms.dart';
 
 /// أنواع الأدوية ووحداتها (قيم عربية مخزّنة).
-const List<String> kMedForms = [
-  'أقراص',
-  'كبسولات',
-  'شراب',
-  'فوار',
-  'كريم',
-  'مرهم',
-  'حقن',
-  'قطرة',
-  'بخاخ',
-  'لبوس',
-  'أخرى',
-];
-
-const List<String> kMedUnits = [
-  'علبة',
-  'شريط',
-  'قرص',
-  'عبوة',
-  'قطعة',
-  'سرنجة',
-  'زجاجة',
-  'أنبوبة',
-  'كيس',
-  'أخرى',
-];
 
 class MedForm extends StatefulWidget {
   final Medication? medication;

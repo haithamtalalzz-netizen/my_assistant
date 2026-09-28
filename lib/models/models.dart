@@ -583,13 +583,56 @@ class PharmacyItem {
   final String? expiry;
   final String notes;
 
+  // ---- تفاصيل (v64) — كلها اختيارية، الفاضى مابيتعرضش ----
+  /// أقراص/شراب/حقن… من `kMedForms`. بيحدّد أيقونة الكارت.
+  final String form;
+
+  /// التركيز زى «20mg» — كان بيتكتب جوّه الاسم.
+  final String strength;
+
+  /// المادة الفعّالة — بتخلّيك تعرف إن عندك نفس الدوا باسم تجارى تانى.
+  final String ingredient;
+
+  /// مكانه فى البيت («دولاب المطبخ») — تعرف عندك إيه مش نافع لو مش لاقيه.
+  final String place;
+
+  /// يتحفظ مبرّد (تلاجة).
+  final bool cold;
+
+  /// حد «مخزون منخفض» **لكل صنف** — كان رقم ثابت ٢ للكل.
+  final int lowAt;
+
+  /// صورة العلبة/النشرة — قيمة `AppImages` (مسار على الموبايل أو `img:<key>`
+  /// على الويب).
+  final String photo;
+
+  /// لمين الدوا (فرد من العيلة).
+  final String person;
+
+  final String brand;
+  final double price;
+
   const PharmacyItem({
     this.id,
     required this.name,
     this.quantity = 1,
     this.expiry,
     this.notes = '',
+    this.form = '',
+    this.strength = '',
+    this.ingredient = '',
+    this.place = '',
+    this.cold = false,
+    this.lowAt = 2,
+    this.photo = '',
+    this.person = '',
+    this.brand = '',
+    this.price = 0,
   });
+
+  /// الاسم زى ما بيتعرض: «بانادول 500mg».
+  String get display =>
+      strength.isEmpty ? name : '$name $strength';
 
   factory PharmacyItem.fromMap(Map<String, Object?> m) => PharmacyItem(
         id: m['id'] as int?,
@@ -597,6 +640,17 @@ class PharmacyItem {
         quantity: (m['quantity'] as num?)?.toInt() ?? 1,
         expiry: m['expiry'] as String?,
         notes: m['notes'] as String? ?? '',
+        form: m['form'] as String? ?? '',
+        strength: m['strength'] as String? ?? '',
+        ingredient: m['ingredient'] as String? ?? '',
+        place: m['place'] as String? ?? '',
+        cold: ((m['cold'] as num?)?.toInt() ?? 0) == 1,
+        // القديم ممكن يكون null (قبل v64) → ٢ زى السلوك القديم بالظبط.
+        lowAt: (m['low_at'] as num?)?.toInt() ?? 2,
+        photo: m['photo'] as String? ?? '',
+        person: m['person'] as String? ?? '',
+        brand: m['brand'] as String? ?? '',
+        price: (m['price'] as num?)?.toDouble() ?? 0,
       );
 
   Map<String, Object?> toMap() => {
@@ -604,6 +658,16 @@ class PharmacyItem {
         'quantity': quantity,
         'expiry': expiry,
         'notes': notes,
+        'form': form,
+        'strength': strength,
+        'ingredient': ingredient,
+        'place': place,
+        'cold': cold ? 1 : 0,
+        'low_at': lowAt,
+        'photo': photo,
+        'person': person,
+        'brand': brand,
+        'price': price,
       };
 }
 

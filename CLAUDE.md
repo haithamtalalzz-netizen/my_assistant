@@ -23,10 +23,10 @@ home_widget/health/speech_to_text (minSdk 26)
 **Package:** `com.hhub.my_assistant` — display name "My Assistant"
 **Language:** Arabic-first + English toggle (progressive i18n). `AppState.locale` drives MaterialApp locale/direction; `tr('عربي','English')` helper in `core/l10n.dart` — chrome/nav/settings translated, content screens migrate screen-by-screen. Theme via `AppState.themeMode` (system/light/dark).
 **Navigation:** sidebar Drawer (`screens/app_drawer.dart`) — NO bottom nav. Shell swaps 5 top screens by index; each top screen takes `Widget? drawer`. Tools/بلدنا/settings are pushed (back-arrow) from the drawer.
-**Tests:** `flutter test` — 447 passed / 0 failed (+ أدوات المراجعة فى `tool/`، مش بتشتغل مع الافتراضى — شوف تحت)
+**Tests:** `flutter test` — 450 passed / 0 failed (+ أدوات المراجعة فى `tool/`، مش بتشتغل مع الافتراضى — شوف تحت)
 **Analyze:** `flutter analyze` — must stay at 0 issues
 **Run:** `flutter run` (device/emulator) • **Build:** `flutter build apk --release`
-**DB:** schema v7 (v6→v7 adds debts + gameya + gameya_payments + home_maintenance);
+**DB:** schema **v64** (v63→v64 adds تفاصيل صيدلية البيت: form/strength/ingredient/place/cold/low_at/photo/person/brand/price);
 every schema change bumps version + adds `upgradeSchema` branch
 (each branch checks BOTH `oldV < X && newV >= X`) + a migration test
 **Font:** Cairo static weights bundled as assets (NO google_fonts — fully offline)
@@ -115,6 +115,15 @@ re-schedules. Deleting always cancels.
    `kExpenseCategories` (money_repo.dart) and `kApptCategories`
    (appointment_form.dart).
 8. **Never swallow exceptions** — catch narrow and log with `dart:developer log`.
+9. **`ALTER TABLE ADD COLUMN` مش idempotent** — بيرمى «duplicate column name»
+   لو اتنفّذ تانى، ولو ترقية وقعت فى نصّها القاعدة **ماتفتحش خالص** بعد كده.
+   استخدم `AppDb._addColumnIfMissing` (بيسأل `PRAGMA table_info` الأول).
+10. **مفيش إيموچى فى نصّ الواجهة** — خط التطبيق (Cairo) مافيهوش
+   ✓ ＋ ☑ 🔁 🍅 🎙 ﷺ 📍 ❄ 👤 ⚠ … فبتطلع **مربّعات فاضية** على الجهاز.
+   استخدم أيقونة Material أو كلمة عربية.
+11. **`TextStyle` عريانة فى `subtitleTextStyle`/`titleTextStyle` بتستبدل
+   الستايل كله** — ومعاه اسم الخط، فالسطر بيتكتب بخطّ النظام مش خط
+   التطبيق. استخدم `Theme.of(context).textTheme.x?.copyWith(...)`.
 
 ## أدوات المراجعة (`tool/` — بره `flutter test` الافتراضى)
 

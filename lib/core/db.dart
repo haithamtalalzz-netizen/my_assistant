@@ -18,7 +18,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 63,
+      version: 64,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -440,11 +440,43 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 64 && newV >= 64) {
+      // تفاصيل صيدلية البيت: الشكل/التركيز/المادة الفعّالة/المكان/مبرّد/
+      // حد التنبيه/صورة/لمين/الشركة/السعر. كلها أعمدة بقيم افتراضية →
+      // الأدوية القديمة بتفضل صالحة من غير ترحيل. `low_at` افتراضيه ٢ =
+      // نفس الرقم اللى كان ثابت فى الشاشة، فالسلوك مايتغيّرش لحد ما يعدّله.
+      const cols = {
+        'form': "TEXT NOT NULL DEFAULT ''",
+        'strength': "TEXT NOT NULL DEFAULT ''",
+        'ingredient': "TEXT NOT NULL DEFAULT ''",
+        'place': "TEXT NOT NULL DEFAULT ''",
+        'cold': 'INTEGER NOT NULL DEFAULT 0',
+        'low_at': 'INTEGER NOT NULL DEFAULT 2',
+        'photo': "TEXT NOT NULL DEFAULT ''",
+        'person': "TEXT NOT NULL DEFAULT ''",
+        'brand': "TEXT NOT NULL DEFAULT ''",
+        'price': 'REAL NOT NULL DEFAULT 0',
+      };
+      for (final e in cols.entries) {
+        await _addColumnIfMissing(db, 'home_pharmacy', e.key, e.value);
+      }
+    }
     if (oldV < 63 && newV >= 63) {
       // بند «تذكيراتى» الجديد = ملاحظات حرة (notes). ترقية إضافية آمنة تمامًا
       // (CREATE فقط — مافيش بيانات بتتأثّر).
       await db.execute(_notesTableDdl);
     }
+  }
+
+  /// بيضيف عمود **لو مش موجود**. `ALTER TABLE ADD COLUMN` بيرمى
+  /// «duplicate column name» لو اتنفّذ تانى — ولو ترقية وقعت فى نصّها،
+  /// المحاولة الجاية بتفشل على نفس العمود و**القاعدة ماتفتحش خالص**.
+  static Future<void> _addColumnIfMissing(
+      Database db, String table, String column, String type) async {
+    final info = await db.rawQuery('PRAGMA table_info($table)');
+    final has = info.any((r) => r['name'] == column);
+    if (has) return;
+    await db.execute('ALTER TABLE $table ADD COLUMN $column $type');
   }
 
   /// جدول «تذكيراتى» — ملاحظات حرّة (بند مستقل فى السايدبار).
@@ -1093,7 +1125,17 @@ class AppDb {
         name TEXT NOT NULL,
         quantity INTEGER NOT NULL DEFAULT 1,
         expiry TEXT,
-        notes TEXT NOT NULL DEFAULT ''
+        notes TEXT NOT NULL DEFAULT '',
+        form TEXT NOT NULL DEFAULT '',
+        strength TEXT NOT NULL DEFAULT '',
+        ingredient TEXT NOT NULL DEFAULT '',
+        place TEXT NOT NULL DEFAULT '',
+        cold INTEGER NOT NULL DEFAULT 0,
+        low_at INTEGER NOT NULL DEFAULT 2,
+        photo TEXT NOT NULL DEFAULT '',
+        person TEXT NOT NULL DEFAULT '',
+        brand TEXT NOT NULL DEFAULT '',
+        price REAL NOT NULL DEFAULT 0
       )''',
   ];
 

@@ -4978,6 +4978,95 @@ void main() {
   });
 
 
+  group('ترقية قاعدة البيانات v63 ← v64 (تفاصيل الصيدلية)', () {
+    test('الأعمدة بتتضاف والدوا القديم بيفضل شغّال بنفس سلوكه', () async {
+      final v63 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      // شكل الجدول القديم بالظبط (٥ أعمدة بس).
+      await v63.execute('''
+        CREATE TABLE home_pharmacy(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          quantity INTEGER NOT NULL DEFAULT 1,
+          expiry TEXT,
+          notes TEXT NOT NULL DEFAULT ''
+        )''');
+      await v63.insert('home_pharmacy',
+          {'name': 'بانادول', 'quantity': 2, 'expiry': '2030-01-01',
+           'notes': 'للصداع'});
+
+      await AppDb.upgradeSchema(v63, 63, 64);
+
+      final rows = await v63.query('home_pharmacy');
+      expect(rows.length, 1, reason: 'الصف القديم مااتمسحش');
+      final it = PharmacyItem.fromMap(rows.first);
+      expect(it.name, 'بانادول');
+      expect(it.notes, 'للصداع');
+      expect(it.quantity, 2);
+      // الحقول الجديدة فاضية → الشاشة مابتعرضش حاجة زيادة.
+      expect(it.form, '');
+      expect(it.strength, '');
+      expect(it.place, '');
+      expect(it.cold, isFalse);
+      expect(it.photo, '');
+      expect(it.price, 0);
+      // 🔴 الأهم: حد التنبيه الافتراضى لازم يساوى الرقم اللى كان ثابت فى
+      // الشاشة (٢)، وإلا الدوا القديم فجأة يبقى «مخزون منخفض» أو العكس.
+      expect(it.lowAt, 2);
+
+      // تكرار الترقية مايكسرش.
+      await AppDb.upgradeSchema(v63, 63, 64);
+      expect((await v63.query('home_pharmacy')).length, 1);
+      await v63.close();
+    });
+  });
+
+  group('تفاصيل صيدلية البيت', () {
+    test('الحقول الجديدة بتترحّل للقاعدة وترجع زى ما هى', () async {
+      final repo = PharmacyRepo();
+      final id = await repo.save(const PharmacyItem(
+        name: 'xarelto',
+        strength: '20mg',
+        quantity: 1,
+        form: 'أقراص',
+        ingredient: 'rivaroxaban',
+        place: 'دولاب الأدوية',
+        cold: true,
+        lowAt: 5,
+        photo: 'img:box',
+        person: 'بابا',
+        brand: 'باير',
+        price: 250.5,
+      ));
+      final all = await repo.all();
+      final it = all.firstWhere((e) => e.id == id);
+      expect(it.strength, '20mg');
+      expect(it.form, 'أقراص');
+      expect(it.ingredient, 'rivaroxaban');
+      expect(it.place, 'دولاب الأدوية');
+      expect(it.cold, isTrue);
+      expect(it.lowAt, 5);
+      expect(it.photo, 'img:box');
+      expect(it.person, 'بابا');
+      expect(it.brand, 'باير');
+      expect(it.price, 250.5);
+      // الاسم المعروض بيضمّ التركيز.
+      expect(it.display, 'xarelto 20mg');
+    });
+
+    test('البحث بيلاقى الدوا بالمادة الفعّالة مش بالاسم التجارى بس', () async {
+      final repo = PharmacyRepo();
+      await repo.save(const PharmacyItem(
+          name: 'كونكور', ingredient: 'bisoprolol', brand: 'ميرك'));
+      // اسم تجارى مالوش علاقة بالمادة — البحث القديم كان بالاسم بس.
+      expect((await repo.search('bisoprolol')).map((e) => e.name),
+          contains('كونكور'));
+      expect((await repo.search('ميرك')).map((e) => e.name),
+          contains('كونكور'));
+      expect(await repo.search('حاجة مش موجودة'), isEmpty);
+    });
+  });
+
   group('ترقية قاعدة البيانات v60 ← v61', () {
     test('عمود الصور بيتضاف ومستند قديم بيفضل شغّال', () async {
       final v60 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,

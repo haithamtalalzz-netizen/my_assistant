@@ -11,11 +11,14 @@ import 'package:my_assistant/core/seed_demo.dart';
 import 'package:my_assistant/core/theme.dart';
 import 'package:my_assistant/screens/app_drawer.dart';
 import 'package:my_assistant/screens/group_hub_screen.dart';
+import 'package:my_assistant/screens/home/pharmacy_form.dart';
+import 'package:my_assistant/screens/home/pharmacy_screen.dart';
 import 'package:my_assistant/screens/lock_gate.dart';
 import 'package:my_assistant/screens/onboarding_gate.dart';
 import 'package:my_assistant/screens/onboarding_screen.dart';
 import 'package:my_assistant/screens/quick_actions_settings_screen.dart';
 import 'package:my_assistant/screens/tour_screen.dart';
+import 'package:my_assistant/models/models.dart';
 import 'package:my_assistant/screens/worship/adhkar_screen.dart';
 import 'package:my_assistant/screens/worship/quran_topics_screen.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -189,6 +192,49 @@ void main() {
       'LockGate',
       (t) => sweep(
           t, () => const LockGate(child: Scaffold(body: SizedBox.expand()))));
+
+  // ————— حوارات (المسح المولَّد مابيفتحش حوارات) —————
+
+  /// دوا بكل التفاصيل: أطول نصوص ممكنة = أقصى احتمال قصّ.
+  const full = PharmacyItem(
+    name: 'زاريلتو أقراص مضادة للتجلّط',
+    strength: '20mg',
+    quantity: 3,
+    expiry: '2030-01-01',
+    notes: 'بعد الأكل بساعة — مايتاخدش مع الأسبرين',
+    form: 'أقراص',
+    ingredient: 'rivaroxaban',
+    place: 'دولاب الأدوية فى الأوضة',
+    cold: true,
+    lowAt: 5,
+    person: 'بابا',
+    brand: 'باير الشرق الأوسط',
+    price: 250.5,
+  );
+
+  testWidgets('فورم الصيدلية — صفحة كاملة (موبايل)', (t) async {
+    await sweep(t, () => const PharmacyForm(item: full));
+  });
+
+  testWidgets('فورم الصيدلية — جوّه حوار (تابلت)', (t) async {
+    await sweep(
+        t,
+        () => Scaffold(
+              body: Center(
+                child: Dialog(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    child: const PharmacyForm(item: full, inDialog: true),
+                  ),
+                ),
+              ),
+            ));
+  });
+
+  testWidgets('فورم الصيدلية — حوار حقيقى فوق الشاشة', (t) async {
+    await sweep(t, () => const PharmacyScreen(),
+        open: (ctx) => showPharmacyForm(ctx, item: full));
+  });
 
   testWidgets(
       'OnboardingGate',

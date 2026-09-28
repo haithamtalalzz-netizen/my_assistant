@@ -72,13 +72,17 @@ class PharmacyRepo {
     return rows.map(PharmacyItem.fromMap).toList();
   }
 
-  /// بحث بالاسم — لـ «عندك بانادول؟».
+  /// بحث لـ «عندك بانادول؟» — بيدوّر كمان فى **المادة الفعّالة** والشركة
+  /// والملاحظة، عشان تلاقى نفس الدوا حتى لو متسجّل باسم تجارى تانى.
   Future<List<PharmacyItem>> search(String query) async {
     final q = query.trim();
     if (q.isEmpty) return all();
     final db = await AppDb.instance;
     final rows = await db.query('home_pharmacy',
-        where: 'name LIKE ?', whereArgs: ['%$q%'], orderBy: 'name');
+        where: 'name LIKE ?1 OR ingredient LIKE ?1 OR brand LIKE ?1 '
+            'OR notes LIKE ?1 OR strength LIKE ?1',
+        whereArgs: ['%$q%'],
+        orderBy: 'name');
     return rows.map(PharmacyItem.fromMap).toList();
   }
 
