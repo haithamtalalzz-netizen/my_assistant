@@ -203,6 +203,31 @@ class _MoneyScreenState extends State<MoneyScreen> {
     controller.dispose();
   }
 
+  /// زرار واحد بيسأل «مصروف ولا دخل؟» بدل ما المبتدئ يدوّر على مدخلين.
+  Future<void> _askWhatToLog() async {
+    final what = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            leading: const Icon(Icons.remove_circle_outline, color: Colors.red),
+            title: Text(tr('صرفت فلوس', 'I spent money')),
+            onTap: () => Navigator.pop(ctx, 'out'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.add_circle_outline, color: Colors.green),
+            title: Text(tr('قبضت فلوس', 'I received money')),
+            onTap: () => Navigator.pop(ctx, 'in'),
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+    if (what == 'out') await _addExpense();
+    if (what == 'in') await _addIncome();
+  }
+
   Future<void> _addExpense() async {
     final added = await showQuickExpenseSheet(context);
     if (added == true && mounted) await _load();
@@ -280,21 +305,27 @@ class _MoneyScreenState extends State<MoneyScreen> {
                 children: [
                   _monthNav(context),
                   const SizedBox(height: 8),
-                  _netCard(context),
-                  _safeToSpendLine(context),
-                  const SizedBox(height: 14),
-                  _hubGrid(context),
+                  _statusCard(context),
                   const SizedBox(height: 18),
-                  _recentSection(context),
+                  _todoSection(context),
+                  const SizedBox(height: 16),
+                  _miniStats(context),
+                  const SizedBox(height: 10),
+                  Center(
+                    child: TextButton(
+                      onPressed: _openEverything,
+                      child: Text(tr('شوف كل حاجة ›', 'See everything ›')),
+                    ),
+                  ),
                 ],
               ),
             ),
       floatingActionButton: _isCurrentMonth
-          ? FloatingActionButton(
+          ? FloatingActionButton.extended(
               heroTag: 'money_fab',
-              onPressed: _addExpense,
-              tooltip: tr('سجل مصروف', 'Log expense'),
-              child: const Icon(Icons.add),
+              onPressed: _askWhatToLog,
+              icon: const Icon(Icons.add),
+              label: Text(tr('سجّل', 'Log')),
             )
           : null,
     );
@@ -303,22 +334,281 @@ class _MoneyScreenState extends State<MoneyScreen> {
   /// **شبكة البنود** — الرئيسية بقت تقعد فى شاشة واحدة، وكل بند صفحة
   /// لوحده. قبل كده كانت الصفحة فيها ٧ كروت تحليل فوق بعض و٥ أقسام
   /// تحتهم، فالمصاريف (أكتر حاجة بتتسجّل) كانت **آخر حاجة فى الصفحة**.
+  /// **جملة واحدة بتقول حالتك بالكلام مش بالرقم.**
+  /// مبتدئ بيبصّ على «صافى 4339» ومايعرفش ده كويس ولا وحش — الجملة دى
+  /// بتجاوب قبل ما يسأل.
+  Widget _statusCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final net = _incomeTotal - _total;
+    final rate = _incomeTotal > 0 ? (net / _incomeTotal * 100).round() : null;
+
+    final (String title, String sub, Color color, IconData icon) =
+        switch ((_incomeTotal, _total)) {
+      (0, 0) => (
+          tr('لسه مابدأتش', 'Nothing yet'),
+          tr('سجّل أول مصروف أو دخل وهوريك كل حاجة',
+              'Log your first expense or income'),
+          scheme.primary,
+          Icons.flag_outlined,
+        ),
+      _ when net < 0 => (
+          tr('حاسب — صرفت أكتر من دخلك', 'Careful — you overspent'),
+          tr('صرفت ${egp(_total)} ودخلك ${egp(_incomeTotal)}',
+              'Spent ${egp(_total)} on ${egp(_incomeTotal)} income'),
+          scheme.error,
+          Icons.warning_amber_rounded,
+        ),
+      _ when rate != null && rate >= 20 => (
+          tr('الشهر ماشى كويس', 'Good month so far'),
+          tr('صرفت ${egp(_total)} من ${egp(_incomeTotal)} — وفّرت ${arNum(rate)}٪',
+              'Spent ${egp(_total)} of ${egp(_incomeTotal)} — saved ${arNum(rate)}%'),
+          Colors.green,
+          Icons.thumb_up_alt_outlined,
+        ),
+      _ => (
+          tr('خلّى بالك من المصاريف', 'Watch your spending'),
+          tr('صرفت ${egp(_total)} من ${egp(_incomeTotal)}',
+              'Spent ${egp(_total)} of ${egp(_incomeTotal)}'),
+          Colors.orange,
+          Icons.info_outline,
+        ),
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(children: [
+        Icon(icon, color: color, size: 26),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title,
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w800, color: color)),
+            const SizedBox(height: 3),
+            Text(sub,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500)),
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  /// **«اعمل إيه دلوقتى؟»** — مشكلة المبتدئ مش إنه مش فاهم الأرقام،
+  /// مشكلته إنه مش عارف يعمل إيه بيها. كل بند هنا معاه زراره.
+  Widget _todoSection(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final now = DateTime.now();
+    final items = <Widget>[];
+
+    for (final b in _bills.where((b) => b.isDue(now))) {
+      if (items.length >= 3) break;
+      items.add(_todoRow(
+        context,
+        tr('فاتورة ${b.name} مستحقة', '${b.name} bill is due'),
+        tr('${egp(b.amount)} — يوم ${arNum(b.dayOfMonth)}',
+            '${egp(b.amount)} — day ${arNum(b.dayOfMonth)}'),
+        tr('اتدفعت', 'Paid'),
+        scheme.error,
+        Icons.receipt_long_outlined,
+        () async {
+          await BillsRepo().markPaid(b.id!);
+          if (mounted) await _load();
+        },
+      ));
+    }
+
+    for (final i in _recurringIncome.where((i) => i.isDue(now))) {
+      if (items.length >= 3) break;
+      items.add(_todoRow(
+        context,
+        tr('${incomeSourceLabel(i.source)} مستحق', '${i.source} is due'),
+        tr('${egp(i.amount)} — يوم ${arNum(i.dayOfMonth)}',
+            '${egp(i.amount)} — day ${arNum(i.dayOfMonth)}'),
+        tr('قبضته', 'Received'),
+        Colors.green,
+        Icons.south_west,
+        () async {
+          await IncomeRepo().markReceived(i, now: DateTime.now());
+          if (mounted) await _load();
+        },
+      ));
+    }
+
+    if (items.length < 3 && _isCurrentMonth) {
+      final today = dayKey(now);
+      final loggedToday = _expenses.any((e) => e.day == today);
+      if (!loggedToday) {
+        items.add(_todoRow(
+          context,
+          tr('سجّل مصاريف النهاردة', "Log today's expenses"),
+          _expenses.isEmpty
+              ? tr('مفيش أى مصروف الشهر ده', 'Nothing logged this month')
+              : tr('آخر تسجيل ${arShortDate(DateTime.parse(_expenses.first.day))}',
+                  'Last logged ${arShortDate(DateTime.parse(_expenses.first.day))}'),
+          tr('سجّل', 'Log'),
+          scheme.primary,
+          Icons.add_card_outlined,
+          _addExpense,
+        ));
+      }
+    }
+
+    if (items.length < 3 && _budget <= 0) {
+      items.add(_todoRow(
+        context,
+        tr('حدد ميزانية الشهر', 'Set a monthly budget'),
+        tr('عشان أقولك تقدر تصرف كام كل يوم',
+            "So I can tell you what's safe to spend daily"),
+        tr('حدد', 'Set'),
+        Colors.orange,
+        Icons.tune,
+        _editBudget,
+      ));
+    }
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(tr('اعمل إيه دلوقتى؟', 'What to do now?'),
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 10),
+      if (items.isEmpty)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 14),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Text(
+              tr('مفيش حاجة مستعجلة — كل حاجة تمام',
+                  'Nothing urgent — all good'),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13)),
+        )
+      else
+        ...items,
+    ]);
+  }
+
+  Widget _todoRow(BuildContext context, String title, String sub, String action,
+      Color color, IconData icon, Future<void> Function() onTap) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(children: [
+        Container(
+          padding: const EdgeInsets.all(9),
+          decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(13)),
+          child: Icon(icon, size: 19, color: color),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13.5)),
+            const SizedBox(height: 2),
+            Text(sub,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
+          ]),
+        ),
+        const SizedBox(width: 6),
+        FilledButton.tonal(
+          onPressed: onTap,
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            minimumSize: const Size(0, 38),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: Text(action, maxLines: 1),
+        ),
+      ]),
+    );
+  }
+
+  /// تلات أرقام صغيرة — الأرقام موجودة لمن يعوزها، بس مش هى البطل.
+  Widget _miniStats(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final net = _incomeTotal - _total;
+    Widget cell(String label, String value, Color color) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 6),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(children: [
+              Text(value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: color)),
+              const SizedBox(height: 2),
+              Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+            ]),
+          ),
+        );
+    return Row(children: [
+      cell(tr('دخل الشهر', 'Income'), egp(_incomeTotal), Colors.green),
+      const SizedBox(width: 10),
+      cell(tr('مصروف', 'Spent'), egp(_total), scheme.error),
+      const SizedBox(width: 10),
+      cell(tr('فاضل', 'Left'), egp(net),
+          net >= 0 ? scheme.primary : scheme.error),
+    ]);
+  }
+
+  /// الشبكة القديمة بقت ورا زرار واحد — موجودة لمن يدوّر، مش قدّام
+  /// المبتدئ من أول ثانية.
+  void _openEverything() => _openSection(tr('كل حاجة', 'Everything'), (_) => [
+        _safeToSpendLine(context),
+        const SizedBox(height: 14),
+        _hubGrid(context),
+        const SizedBox(height: 18),
+        _recentSection(context),
+      ]);
+
   Widget _hubGrid(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final fixedTotal = _bills.fold<double>(0, (t, b) => t + b.amount);
     final items = <_Hub>[
-      _Hub(tr('المصاريف', 'Expenses'), egp(_total),
+      _Hub(tr('راحت فين؟', 'Where did it go?'), egp(_total),
           Icons.receipt_long_outlined, scheme.error, _openExpenses),
-      _Hub(tr('الدخل', 'Income'), egp(_incomeTotal), Icons.south_west,
+      _Hub(tr('هيجيلى كام؟', 'Coming in'), egp(_incomeTotal), Icons.south_west,
           Colors.green, _openIncome),
-      _Hub(tr('الثابت والفواتير', 'Fixed & bills'), egp(fixedTotal),
+      _Hub(tr('عليّا إيه؟', 'What I owe'), egp(fixedTotal),
           Icons.repeat, scheme.primary, _openFixed),
-      _Hub(tr('التحليل', 'Analysis'), tr('راحت فين؟', 'Where did it go?'),
+      _Hub(tr('إيه اللى اتغيّر؟', "What changed?"), tr('قارن بالشهور', 'Compare'),
           Icons.insights_outlined, const Color(0xFFA855F7), _openAnalysis),
       _Hub(
           tr('الديون', 'Debts'),
           _debtNet == 0
-              ? tr('متعادل', 'Even')
+              ? tr('ولا ليك ولا عليك', 'All settled')
               : (_debtNet > 0
                   ? tr('ليك ${egp(_debtNet)}', 'owed ${egp(_debtNet)}')
                   : tr('عليك ${egp(-_debtNet)}', 'you owe ${egp(-_debtNet)}')),
@@ -439,7 +729,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
   /// بتجاوب «راحت فين؟» من نظرة بدل ما تدوّر فى قايمة طويلة: كل فئة
   /// بمبلغها ونسبتها، والضغط عليها بيفتح عملياتها. كروت التحليل اتشالت
   /// من هنا خالص — مكانها بند «التحليل».
-  void _openExpenses() => _openSection(tr('المصاريف', 'Expenses'), (_) {
+  void _openExpenses() => _openSection(tr('راحت فين؟', 'Where did it go?'), (_) {
         final cats = _byCategory.entries.toList()
           ..sort((a, b) => b.value.compareTo(a.value));
         return [
@@ -638,7 +928,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
   /// «ثابت» شريحة زى أى فلتر، فالدخل الدورى مالوش قسم منفصل يزحم الشاشة.
   void _openIncome() {
     final sources = <String>{for (final i in _income) i.source}.toList();
-    _openSection(tr('الدخل', 'Income'), (f) {
+    _openSection(tr('هيجيلى كام؟', 'Coming in'), (f) {
       if (f == tr('ثابت', 'Recurring')) {
         return [
           _sumStrip(
@@ -688,7 +978,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
   /// **الثابت والفواتير — قايمة بسيطة بفلاتر** (الشكل اللى اختاره).
   void _openFixed() {
     final now = DateTime.now();
-    _openSection(tr('الثابت والفواتير', 'Fixed & bills'), (f) {
+    _openSection(tr('عليّا إيه؟', 'What I owe'), (f) {
       final rows = [
         for (final b in _bills)
           if (f == tr('مستحقة', 'Due')
@@ -722,7 +1012,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
         onAdd: () => _billForm());
   }
 
-  void _openAnalysis() => _openSection(tr('التحليل', 'Analysis'), (_) => [
+  void _openAnalysis() => _openSection(tr('إيه اللى اتغيّر؟', 'What changed?'), (_) => [
         // الكارت الكامل مكانه هنا؛ الرئيسية فيها السطر المختصر بس.
         _safeToSpendCard(context),
         _compareCard(context),
@@ -1127,60 +1417,6 @@ class _MoneyScreenState extends State<MoneyScreen> {
                   ),
                 ]),
               ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _netCard(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final net = _incomeTotal - _total;
-    final savingsRate =
-        _incomeTotal > 0 ? (net / _incomeTotal * 100).round() : null;
-    Widget cell(String label, String value, Color color) => Expanded(
-          child: Column(
-            children: [
-              Text(label,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(color: scheme.outline)),
-              const SizedBox(height: 2),
-              Text(value,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700, color: color)),
-            ],
-          ),
-        );
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                cell(tr('دخل', 'Income'), egp(_incomeTotal), Colors.green),
-                cell(tr('مصروف', 'Spent'), egp(_total), scheme.error),
-                cell(tr('صافي', 'Net'), egp(net),
-                    net >= 0 ? scheme.primary : scheme.error),
-              ],
-            ),
-            if (savingsRate != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                  net >= 0
-                      ? tr('وفّرت ٪${arNum(savingsRate)} من دخلك الشهر ده',
-                          'You saved ${arNum(savingsRate)}% of your income this month')
-                      : tr('صرفت أكتر من دخلك بـ ${egp(-net)}',
-                          'You spent ${egp(-net)} more than your income'),
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: net >= 0 ? Colors.green : scheme.error)),
-            ],
           ],
         ),
       ),
