@@ -543,12 +543,16 @@ class RecurringIncome {
   /// آخر شهر اتقبض فيه بصيغة YYYY-MM — فاضي لو عمره مااتقبض.
   final String lastReceivedMonth;
 
+  /// «الفلوس دى خاصة بإيه» — بتتنقل للدخل المسجّل لمّا تدوس «قبضته».
+  final String note;
+
   const RecurringIncome({
     this.id,
     required this.source,
     required this.amount,
     required this.dayOfMonth,
     this.lastReceivedMonth = '',
+    this.note = '',
   });
 
   factory RecurringIncome.fromMap(Map<String, Object?> m) => RecurringIncome(
@@ -557,6 +561,7 @@ class RecurringIncome {
         amount: (m['amount'] as num).toDouble(),
         dayOfMonth: m['day_of_month'] as int,
         lastReceivedMonth: m['last_received_month'] as String? ?? '',
+        note: m['note'] as String? ?? '',
       );
 
   Map<String, Object?> toMap() => {
@@ -564,6 +569,7 @@ class RecurringIncome {
         'amount': amount,
         'day_of_month': dayOfMonth,
         'last_received_month': lastReceivedMonth,
+        'note': note,
       };
 
   /// مستحق الشهر ده: يومه جه ولسه مااتقبضش الشهر ده.

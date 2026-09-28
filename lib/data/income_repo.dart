@@ -93,7 +93,10 @@ class IncomeRepo {
     await add(Income(
       amount: inc.amount,
       source: inc.source,
-      note: tr('دخل دوري', 'Recurring income'),
+      // الملاحظة اللى كتبها («إيجار الشقة» مثلاً) أنفع من كلمة عامّة.
+      note: inc.note.trim().isEmpty
+          ? tr('دخل دوري', 'Recurring income')
+          : inc.note.trim(),
       day: '$monthKey-${now.day.toString().padLeft(2, '0')}',
     ));
     final db = await AppDb.instance;

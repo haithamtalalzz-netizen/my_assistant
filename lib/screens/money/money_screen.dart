@@ -964,6 +964,14 @@ class _MoneyScreenState extends State<MoneyScreen> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                         fontSize: 11, color: scheme.onSurfaceVariant)),
+                if (i.note.isNotEmpty)
+                  Text(i.note,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          fontStyle: FontStyle.italic,
+                          color: scheme.outline)),
               ],
             ),
           ),
@@ -1014,6 +1022,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
   Future<void> _recurringIncomeForm([RecurringIncome? inc]) async {
     final amount = TextEditingController(
         text: inc == null ? '' : inc.amount.toStringAsFixed(0));
+    final note = TextEditingController(text: inc?.note ?? '');
     var source = inc?.source ?? kIncomeSources.first;
     var dayOfMonth = inc?.dayOfMonth ?? 1;
     final saved = await showDialog<bool>(
@@ -1049,6 +1058,16 @@ class _MoneyScreenState extends State<MoneyScreen> {
                     labelText: tr('المبلغ (ج.م)', 'Amount (EGP)')),
               ),
               const SizedBox(height: 12),
+              TextField(
+                controller: note,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  labelText: tr('ملاحظة — الفلوس دى خاصة بإيه؟',
+                      'Note — what is this money for?'),
+                  hintText: tr('مثلًا: إيجار الشقة', 'e.g. flat rent'),
+                ),
+              ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(child: Text(tr('يوم القبض', 'Payday'))),
@@ -1081,6 +1100,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
       if (value != null && value > 0) {
         await IncomeRepo().saveRecurring(RecurringIncome(
           id: inc?.id,
+          note: note.text.trim(),
           source: source,
           amount: value,
           dayOfMonth: dayOfMonth,
@@ -1090,6 +1110,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
       }
     }
     amount.dispose();
+    note.dispose();
   }
 
   /// «المتاح للصرف النهاردة» — للشهر الحالى فقط، لما فيه ميزانية.

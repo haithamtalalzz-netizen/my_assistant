@@ -4978,6 +4978,66 @@ void main() {
   });
 
 
+  group('ملاحظة الدخل الدورى (v64 ← v65)', () {
+    test('العمود بيتضاف والدخل الدورى القديم بيفضل شغّال', () async {
+      final v64 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await v64.execute('''
+        CREATE TABLE recurring_income(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          source TEXT NOT NULL,
+          amount REAL NOT NULL,
+          day_of_month INTEGER NOT NULL,
+          last_received_month TEXT NOT NULL DEFAULT ''
+        )''');
+      await v64.insert('recurring_income', {
+        'source': 'مرتب',
+        'amount': 7500.0,
+        'day_of_month': 1,
+        'last_received_month': '',
+      });
+
+      await AppDb.upgradeSchema(v64, 64, 65);
+
+      final rows = await v64.query('recurring_income');
+      expect(rows.length, 1, reason: 'الصف القديم مااتمسحش');
+      final inc = RecurringIncome.fromMap(rows.first);
+      expect(inc.amount, 7500.0);
+      expect(inc.note, '', reason: 'القديم من غير ملاحظة — مش null');
+      await AppDb.upgradeSchema(v64, 64, 65); // تكرار مايكسرش
+      await v64.close();
+    });
+
+    test('الملاحظة بتترحّل للدخل المسجّل لمّا تدوس «قبضته»', () async {
+      final repo = IncomeRepo();
+      final id = await repo.saveRecurring(const RecurringIncome(
+          source: 'مرتب',
+          amount: 5000,
+          dayOfMonth: 1,
+          note: 'إيجار الشقة'));
+      final saved =
+          (await repo.allRecurring()).firstWhere((e) => e.id == id);
+      expect(saved.note, 'إيجار الشقة');
+
+      final now = DateTime(2026, 6, 15);
+      await repo.markReceived(saved, now: now);
+      final logged = await repo.forMonth(2026, 6);
+      expect(logged.any((e) => e.note == 'إيجار الشقة'), isTrue,
+          reason: 'الملاحظة أنفع من كلمة «دخل دورى» العامّة');
+    });
+
+    test('من غير ملاحظة بيرجع للنصّ العام', () async {
+      final repo = IncomeRepo();
+      final id = await repo.saveRecurring(
+          const RecurringIncome(source: 'مكافأة', amount: 300, dayOfMonth: 5));
+      final saved =
+          (await repo.allRecurring()).firstWhere((e) => e.id == id);
+      await repo.markReceived(saved, now: DateTime(2026, 7, 9));
+      final logged = await repo.forMonth(2026, 7);
+      expect(logged.any((e) => e.amount == 300 && e.note.isNotEmpty), isTrue);
+    });
+  });
+
   group('التراجع عن «تمّ» فى خط اليوم', () {
     test('كل نوع بيتقلب فى الاتجاهين — علّم وارجّع', () async {
       final day = DateTime.now();

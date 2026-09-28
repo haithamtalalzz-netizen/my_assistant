@@ -18,7 +18,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 64,
+      version: 65,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -439,6 +439,13 @@ class AppDb {
       for (final ddl in _v60Tables) {
         await db.execute(ddl);
       }
+    }
+    if (oldV < 65 && newV >= 65) {
+      // ملاحظة على الدخل الدورى: «الفلوس دى خاصة بإيه». عمود إضافى بقيمة
+      // افتراضية → الدخول القديمة تفضل صالحة، و`markReceived` بيرحّل
+      // الملاحظة دى للدخل المسجّل نفسه بدل «دخل دورى» العامّة.
+      await _addColumnIfMissing(
+          db, 'recurring_income', 'note', "TEXT NOT NULL DEFAULT ''");
     }
     if (oldV < 64 && newV >= 64) {
       // تفاصيل صيدلية البيت: الشكل/التركيز/المادة الفعّالة/المكان/مبرّد/
@@ -1260,7 +1267,8 @@ class AppDb {
         source TEXT NOT NULL,
         amount REAL NOT NULL,
         day_of_month INTEGER NOT NULL,
-        last_received_month TEXT NOT NULL DEFAULT ''
+        last_received_month TEXT NOT NULL DEFAULT '',
+        note TEXT NOT NULL DEFAULT ''
       )''',
   ];
 
