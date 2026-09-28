@@ -278,7 +278,9 @@ class _MoneyScreenState extends State<MoneyScreen> {
     return Scaffold(
       drawer: widget.drawer,
       appBar: AppBar(
-        title: Text(tr('المحفظة', 'Wallet')),
+        // «فلوسى» مش «المحفظة» — الاسم اللى بينادى بيه البند فعلاً.
+        // («المحافظ» تحت فى قايمة ⋮ حاجة تانية خالص.)
+        title: Text(tr('فلوسى', 'My money')),
         actions: barActions(context, [
           BarAction(Icons.search, tr('بحث', 'Search'),
               () => openSearch(context)),

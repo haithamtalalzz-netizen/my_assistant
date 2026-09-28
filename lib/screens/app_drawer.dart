@@ -440,8 +440,11 @@ class AppDrawer extends StatelessWidget {
                 tr('فلوسى', 'My money'),
                 accent: Colors.teal,
                 [
+                  // المجموعة نفسها اسمها «فلوسى»، فالبند بيوصف نفسه بدل
+                  // ما يتكرّر الاسم («فلوسى ‹ فلوسى»).
                   GroupHubItem(Icons.account_balance_wallet_outlined,
-                      tr('المحفظة', 'Wallet'), tabIndex: 2),
+                      tr('فلوسى الشهر ده', "This month's money"),
+                      tabIndex: 2),
                   GroupHubItem(Icons.savings_outlined, tr('الادخار', 'Savings'),
                       screen: const SavingsScreen()),
                   GroupHubItem(Icons.handshake_outlined,
