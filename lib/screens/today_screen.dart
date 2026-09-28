@@ -62,6 +62,7 @@ import 'schedule/appointment_form.dart';
 import 'voice/voice_sheet.dart';
 import 'worship/prayer_screen.dart';
 import 'workout/workout_plan_screen.dart';
+import 'day_full_screen.dart';
 
 /// شاشة اليوم — كل حاجة النهارده في مكان واحد + ملخص "المدير".
 class TodayScreen extends StatefulWidget {
@@ -638,20 +639,41 @@ class _TodayScreenState extends State<TodayScreen> {
       };
 
   /// تنفيذ البند من الرئيسية على طول (من غير ما تفتح صفحته).
-  Future<void> _completeEvent(TimelineEvent ev) async {
+  /// بيقلب حالة البند **فى الاتجاهين**. كان بيعلّم «تمّ» بس، فالبند
+  /// اللى اتعلّم بالغلط ماكانش ليه رجعة من الرئيسية.
+  Future<void> _setEventDone(TimelineEvent ev, bool done) async {
     switch (ev.kind) {
       case TimelineKind.prayer:
-        await WorshipRepo().togglePrayer(DateTime.now(), ev.id ?? 0, true);
+        await WorshipRepo().togglePrayer(DateTime.now(), ev.id ?? 0, done);
       case TimelineKind.med:
         if (ev.id != null && ev.slot != null) {
-          await _meds.setTaken(ev.id!, _today, ev.slot!, true);
+          await _meds.setTaken(ev.id!, _today, ev.slot!, done);
         }
       case TimelineKind.appointment:
-        if (ev.id != null) await _appts.setDone(ev.id!, true);
+        if (ev.id != null) await _appts.setDone(ev.id!, done);
       case TimelineKind.task:
-        if (ev.id != null) await TasksRepo().setDone(ev.id!, true);
+        if (ev.id != null) await TasksRepo().setDone(ev.id!, done);
     }
     await _load();
+  }
+
+  Future<void> _completeEvent(TimelineEvent ev) => _setEventDone(ev, true);
+
+  /// بيفتح **يومك بالكامل** — كل البنود، واللى خلص يتقلب منها.
+  void _openFullDay() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DayFullScreen(
+          events: _timelineAll,
+          onOpen: _openEvent,
+          onToggle: (e, done) async {
+            await _setEventDone(e, done);
+            return _timelineAll;
+          },
+        ),
+      ),
+    );
   }
 
   /// يفتح صفحة البند.
@@ -694,10 +716,12 @@ class _TodayScreenState extends State<TodayScreen> {
       children: [
         if (missed.isNotEmpty) ...[
           AppSectionTitle(tr('فاتك', 'Missed'),
+              // المعروض مختصر — الرقم بيودّى على اليوم كله.
+              onTrailingTap: _openFullDay,
               trailing: allMissed.length > missed.length
-                  ? tr('${arNum(missed.length)} من ${arNum(allMissed.length)}',
-                      '${arNum(missed.length)} of ${arNum(allMissed.length)}')
-                  : arNum(allMissed.length)),
+                  ? tr('${arNum(missed.length)} من ${arNum(allMissed.length)} ›',
+                      '${arNum(missed.length)} of ${arNum(allMissed.length)} ›')
+                  : tr('${arNum(allMissed.length)} ›', '${arNum(allMissed.length)} ›')),
           AppCard(Column(children: [
             for (var i = 0; i < missed.length; i++)
               _timelineRow(missed[i], scheme,
@@ -708,8 +732,9 @@ class _TodayScreenState extends State<TodayScreen> {
         // كارت فاضى مالوش لازمة — لو كل اللى فاضل فايت، «فاتك» يكفى.
         if (rest.isNotEmpty) ...[
           AppSectionTitle(tr('خط يومك', 'Your day'),
-              trailing: tr('${arNum(p.done)} من ${arNum(p.total)} خلصوا',
-                  '${arNum(p.done)} of ${arNum(p.total)} done')),
+              onTrailingTap: _openFullDay,
+              trailing: tr('${arNum(p.done)} من ${arNum(p.total)} خلصوا ›',
+                  '${arNum(p.done)} of ${arNum(p.total)} done ›')),
           AppCard(Column(children: [
             for (var i = 0; i < rest.length; i++)
               _timelineRow(rest[i], scheme, last: i == rest.length - 1),
@@ -726,7 +751,7 @@ class _TodayScreenState extends State<TodayScreen> {
     return Row(children: [
       // دايرة الإنجاز: مساحة ضغط واسعة عشان تتلمس بالإصبع بسهولة.
       InkWell(
-        onTap: e.done ? null : () => _completeEvent(e),
+        onTap: () => _setEventDone(e, !e.done),
         customBorder: const CircleBorder(),
         child: Padding(
           padding: const EdgeInsets.all(6),

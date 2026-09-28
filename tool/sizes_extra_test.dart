@@ -18,7 +18,9 @@ import 'package:my_assistant/screens/onboarding_gate.dart';
 import 'package:my_assistant/screens/onboarding_screen.dart';
 import 'package:my_assistant/screens/quick_actions_settings_screen.dart';
 import 'package:my_assistant/screens/tour_screen.dart';
+import 'package:my_assistant/core/day_timeline.dart';
 import 'package:my_assistant/models/models.dart';
+import 'package:my_assistant/screens/day_full_screen.dart';
 import 'package:my_assistant/screens/worship/adhkar_screen.dart';
 import 'package:my_assistant/screens/worship/quran_topics_screen.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -234,6 +236,42 @@ void main() {
   testWidgets('فورم الصيدلية — حوار حقيقى فوق الشاشة', (t) async {
     await sweep(t, () => const PharmacyScreen(),
         open: (ctx) => showPharmacyForm(ctx, item: full));
+  });
+
+  testWidgets('DayFullScreen (يومك بالكامل)', (t) async {
+    final now = DateTime.now();
+    DateTime at(int h, int m) => DateTime(now.year, now.month, now.day, h, m);
+    final events = [
+      TimelineEvent(
+          at: at(5, 10),
+          title: 'الفجر',
+          sub: '',
+          kind: TimelineKind.prayer,
+          done: true,
+          id: 0),
+      TimelineEvent(
+          at: at(12, 48),
+          title: 'الضهر',
+          sub: '',
+          kind: TimelineKind.prayer,
+          id: 2),
+      TimelineEvent(
+          at: at(19, 30),
+          title: 'دكتور أسنان — عيادة النصر بشارع الجمهورية',
+          sub: 'موعد مهم',
+          kind: TimelineKind.appointment,
+          id: 5),
+      TimelineEvent(
+          at: at(21, 0),
+          title: 'دفع فاتورة الغاز',
+          sub: '',
+          kind: TimelineKind.task,
+          id: 7),
+    ];
+    await sweep(
+        t,
+        () => DayFullScreen(
+            events: events, onOpen: (_) {}, onToggle: (e, d) async => events));
   });
 
   testWidgets(

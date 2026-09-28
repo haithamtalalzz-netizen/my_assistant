@@ -4978,6 +4978,46 @@ void main() {
   });
 
 
+  group('التراجع عن «تمّ» فى خط اليوم', () {
+    test('كل نوع بيتقلب فى الاتجاهين — علّم وارجّع', () async {
+      final day = DateTime.now();
+      final key = dayKey(day);
+
+      // صلاة
+      final worship = WorshipRepo();
+      await worship.togglePrayer(day, 2, true);
+      expect((await worship.prayedOn(day)).contains(2), isTrue);
+      await worship.togglePrayer(day, 2, false);
+      expect((await worship.prayedOn(day)).contains(2), isFalse,
+          reason: 'الصلاة لازم ترجع غير مصلّاة');
+
+      // مهمة
+      final tasks = TasksRepo();
+      final tid = await tasks.save(Task(
+          title: 'مهمة تجربة التراجع',
+          dueAt: key,
+          createdAt: DateTime.now().toIso8601String()));
+      Future<bool> taskDone() async => (await tasks.tasks())
+          .firstWhere((t) => t.id == tid)
+          .done;
+      await tasks.setDone(tid, true);
+      expect(await taskDone(), isTrue);
+      await tasks.setDone(tid, false);
+      expect(await taskDone(), isFalse,
+          reason: 'المهمة لازم ترجع مفتوحة');
+
+      // دوا
+      final meds = MedsRepo();
+      final mid = await meds.save(const Medication(
+          name: 'دوا تجربة', times: ['08:00'], active: true));
+      await meds.setTaken(mid, key, '08:00', true);
+      expect((await meds.takenOn(key)).any((x) => x.contains('08:00')), isTrue);
+      await meds.setTaken(mid, key, '08:00', false);
+      expect((await meds.takenOn(key)).any((x) => x.contains('08:00')), isFalse,
+          reason: 'الجرعة لازم ترجع مش متاخدة');
+    });
+  });
+
   group('ترقية قاعدة البيانات v63 ← v64 (تفاصيل الصيدلية)', () {
     test('الأعمدة بتتضاف والدوا القديم بيفضل شغّال بنفس سلوكه', () async {
       final v63 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,

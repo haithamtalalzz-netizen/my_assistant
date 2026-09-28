@@ -120,7 +120,7 @@ void main() {
   // يعنى بتغطّى ~٩٧٪ من الرسمة والهامش تقريبًا مابيبانش — فاللون المسطّح
   // كفاية. (جرّبت أمدّ حواف الرسمة بدل اللون فطلعت خطوط أفقية، لإن
   // حواف الرسمة نفسها متفاوتة.)
-  const inner = (_canvas * 74) ~/ 100;
+  const inner = (_canvas * 88) ~/ 100;
   final fg = img.Image(width: _canvas, height: _canvas)
     ..clear(img.ColorRgb8(bg.r, bg.g, bg.b));
   img.compositeImage(fg, img.copyResize(squared, width: inner, height: inner),
