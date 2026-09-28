@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../core/attention.dart';
 import '../core/ar.dart';
 import '../core/l10n.dart';
+import '../widgets/a_kit.dart';
 import '../data/settings_repo.dart';
 import '../widgets/common.dart';
 import '../widgets/search_action.dart';
@@ -234,24 +235,58 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-                    children: [for (final it in _items) _tile(it)],
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                    children: _grouped(),
                   ),
                 ),
     );
   }
 
-  Widget _tile(AttentionItem it) {
+  /// **محتاج تتصرّف** الأول، و**للعلم** تحته.
+  ///
+  /// قبل كده كان كل تنبيه كارت لوحده بنفس الشكل، فاللى محتاج منك حاجة
+  /// واللى مجرد خبر كانوا واحد — وأنت بتدوّر بعينك على اللى عليه زرار.
+  List<Widget> _grouped() {
+    final act = [for (final i in _items) if (i.actionLabel != null) i];
+    final fyi = [for (final i in _items) if (i.actionLabel == null) i];
+    return [
+      if (act.isNotEmpty) ...[
+        AppGroupHead(tr('محتاج تتصرّف', 'Needs you'), trail: arNum(act.length)),
+        for (var i = 0; i < act.length; i++)
+          _tile(act[i], last: i == act.length - 1),
+      ],
+      if (fyi.isNotEmpty) ...[
+        AppGroupHead(tr('للعلم بس', 'Just so you know'),
+            trail: arNum(fyi.length)),
+        for (var i = 0; i < fyi.length; i++)
+          _tile(fyi[i], last: i == fyi.length - 1),
+      ],
+    ];
+  }
+
+  Widget _tile(AttentionItem it, {bool last = false}) {
     final look = _look(it.kind);
     final screen = _screenFor(it.kind);
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 3),
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: last
+          ? null
+          : BoxDecoration(
+              border: Border(
+                  bottom: BorderSide(
+                      color: scheme.outlineVariant.withValues(alpha: 0.7)))),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: look.color.withValues(alpha: 0.15),
-          child: Icon(look.icon, color: look.color, size: 20),
+        contentPadding: EdgeInsets.zero,
+        leading: Container(
+          width: 38,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+              color: look.color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12)),
+          child: Icon(look.icon, color: look.color, size: 19),
         ),
-        title: Text(it.text),
+        title: Text(it.text, style: const TextStyle(fontSize: 13.5)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

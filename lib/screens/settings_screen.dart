@@ -753,12 +753,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _settings.set('settings_order', keys.join(','));
   }
 
+  /// لون ثابت للبند من اسمه — نفس فكرة هَب المجموعات: تعرف البند من
+  /// لونه قبل ما تقرا.
+  static const _catPalette = [
+    Color(0xFF3B82F6),
+    Color(0xFF10B981),
+    Color(0xFF8B5CF6),
+    Color(0xFFF59E0B),
+    Color(0xFFEC4899),
+    Color(0xFF06B6D4),
+    Color(0xFFF43F5E),
+    Color(0xFF14B8A6),
+  ];
+
+  static Color _catColor(String label) =>
+      _catPalette[label.hashCode.abs() % _catPalette.length];
+
   Widget _catTile(
       ({String key, String title, IconData icon, String? sub, String kw}) c,
       {int? index}) {
+    final color = _catColor(c.title);
     return ListTile(
       key: ValueKey(c.key),
-      leading: Icon(c.icon),
+      leading: Container(
+        width: 38,
+        height: 38,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.13),
+            borderRadius: BorderRadius.circular(12)),
+        child: Icon(c.icon, color: color, size: 19),
+      ),
       title: Text(c.title),
       subtitle: c.sub == null
           ? null

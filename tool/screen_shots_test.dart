@@ -28,6 +28,7 @@ import 'package:my_assistant/data/tasks_repo.dart';
 import 'package:my_assistant/models/models.dart';
 import 'package:my_assistant/screens/group_hub_screen.dart';
 import 'package:my_assistant/screens/notes_screen.dart';
+import 'package:my_assistant/screens/settings_screen.dart';
 import 'package:my_assistant/screens/growth/goals_screen.dart';
 import 'package:my_assistant/screens/schedule/schedule_screen.dart';
 import 'package:my_assistant/screens/tasks/tasks_screen.dart';
@@ -288,6 +289,13 @@ void main() {
       size: const Size(390, 780),
       pixelRatio: 2,
     );
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('الإعدادات — أيقونات ملوّنة', (tester) async {
+    final f = await shot(tester, 'real_settings',
+        shotApp(buildTheme(), const SettingsScreen()),
+        size: const Size(390, 900), pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
   });
 

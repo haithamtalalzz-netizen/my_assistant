@@ -168,6 +168,11 @@ List<String> _truncatedShort(WidgetTester tester) {
     if (needed < 4 || ro.size.width >= 4) continue;
     final txt = ro.text.toPlainText().trim().replaceAll('\n', ' ');
     if (txt.isEmpty) continue;
+    // 🔴 Flutter بيرسم Icon كـRichText بحرف من منطقة الاستعمال الخاص،
+    // وخط الأيقونات ارتفاع سطره أكبر من مقاس الأيقونة — فأى أيقونة جوّه
+    // صندوق ضيّق كانت بتتبلّغ كأنها «نصّ متقصوص»، والرسالة تطلع «» لإن
+    // الحرف مالوش شكل. الأيقونة مش نصّ، فبتتعدّى.
+    if (txt.runes.every((r) => r >= 0xE000 && r <= 0xF8FF)) continue;
     out.add('نصّ مخفى (عرضه صفر): «$txt»');
   }
   return out.toList();
@@ -196,6 +201,11 @@ List<String> _vClipped(WidgetTester tester) {
     if (ro.size.height >= line.height - 0.5) continue;
     final txt = ro.text.toPlainText().trim().replaceAll('\n', ' ');
     if (txt.isEmpty) continue;
+    // 🔴 Flutter بيرسم Icon كـRichText بحرف من منطقة الاستعمال الخاص،
+    // وخط الأيقونات ارتفاع سطره أكبر من مقاس الأيقونة — فأى أيقونة جوّه
+    // صندوق ضيّق كانت بتتبلّغ كأنها «نصّ متقصوص»، والرسالة تطلع «» لإن
+    // الحرف مالوش شكل. الأيقونة مش نصّ، فبتتعدّى.
+    if (txt.runes.every((r) => r >= 0xE000 && r <= 0xF8FF)) continue;
     out.add('نصّ متقصوص طولاً (${ro.size.height.round()} من '
         '${line.height.round()}): «$txt»');
   }
