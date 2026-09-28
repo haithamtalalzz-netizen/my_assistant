@@ -17,6 +17,7 @@ import '../../data/money_repo.dart';
 import '../../data/savings_repo.dart';
 import '../../data/settings_repo.dart';
 import '../../models/models.dart';
+import '../../widgets/a_kit.dart';
 import '../../widgets/common.dart';
 import '../../widgets/history_calendar.dart';
 import '../baladna/debts_screen.dart';
@@ -308,10 +309,16 @@ class _MoneyScreenState extends State<MoneyScreen> {
                   _monthNav(context),
                   const SizedBox(height: 8),
                   _statusCard(context),
-                  const SizedBox(height: 18),
-                  _todoSection(context),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  // التلات أرقام (دخل · مصروف · فاضل) فضلت: الجملة
+                  // بتقول حالتك، والأرقام بتقول بكام.
                   _miniStats(context),
+                  const SizedBox(height: 14),
+                  _todoSection(context),
+                  // التلات أسئلة بقت **على الرئيسية** بدل ما تبقى ورا
+                  // زرار: «راحت فين؟» أكتر حاجة بيسأل عليها، ومكانش
+                  // ليها مكان غير جوّه «شوف كل حاجة».
+                  ..._answerSections(context),
                   const SizedBox(height: 10),
                   Center(
                     child: TextButton(
@@ -583,6 +590,74 @@ class _MoneyScreenState extends State<MoneyScreen> {
       cell(tr('فاضل', 'Left'), egp(net),
           net >= 0 ? scheme.primary : scheme.error),
     ]);
+  }
+
+  /// «راحت فين؟» · «هيجيلى كام؟» · «عليّا إيه؟» — قايمة واحدة بعناوين
+  /// أسئلة، أكتر ٤ فئات صرفت فيها، ودخلك وفواتيرك.
+  List<Widget> _answerSections(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final cats = _byCategory.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final top = cats.take(4).toList();
+
+    return [
+      if (top.isNotEmpty) ...[
+        AppGroupHead(tr('راحت فين؟', 'Where did it go?'),
+            trail: egp(_total), onTap: _openAllExpenses),
+        for (var i = 0; i < top.length; i++)
+          AppListRow(
+            title: expenseCategoryLabel(top[i].key),
+            sub: _categoryBudgets[top[i].key] == null
+                ? null
+                : tr('من ${egp(_categoryBudgets[top[i].key]!)}',
+                    'of ${egp(_categoryBudgets[top[i].key]!)}'),
+            icon: expenseCategoryIcon(top[i].key),
+            tint: expenseCategoryColor(top[i].key),
+            chevron: true,
+            divider: i != top.length - 1,
+            onTap: () => _openCategory(top[i].key),
+            trailing: Text(egp(top[i].value),
+                style: const TextStyle(
+                    fontSize: 12.5, fontWeight: FontWeight.w800)),
+          ),
+      ],
+      if (_recurringIncome.isNotEmpty) ...[
+        AppGroupHead(tr('هيجيلى كام؟', 'What is coming in?'),
+            trail: egp(_incomeTotal)),
+        for (var i = 0; i < _recurringIncome.length; i++)
+          AppListRow(
+            title: _recurringIncome[i].source,
+            sub: tr('كل ${arNum(_recurringIncome[i].dayOfMonth)} فى الشهر',
+                'day ${arNum(_recurringIncome[i].dayOfMonth)} monthly'),
+            icon: Icons.payments_outlined,
+            tint: Colors.green,
+            chevron: true,
+            divider: i != _recurringIncome.length - 1,
+            onTap: _openIncome,
+            trailing: Text(egp(_recurringIncome[i].amount),
+                style: const TextStyle(
+                    fontSize: 12.5, fontWeight: FontWeight.w800)),
+          ),
+      ],
+      if (_bills.isNotEmpty) ...[
+        AppGroupHead(tr('عليّا إيه؟', 'What do I owe?'),
+            trail: arNum(_bills.length)),
+        for (var i = 0; i < _bills.length; i++)
+          AppListRow(
+            title: _bills[i].name,
+            sub: tr('يوم ${arNum(_bills[i].dayOfMonth)} من الشهر',
+                'day ${arNum(_bills[i].dayOfMonth)}'),
+            icon: Icons.receipt_long_outlined,
+            tint: scheme.tertiary,
+            chevron: true,
+            divider: i != _bills.length - 1,
+            onTap: _openFixed,
+            trailing: Text(egp(_bills[i].amount),
+                style: const TextStyle(
+                    fontSize: 12.5, fontWeight: FontWeight.w800)),
+          ),
+      ],
+    ];
   }
 
   /// الشبكة القديمة بقت ورا زرار واحد — موجودة لمن يدوّر، مش قدّام

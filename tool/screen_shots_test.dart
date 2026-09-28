@@ -16,6 +16,10 @@ import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/theme.dart';
 import 'package:my_assistant/data/appointments_repo.dart';
 import 'package:my_assistant/data/meds_repo.dart';
+import 'package:my_assistant/data/bills_repo.dart';
+import 'package:my_assistant/data/income_repo.dart';
+import 'package:my_assistant/data/money_repo.dart';
+import 'package:my_assistant/screens/money/money_screen.dart';
 import 'package:my_assistant/data/notes_repo.dart';
 import 'package:my_assistant/data/health_repo.dart';
 import 'package:my_assistant/data/goals_repo.dart';
@@ -211,6 +215,30 @@ void main() {
     final f = await shot(tester, 'real_emergency',
         shotApp(buildTheme(), const EmergencyView()),
         size: const Size(390, 780), pixelRatio: 2);
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('فلوسى — الشكل الجديد', (tester) async {
+    final now = DateTime.now();
+    String day(int d) =>
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}';
+    final money = MoneyRepo();
+    await money.add(Expense(amount: 1800, category: 'أكل', note: 'سوبر ماركت', day: day(3)));
+    await money.add(Expense(amount: 1300, category: 'أكل', note: 'مطاعم', day: day(9)));
+    await money.add(Expense(amount: 1450, category: 'مواصلات', note: 'بنزين', day: day(11)));
+    await money.add(Expense(amount: 900, category: 'صحة', note: 'دوا', day: day(14)));
+    await money.add(Expense(amount: 700, category: 'تسوق', note: 'صيانة', day: day(18)));
+
+    await BillsRepo().save(const RecurringBill(
+        name: 'كهربا', amount: 420, dayOfMonth: 5, category: 'فواتير'));
+    await BillsRepo().save(const RecurringBill(
+        name: 'نت', amount: 300, dayOfMonth: 10, category: 'فواتير'));
+    await IncomeRepo().saveRecurring(const RecurringIncome(
+        source: 'المرتب', amount: 11000, dayOfMonth: 1));
+
+    final f = await shot(tester, 'real_money',
+        shotApp(buildTheme(), const MoneyScreen()),
+        size: const Size(390, 1200), pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
   });
 

@@ -237,7 +237,7 @@ class _PrayerScreenState extends State<PrayerScreen> {
           : ListView(
               padding: const EdgeInsets.only(bottom: 24),
               children: [
-                AppPad(_nextHero(now), top: 12, bottom: 20),
+                AppPad(_nextStrip(now), top: 12, bottom: 20),
                 AppPad(_timesCard(now), bottom: 16),
                 AppPad(_programCard(),
                     bottom: 16),
@@ -253,85 +253,127 @@ class _PrayerScreenState extends State<PrayerScreen> {
   }
 
   /// **البطل** — الصلاة الجاية + عدّادها + زرار «صلّيت» مباشر.
-  Widget _nextHero(DateTime now) {
+  /// شريط نحيف بدل البطل الكبير: الصلاة الجاية + زرار «صلّيتها».
+  ///
+  /// البطل كان بياخد تلت الشاشة عشان يقول حاجة واحدة، والمواقيت تحته
+  /// بتقولها تانى. دلوقتى سطر واحد، والباقى بيبان من غير ما تنزّل.
+  Widget _nextStrip(DateTime now) {
+    final scheme = Theme.of(context).colorScheme;
     final p = _prayers!;
     final idx = p.nextIndex(now);
     final isTomorrow = idx == null;
     final i = idx ?? 0;
     final target = isTomorrow ? _tomorrow!.times[0] : p.times[i];
     final prayed = _prayed.contains(i);
-    return AppHero(
-      icon: Icons.mosque,
-      kicker: isTomorrow
-          ? tr('أول صلاة بكرة', 'First prayer tomorrow')
-          : tr('الجاية دلوقتى', 'Up next'),
-      title: tr('صلاة ${prayerNameLabel(i)}', prayerNameLabel(i)),
-      trailingBig: arTime(target),
-      trailingSmall: isTomorrow
-          ? _place
-          : tr('فاضل ${_fmtDur(target.difference(now))}',
-              '${_fmtDur(target.difference(now))} left'),
-      primaryLabel: prayed ? tr('اتصلّت ✓', 'Prayed ✓') : tr('صلّيت', 'Prayed'),
-      primaryIcon: Icons.check,
-      onPrimary: isTomorrow || prayed ? null : () => _togglePrayed(i),
-      secondaryLabel: tr('تعديل يوم فائت', 'Edit a past day'),
-      onSecondary: _editPastDay,
-      extra: AppHeroBar(
-          _prayed.length / kPrayerNames.length,
-          _streak > 0
-              ? tr(
-                  '${arNum(_prayed.length)} من ${arNum(kPrayerNames.length)} النهارده · ${arNum(_streak)} يوم متتالى',
-                  '${arNum(_prayed.length)} of ${arNum(kPrayerNames.length)} today · ${arNum(_streak)}-day streak')
-              : tr('${arNum(_prayed.length)} من ${arNum(kPrayerNames.length)} النهارده · $_place',
-                  '${arNum(_prayed.length)} of ${arNum(kPrayerNames.length)} today · $_place')),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: scheme.primary.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: scheme.primary.withValues(alpha: 0.30)),
+      ),
+      child: Row(children: [
+        Icon(Icons.mosque, color: scheme.primary, size: 20),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(
+                isTomorrow
+                    ? tr('${prayerNameLabel(i)} بكرة · ${arTime(target)}',
+                        '${prayerNameLabel(i)} tomorrow · ${arTime(target)}')
+                    : tr(
+                        '${prayerNameLabel(i)} بعد ${_fmtDur(target.difference(now))} · ${arTime(target)}',
+                        '${prayerNameLabel(i)} in ${_fmtDur(target.difference(now))} · ${arTime(target)}'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 13.5, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 2),
+            Text(
+                _streak > 0
+                    ? tr(
+                        '${arNum(_prayed.length)} من ${arNum(kPrayerNames.length)} النهارده · ${arNum(_streak)} يوم متتالى',
+                        '${arNum(_prayed.length)} of ${arNum(kPrayerNames.length)} today · ${arNum(_streak)}-day streak')
+                    : tr(
+                        '${arNum(_prayed.length)} من ${arNum(kPrayerNames.length)} النهارده · $_place',
+                        '${arNum(_prayed.length)} of ${arNum(kPrayerNames.length)} today · $_place'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 11, color: scheme.onSurfaceVariant)),
+          ]),
+        ),
+        const SizedBox(width: 8),
+        if (!isTomorrow && !prayed)
+          InkWell(
+            onTap: () => _togglePrayed(i),
+            borderRadius: BorderRadius.circular(99),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: Text(tr('صلّيتها ›', 'Prayed ›'),
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: scheme.primary)),
+            ),
+          ),
+      ]),
     );
   }
 
   Widget _timesCard(DateTime now) {
-    final p = _prayers!;
     final scheme = Theme.of(context).colorScheme;
+    final p = _prayers!;
     final idx = p.nextIndex(now) ?? -1;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      AppSectionTitle(tr('مواقيت النهارده', "Today's times"),
-          trailing: tr(
-              '${arNum(_prayed.length)} من ${arNum(kPrayerNames.length)}',
+      AppGroupHead(tr('صلوات النهارده', "Today's prayers"),
+          trail: tr('${arNum(_prayed.length)} من ${arNum(kPrayerNames.length)}',
               '${arNum(_prayed.length)} of ${arNum(kPrayerNames.length)}')),
-      AppCard(Column(children: [
-        for (var i = 0; i < kPrayerNames.length; i++)
-          Row(children: [
-            // دايرة «صلّيت» — نفس نمط خط اليوم فى الرئيسية.
-            InkWell(
-              onTap: () => _togglePrayed(i),
-              customBorder: const CircleBorder(),
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Icon(
-                    _prayed.contains(i)
-                        ? Icons.check_circle
-                        : Icons.radio_button_unchecked,
-                    size: 22,
-                    color: _prayed.contains(i)
+      for (var i = 0; i < kPrayerNames.length; i++)
+        AppListRow(
+          title: prayerNameLabel(i),
+          sub: _prayed.contains(i)
+              ? tr('اتصلّت', 'Prayed')
+              : (i == idx ? tr('الجاية', 'Next') : null),
+          icon: _prayerIcon(i),
+          tint: scheme.primary,
+          check: true,
+          checked: _prayed.contains(i),
+          divider: i != kPrayerNames.length - 1,
+          onCheck: () => _togglePrayed(i),
+          onTap: () => _togglePrayed(i),
+          trailing: Padding(
+            padding: const EdgeInsets.only(left: 6),
+            child: Text(arTime(p.times[i]),
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: i == idx
                         ? scheme.primary
-                        : (i == idx ? scheme.primary : scheme.outline)),
-              ),
-            ),
-            Expanded(
-              child: AppTimelineRow(
-                time: arTime(p.times[i]),
-                title: prayerNameLabel(i),
-                sub: _prayed.contains(i)
-                    ? tr('اتصلّت', 'Prayed')
-                    : (i == idx ? tr('الجاية', 'Next') : ''),
-                tint: scheme.primary,
-                done: _prayed.contains(i),
-                last: i == kPrayerNames.length - 1,
-                showDot: false,
-              ),
-            ),
-          ]),
-      ])),
+                        : scheme.onSurfaceVariant)),
+          ),
+        ),
+      // كان زرار جوّه البطل — والبطل اتشال، فلازم يفضل ليه مدخل ظاهر
+      // بدل ما القدرة تتدفن.
+      AppListRow(
+        title: tr('تعديل يوم فات', 'Edit a past day'),
+        icon: Icons.history,
+        tint: scheme.onSurfaceVariant,
+        chevron: true,
+        divider: false,
+        onTap: _editPastDay,
+      ),
     ]);
   }
+
+  /// أيقونة لكل صلاة — الوقت من اليوم بيبان من الشكل قبل ما تقرا.
+  IconData _prayerIcon(int i) => switch (i) {
+        0 => Icons.wb_twilight,
+        1 => Icons.light_mode,
+        2 => Icons.wb_sunny,
+        3 => Icons.nightlight_round,
+        _ => Icons.dark_mode,
+      };
 
   /// شيت تعديل صلوات يوم سابق: تنقّل بين الأيام + ٥ شيبس بتتسجّل فى يومها.
   Future<void> _editPastDay() async {
