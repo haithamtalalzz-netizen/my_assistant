@@ -3,6 +3,7 @@ import '../core/log.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../core/ar.dart';
 import '../core/l10n.dart';
 import '../widgets/a_kit.dart';
 import 'settings_screen.dart';
@@ -118,7 +119,7 @@ class _EmergencyViewState extends State<EmergencyView> {
                         ? tr('الكارت فاضى', 'Card is empty')
                         : (_blood.isEmpty
                             ? tr('بياناتك الطبية', 'Your medical info')
-                            : tr('فصيلة دمك $_blood', 'Blood type $_blood')),
+                            : tr('فصيلة دمك ${ltr(_blood)}', 'Blood type ${ltr(_blood)}')),
                     primaryLabel: _contactPhone.isEmpty
                         ? tr('املا البيانات', 'Fill it in')
                         : tr('اتصل بشخص الطوارئ', 'Call emergency contact'),
@@ -167,7 +168,7 @@ class _EmergencyViewState extends State<EmergencyView> {
                 else
                   AppPad(AppCard(Column(children: [
                     _row(context, Icons.bloodtype,
-                        tr('فصيلة الدم', 'Blood type'), _blood),
+                        tr('فصيلة الدم', 'Blood type'), ltr(_blood)),
                     _row(context, Icons.warning_amber_rounded,
                         tr('الحساسيات', 'Allergies'), _allergies),
                     _row(context, Icons.monitor_heart_outlined,
@@ -177,8 +178,8 @@ class _EmergencyViewState extends State<EmergencyView> {
                         Icons.contact_phone_outlined,
                         tr('شخص للطوارئ', 'Emergency contact'),
                         _contactName.isEmpty
-                            ? _contactPhone
-                            : '$_contactName — $_contactPhone',
+                            ? ltr(_contactPhone)
+                            : '$_contactName — ${ltr(_contactPhone)}',
                         last: true),
                   ]))),
               ],

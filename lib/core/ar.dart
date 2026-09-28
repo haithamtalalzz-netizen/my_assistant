@@ -72,3 +72,11 @@ String egp(num v) {
   final s = v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(2);
   return AppState.isEnglish ? '${arNum(s)} EGP' : '${arNum(s)} ج.م';
 }
+
+/// بيعزل نصّ لاتينى جوّه جملة عربية عشان الـbidi ما يقلبهوش.
+///
+/// من غيره «فصيلة دمك O+» بتتعرض «فصيلة دمك +O»، ورقم زى
+/// «0100 123 4567» بيتعرض «4567 123 0100» — لإن الترتيب البصرى
+/// بيعيد ترتيب المجموعات اللاتينية جوّه الفقرة العربية.
+String ltr(String s) =>
+    s.isEmpty ? s : '\u2066$s\u2069';

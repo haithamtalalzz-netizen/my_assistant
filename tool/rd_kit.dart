@@ -107,6 +107,11 @@ ThemeData rdTheme(RdLook k) => ThemeData(
           brightness: k.dark ? Brightness.dark : Brightness.light),
     );
 
+/// 🔴 نصّ لاتينى جوّه جملة عربية بيتقلب: «O+» بتطلع «+O» ورقم التليفون
+/// «0100 123 4567» بيطلع «4567 123 0100» لإن الـbidi بيعيد ترتيب
+/// المجموعات. العزل (U+2066 … U+2069) بيثبّت اتجاهه.
+String ltr(String s) => '\u2066$s\u2069';
+
 // ————————————————— قطع —————————————————
 
 Text rdT(String s, RdLook k,
