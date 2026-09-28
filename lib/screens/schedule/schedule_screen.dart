@@ -108,15 +108,55 @@ class _AppointmentsTabState extends State<_AppointmentsTab> {
     if (mounted) await _load();
   }
 
+  /// الفلتر: القادمة (الافتراضى) · اللى تمت · الكل.
+  String _filter = 'upcoming';
+
+  Widget _filterBar() {
+    final scheme = Theme.of(context).colorScheme;
+    Widget chip(String id, String label) {
+      final on = _filter == id;
+      return Padding(
+        padding: const EdgeInsets.only(left: 7),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(99),
+          onTap: () => setState(() => _filter = id),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: on ? scheme.primary : scheme.surface,
+              borderRadius: BorderRadius.circular(99),
+              border: Border.all(
+                  color: on ? scheme.primary : scheme.outlineVariant),
+            ),
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: on ? scheme.onPrimary : scheme.onSurfaceVariant)),
+          ),
+        ),
+      );
+    }
+
+    return Row(children: [
+      chip('upcoming', tr('القادمة', 'Upcoming')),
+      chip('done', tr('اللى تمت', 'Done')),
+      chip('all', tr('الكل', 'All')),
+    ]);
+  }
+
   /// سطر موعد جوّه كارت القسم — نفس الإجراءات القديمة بالظبط.
   Widget _tile(Appointment a, {bool faded = false, bool last = false}) {
     final scheme = Theme.of(context).colorScheme;
     final overdue = !a.done && a.when.isBefore(dateOnly(DateTime.now()));
-    final sub = StringBuffer()
-      ..write('${arFullDate(a.when)} • ${arTime(a.when)}');
-    if (a.category.isNotEmpty) sub.write(' • ${a.category}');
-    if (a.location.isNotEmpty) sub.write(' • ${a.location}');
-    if (a.isRecurring) sub.write(' • ${repeatLabel(a.repeat)}');
+    // التاريخ بقى فوق فى عنوان المجموعة، فمفيش لزوم يتكرّر فى كل سطر —
+    // ده اللى كان بيخلّى الوصف يتقصّ («عيادة ا…»).
+    final bits = <String>[
+      if (a.location.isNotEmpty) a.location,
+      if (a.category.isNotEmpty) a.category,
+      if (a.isRecurring) repeatLabel(a.repeat),
+    ];
+    final sub = StringBuffer()..write(bits.join(' • '));
     if (a.postponeCount >= 2 && !a.done) {
       sub.write(tr(' • اتأجل ${arNum(a.postponeCount)} مرات',
           ' • postponed ${arNum(a.postponeCount)}×'));
@@ -126,6 +166,8 @@ class _AppointmentsTabState extends State<_AppointmentsTab> {
       child: AppListRow(
         title: a.title,
         sub: sub.toString(),
+        icon: _apptIcon(a.category),
+        tint: overdue ? scheme.error : const Color(0xFF3B82F6),
         check: true,
         checked: a.done,
         divider: !last,
@@ -136,6 +178,11 @@ class _AppointmentsTabState extends State<_AppointmentsTab> {
           if (mounted) await _load();
         },
         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(arTime(a.when),
+              style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurfaceVariant)),
           if (a.isRecurring)
             Padding(
               padding: const EdgeInsets.only(left: 4),
@@ -166,88 +213,53 @@ class _AppointmentsTabState extends State<_AppointmentsTab> {
     );
   }
 
-  /// أقرب موعد جاى — البطل.
-  Appointment? get _next {
-    final now = DateTime.now();
-    final future = [
-      for (final a in _upcoming)
-        if (!a.when.isBefore(now)) a
-    ]..sort((x, y) => x.when.compareTo(y.when));
-    return future.isEmpty ? null : future.first;
-  }
-
-  String _whenLabel(DateTime when) {
-    final mins = when.difference(DateTime.now()).inMinutes;
-    if (mins < 0) return tr('فات', 'passed');
-    if (mins < 60) return tr('بعد ${arNum(mins)} دقيقة', 'in ${arNum(mins)} min');
-    final hours = mins ~/ 60;
-    if (hours < 24) {
-      return tr('بعد ${arNum(hours)} ساعات', 'in ${arNum(hours)}h');
-    }
-    final days = when.difference(dateOnly(DateTime.now())).inDays;
-    return days == 1
-        ? tr('بكرة', 'tomorrow')
-        : tr('بعد ${arNum(days)} أيام', 'in ${arNum(days)} days');
-  }
-
-  Widget _hero() {
-    final a = _next;
-    if (a == null) {
-      return AppHero(
-        icon: Icons.event_available,
-        kicker: tr('مواعيدك', 'Your calendar'),
-        title: _overdue.isEmpty
-            ? tr('مفيش مواعيد قادمة', 'No upcoming appointments')
-            : tr('فيه مواعيد فاتت', 'Some appointments were missed'),
-        primaryLabel: tr('موعد جديد', 'New appointment'),
-        primaryIcon: Icons.add,
-        onPrimary: _openForm,
-      );
-    }
-    return AppHero(
-      icon: Icons.event,
-      kicker: tr('أقرب موعد', 'Next appointment'),
-      title: a.title,
-      trailingBig: arTime(a.when),
-      trailingSmall: _whenLabel(a.when),
-      primaryLabel: tr('تم', 'Done'),
-      primaryIcon: Icons.check,
-      onPrimary: () async {
-        await _repo.setDone(a.id!, true);
-        if (mounted) await _load();
-      },
-      secondaryLabel: tr('التفاصيل', 'Details'),
-      onSecondary: () => _openForm(a),
-      colors: const [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-      extra: (a.location.isEmpty && a.notes.isEmpty)
-          ? null
-          : Row(children: [
-              Icon(a.location.isEmpty ? Icons.notes : Icons.place_outlined,
-                  size: 14, color: Colors.white70),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                    a.location.isEmpty ? a.notes : a.location,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 11.5,
-                        color: Colors.white.withValues(alpha: 0.9))),
-              ),
-            ]),
-    );
-  }
-
   Widget _group(String title, List<Appointment> list,
           {String? trailing, bool faded = false}) =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        AppPad(AppSectionTitle(title, trailing: trailing)),
-        AppPad(AppCard(Column(children: [
-          for (var i = 0; i < list.length; i++)
-            _tile(list[i], faded: faded, last: i == list.length - 1),
-        ]))),
-        const SizedBox(height: 18),
+        AppPad(AppGroupHead(title, trail: trailing)),
+        for (var i = 0; i < list.length; i++)
+          AppPad(_tile(list[i], faded: faded, last: i == list.length - 1)),
       ]);
+
+  /// أيقونة حسب نوع الموعد — عشان تعرف البند من شكله قبل ما تقرا.
+  IconData _apptIcon(String category) {
+    final c = category.trim();
+    if (c.contains('دكتور') || c.contains('عياد') || c.contains('طب')) {
+      return Icons.medical_services_outlined;
+    }
+    if (c.contains('تحليل') || c.contains('معمل') || c.contains('أشعة')) {
+      return Icons.science_outlined;
+    }
+    if (c.contains('عربية') || c.contains('صيانة')) return Icons.build_outlined;
+    if (c.contains('شغل') || c.contains('اجتماع')) return Icons.work_outline;
+    if (c.contains('مدرسة') || c.contains('جامعة')) return Icons.school_outlined;
+    return Icons.event;
+  }
+
+  /// عنوان مجموعة اليوم: «النهارده · 29 سبتمبر».
+  ///
+  /// التجميع باليوم بيخلّى التاريخ يتكتب **مرة واحدة** بدل ما يتكرّر فى
+  /// كل سطر ويزحم الوصف.
+  String _dayLabel(DateTime d) {
+    final diff = dateOnly(d).difference(dateOnly(DateTime.now())).inDays;
+    final date = arShortDate(d);
+    if (diff == 0) return tr('النهارده · $date', 'Today · $date');
+    if (diff == 1) return tr('بكرة · $date', 'Tomorrow · $date');
+    return '${arWeekday(d)} · $date';
+  }
+
+  /// بيقسّم المواعيد لمجموعات باليوم، بترتيبها.
+  List<Widget> _byDay(List<Appointment> list) {
+    final groups = <DateTime, List<Appointment>>{};
+    for (final a in list) {
+      groups.putIfAbsent(dateOnly(a.when), () => []).add(a);
+    }
+    final days = groups.keys.toList()..sort();
+    return [
+      for (final d in days)
+        _group(_dayLabel(d), groups[d]!, trailing: arNum(groups[d]!.length)),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -260,26 +272,28 @@ class _AppointmentsTabState extends State<_AppointmentsTab> {
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 96),
                 children: [
-                  AppPad(_hero(), top: 12, bottom: 20),
-                  if (_overdue.isNotEmpty)
+                  AppPad(_filterBar(), top: 12, bottom: 4),
+                  if (_filter != 'done' && _overdue.isNotEmpty)
                     _group(tr('فاتت من غير ما تتعمل', 'Missed'), _overdue,
                         trailing: arNum(_overdue.length)),
-                  if (_upcoming.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 20),
-                      child: EmptyHint(
-                        icon: Icons.event_available,
-                        text: tr('مفيش مواعيد قادمة — ضيف موعد بزرار +',
-                            'No upcoming appointments — add one with +'),
-                        actionLabel: tr('ضيف موعد', 'Add appointment'),
-                        onAction: _openForm,
-                      ),
-                    )
-                  else
-                    _group(tr('القادمة', 'Upcoming'), _upcoming,
-                        trailing: arNum(_upcoming.length)),
-                  if (_done.isNotEmpty)
-                    _group(tr('اللي تمت', 'Done'), _done, faded: true),
+                  if (_filter != 'done')
+                    if (_upcoming.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 20),
+                        child: EmptyHint(
+                          icon: Icons.event_available,
+                          text: tr('مفيش مواعيد قادمة — ضيف موعد بزرار +',
+                              'No upcoming appointments — add one with +'),
+                          actionLabel: tr('ضيف موعد', 'Add appointment'),
+                          onAction: _openForm,
+                        ),
+                      )
+                    else
+                      ..._byDay(_upcoming),
+                  if (_filter != 'upcoming' && _done.isNotEmpty)
+                    _group(tr('اللي تمت', 'Done'), _done,
+                        trailing: arNum(_done.length), faded: true),
+                  const SizedBox(height: 18),
                 ],
               ),
             ),

@@ -118,9 +118,9 @@ class _TasksScreenState extends State<TasksScreen> {
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 96),
                 children: [
-                  AppPad(_hero(scheme), top: 12, bottom: 16),
+                  const SizedBox(height: 6),
                   _filterChips(scheme),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 2),
                   if (_tasks.isEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 30),
@@ -141,6 +141,7 @@ class _TasksScreenState extends State<TasksScreen> {
                       _group(tr('بعدين', 'Later'), _later, scheme),
                     if (_doneList.isNotEmpty)
                       _group(tr('خلصت', 'Done'), _doneList, scheme),
+                    const SizedBox(height: 18),
                   ],
                 ],
               ),
@@ -178,84 +179,11 @@ class _TasksScreenState extends State<TasksScreen> {
 
   List<Task> get _doneList => [for (final t in _tasks) if (t.done) t];
 
-  /// المهمة اللى تبدأ بيها: أقدم فايتة، وإلا أول واحدة النهارده، وإلا أى
-  /// مهمة مفتوحة — بترتيب الأولوية.
-  Task? get _startWith {
-    int rank(Task t) => t.overdue ? 0 : (t.due != null ? 1 : 2);
-    final open = [for (final t in _tasks) if (!t.done) t]
-      ..sort((a, b) {
-        final r = rank(a).compareTo(rank(b));
-        if (r != 0) return r;
-        final p = b.priority.compareTo(a.priority);
-        if (p != 0) return p;
-        if (a.due != null && b.due != null) return a.due!.compareTo(b.due!);
-        return 0;
-      });
-    return open.isEmpty ? null : open.first;
-  }
-
-  Widget _hero(ColorScheme scheme) {
-    final t = _startWith;
-    final open = _tasks.where((e) => !e.done).length;
-    final done = _doneList.length;
-    final total = _tasks.length;
-    if (t == null) {
-      return AppHero(
-        icon: total == 0 ? Icons.checklist : Icons.emoji_events_outlined,
-        kicker: tr('مهامك', 'Your tasks'),
-        title: total == 0
-            ? tr('ابدأ بمهمة واحدة', 'Start with one task')
-            : tr('خلّصت كل مهامك', 'All tasks done'),
-        primaryLabel: tr('مهمة جديدة', 'New task'),
-        primaryIcon: Icons.add,
-        onPrimary: _taskForm,
-      );
-    }
-    final prog = _subs[t.id];
-    final pName = _projectName(t.projectId);
-    return AppHero(
-      icon: Icons.bolt,
-      kicker: t.overdue
-          ? tr('فاتت — ابدأ بيها', 'Overdue — start here')
-          : tr('ابدأ بيها دلوقتى', 'Start with this'),
-      title: t.title,
-      trailingBig: prog != null && prog.$2 > 0
-          ? '${arNum(prog.$1)}/${arNum(prog.$2)}'
-          : null,
-      trailingSmall:
-          prog != null && prog.$2 > 0 ? tr('خطوات', 'steps') : null,
-      primaryLabel: tr('خلّصتها', 'Done'),
-      primaryIcon: Icons.check,
-      onPrimary: () => _toggle(t),
-      secondaryLabel: tr('ركّز 25 دقيقة', 'Focus 25 min'),
-      onSecondary: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (_) => FocusScreen(taskId: t.id, taskTitle: t.title))),
-      colors: t.overdue
-          ? [scheme.error, Color.lerp(scheme.error, Colors.black, 0.3)!]
-          : null,
-      extra: total == 0
-          ? null
-          : AppHeroBar(
-              done / total,
-              [
-                ?pName,
-                tr('${arNum(done)} من ${arNum(total)} خلصوا',
-                    '${arNum(done)} of ${arNum(total)} done'),
-                tr('${arNum(open)} مفتوحة', '${arNum(open)} open'),
-              ].join(' · ')),
-    );
-  }
-
   Widget _group(String title, List<Task> list, ColorScheme scheme) =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        AppPad(AppSectionTitle(title, trailing: arNum(list.length))),
-        AppPad(AppCard(Column(children: [
-          for (var i = 0; i < list.length; i++)
-            _taskTile(list[i], scheme, last: i == list.length - 1),
-        ]))),
-        const SizedBox(height: 18),
+        AppPad(AppGroupHead(title, trail: arNum(list.length))),
+        for (var i = 0; i < list.length; i++)
+          AppPad(_taskTile(list[i], scheme, last: i == list.length - 1)),
       ]);
 
   Widget _filterChips(ColorScheme scheme) {
@@ -300,6 +228,12 @@ class _TasksScreenState extends State<TasksScreen> {
     return AppListRow(
       title: t.title,
       sub: subtitle.isEmpty ? null : subtitle,
+      icon: t.done
+          ? Icons.check_circle_outline
+          : (t.overdue ? Icons.error_outline : Icons.checklist),
+      tint: t.done
+          ? scheme.primary
+          : (t.overdue ? scheme.error : _priorityColors[t.priority]),
       check: true,
       checked: t.done,
       divider: !last,

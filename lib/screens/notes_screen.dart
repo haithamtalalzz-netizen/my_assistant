@@ -298,8 +298,14 @@ class _NotesScreenState extends State<NotesScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final pinned = _notes.where((n) => n.pinned).toList();
-    final rest = _notes.where((n) => !n.pinned).toList();
+    // التقسيم بقى بالمعنى: اللى عليه منبّه أهم حاجة تشوفها، بعده
+    // المثبّت، وبعده الباقى — بدل «مثبّتة/كل الملاحظات» اللى كانت
+    // بتخبّى المنبّهات وسط الكلام.
+    bool hasAlarm(Note n) => (_rem[n.id] ?? const <NoteReminder>[]).isNotEmpty;
+    final alarmed = _notes.where(hasAlarm).toList();
+    final pinned = _notes.where((n) => n.pinned && !hasAlarm(n)).toList();
+    final rest =
+        _notes.where((n) => !n.pinned && !hasAlarm(n)).toList();
     return Scaffold(
       drawer: widget.drawer,
       appBar: AppBar(
@@ -326,32 +332,19 @@ class _NotesScreenState extends State<NotesScreen> {
                 padding: const EdgeInsets.only(bottom: 96),
                 children: [
                   AppPad(
-                    AppHero(
-                      icon: Icons.edit_note,
-                      kicker: tr('اكتب بسرعة', 'Quick capture'),
-                      title: tr('إيه اللى فى دماغك؟', 'What is on your mind?'),
-                      primaryLabel: tr('اكتب', 'Write'),
-                      primaryIcon: Icons.edit,
-                      onPrimary: () => _edit(null),
-                      secondaryLabel: tr('سجّل بصوتك', 'By voice'),
-                      onSecondary: _addByVoice,
-                    ),
-                    top: 12,
-                  ),
-                  AppPad(
                     TextField(
                       decoration: InputDecoration(
                         isDense: true,
                         prefixIcon: const Icon(Icons.search, size: 20),
-                        hintText: tr('ابحث فى ملاحظاتك…', 'Search notes…'),
+                        hintText: tr('دوّر فى التذكيرات…', 'Search notes…'),
                       ),
                       onChanged: (v) {
                         _search = v;
                         _load();
                       },
                     ),
-                    top: 18,
-                    bottom: 18,
+                    top: 12,
+                    bottom: 4,
                   ),
                   if (_notes.isEmpty)
                     Padding(
@@ -368,26 +361,27 @@ class _NotesScreenState extends State<NotesScreen> {
                         onAction: () => _edit(null),
                       ),
                     ),
+                  if (alarmed.isNotEmpty) ...[
+                    AppPad(AppGroupHead(tr('عليها منبّه', 'With a reminder'),
+                        trail: arNum(alarmed.length))),
+                    for (var i = 0; i < alarmed.length; i++)
+                      AppPad(_row(alarmed[i], scheme,
+                          last: i == alarmed.length - 1)),
+                  ],
                   if (pinned.isNotEmpty) ...[
-                    AppPad(AppSectionTitle(tr('مثبّتة', 'Pinned'))),
-                    AppPad(AppCard(Column(children: [
-                      for (var i = 0; i < pinned.length; i++)
-                        _row(pinned[i], scheme, last: i == pinned.length - 1),
-                    ]))),
-                    const SizedBox(height: 18),
+                    AppPad(AppGroupHead(tr('مثبّتة', 'Pinned'),
+                        trail: arNum(pinned.length))),
+                    for (var i = 0; i < pinned.length; i++)
+                      AppPad(
+                          _row(pinned[i], scheme, last: i == pinned.length - 1)),
                   ],
                   if (rest.isNotEmpty) ...[
-                    AppPad(AppSectionTitle(
-                        pinned.isEmpty
-                            ? tr('ملاحظاتك', 'Your notes')
-                            : tr('كل الملاحظات', 'All notes'),
-                        trailing:
-                            tr('${rest.length} ملاحظة', '${rest.length} notes'))),
-                    AppPad(AppCard(Column(children: [
-                      for (var i = 0; i < rest.length; i++)
-                        _row(rest[i], scheme, last: i == rest.length - 1),
-                    ]))),
+                    AppPad(AppGroupHead(tr('من غير منبّه', 'No reminder'),
+                        trail: arNum(rest.length))),
+                    for (var i = 0; i < rest.length; i++)
+                      AppPad(_row(rest[i], scheme, last: i == rest.length - 1)),
                   ],
+                  const SizedBox(height: 18),
                 ],
               ),
             ),
