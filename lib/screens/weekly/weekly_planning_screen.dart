@@ -248,7 +248,8 @@ class _WeeklyPlanningScreenState extends State<WeeklyPlanningScreen> {
             Card(
               margin: const EdgeInsets.symmetric(vertical: 3),
               child: ListTile(
-                dense: true,
+                // من غير dense: بتضغط ارتفاع الـtrailing فنصّ
+                // الزرار بيتقصّ من تحت (٢٢px والكلمة محتاجة ٢٨).
                 title: Text(a.title),
                 subtitle: Text(arShortDate(a.when)),
                 trailing: Row(

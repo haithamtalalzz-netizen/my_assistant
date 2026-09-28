@@ -7,6 +7,8 @@
 //
 // ⚠️ ده مش ملف اختبار — هو قالب. الاختبار المولَّد هو taps_test.dart.
 // ignore_for_file: unused_import
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +18,8 @@ import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/seed_demo.dart';
 import 'package:my_assistant/core/theme.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+import 'shot_harness.dart';
 import 'package:my_assistant/screens/account_screen.dart';
 import 'package:my_assistant/screens/alerts_center_screen.dart';
 import 'package:my_assistant/screens/archived_data_screen.dart';
@@ -227,8 +231,49 @@ List<String> truncatedShortTexts(WidgetTester tester) {
 /// خطأ حقيقى). بنمسكه صراحةً فى `setUpAll` قبل الإسناد.
 late final TestExceptionReporter _origReporter;
 
+/// بيدوّر على **نصّ متقصوص من فوق/تحت** — اتقفل فى صندوق أقصر من اللى
+/// محتاجه فاتقطع، من غير ما يرمى أى خطأ.
+///
+/// 🔴 ده نوع تالت من القصّ (غير تجاوز الصفّ وغير النصّ المخفى)، وهو
+/// اللى كان بيقصّ زرار «اتدفعت ✓» فى الفواتير: محتاج ٢٨px ومداله ٢٢.
+///
+/// ⚠️ **مابيظهرش من غير خطّ التطبيق**: بيئة الاختبار بتقيس العربى بخطّ
+/// تانى مقاساته مختلفة، فالعطب ده كان **بيعدّى** من كل المسوحات. عشان كده
+/// المسح بيحمّل Cairo فى `setUpAll` (`loadShotFonts`).
+List<String> verticallyClipped(WidgetTester tester) {
+  final out = <String>{};
+  for (final ro in tester.allRenderObjects.whereType<RenderParagraph>()) {
+    if (!ro.hasSize || ro.size.width < 1) continue;
+    // 🔴 القاعدة الوحيدة اللى مافيهاش لبس: **الصندوق أقصر من سطر واحد**،
+    // يعنى النصّ مستحيل يبان كامل مهما كان.
+    //
+    // جرّبت الأوسع منها مرّتين وكانت بتكذب: `getMaxIntrinsicHeight`
+    // بترجّع ارتفاع أقصى عدد سطور مسموح، و`TextPainter` بعرض الصندوق
+    // بيحسب اللفّ — والاتنين بلّغوا عن كروت اللوحة وعناوين الشاشات وهى
+    // ظاهرة تمام (الصور أثبتت). ده كان بيطلّع ١٣ بلاغ أغلبها كاذب.
+    final line = TextPainter(
+      text: ro.text,
+      textDirection: ro.textDirection,
+      maxLines: 1,
+      textScaler: ro.textScaler,
+    )..layout();
+    if (ro.size.height >= line.height - 0.5) continue;
+    final txt = ro.text.toPlainText().trim().replaceAll('\n', ' ');
+    if (txt.isEmpty) continue;
+    out.add('نصّ متقصوص طولاً (${ro.size.height.round()} من '
+        '${line.height.round()}): «$txt»');
+  }
+  return out.toList();
+}
+
 void main() {
   sqfliteFfiInit();
+  // ضغطة على «النسخة الاحتياطية» بتفتح القاعدة **بمسارها** مش عبر
+  // `AppDb`، فبيئة الاختبار لازم يبقى فيها مصنع ومجلّد — نقص فى البيئة
+  // مش عطب فى التطبيق.
+  databaseFactory = databaseFactoryFfiNoIsolate;
+  Directory('.dart_tool/sqflite_common_ffi/databases')
+      .createSync(recursive: true);
   late Database db;
 
   setUpAll(() async {
@@ -244,6 +289,9 @@ void main() {
       }
       _origReporter(details, description);
     };
+    // 🔴 من غير خطّ التطبيق، قياس العربى بيكذب — وعطب زى زرار
+    // «اتدفعت» المتقصوص بيعدّى من المسح كأنه سليم.
+    await loadShotFonts();
     await initializeDateFormatting('ar');
     db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath,
         options: OpenDatabaseOptions(singleInstance: false));
@@ -327,6 +375,7 @@ void main() {
         await settle(tester);
         errs.addAll(truncatedShortTexts(tester));
         errs.addAll(overflowingFlexes(tester));
+        errs.addAll(verticallyClipped(tester));
 
         var taps = 0;
         for (final f in _tapTypes()) {
@@ -350,6 +399,7 @@ void main() {
             }
             errs.addAll(truncatedShortTexts(tester));
             errs.addAll(overflowingFlexes(tester));
+            errs.addAll(verticallyClipped(tester));
             clearErrors(tester);
             // 🔴 ضغطة على خانة كتابة بتشغّل مؤقّت **وميض المؤشّر**
             // (`EditableTextState._startCursorBlink`، دورى كل ٥٠٠ms)

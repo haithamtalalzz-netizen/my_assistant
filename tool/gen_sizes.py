@@ -66,6 +66,8 @@ TEMPLATE = r'''// **مولَّد** — كل شاشة × ٦ مقاسات (موب�
 // رسم فبيتمسك هنا بمكانه فى الكود؛ الاختبار الوظيفى مابيشوفهوش.
 //   flutter test tool/sizes_test.dart
 // التوليد: tool/gen_sizes.py
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -74,6 +76,8 @@ import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/seed_demo.dart';
 import 'package:my_assistant/core/theme.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+import 'shot_harness.dart';
 __IMPORTS__
 
 /// مقاسات حقيقية: أصغر أندرويد شائع → تابلت كبير بالعرض.
@@ -127,11 +131,48 @@ List<String> _truncatedShort(WidgetTester tester) {
   return out.toList();
 }
 
+/// بيدوّر على **نصّ متقصوص من فوق/تحت** — صندوقه أقصر من اللى محتاجه.
+/// نوع تالت من القصّ، و**مابيظهرش من غير خطّ التطبيق** (بيئة الاختبار
+/// بتقيس العربى بخطّ مقاساته مختلفة).
+List<String> _vClipped(WidgetTester tester) {
+  final out = <String>{};
+  for (final ro in tester.allRenderObjects.whereType<RenderParagraph>()) {
+    if (!ro.hasSize || ro.size.width < 1) continue;
+    // 🔴 القاعدة الوحيدة اللى مافيهاش لبس: **الصندوق أقصر من سطر واحد**،
+    // يعنى النصّ مستحيل يبان كامل مهما كان.
+    //
+    // جرّبت الأوسع منها مرّتين وكانت بتكذب: `getMaxIntrinsicHeight`
+    // بترجّع ارتفاع أقصى عدد سطور مسموح، و`TextPainter` بعرض الصندوق
+    // بيحسب اللفّ — والاتنين بلّغوا عن كروت اللوحة وعناوين الشاشات وهى
+    // ظاهرة تمام (الصور أثبتت). ده كان بيطلّع ١٣ بلاغ أغلبها كاذب.
+    final line = TextPainter(
+      text: ro.text,
+      textDirection: ro.textDirection,
+      maxLines: 1,
+      textScaler: ro.textScaler,
+    )..layout();
+    if (ro.size.height >= line.height - 0.5) continue;
+    final txt = ro.text.toPlainText().trim().replaceAll('\n', ' ');
+    if (txt.isEmpty) continue;
+    out.add('نصّ متقصوص طولاً (${ro.size.height.round()} من '
+        '${line.height.round()}): «$txt»');
+  }
+  return out.toList();
+}
+
 void main() {
   sqfliteFfiInit();
+  // ضغطة على «النسخة الاحتياطية» بتفتح القاعدة **بمسارها** مش عبر
+  // `AppDb`، فبيئة الاختبار لازم يبقى فيها مصنع ومجلّد — نقص فى البيئة
+  // مش عطب فى التطبيق.
+  databaseFactory = databaseFactoryFfiNoIsolate;
+  Directory('.dart_tool/sqflite_common_ffi/databases')
+      .createSync(recursive: true);
   late Database db;
 
   setUpAll(() async {
+    // من غير خطّ التطبيق، قياس العربى بيكذب (شوف `_vClipped`).
+    await loadShotFonts();
     await initializeDateFormatting('ar');
     db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath,
         options: OpenDatabaseOptions(singleInstance: false));
@@ -169,6 +210,7 @@ void main() {
           await tester.pump(const Duration(milliseconds: 250));
         }
         errs.addAll(_truncatedShort(tester));
+        errs.addAll(_vClipped(tester));
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump(const Duration(milliseconds: 150));
       } finally {

@@ -449,7 +449,8 @@ class _AppointmentFormState extends State<AppointmentForm> {
                     for (final dt in _customDates)
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        dense: true,
+                        // من غير dense: بتضغط ارتفاع الـtrailing فنصّ
+                        // الزرار بيتقصّ من تحت (٢٢px والكلمة محتاجة ٢٨).
                         leading: const Icon(Icons.event, size: 20),
                         title: Text('${arShortDate(dt)} — ${arTime(dt)}'),
                         trailing: IconButton(

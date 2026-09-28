@@ -196,7 +196,8 @@ class _MoodScreenState extends State<MoodScreen> {
   Widget _tile(MoodLog m, ColorScheme scheme) => Card(
         margin: const EdgeInsets.symmetric(vertical: 2),
         child: ListTile(
-          dense: true,
+          // من غير dense: بتضغط ارتفاع الـtrailing فنصّ
+          // الزرار بيتقصّ من تحت (٢٢px والكلمة محتاجة ٢٨).
           leading: Text(_moodEmoji[m.score] ?? '😐',
               style: const TextStyle(fontSize: 22)),
           title: Text('${_moodLabel(m.score)}'

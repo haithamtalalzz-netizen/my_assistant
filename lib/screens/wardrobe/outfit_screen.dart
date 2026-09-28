@@ -298,19 +298,20 @@ class _OutfitScreenState extends State<OutfitScreen> {
                     const SizedBox(height: 16),
                     Row(
                       children: [
+                        // من غير ارتفاع ثابت: ٥٠px مع أيقونة + حشوة
+                        // الزرار كانت بتسيب للكلمة ٢٤ وهى محتاجة ٢٨.
                         Expanded(
-                          child: SizedBox(
-                            height: 50,
-                            child: FilledButton.icon(
-                              onPressed: _wearIt,
-                              icon: const Icon(Icons.check),
-                              label: Text(tr('لبستها ✓', 'Wearing this ✓')),
-                            ),
+                          child: FilledButton.icon(
+                            onPressed: _wearIt,
+                            icon: const Icon(Icons.check),
+                            label: Text(tr('لبستها ✓', 'Wearing this ✓')),
+                            style: FilledButton.styleFrom(
+                                minimumSize: const Size(0, 50)),
                           ),
                         ),
                         const SizedBox(width: 10),
                         SizedBox(
-                          height: 50,
+                          height: 52,
                           child: OutlinedButton.icon(
                             onPressed: _saveOutfit,
                             icon: const Icon(Icons.bookmark_add_outlined),

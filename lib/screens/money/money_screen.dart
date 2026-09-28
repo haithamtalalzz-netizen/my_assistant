@@ -1718,8 +1718,10 @@ class _MoneyScreenState extends State<MoneyScreen> {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 3),
       color: due ? scheme.tertiary.withValues(alpha: .13) : null,
+      // 🔴 `dense: true` بتضغط ارتفاع الـtrailing، فزرار «اتدفعت» كان
+      // **نصّه متقصوص من تحت** (٢٢px والكلمة محتاجة ٢٨). مافيش خطأ بيترمى
+      // ومافيش اختبار كان بيشوفه — الصورة اللى بعتها هى اللى كشفته.
       child: ListTile(
-        dense: true,
         title: Text(b.name,
             style: due
                 ? const TextStyle(fontWeight: FontWeight.w600)

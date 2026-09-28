@@ -324,14 +324,16 @@ class _CycleScreenState extends State<CycleScreen> {
           if (_pillOn) ...[
             const Divider(height: 1),
             ListTile(
-              dense: true,
+              // من غير dense: بتضغط ارتفاع الـtrailing فنصّ
+              // الزرار بيتقصّ من تحت (٢٢px والكلمة محتاجة ٢٨).
               leading: const Icon(Icons.schedule),
               title: Text(tr('معاد التذكير', 'Reminder time')),
               trailing: TextButton(
                   onPressed: _pickPillTime, child: Text(_pillTime)),
             ),
             ListTile(
-              dense: true,
+              // من غير dense: بتضغط ارتفاع الـtrailing فنصّ
+              // الزرار بيتقصّ من تحت (٢٢px والكلمة محتاجة ٢٨).
               leading: Icon(
                   _pillTakenToday
                       ? Icons.check_circle

@@ -632,7 +632,8 @@ class _TasksScreenState extends State<TasksScreen> {
               const SizedBox(height: 8),
               for (final p in _projects)
                 ListTile(
-                  dense: true,
+                  // من غير dense: بتضغط ارتفاع الـtrailing فنصّ
+                  // الزرار بيتقصّ من تحت (٢٢px والكلمة محتاجة ٢٨).
                   leading: const Icon(Icons.folder_outlined),
                   title: Text(p.name),
                   trailing: IconButton(
