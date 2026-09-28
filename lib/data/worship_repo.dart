@@ -187,6 +187,32 @@ class WorshipRepo {
     });
   }
 
+  /// بيحطّ عدد صفحات اليوم [day] **بدل** اللى متسجّل فيه (مش بيزوّد عليه)
+  /// — عشان تعديل يوم فات يبقى تصحيح مش تكرار. بيصحّح تقدّم الختمة بالفرق.
+  Future<void> setQuranPagesOn(DateTime day, int pages) async {
+    final db = await AppDb.instance;
+    final k = dayKey(day);
+    final before = Sqflite.firstIntValue(await db.rawQuery(
+            'SELECT COALESCE(SUM(pages),0) FROM khatma_reads WHERE day = ?',
+            [k])) ??
+        0;
+    final target = pages < 0 ? 0 : pages;
+    if (target == before) return;
+    await db.delete('khatma_reads', where: 'day = ?', whereArgs: [k]);
+    if (target > 0) {
+      await db.insert('khatma_reads', {
+        'day': k,
+        'pages': target,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    }
+    final kh = await activeKhatma();
+    if (kh == null) return;
+    final next = (kh.currentPage + (target - before)).clamp(0, kh.totalPages);
+    await db.update('quran_khatma', {'current_page': next},
+        where: 'id = ?', whereArgs: [kh.id]);
+  }
+
   /// يبدأ ختمة لو مفيش نشطة (عشان تسجيل الورد من المصحف يشتغل دايمًا).
   Future<void> ensureKhatma() async {
     if (await activeKhatma() == null) await startKhatma();
@@ -231,6 +257,15 @@ class WorshipRepo {
     final db = await AppDb.instance;
     await db.insert('dhikr_log', {'day': dayKey(day), 'kind': kind},
         conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  /// بيقلب علامة الذِّكر فى الاتجاهين — التعليم كان من غير رجعة، فعلامة
+  /// بالغلط على يوم فات ماكانش ليها حلّ.
+  Future<void> setDhikrDone(DateTime day, String kind, bool done) async {
+    if (done) return markDhikrDone(day, kind);
+    final db = await AppDb.instance;
+    await db.delete('dhikr_log',
+        where: 'day = ? AND kind = ?', whereArgs: [dayKey(day), kind]);
   }
 
   /// عدد الأيام المتتالية اللى فيها ذِكر (بينتهى عند اليوم).

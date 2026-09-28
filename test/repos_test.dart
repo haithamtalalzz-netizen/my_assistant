@@ -5039,6 +5039,62 @@ void main() {
     });
   });
 
+  group('تعديل عبادات يوم فات', () {
+    test('الذِّكر بيتقلب فى الاتجاهين', () async {
+      final repo = WorshipRepo();
+      final day = DateTime(2026, 5, 10);
+      await repo.setDhikrDone(day, 'morning', true);
+      expect((await repo.dhikrDoneOn(day)).contains('morning'), isTrue);
+      // ده اللى ماكانش موجود: علامة بالغلط على يوم فات مالهاش رجعة.
+      await repo.setDhikrDone(day, 'morning', false);
+      expect((await repo.dhikrDoneOn(day)).contains('morning'), isFalse);
+    });
+
+    test('صفحات القرآن بتتحطّ لليوم المحدَّد مش النهاردة', () async {
+      final repo = WorshipRepo();
+      final past = DateTime(2026, 5, 11);
+      await repo.setQuranPagesOn(past, 7);
+      expect((await repo.dayReport(past)).quranPages, 7);
+      expect((await repo.dayReport(DateTime.now())).quranPages, 0,
+          reason: 'مالهاش علاقة بالنهاردة');
+    });
+
+    test('التعديل بيستبدل مش بيزوّد', () async {
+      final repo = WorshipRepo();
+      final day = DateTime(2026, 5, 12);
+      await repo.setQuranPagesOn(day, 10);
+      await repo.setQuranPagesOn(day, 4);
+      expect((await repo.dayReport(day)).quranPages, 4,
+          reason: 'تصحيح يوم فات لازم يستبدل، وإلا بقى 14');
+    });
+
+    test('تقدّم الختمة بيتصحّح بالفرق مش بيتزوّد مرتين', () async {
+      final repo = WorshipRepo();
+      await repo.startKhatma();
+      final day = DateTime(2026, 5, 13);
+      await repo.setQuranPagesOn(day, 10);
+      expect((await repo.activeKhatma())?.currentPage, 10);
+      // نزّلها لـ٤ → الختمة لازم ترجع ٤ مش تفضل ١٤.
+      await repo.setQuranPagesOn(day, 4);
+      expect((await repo.activeKhatma())?.currentPage, 4);
+      await repo.setQuranPagesOn(day, 0);
+      expect((await repo.activeKhatma())?.currentPage, 0);
+      await repo.resetKhatma();
+    });
+
+    test('الصلاة والصيام والسنن بتتسجّل على اليوم الفات', () async {
+      final repo = WorshipRepo();
+      final day = DateTime(2026, 5, 14);
+      await repo.togglePrayer(day, 1, true);
+      await repo.setFasted(day, true);
+      await repo.toggleSunnah(day, 'صلاة الوتر', true);
+      final r = await repo.dayReport(day);
+      expect(r.prayers.contains(1), isTrue);
+      expect(r.fasted, isTrue);
+      expect((await repo.sunnahDoneOn(day)).contains('صلاة الوتر'), isTrue);
+    });
+  });
+
   group('تقويم الموبايل: حساب المواعيد', () {
     test('جرعات الدوا: اللى عدّى النهاردة بيروح لبكرة', () {
       const m = Medication(

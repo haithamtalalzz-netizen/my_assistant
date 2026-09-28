@@ -7,6 +7,7 @@ import '../../core/l10n.dart';
 import '../../core/prayers.dart';
 import '../../data/worship_repo.dart';
 import '../../widgets/month_year_wheel.dart';
+import 'edit_worship_day_sheet.dart';
 
 /// تقويم/سجل العبادات — ترجع للأيام الماضية تشوف صلّيت إيه وقريت قرآن أدّ إيه.
 class WorshipHistoryScreen extends StatefulWidget {
@@ -48,6 +49,17 @@ class _WorshipHistoryScreenState extends State<WorshipHistoryScreen> {
   String _key(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+  /// بيفتح **محرِّر** اليوم — تسجّل حاجة نسيتها أو تشيل علامة بالغلط.
+  Future<void> _editDay(DateTime day) async {
+    final changed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => EditWorshipDaySheet(day: day),
+    );
+    if (changed == true && mounted) await _load();
+  }
+
   Future<void> _openDay(DateTime day) async {
     final r = await _repo.dayReport(day);
     if (!mounted) return;
@@ -60,12 +72,37 @@ class _WorshipHistoryScreenState extends State<WorshipHistoryScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(arFullDate(day),
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 12),
-            if (!r.hasAny)
+            Row(children: [
+              Expanded(
+                child: Text(arFullDate(day),
+                    maxLines: 2,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w900)),
+              ),
+              // الورقة كانت عرض بس — دلوقتى منها للمحرِّر على طول.
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _editDay(day);
+                },
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: Text(tr('عدّل', 'Edit')),
+              ),
+            ]),
+            const SizedBox(height: 4),
+            if (!r.hasAny) ...[
               Text(tr('لا يوجد نشاط عبادى مسجّل فى هذا اليوم',
-                  'No worship logged on this day'))
+                  'No worship logged on this day')),
+              const SizedBox(height: 12),
+              FilledButton.tonalIcon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _editDay(day);
+                },
+                icon: const Icon(Icons.add, size: 18),
+                label: Text(tr('سجّل لليوم ده', 'Log for this day')),
+              ),
+            ]
             else ...[
               _row('🕌', tr('الصلوات', 'Prayers'),
                   '${arNum(r.prayers.length)}/5 · ${r.prayers.map(prayerNameLabel).join('، ')}'),
@@ -183,6 +220,8 @@ class _WorshipHistoryScreenState extends State<WorshipHistoryScreen> {
                 final future = date.isAfter(today);
                 return InkWell(
                   onTap: future ? null : () => _openDay(date),
+                  // ضغطة طويلة = تعديل مباشر من غير ما يعدّى على العرض.
+                  onLongPress: future ? null : () => _editDay(date),
                   borderRadius: BorderRadius.circular(10),
                   child: Container(
                     margin: const EdgeInsets.all(3),
