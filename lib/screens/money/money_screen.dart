@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
@@ -9,7 +8,6 @@ import '../../core/month_summary.dart';
 import '../../core/money_export.dart';
 import '../../core/money_trends.dart';
 import '../../core/budget_calc.dart';
-import '../../core/ocr.dart';
 import '../../data/bills_repo.dart';
 import '../../data/debts_repo.dart';
 import '../../data/gameya_repo.dart';
@@ -241,119 +239,6 @@ class _MoneyScreenState extends State<MoneyScreen> {
   }
 
   /// صوّر الفاتورة → OCR محلي → شيت المصروف متملي بالإجمالي.
-  Future<void> _scanReceipt() async {
-    final picked = await ImagePicker()
-        .pickImage(source: ImageSource.camera, maxWidth: 2200);
-    if (picked == null || !mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(tr('بقرا الفاتورة...', 'Reading receipt...'))));
-    final text = await OcrService.recognizeFromPath(picked.path);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    if (text == null || text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(tr('معرفتش أقرا الصورة — جرب إضاءة أحسن',
-              "Couldn't read the image — try better lighting"))));
-      return;
-    }
-    final total = extractReceiptTotal(text);
-    if (total == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(tr('ملقتش إجمالي واضح — سجله يدوي',
-              'No clear total found — log it manually'))));
-      final added = await showQuickExpenseSheet(context);
-      if (added == true && mounted) await _load();
-      return;
-    }
-    final added = await showQuickExpenseSheet(context,
-        initialAmount: total, initialNote: tr('فاتورة', 'Receipt'));
-    if (added == true && mounted) await _load();
-  }
-
-  /// «أشتري ولا أستنى؟» — حسبة من ميزانيتك ومعدل صرفك الفعلي.
-  Future<void> _buyOrWait() async {
-    final controller = TextEditingController();
-    final price = await showDialog<double>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        scrollable: true,
-        title: Text(tr('أشتري ولا أستنى؟', 'Buy or wait?')),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-              labelText: tr('سعر الحاجة (ج.م)', 'Item price (EGP)')),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(tr('إلغاء', 'Cancel'))),
-          FilledButton(
-              onPressed: () =>
-                  Navigator.pop(ctx, parseNumber(controller.text)),
-              child: Text(tr('احسبها', 'Calculate'))),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (price == null || price <= 0 || !mounted) return;
-
-    final now = DateTime.now();
-    final spent = await _repo.totalForMonth(now.year, now.month);
-    final budget = await _settings.monthlyBudget();
-    final daysPassed = now.day;
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    final daysLeft = daysInMonth - daysPassed;
-    final dailyAvg = daysPassed == 0 ? 0.0 : spent / daysPassed;
-    final projected = spent + dailyAvg * daysLeft;
-
-    final lines = <String>[];
-    if (budget > 0) {
-      final remaining = budget - spent;
-      lines.add(tr(
-          'المتبقي من ميزانيتك: ${egp(remaining)} لمدة ${arNum(daysLeft)} يوم.',
-          'Budget remaining: ${egp(remaining)} for ${arNum(daysLeft)} days.'));
-      final afterPurchase = remaining - price;
-      if (afterPurchase < 0) {
-        lines.add(tr(
-            'الشراء دلوقتي هيخليك تعدي الميزانية بـ ${egp(-afterPurchase)} — استنى أول الشهر أحسن.',
-            'Buying now goes ${egp(-afterPurchase)} over budget — better wait for next month.'));
-      } else if (price > remaining * 0.5) {
-        lines.add(tr(
-            'الحاجة دي هتاكل ٪${arNum((price * 100 / remaining).round())} من المتبقي — تتحمل، بس هتضيّق باقي الشهر.',
-            'This eats ${arNum((price * 100 / remaining).round())}% of what remains — affordable but tight.'));
-      } else {
-        lines.add(tr(
-            'تقدر تشتريها براحتك — هتاخد ٪${arNum((price * 100 / remaining).round())} بس من المتبقي.',
-            'Go ahead — only ${arNum((price * 100 / remaining).round())}% of what remains.'));
-      }
-    } else {
-      lines.add(tr(
-          'مصاريفك الشهر ده: ${egp(spent)} (متوسط ${egp(dailyAvg)} يوميًا).',
-          "This month's spend: ${egp(spent)} (avg ${egp(dailyAvg)}/day)."));
-      lines.add(tr(
-          'بمعدلك الحالي هتقفل الشهر على ${egp(projected)} — الحاجة دي هتزود ٪${arNum((price * 100 / (projected == 0 ? price : projected)).round())} فوقهم.',
-          'At your pace the month ends at ${egp(projected)} — this adds ${arNum((price * 100 / (projected == 0 ? price : projected)).round())}% on top.'));
-      lines.add(tr('حدد ميزانية شهرية من الإعدادات عشان الحسبة تبقى أدق.',
-          'Set a monthly budget in settings for a sharper estimate.'));
-    }
-    if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        scrollable: true,
-        title: Text(tr('حسبة شراء ${egp(price)}', 'Purchase check ${egp(price)}')),
-        content: Text(lines.join('\n\n'), style: const TextStyle(height: 1.7)),
-        actions: [
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(tr('تمام', 'OK'))),
-        ],
-      ),
-    );
-  }
-
   Future<void> _delete(Expense e) async {
     if (!await confirmDelete(
         context, tr('المصروف ده (${egp(e.amount)})', 'this expense (${egp(e.amount)})'))) {
@@ -380,10 +265,6 @@ class _MoneyScreenState extends State<MoneyScreen> {
                 MaterialPageRoute(builder: (_) => const WalletsScreen()));
             if (mounted) await _load();
           }),
-          BarAction(Icons.document_scanner_outlined,
-              tr('صوّر فاتورة', 'Scan receipt'), _scanReceipt),
-          BarAction(Icons.calculate_outlined,
-              tr('أشتري ولا أستنى؟', 'Buy or wait?'), _buyOrWait),
           BarAction(Icons.file_download_outlined,
               tr('تصدير Excel', 'Export Excel'), () async {
             await MoneyExport.exportMonthCsv(_month.year, _month.month);
@@ -534,14 +415,17 @@ class _MoneyScreenState extends State<MoneyScreen> {
 
   /// بيفتح قسم كصفحة كاملة. الصفحة بتبنى محتواها من **نفس** دوال الكروت
   /// اللى فى الشاشة دى، فمفيش تكرار ولا تحميل تانى للبيانات.
-  void _openSection(String title, List<Widget> Function() body,
-      {String? addLabel, Future<void> Function()? onAdd}) {
+  void _openSection(String title, List<Widget> Function(String filter) body,
+      {List<String> filters = const [],
+      String? addLabel,
+      Future<void> Function()? onAdd}) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => _MoneySectionPage(
           title: title,
           body: body,
+          filters: filters,
           onRefresh: _load,
           addLabel: addLabel,
           onAdd: onAdd,
@@ -550,70 +434,297 @@ class _MoneyScreenState extends State<MoneyScreen> {
     );
   }
 
-  void _openExpenses() => _openSection(tr('المصاريف', 'Expenses'), () => [
-        _budgetCard(context),
-        const SizedBox(height: 8),
-        _safeToSpendCard(context),
-        if (_byCategory.isNotEmpty) ...[
-          SectionHeader(tr('حسب الفئة', 'By category'),
-              trailing: TextButton(
-                  onPressed: _editCategoryBudgets,
-                  child: Text(tr('ميزانيات', 'Budgets')))),
-          _categoryBreakdown(context),
-        ],
-        SectionHeader(tr('عمليات الشهر', "This month's expenses")),
-        if (_expenses.isEmpty)
-          EmptyHint(
-              icon: Icons.receipt_long_outlined,
-              text: tr('مفيش مصاريف متسجلة الشهر ده',
-                  'No expenses logged this month'))
-        else
-          ..._expenses.map((e) => _expenseTile(context, e)),
-      ], addLabel: tr('سجل مصروف', 'Log expense'), onAdd: _addExpense);
+  /// **المصاريف — الفئات أولاً** (الشكل اللى اختاره).
+  ///
+  /// بتجاوب «راحت فين؟» من نظرة بدل ما تدوّر فى قايمة طويلة: كل فئة
+  /// بمبلغها ونسبتها، والضغط عليها بيفتح عملياتها. كروت التحليل اتشالت
+  /// من هنا خالص — مكانها بند «التحليل».
+  void _openExpenses() => _openSection(tr('المصاريف', 'Expenses'), (_) {
+        final cats = _byCategory.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+        return [
+          _spentHeader(context),
+          const SizedBox(height: 16),
+          Row(children: [
+            Expanded(
+                child: Text(tr('راحت فين؟', 'Where did it go?'),
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w700))),
+            TextButton(
+                onPressed: _openAllExpenses,
+                child: Text(tr('كل العمليات', 'All'))),
+          ]),
+          if (cats.isEmpty)
+            EmptyHint(
+                icon: Icons.receipt_long_outlined,
+                text: tr('مفيش مصاريف متسجلة الشهر ده',
+                    'No expenses logged this month'))
+          else ...[
+            for (final c in cats) _categoryRow(context, c.key, c.value),
+            const SizedBox(height: 4),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                onPressed: _editCategoryBudgets,
+                icon: const Icon(Icons.tune, size: 18),
+                label: Text(tr('ميزانيات الفئات', 'Category budgets')),
+              ),
+            ),
+          ],
+        ];
+      }, addLabel: tr('سجل مصروف', 'Log expense'), onAdd: _addExpense);
 
-  void _openIncome() => _openSection(tr('الدخل', 'Income'), () => [
-        SectionHeader(tr('دخل ثابت كل شهر', 'Recurring income'),
-            trailing: TextButton(
-                onPressed: () => _recurringIncomeForm(),
-                child: Text(tr('ضيف', 'Add')))),
-        if (_recurringIncome.isEmpty)
-          Text(
-              tr('سجّل مرتبك مرة واحدة — وهفكرك يوم القبض',
-                  'Log your salary once — reminded on payday'),
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.outline, fontSize: 13))
-        else
-          ..._recurringIncome.map((i) => _recurringIncomeTile(context, i)),
-        SectionHeader(tr('دخل الشهر', "This month's income"),
-            trailing: TextButton(
-                onPressed: _addIncome, child: Text(tr('سجل دخل', 'Log')))),
-        if (_income.isEmpty)
-          Text(tr('مفيش دخل متسجل الشهر ده', 'No income logged this month'),
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.outline, fontSize: 13))
-        else
-          ..._income.map((i) => _incomeTile(context, i)),
-      ], addLabel: tr('سجل دخل', 'Log income'), onAdd: _addIncome);
-
-  void _openFixed() =>
-      _openSection(tr('الثابت والفواتير', 'Fixed & bills'), () => [
-            if (_bills.isNotEmpty) _billsProjectionCard(context),
-            SectionHeader(tr('الفواتير الدورية', 'Recurring bills'),
-                trailing: TextButton(
-                    onPressed: () => _billForm(),
-                    child: Text(tr('ضيف فاتورة', 'Add bill')))),
-            if (_bills.isEmpty)
-              Text(
-                  tr('سجل الكهربا والنت والاشتراكات مرة واحدة — وهفكرك كل شهر',
-                      'Log electricity, internet & subscriptions once'),
+  /// رأس «صرفت الشهر ده» + شريط الميزانية (لو محدَّدة).
+  Widget _spentHeader(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(tr('صرفت الشهر ده', 'Spent this month'),
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 2),
+            Text(egp(_total),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    color: scheme.error)),
+          ]),
+        ),
+        if (_budget > 0) ...[
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 96,
+            child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text(tr('من ${egp(_budget)}', 'of ${egp(_budget)}'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      color: Theme.of(context).colorScheme.outline,
-                      fontSize: 13))
-            else
-              ..._bills.map((b) => _billTile(context, b)),
-          ], addLabel: tr('ضيف فاتورة', 'Add bill'), onAdd: () => _billForm());
+                      fontSize: 11.5, color: scheme.onSurfaceVariant)),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                    value: (_total / _budget).clamp(0, 1).toDouble(),
+                    minHeight: 7),
+              ),
+            ]),
+          ),
+        ] else
+          TextButton(
+              onPressed: _editBudget,
+              child: Text(tr('حدد ميزانية', 'Set a budget'))),
+      ]),
+    );
+  }
 
-  void _openAnalysis() => _openSection(tr('التحليل', 'Analysis'), () => [
+  /// صفّ فئة: المبلغ + النسبة + شريط — والضغط بيفتح عملياتها.
+  Widget _categoryRow(BuildContext context, String cat, double amount) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = expenseCategoryColor(cat);
+    final pct = _total <= 0 ? 0.0 : amount / _total;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Material(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => _openCategory(cat),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(children: [
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.13),
+                    borderRadius: BorderRadius.circular(13)),
+                child: Icon(expenseCategoryIcon(cat), size: 19, color: color),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Expanded(
+                            child: Text(expenseCategoryLabel(cat),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 13.5))),
+                        const SizedBox(width: 8),
+                        Text(egp(amount),
+                            maxLines: 1,
+                            style: const TextStyle(
+                                fontSize: 13.5, fontWeight: FontWeight.w800)),
+                      ]),
+                      const SizedBox(height: 7),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                            value: pct,
+                            minHeight: 6,
+                            color: color,
+                            backgroundColor: color.withValues(alpha: 0.13)),
+                      ),
+                    ]),
+              ),
+              const SizedBox(width: 10),
+              Text('${arNum((pct * 100).round())}٪',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onSurfaceVariant)),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openCategory(String cat) {
+    final rows = [
+      for (final e in _expenses)
+        if (e.category == cat) e
+    ];
+    _openSection(expenseCategoryLabel(cat), (_) => [
+          _sumStrip(context, egp(rows.fold<double>(0, (t, e) => t + e.amount)),
+              tr('${arNum(rows.length)} عملية', '${arNum(rows.length)} items')),
+          const SizedBox(height: 10),
+          ...rows.map((e) => _expenseTile(context, e)),
+        ], addLabel: tr('سجل مصروف', 'Log expense'), onAdd: _addExpense);
+  }
+
+  void _openAllExpenses() =>
+      _openSection(tr('كل العمليات', 'All expenses'), (_) => [
+            _sumStrip(context, egp(_total),
+                tr('${arNum(_expenses.length)} عملية',
+                    '${arNum(_expenses.length)} items')),
+            const SizedBox(height: 10),
+            ..._expenses.map((e) => _expenseTile(context, e)),
+          ], addLabel: tr('سجل مصروف', 'Log expense'), onAdd: _addExpense);
+
+  /// شريط مجموع بسيط فوق أى قايمة.
+  Widget _sumStrip(BuildContext context, String total, String count) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(children: [
+        Expanded(
+            child: Text(count,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant))),
+        const SizedBox(width: 8),
+        Text(total,
+            maxLines: 1,
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+      ]),
+    );
+  }
+
+  /// **الدخل — قايمة بسيطة بفلاتر** (الشكل اللى اختاره).
+  /// «ثابت» شريحة زى أى فلتر، فالدخل الدورى مالوش قسم منفصل يزحم الشاشة.
+  void _openIncome() {
+    final sources = <String>{for (final i in _income) i.source}.toList();
+    _openSection(tr('الدخل', 'Income'), (f) {
+      if (f == tr('ثابت', 'Recurring')) {
+        return [
+          _sumStrip(
+              context,
+              egp(_recurringIncome.fold<double>(0, (t, i) => t + i.amount)),
+              tr('${arNum(_recurringIncome.length)} دخل شهرى',
+                  '${arNum(_recurringIncome.length)} monthly')),
+          const SizedBox(height: 10),
+          if (_recurringIncome.isEmpty)
+            EmptyHint(
+                icon: Icons.event_repeat,
+                text: tr('سجّل مرتبك مرة واحدة — وهفكرك يوم القبض',
+                    'Log your salary once — reminded on payday'),
+                actionLabel: tr('ضيف دخل ثابت', 'Add'),
+                onAction: () => _recurringIncomeForm())
+          else
+            ..._recurringIncome.map((i) => _recurringIncomeTile(context, i)),
+        ];
+      }
+      final rows = [
+        for (final i in _income)
+          if (f == tr('الكل', 'All') || i.source == f) i
+      ];
+      return [
+        _sumStrip(
+            context,
+            egp(rows.fold<double>(0, (t, i) => t + i.amount)),
+            tr('${arNum(rows.length)} عملية', '${arNum(rows.length)} items')),
+        const SizedBox(height: 10),
+        if (rows.isEmpty)
+          EmptyHint(
+              icon: Icons.south_west,
+              text: tr('مفيش دخل متسجل', 'No income logged'))
+        else
+          ...rows.map((i) => _incomeTile(context, i)),
+      ];
+    },
+        filters: [
+          tr('الكل', 'All'),
+          tr('ثابت', 'Recurring'),
+          for (final s in sources) incomeSourceLabel(s),
+        ],
+        addLabel: tr('سجل دخل', 'Log income'),
+        onAdd: _addIncome);
+  }
+
+  /// **الثابت والفواتير — قايمة بسيطة بفلاتر** (الشكل اللى اختاره).
+  void _openFixed() {
+    final now = DateTime.now();
+    _openSection(tr('الثابت والفواتير', 'Fixed & bills'), (f) {
+      final rows = [
+        for (final b in _bills)
+          if (f == tr('مستحقة', 'Due')
+              ? b.isDue(now)
+              : f == tr('اتدفعت', 'Paid')
+                  ? !b.isDue(now)
+                  : true)
+            b
+      ];
+      return [
+        _sumStrip(
+            context,
+            egp(rows.fold<double>(0, (t, b) => t + b.amount)),
+            tr('${arNum(rows.length)} فاتورة', '${arNum(rows.length)} bills')),
+        const SizedBox(height: 10),
+        if (rows.isEmpty)
+          EmptyHint(
+              icon: Icons.repeat,
+              text: tr('سجل الكهربا والنت والاشتراكات مرة واحدة — وهفكرك كل شهر',
+                  'Log electricity, internet & subscriptions once'))
+        else
+          ...rows.map((b) => _billTile(context, b)),
+      ];
+    },
+        filters: [
+          tr('الكل', 'All'),
+          tr('مستحقة', 'Due'),
+          tr('اتدفعت', 'Paid'),
+        ],
+        addLabel: tr('ضيف فاتورة', 'Add bill'),
+        onAdd: () => _billForm());
+  }
+
+  void _openAnalysis() => _openSection(tr('التحليل', 'Analysis'), (_) => [
+        // الكارت الكامل مكانه هنا؛ الرئيسية فيها السطر المختصر بس.
+        _safeToSpendCard(context),
         _compareCard(context),
         const SizedBox(height: 8),
         _categoryDeltaCard(context),
@@ -621,6 +732,8 @@ class _MoneyScreenState extends State<MoneyScreen> {
         _balanceTrendCard(context),
         const SizedBox(height: 8),
         _whereCard(context),
+        const SizedBox(height: 8),
+        _billsProjectionCard(context),
       ]);
 
   /// **آخر العمليات** — دخل ومصروف مخلوطين بالتاريخ، زى ما بتشوفهم فى
@@ -1414,158 +1527,6 @@ class _MoneyScreenState extends State<MoneyScreen> {
     );
   }
 
-  Widget _budgetCard(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final over = _budget > 0 && _total > _budget;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: _budget <= 0
-            ? Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(tr('إجمالي الشهر', 'Month total'),
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelLarge
-                                ?.copyWith(color: scheme.outline)),
-                        Text(egp(_total),
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w700)),
-                      ],
-                    ),
-                  ),
-                  TextButton(
-                      onPressed: _editBudget,
-                      child: Text(tr('حدد ميزانية', 'Set budget'))),
-                ],
-              )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(tr('ميزانية الشهر', 'Monthly budget'),
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelLarge
-                                ?.copyWith(color: scheme.outline)),
-                      ),
-                      IconButton(
-                          onPressed: _editBudget,
-                          tooltip: tr('تعديل الميزانية', 'Edit budget'),
-                          icon: const Icon(Icons.edit_outlined, size: 18)),
-                    ],
-                  ),
-                  LinearProgressIndicator(
-                    value: (_total / _budget).clamp(0.0, 1.0),
-                    minHeight: 8,
-                    borderRadius: BorderRadius.circular(4),
-                    color: over ? scheme.error : scheme.primary,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    tr('${egp(_total)} من ${egp(_budget)}${over ? ' — عدّيت الميزانية!' : ''}',
-                        '${egp(_total)} of ${egp(_budget)}${over ? ' — over budget!' : ''}'),
-                    style: TextStyle(
-                        color: over ? scheme.error : null,
-                        fontWeight: over ? FontWeight.w600 : null),
-                  ),
-                  if (_isCurrentMonth && !over) ...[
-                    const SizedBox(height: 4),
-                    Builder(builder: (_) {
-                      final now = DateTime.now();
-                      final daysLeft =
-                          DateTime(now.year, now.month + 1, 0).day - now.day + 1;
-                      final perDay = (_budget - _total) / daysLeft;
-                      return Text(
-                        tr('متاح ليك ${egp(perDay)} يوميًا للـ ${arNum(daysLeft)} يوم الباقيين',
-                            '${egp(perDay)}/day left for the remaining ${arNum(daysLeft)} days'),
-                        style: TextStyle(fontSize: 12, color: scheme.primary),
-                      );
-                    }),
-                  ],
-                ],
-              ),
-      ),
-    );
-  }
-
-  Widget _categoryBreakdown(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final maxValue =
-        _byCategory.values.fold<double>(0, (m, v) => v > m ? v : m);
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            for (final e in _byCategory.entries)
-              Builder(builder: (_) {
-                final budget = _categoryBudgets[e.key];
-                final over = budget != null && e.value > budget;
-                final barColor =
-                    over ? scheme.error : expenseCategoryColor(e.key);
-                final barValue = budget != null
-                    ? (e.value / budget).clamp(0.0, 1.0)
-                    : (maxValue == 0 ? 0.0 : e.value / maxValue);
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(expenseCategoryIcon(e.key),
-                              size: 16, color: expenseCategoryColor(e.key)),
-                          const SizedBox(width: 6),
-                          Expanded(child: Text(expenseCategoryLabel(e.key))),
-                          Text(
-                              budget != null
-                                  ? '${egp(e.value)} / ${egp(budget)}'
-                                  : (_total > 0
-                                      ? '${egp(e.value)} • ٪${arNum((e.value * 100 / _total).round())}'
-                                      : egp(e.value)),
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: over ? scheme.error : null)),
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      LinearProgressIndicator(
-                        value: barValue,
-                        minHeight: 4,
-                        borderRadius: BorderRadius.circular(2),
-                        color: barColor,
-                      ),
-                      if (over)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                              tr('عدّيت الميزانية بـ ${egp(e.value - budget)}',
-                                  '${egp(e.value - budget)} over budget'),
-                              style: TextStyle(
-                                  fontSize: 11, color: scheme.error)),
-                        ),
-                    ],
-                  ),
-                );
-              }),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// تحرير ميزانية شهرية لكل فئة مصروفات.
   Future<void> _editCategoryBudgets() async {
     final controllers = {
       for (final c in kExpenseCategories)
@@ -1919,7 +1880,12 @@ class _Hub {
 /// وبعدين نعيد البناء — من غير ما نكرّر تحميل البيانات فى كل صفحة.
 class _MoneySectionPage extends StatefulWidget {
   final String title;
-  final List<Widget> Function() body;
+
+  /// بتاخد الفلتر المختار وترجّع محتوى الصفحة.
+  final List<Widget> Function(String filter) body;
+
+  /// شرائح فوق القايمة — فاضية = مفيش فلاتر.
+  final List<String> filters;
   final Future<void> Function() onRefresh;
 
   /// زرار الإضافة جوّه القسم — إنت جوّاه لمّا تحبّ تسجّل، فالرجوع
@@ -1931,6 +1897,7 @@ class _MoneySectionPage extends StatefulWidget {
     required this.title,
     required this.body,
     required this.onRefresh,
+    this.filters = const [],
     this.addLabel,
     this.onAdd,
   });
@@ -1940,9 +1907,52 @@ class _MoneySectionPage extends StatefulWidget {
 }
 
 class _MoneySectionPageState extends State<_MoneySectionPage> {
+  late String _filter = widget.filters.isEmpty ? '' : widget.filters.first;
+
   Future<void> _refresh() async {
     await widget.onRefresh();
     if (mounted) setState(() {});
+  }
+
+  /// شرائح الفلتر — بتمرّر أفقيًا فمهما كان عددها مابتتقصّش.
+  Widget _filterBar(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      height: 34,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          for (final f in widget.filters)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 7),
+              child: GestureDetector(
+                onTap: () => setState(() => _filter = f),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: _filter == f
+                        ? scheme.primary
+                        : scheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                        color: _filter == f
+                            ? scheme.primary
+                            : scheme.outlineVariant),
+                  ),
+                  child: Text(f,
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: _filter == f
+                              ? scheme.onPrimary
+                              : scheme.onSurfaceVariant)),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -1959,7 +1969,13 @@ class _MoneySectionPageState extends State<_MoneySectionPage> {
         onRefresh: _refresh,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
-          children: widget.body(),
+          children: [
+            if (widget.filters.isNotEmpty) ...[
+              _filterBar(context),
+              const SizedBox(height: 12),
+            ],
+            ...widget.body(_filter),
+          ],
         ),
       ),
       floatingActionButton: widget.onAdd == null
