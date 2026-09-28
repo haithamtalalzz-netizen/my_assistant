@@ -9,6 +9,7 @@ import '../../widgets/a_kit.dart';
 import '../../widgets/common.dart';
 import '../../widgets/search_action.dart';
 import 'focus_screen.dart';
+import '../../core/calendar_sync.dart';
 
 /// المهام والمشاريع — قوائم مهام بأولويات ومواعيد، مجمّعة فى مشاريع.
 class TasksScreen extends StatefulWidget {
@@ -325,6 +326,7 @@ class _TasksScreenState extends State<TasksScreen> {
                           builder: (_) => FocusScreen(
                               taskId: t.id, taskTitle: t.title)));
                 }
+                if (v == 'calendar') CalendarSync.addTask(t);
                 if (v == 'delete') _delete(t);
               },
               itemBuilder: (_) => [
@@ -335,6 +337,12 @@ class _TasksScreenState extends State<TasksScreen> {
                 PopupMenuItem(
                     value: 'focus',
                     child: Text(tr('جلسة تركيز', 'Focus session'))),
+                // مهمة من غير ميعاد مالهاش مكان فى التقويم.
+                if (t.dueAt != null)
+                  PopupMenuItem(
+                      value: 'calendar',
+                      child: Text(
+                          tr('أضف لتقويم الموبايل', 'Add to phone calendar'))),
                 PopupMenuItem(value: 'delete', child: Text(tr('حذف', 'Delete'))),
               ],
             ),

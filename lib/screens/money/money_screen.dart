@@ -28,6 +28,7 @@ import '../baladna/savings_screen.dart';
 import 'income_sheet.dart';
 import 'quick_expense_sheet.dart';
 import 'wallets_screen.dart';
+import '../../core/calendar_sync.dart';
 
 class MoneyScreen extends StatefulWidget {
   final Widget? drawer;
@@ -1742,6 +1743,10 @@ class _MoneyScreenState extends State<MoneyScreen> {
                 switch (v) {
                   case 'edit':
                     await _billForm(b);
+                  case 'calendar':
+                    // حدث شهرى فى يوم الاستحقاق — التذكير بيفضل شغّال
+                    // حتى لو التطبيق مش مفتوح.
+                    await CalendarSync.addBill(b);
                   case 'delete':
                     if (!await confirmDelete(
                         context, tr('الفاتورة "${b.name}"', 'bill "${b.name}"'))) {
@@ -1753,6 +1758,10 @@ class _MoneyScreenState extends State<MoneyScreen> {
               },
               itemBuilder: (_) => [
                 PopupMenuItem(value: 'edit', child: Text(tr('تعديل', 'Edit'))),
+                PopupMenuItem(
+                    value: 'calendar',
+                    child: Text(
+                        tr('أضف لتقويم الموبايل', 'Add to phone calendar'))),
                 PopupMenuItem(
                     value: 'delete', child: Text(tr('حذف', 'Delete'))),
               ],

@@ -12,6 +12,7 @@ import '../../widgets/a_kit.dart';
 import '../../widgets/common.dart';
 import 'appointment_form.dart';
 import 'med_form.dart';
+import '../../core/calendar_sync.dart';
 
 class ScheduleScreen extends StatelessWidget {
   final Widget? drawer;
@@ -328,6 +329,23 @@ class _MedsTabState extends State<_MedsTab> {
     if (saved == true && mounted) await _load();
   }
 
+  /// بيبعت الجرعات لتقويم الموبايل — حدث يومى متكرّر لكل ميعاد.
+  /// شاشة الإضافة بتتفتح لكل ميعاد على حدة (المستخدم بيأكّد)، فبنقول له
+  /// العدد الأول عشان مايتفاجأش بأكتر من شاشة.
+  Future<void> _addMedToCalendar(Medication m) async {
+    final n = m.times.length;
+    if (n > 1 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr('هتفتح ${arNum(n)} شاشة — ميعاد لكل جرعة',
+              '${arNum(n)} screens will open — one per dose'))));
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+    }
+    final sent = await CalendarSync.addMedication(m);
+    if (!mounted || sent > 0) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr('مقدرتش أفتح التقويم', "Couldn't open the calendar"))));
+  }
+
   Future<void> _delete(Medication m) async {
     if (!await confirmDelete(
         context, tr('الدواء "${m.name}"', 'medication "${m.name}"'))) {
@@ -443,6 +461,8 @@ class _MedsTabState extends State<_MedsTab> {
                                       switch (v) {
                                         case 'edit':
                                           await _openForm(m);
+                                        case 'calendar':
+                                          await _addMedToCalendar(m);
                                         case 'delete':
                                           await _delete(m);
                                       }
@@ -451,6 +471,11 @@ class _MedsTabState extends State<_MedsTab> {
                                       PopupMenuItem(
                                           value: 'edit',
                                           child: Text(tr('تعديل', 'Edit'))),
+                                      if (m.times.isNotEmpty)
+                                        PopupMenuItem(
+                                            value: 'calendar',
+                                            child: Text(tr('أضف لتقويم الموبايل',
+                                                'Add to phone calendar'))),
                                       PopupMenuItem(
                                           value: 'delete',
                                           child: Text(tr('حذف', 'Delete'))),

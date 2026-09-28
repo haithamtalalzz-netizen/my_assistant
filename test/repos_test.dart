@@ -125,6 +125,7 @@ import 'package:my_assistant/screens/quick_actions_settings_screen.dart';
 import 'package:my_assistant/core/l10n.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:my_assistant/core/calendar_sync.dart';
 
 void main() {
   sqfliteFfiInit();
@@ -5035,6 +5036,48 @@ void main() {
       await repo.markReceived(saved, now: DateTime(2026, 7, 9));
       final logged = await repo.forMonth(2026, 7);
       expect(logged.any((e) => e.amount == 300 && e.note.isNotEmpty), isTrue);
+    });
+  });
+
+  group('تقويم الموبايل: حساب المواعيد', () {
+    test('جرعات الدوا: اللى عدّى النهاردة بيروح لبكرة', () {
+      const m = Medication(
+          name: 'كونكور', times: ['08:00', '20:00'], active: true);
+      // الساعة ٢ الضهر: جرعة ٨ص عدّت → بكرة، وجرعة ٨م لسه → النهاردة.
+      final now = DateTime(2026, 6, 10, 14, 0);
+      final starts = CalendarSync.doseStarts(m, now);
+      expect(starts.length, 2);
+      expect(starts[0], DateTime(2026, 6, 11, 8, 0),
+          reason: 'جرعة الصبح عدّت فلازم تروح لبكرة');
+      expect(starts[1], DateTime(2026, 6, 10, 20, 0));
+    });
+
+    test('جرعة بميعاد غلط بترجع للثامنة', () {
+      const m = Medication(name: 'x', times: ['بلا'], active: true);
+      final starts = CalendarSync.doseStarts(m, DateTime(2026, 6, 10, 5));
+      expect(starts.single.hour, 8);
+    });
+
+    test('الفاتورة: الاستحقاق الجاى مش اللى فات', () {
+      // يوم ٥ والنهاردة ١٠ → الشهر الجاى.
+      expect(CalendarSync.nextBillDue(5, DateTime(2026, 6, 10)),
+          DateTime(2026, 7, 5));
+      // يوم ٢٠ والنهاردة ١٠ → نفس الشهر.
+      expect(CalendarSync.nextBillDue(20, DateTime(2026, 6, 10)),
+          DateTime(2026, 6, 20));
+      // النهاردة هو يوم الاستحقاق → النهاردة، مش الشهر الجاى.
+      expect(CalendarSync.nextBillDue(10, DateTime(2026, 6, 10, 23)),
+          DateTime(2026, 6, 10));
+    });
+
+    test('يوم ٣١ بيتحصر لـ٢٨ عشان فبراير مايضيّعش الفاتورة', () {
+      expect(CalendarSync.nextBillDue(31, DateTime(2026, 2, 1)),
+          DateTime(2026, 2, 28));
+    });
+
+    test('ديسمبر بيلفّ للسنة الجاية', () {
+      expect(CalendarSync.nextBillDue(5, DateTime(2026, 12, 10)),
+          DateTime(2027, 1, 5));
     });
   });
 
