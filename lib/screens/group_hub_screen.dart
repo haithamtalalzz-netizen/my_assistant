@@ -47,21 +47,19 @@ class GroupHubScreen extends StatelessWidget {
     final width = MediaQuery.of(context).size.width;
     // ٣ أعمدة على شاشة ٣٢٠ بتخلّى الكارت ٨٨px، فالأيقونة والشارة
     // مايسعوش جوّه الصف. العدد بيتبع العرض بدل ما يكون ثابت.
-    final cols = width > 640
-        ? 4
-        : width < 360
-            ? 2
-            : 3;
+    // **قايمة واحدة** بدل شبكة مربعات: المربّع كان بيسع كلمتين، فأسماء
+    // زى «الديون والسلف» تتقصّ، والشاشة تبقى صفّين ونص من غير أى تفصيلة.
+    // السطر بيسع الاسم كامل، وعلى الشاشة العريضة بيرجع عمودين.
+    final cols = width > 640 ? 2 : 1;
     return Scaffold(
       appBar: AppBar(title: Text(title), actions: [searchAction(context)]),
       body: ReorderableCards(
         // ترتيب لكل مجموعة على حدة (اضغط مطوّل واسحب).
         storageKey: 'group.$title',
         crossAxisCount: cols,
-        // طول ثابت: على الشاشة العريضة (فولد/تابلت) النسبة كانت بتطوّل
-        // الكروت وتسيبها فاضية من جوّه.
-        mainAxisExtent: 132,
-        padding: const EdgeInsets.all(16),
+        mainAxisExtent: 58,
+        spacing: 7,
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
         shrinkWrap: false,
         physics: const AlwaysScrollableScrollPhysics(),
         cards: [
@@ -71,9 +69,25 @@ class GroupHubScreen extends StatelessWidget {
     );
   }
 
+  /// لون ثابت لكل بند مأخوذ من اسمه — عشان تعرف البند من لونه قبل ما
+  /// تقرا. (لو كل الأيقونات بلون الهَب الواحد بتبقى كلها شكل واحد.)
+  static const _palette = [
+    Color(0xFF3B82F6),
+    Color(0xFF10B981),
+    Color(0xFF8B5CF6),
+    Color(0xFFF59E0B),
+    Color(0xFFEC4899),
+    Color(0xFF06B6D4),
+    Color(0xFFF43F5E),
+    Color(0xFF14B8A6),
+  ];
+
+  static Color _colorFor(String label) =>
+      _palette[label.hashCode.abs() % _palette.length];
+
   Widget _tile(BuildContext context, GroupHubItem it) {
     final scheme = Theme.of(context).colorScheme;
-    final color = it.color ?? accent ?? scheme.primary;
+    final color = it.color ?? _colorFor(it.label);
     return Material(
       color: scheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(20),
@@ -92,63 +106,60 @@ class GroupHubScreen extends StatelessWidget {
           }
         },
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(18),
             border:
                 Border.all(color: scheme.outlineVariant.withValues(alpha: 0.6)),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(9),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.13),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(it.icon, color: color, size: 20),
-                ),
-                const Spacer(),
-                if (it.badge != null)
-                  FutureBuilder<int>(
-                    future: it.badge!(),
-                    builder: (_, snap) {
-                      final n = snap.data ?? 0;
-                      if (n <= 0) return const SizedBox.shrink();
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
-                        constraints: const BoxConstraints(minWidth: 18),
-                        decoration: BoxDecoration(
-                          color: scheme.error,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          n > 9 ? tr('٩+', '9+') : arNum(n),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                              color: scheme.onError,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800),
-                        ),
-                      );
-                    },
-                  ),
-              ]),
-              const Spacer(),
-              // سطرين: أسماء زى «الديون والسلف» بتتقصّ على سطر واحد.
-              Text(it.label,
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.13),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(it.icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(it.label,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 13.5,
                       height: 1.2,
                       fontWeight: FontWeight.w700,
                       color: scheme.onSurface)),
-            ],
-          ),
+            ),
+            if (it.badge != null)
+              FutureBuilder<int>(
+                future: it.badge!(),
+                builder: (_, snap) {
+                  final n = snap.data ?? 0;
+                  if (n <= 0) return const SizedBox.shrink();
+                  return Container(
+                    margin: const EdgeInsets.only(left: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    constraints: const BoxConstraints(minWidth: 18),
+                    decoration: BoxDecoration(
+                      color: scheme.error,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      n > 9 ? tr('٩+', '9+') : arNum(n),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: scheme.onError,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800),
+                    ),
+                  );
+                },
+              ),
+            Icon(Icons.chevron_left, size: 20, color: scheme.outline),
+          ]),
         ),
       ),
     );
@@ -156,4 +167,4 @@ class GroupHubScreen extends StatelessWidget {
 }
 
 /// عنوان تعريفي بسيط (مستخدم لو حبينا نضيف وصف للهَب لاحقًا).
-String hubHint() => tr('اختار من المربعات', 'Pick a tile');
+String hubHint() => tr('اختار من القايمة', 'Pick one');

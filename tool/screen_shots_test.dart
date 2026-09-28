@@ -26,6 +26,7 @@ import 'package:my_assistant/data/health_repo.dart';
 import 'package:my_assistant/data/goals_repo.dart';
 import 'package:my_assistant/data/tasks_repo.dart';
 import 'package:my_assistant/models/models.dart';
+import 'package:my_assistant/screens/group_hub_screen.dart';
 import 'package:my_assistant/screens/notes_screen.dart';
 import 'package:my_assistant/screens/growth/goals_screen.dart';
 import 'package:my_assistant/screens/schedule/schedule_screen.dart';
@@ -259,6 +260,34 @@ void main() {
     final f = await shot(tester, 'real_money',
         shotApp(buildTheme(), const MoneyScreen()),
         size: const Size(390, 1200), pixelRatio: 2);
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('هَب المجموعة (صحتى) — قايمة بدل مربعات', (tester) async {
+    final f = await shot(
+      tester,
+      'real_group_hub',
+      shotApp(
+        buildTheme(),
+        GroupHubScreen(
+          title: 'صحتى',
+          onSelectTab: (_) {},
+          items: const [
+            GroupHubItem(Icons.dashboard_outlined, 'لوحة الصحة'),
+            GroupHubItem(Icons.medication_outlined, 'الأدوية'),
+            GroupHubItem(Icons.favorite_outline, 'الدورة الشهرية'),
+            GroupHubItem(Icons.repeat, 'العادات'),
+            GroupHubItem(Icons.mood, 'تتبّع المزاج'),
+            GroupHubItem(Icons.medical_information_outlined, 'الملف الطبي'),
+            GroupHubItem(Icons.local_pharmacy_outlined, 'صيدلية البيت'),
+            GroupHubItem(Icons.fitness_center, 'الجيم'),
+            GroupHubItem(Icons.restaurant_outlined, 'دليل الأكل'),
+          ],
+        ),
+      ),
+      size: const Size(390, 780),
+      pixelRatio: 2,
+    );
     expect(f.lengthSync(), greaterThan(10000));
   });
 
