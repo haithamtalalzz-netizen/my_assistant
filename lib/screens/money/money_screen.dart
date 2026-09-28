@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../widgets/bar_actions.dart';
 import '../../widgets/search_action.dart';
 import '../../core/month_summary.dart';
 import '../../core/money_export.dart';
@@ -352,40 +353,26 @@ class _MoneyScreenState extends State<MoneyScreen> {
       drawer: widget.drawer,
       appBar: AppBar(
         title: Text(tr('المحفظة', 'Wallet')),
-        actions: [
-          searchAction(context),
-          IconButton(
-            onPressed: _openHistory,
-            tooltip: tr('سجل الفلوس', 'Money history'),
-            icon: const Icon(Icons.calendar_month_outlined),
-          ),
-          IconButton(
-            onPressed: () async {
-              await Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const WalletsScreen()));
-              if (mounted) await _load();
-            },
-            tooltip: tr('المحافظ', 'Wallets'),
-            icon: const Icon(Icons.account_balance_wallet_outlined),
-          ),
-          IconButton(
-            onPressed: _scanReceipt,
-            tooltip: tr('صوّر فاتورة', 'Scan receipt'),
-            icon: const Icon(Icons.document_scanner_outlined),
-          ),
-          IconButton(
-            onPressed: _buyOrWait,
-            tooltip: tr('أشتري ولا أستنى؟', 'Buy or wait?'),
-            icon: const Icon(Icons.calculate_outlined),
-          ),
-          IconButton(
-            onPressed: () async {
-              await MoneyExport.exportMonthCsv(_month.year, _month.month);
-            },
-            tooltip: tr('تصدير Excel', 'Export Excel'),
-            icon: const Icon(Icons.file_download_outlined),
-          ),
-        ],
+        actions: barActions(context, [
+          BarAction(Icons.search, tr('بحث', 'Search'),
+              () => openSearch(context)),
+          BarAction(Icons.calendar_month_outlined,
+              tr('سجل الفلوس', 'Money history'), _openHistory),
+          BarAction(Icons.account_balance_wallet_outlined,
+              tr('المحافظ', 'Wallets'), () async {
+            await Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const WalletsScreen()));
+            if (mounted) await _load();
+          }),
+          BarAction(Icons.document_scanner_outlined,
+              tr('صوّر فاتورة', 'Scan receipt'), _scanReceipt),
+          BarAction(Icons.calculate_outlined,
+              tr('أشتري ولا أستنى؟', 'Buy or wait?'), _buyOrWait),
+          BarAction(Icons.file_download_outlined,
+              tr('تصدير Excel', 'Export Excel'), () async {
+            await MoneyExport.exportMonthCsv(_month.year, _month.month);
+          }),
+        ]),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

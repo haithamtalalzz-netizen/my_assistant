@@ -67,6 +67,7 @@ TEMPLATE = r'''// **مولَّد** — كل شاشة × ٦ مقاسات (موب�
 //   flutter test tool/sizes_test.dart
 // التوليد: tool/gen_sizes.py
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/db.dart';
@@ -103,6 +104,27 @@ String _brief(FlutterErrorDetails d) {
   final where = loc == null ? '?' : 'lib/${loc.group(1)}:${loc.group(2)}';
   if (of != null) return 'قصّ ${of.group(1)}px ${of.group(2)} @ $where';
   return '${d.exception.toString().split("\n").first} @ $where';
+}
+
+/// بيدوّر على **نصّ اتخنق لحد ما بقى غير مرئى** — عرضه ≈ صفر وهو محتاج
+/// عرض. ده بيحصل لمّا شريط العنوان يبقى فيه أزرار كتير فالعنوان مايلاقيش
+/// مكان خالص (اتأكّدت بالصورة: «الجيم» كان مختفى تمامًا على ٣٢٠ ورا ٦ أيقونات).
+///
+/// ⚠️ جرّبت قبل كده أبلّغ عن أى نصّ `didExceedMaxLines` — طلع **كاذب**:
+/// بيبلّغ عن «التنبيهات» و«عدد» وهُمّ ظاهرين تمام (الصور أثبتت). السبب إن
+/// `InputDecorator` و`AppBar` بيقيسوا النصّ فى صناديق ضيّقة أثناء التخطيط.
+/// القاعدة الوحيدة اللى صمدت قدام الصور هى «العرض ≈ صفر».
+List<String> _truncatedShort(WidgetTester tester) {
+  final out = <String>{};
+  for (final ro in tester.allRenderObjects.whereType<RenderParagraph>()) {
+    if (!ro.hasSize) continue;
+    final needed = ro.getMaxIntrinsicWidth(double.infinity);
+    if (needed < 4 || ro.size.width >= 4) continue;
+    final txt = ro.text.toPlainText().trim().replaceAll('\n', ' ');
+    if (txt.isEmpty) continue;
+    out.add('نصّ مخفى (عرضه صفر): «$txt»');
+  }
+  return out.toList();
 }
 
 void main() {
@@ -146,6 +168,7 @@ void main() {
         for (var i = 0; i < 4; i++) {
           await tester.pump(const Duration(milliseconds: 250));
         }
+        errs.addAll(_truncatedShort(tester));
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump(const Duration(milliseconds: 150));
       } finally {

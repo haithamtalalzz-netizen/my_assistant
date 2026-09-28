@@ -13,3 +13,9 @@ Widget searchAction(BuildContext context) => IconButton(
         MaterialPageRoute(builder: (_) => const SearchScreen()),
       ),
     );
+
+/// نفس الإجراء من غير زرار — عشان `barActions` تقدر تحطّه فى قايمة «المزيد».
+void openSearch(BuildContext context) => Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SearchScreen()),
+    );

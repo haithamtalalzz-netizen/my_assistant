@@ -6,6 +6,7 @@ import '../../data/gym_repo.dart';
 import '../../data/workout_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../widgets/bar_actions.dart';
 import '../../widgets/search_action.dart';
 import 'exercise_library_screen.dart';
 import 'rest_timer.dart';
@@ -111,41 +112,37 @@ class _GymScreenState extends State<GymScreen> {
       drawer: widget.drawer,
       appBar: AppBar(
         title: Text(tr('الجيم', 'Gym')),
-        actions: [
-          IconButton(
-            tooltip: tr('مؤقّت الراحة', 'Rest timer'),
-            icon: const Icon(Icons.timer_outlined),
-            onPressed: () => showRestTimer(context),
-          ),
-          IconButton(
-            tooltip: tr('تتبّع المشي/الجري', 'Walk / run tracker'),
-            icon: const Icon(Icons.directions_run),
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const WalkTrackerScreen())),
-          ),
-          IconButton(
-            tooltip: tr('مكتبة التمارين', 'Exercise library'),
-            icon: const Icon(Icons.menu_book_outlined),
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const ExerciseLibraryScreen())),
-          ),
-          IconButton(
-            tooltip: tr('برامج جاهزة', 'Workout programs'),
-            icon: const Icon(Icons.list_alt_outlined),
-            onPressed: () async {
-              await Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const WorkoutProgramsScreen()));
-              if (mounted) await _load();
-            },
-          ),
-          IconButton(
-            tooltip: tr('التقدّم والمقاسات', 'Progress & measurements'),
-            icon: const Icon(Icons.straighten),
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const ProgressScreen())),
-          ),
-          searchAction(context),
-        ],
+        actions: barActions(context, [
+          BarAction(Icons.search, tr('بحث', 'Search'),
+              () => openSearch(context)),
+          BarAction(Icons.timer_outlined, tr('مؤقّت الراحة', 'Rest timer'),
+              () => showRestTimer(context)),
+          BarAction(
+              Icons.directions_run,
+              tr('تتبّع المشي/الجري', 'Walk / run tracker'),
+              () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const WalkTrackerScreen()))),
+          BarAction(
+              Icons.menu_book_outlined,
+              tr('مكتبة التمارين', 'Exercise library'),
+              () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const ExerciseLibraryScreen()))),
+          BarAction(Icons.list_alt_outlined,
+              tr('برامج جاهزة', 'Workout programs'), () async {
+            await Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const WorkoutProgramsScreen()));
+            if (mounted) await _load();
+          }),
+          BarAction(
+              Icons.straighten,
+              tr('التقدّم والمقاسات', 'Progress & measurements'),
+              () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const ProgressScreen()))),
+        ]),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
