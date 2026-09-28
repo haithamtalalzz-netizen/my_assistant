@@ -323,6 +323,7 @@ Widget rdRow(
   bool done = false,
   bool circle = true,
   bool box = false,
+  bool check = true, // سطر معلومة (وزن · ضغط · فئة مصروف) مالوش «خلصت»
 }) {
   final row = Row(children: [
     Container(
@@ -358,18 +359,21 @@ Widget rdRow(
       rdT(trail, k, size: 11.5, color: k.mute, w: FontWeight.w700),
     ],
     const SizedBox(width: 8),
-    Container(
-      width: 26,
-      height: 26,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: done ? k.accent : Colors.transparent,
-        border: Border.all(color: done ? k.accent : k.line, width: 1.6),
-      ),
-      child: Icon(Icons.check,
-          size: 15, color: done ? k.onAccent : Colors.transparent),
-    ),
+    if (check)
+      Container(
+        width: 26,
+        height: 26,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: done ? k.accent : Colors.transparent,
+          border: Border.all(color: done ? k.accent : k.line, width: 1.6),
+        ),
+        child: Icon(Icons.check,
+            size: 15, color: done ? k.onAccent : Colors.transparent),
+      )
+    else
+      Icon(Icons.chevron_left, size: 20, color: k.mute),
   ]);
   if (box) return Padding(padding: const EdgeInsets.only(bottom: 9), child: rdCard(k, row, padding: const EdgeInsets.all(11), tint: tint));
   return Padding(padding: const EdgeInsets.symmetric(vertical: 7), child: row);
