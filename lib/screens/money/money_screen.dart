@@ -12,8 +12,11 @@ import '../../core/budget_calc.dart';
 import '../../core/ocr.dart';
 import '../../data/bills_repo.dart';
 import '../../data/debts_repo.dart';
+import '../../data/gameya_repo.dart';
+import '../../data/home_maintenance_repo.dart';
 import '../../data/income_repo.dart';
 import '../../data/money_repo.dart';
+import '../../data/savings_repo.dart';
 import '../../data/settings_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
@@ -51,6 +54,11 @@ class _MoneyScreenState extends State<MoneyScreen> {
   double _incomeTotal = 0;
   double _budget = 0;
   double _debtNet = 0;
+
+  /// أرقام بنود «بلدنا» — كارت بيقول «افتح» بس مساحة ضايعة.
+  double _savedTotal = 0;
+  int _gameyaCount = 0;
+  int _maintenanceDue = 0;
 
   /// مقارنة بالشهر اللى فات + اتجاه آخر ٦ شهور.
   double _prevTotal = 0;
@@ -103,12 +111,19 @@ class _MoneyScreenState extends State<MoneyScreen> {
         await _repo.totalForMonth(m.year, m.month),
       ));
     }
+    final goals = await SavingsRepo().all();
+    final savedTotal = goals.fold<double>(0, (t, g) => t + g.saved);
+    final gameyas = await GameyaRepo().all();
+    final maintenanceDue = (await HomeMaintenanceRepo().due(now)).length;
     final deltas = await MoneyTrends.categoryDeltas(_month.year, _month.month);
     final flow = await MoneyTrends.monthlyFlow(_month.year, _month.month);
     if (!mounted) return;
     setState(() {
       _deltas = deltas;
       _flow = flow;
+      _savedTotal = savedTotal;
+      _gameyaCount = gameyas.length;
+      _maintenanceDue = maintenanceDue;
       _expenses = expenses;
       _byCategory = byCat;
       _categoryBudgets = catBudgets;
@@ -384,71 +399,10 @@ class _MoneyScreenState extends State<MoneyScreen> {
                   _monthNav(context),
                   const SizedBox(height: 8),
                   _netCard(context),
-                  const SizedBox(height: 8),
-                  _budgetCard(context),
-                  const SizedBox(height: 8),
-                  _safeToSpendCard(context),
-                  _compareCard(context),
-                  const SizedBox(height: 8),
-                  _categoryDeltaCard(context),
-                  const SizedBox(height: 8),
-                  _balanceTrendCard(context),
-                  const SizedBox(height: 8),
-                  _whereCard(context),
-                  SectionHeader(tr('الدخل', 'Income'),
-                      trailing: TextButton(
-                          onPressed: _addIncome,
-                          child: Text(tr('سجل دخل', 'Log income')))),
-                  ..._recurringIncome
-                      .map((i) => _recurringIncomeTile(context, i)),
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: TextButton.icon(
-                      onPressed: () => _recurringIncomeForm(),
-                      icon: const Icon(Icons.add, size: 18),
-                      label: Text(tr('دخل دوري (مرتب)', 'Recurring income (salary)')),
-                    ),
-                  ),
-                  if (_income.isEmpty)
-                    Text(
-                        tr('مفيش دخل متسجل الشهر ده',
-                            'No income logged this month'),
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.outline,
-                            fontSize: 13))
-                  else
-                    ..._income.map((i) => _incomeTile(context, i)),
-                  SectionHeader(tr('الفواتير الدورية', 'Recurring bills'),
-                      trailing: TextButton(
-                          onPressed: () => _billForm(),
-                          child: Text(tr('ضيف فاتورة', 'Add bill')))),
-                  if (_bills.isNotEmpty) _billsProjectionCard(context),
-                  if (_bills.isEmpty)
-                    Text(
-                        tr('سجل الكهربا والنت والاشتراكات مرة واحدة — وهفكرك كل شهر',
-                            'Log electricity, internet & subscriptions once — reminded monthly'),
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.outline,
-                            fontSize: 13))
-                  else
-                    ..._bills.map((b) => _billTile(context, b)),
-                  if (_byCategory.isNotEmpty) ...[
-                    SectionHeader(tr('حسب الفئة', 'By category'),
-                        trailing: TextButton(
-                            onPressed: _editCategoryBudgets,
-                            child: Text(tr('ميزانيات', 'Budgets')))),
-                    _categoryBreakdown(context),
-                  ],
-                  SectionHeader(tr('بلدنا', 'Local')),
-                  _baladnaGrid(context),
-                  SectionHeader(tr('المصاريف', 'Expenses')),
-                  if (_expenses.isEmpty)
-                    EmptyHint(
-                        icon: Icons.receipt_long_outlined,
-                        text: tr('مفيش مصاريف متسجلة الشهر ده',
-                            'No expenses logged this month'))
-                  else
-                    ..._expenses.map((e) => _expenseTile(context, e)),
+                  const SizedBox(height: 14),
+                  _hubGrid(context),
+                  const SizedBox(height: 18),
+                  _recentSection(context),
                 ],
               ),
             ),
@@ -461,6 +415,230 @@ class _MoneyScreenState extends State<MoneyScreen> {
             )
           : null,
     );
+  }
+
+  /// **شبكة البنود** — الرئيسية بقت تقعد فى شاشة واحدة، وكل بند صفحة
+  /// لوحده. قبل كده كانت الصفحة فيها ٧ كروت تحليل فوق بعض و٥ أقسام
+  /// تحتهم، فالمصاريف (أكتر حاجة بتتسجّل) كانت **آخر حاجة فى الصفحة**.
+  Widget _hubGrid(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final fixedTotal = _bills.fold<double>(0, (t, b) => t + b.amount);
+    final items = <_Hub>[
+      _Hub(tr('المصاريف', 'Expenses'), egp(_total),
+          Icons.receipt_long_outlined, scheme.error, _openExpenses),
+      _Hub(tr('الدخل', 'Income'), egp(_incomeTotal), Icons.south_west,
+          Colors.green, _openIncome),
+      _Hub(tr('الثابت والفواتير', 'Fixed & bills'), egp(fixedTotal),
+          Icons.repeat, scheme.primary, _openFixed),
+      _Hub(tr('التحليل', 'Analysis'), tr('راحت فين؟', 'Where did it go?'),
+          Icons.insights_outlined, const Color(0xFFA855F7), _openAnalysis),
+      _Hub(
+          tr('الديون', 'Debts'),
+          _debtNet == 0
+              ? tr('متعادل', 'Even')
+              : (_debtNet > 0
+                  ? tr('ليك ${egp(_debtNet)}', 'owed ${egp(_debtNet)}')
+                  : tr('عليك ${egp(-_debtNet)}', 'you owe ${egp(-_debtNet)}')),
+          Icons.handshake_outlined,
+          const Color(0xFFF59E0B),
+          () => _push(const DebtsScreen())),
+      _Hub(
+          tr('الجمعيات', 'Savings circles'),
+          _gameyaCount == 0
+              ? tr('مفيش', 'None')
+              : tr('${arNum(_gameyaCount)} جمعية',
+                  '${arNum(_gameyaCount)} circles'),
+          Icons.groups_2_outlined,
+          const Color(0xFF0EA5E9),
+          () => _push(const GameyaScreen())),
+      _Hub(
+          tr('الادخار', 'Savings'),
+          _savedTotal == 0 ? tr('ابدأ هدف', 'Start a goal') : egp(_savedTotal),
+          Icons.savings_outlined,
+          const Color(0xFF14B8A6),
+          () => _push(const SavingsScreen())),
+      _Hub(
+          tr('صيانة البيت', 'Home upkeep'),
+          _maintenanceDue == 0
+              ? tr('مفيش مستحق', 'Nothing due')
+              : tr('${arNum(_maintenanceDue)} مستحقة',
+                  '${arNum(_maintenanceDue)} due'),
+          Icons.home_repair_service_outlined,
+          const Color(0xFF8B5CF6),
+          () => _push(const HomeMaintenanceScreen())),
+    ];
+    return LayoutBuilder(builder: (context, box) {
+      // ٣ أعمدة على التابلت — الكارت مايبقاش عريض فاضى.
+      final cols = box.maxWidth >= 620 ? 3 : 2;
+      final w = (box.maxWidth - 11 * (cols - 1)) / cols;
+      return Wrap(
+        spacing: 11,
+        runSpacing: 11,
+        children: [
+          for (final h in items)
+            SizedBox(width: w, child: _hubCard(context, h)),
+        ],
+      );
+    });
+  }
+
+  Widget _hubCard(BuildContext context, _Hub h) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(18),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: h.onTap,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          height: 104,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                    color: h.color.withValues(alpha: 0.13),
+                    borderRadius: BorderRadius.circular(12)),
+                child: Icon(h.icon, size: 19, color: h.color),
+              ),
+              const Spacer(),
+              Text(h.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 12.5, color: scheme.onSurfaceVariant)),
+              const SizedBox(height: 2),
+              Text(h.value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w800)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _push(Widget screen) => _reloadAfter(
+      () => Navigator.push(context, MaterialPageRoute(builder: (_) => screen)));
+
+  Future<void> _reloadAfter(Future<void> Function() action) async {
+    await action();
+    if (mounted) await _load();
+  }
+
+  /// بيفتح قسم كصفحة كاملة. الصفحة بتبنى محتواها من **نفس** دوال الكروت
+  /// اللى فى الشاشة دى، فمفيش تكرار ولا تحميل تانى للبيانات.
+  void _openSection(String title, List<Widget> Function() body,
+      {String? addLabel, Future<void> Function()? onAdd}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _MoneySectionPage(
+          title: title,
+          body: body,
+          onRefresh: _load,
+          addLabel: addLabel,
+          onAdd: onAdd,
+        ),
+      ),
+    );
+  }
+
+  void _openExpenses() => _openSection(tr('المصاريف', 'Expenses'), () => [
+        _budgetCard(context),
+        const SizedBox(height: 8),
+        _safeToSpendCard(context),
+        if (_byCategory.isNotEmpty) ...[
+          SectionHeader(tr('حسب الفئة', 'By category'),
+              trailing: TextButton(
+                  onPressed: _editCategoryBudgets,
+                  child: Text(tr('ميزانيات', 'Budgets')))),
+          _categoryBreakdown(context),
+        ],
+        SectionHeader(tr('عمليات الشهر', "This month's expenses")),
+        if (_expenses.isEmpty)
+          EmptyHint(
+              icon: Icons.receipt_long_outlined,
+              text: tr('مفيش مصاريف متسجلة الشهر ده',
+                  'No expenses logged this month'))
+        else
+          ..._expenses.map((e) => _expenseTile(context, e)),
+      ], addLabel: tr('سجل مصروف', 'Log expense'), onAdd: _addExpense);
+
+  void _openIncome() => _openSection(tr('الدخل', 'Income'), () => [
+        SectionHeader(tr('دخل ثابت كل شهر', 'Recurring income'),
+            trailing: TextButton(
+                onPressed: () => _recurringIncomeForm(),
+                child: Text(tr('ضيف', 'Add')))),
+        if (_recurringIncome.isEmpty)
+          Text(
+              tr('سجّل مرتبك مرة واحدة — وهفكرك يوم القبض',
+                  'Log your salary once — reminded on payday'),
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.outline, fontSize: 13))
+        else
+          ..._recurringIncome.map((i) => _recurringIncomeTile(context, i)),
+        SectionHeader(tr('دخل الشهر', "This month's income"),
+            trailing: TextButton(
+                onPressed: _addIncome, child: Text(tr('سجل دخل', 'Log')))),
+        if (_income.isEmpty)
+          Text(tr('مفيش دخل متسجل الشهر ده', 'No income logged this month'),
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.outline, fontSize: 13))
+        else
+          ..._income.map((i) => _incomeTile(context, i)),
+      ], addLabel: tr('سجل دخل', 'Log income'), onAdd: _addIncome);
+
+  void _openFixed() =>
+      _openSection(tr('الثابت والفواتير', 'Fixed & bills'), () => [
+            if (_bills.isNotEmpty) _billsProjectionCard(context),
+            SectionHeader(tr('الفواتير الدورية', 'Recurring bills'),
+                trailing: TextButton(
+                    onPressed: () => _billForm(),
+                    child: Text(tr('ضيف فاتورة', 'Add bill')))),
+            if (_bills.isEmpty)
+              Text(
+                  tr('سجل الكهربا والنت والاشتراكات مرة واحدة — وهفكرك كل شهر',
+                      'Log electricity, internet & subscriptions once'),
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.outline,
+                      fontSize: 13))
+            else
+              ..._bills.map((b) => _billTile(context, b)),
+          ], addLabel: tr('ضيف فاتورة', 'Add bill'), onAdd: () => _billForm());
+
+  void _openAnalysis() => _openSection(tr('التحليل', 'Analysis'), () => [
+        _compareCard(context),
+        const SizedBox(height: 8),
+        _categoryDeltaCard(context),
+        const SizedBox(height: 8),
+        _balanceTrendCard(context),
+        const SizedBox(height: 8),
+        _whereCard(context),
+      ]);
+
+  /// **آخر العمليات** — دخل ومصروف مخلوطين بالتاريخ، زى ما بتشوفهم فى
+  /// الحقيقة. قبل كده كانوا فى قسمين متباعدين فى نفس الصفحة الطويلة.
+  Widget _recentSection(BuildContext context) {
+    final rows = <(String, Widget)>[
+      for (final e in _expenses) (e.day, _expenseTile(context, e)),
+      for (final i in _income) (i.day, _incomeTile(context, i)),
+    ]..sort((a, b) => b.$1.compareTo(a.$1));
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      SectionHeader(tr('آخر العمليات', 'Recent'),
+          trailing: TextButton(
+              onPressed: _openExpenses, child: Text(tr('الكل', 'All')))),
+      if (rows.isEmpty)
+        EmptyHint(
+            icon: Icons.receipt_long_outlined,
+            text: tr('مفيش عمليات الشهر ده', 'Nothing logged this month'))
+      else
+        ...rows.take(5).map((r) => r.$2),
+    ]);
   }
 
   Widget _monthNav(BuildContext context) {
@@ -1616,62 +1794,6 @@ class _MoneyScreenState extends State<MoneyScreen> {
     amount.dispose();
   }
 
-  Widget _baladnaGrid(BuildContext context) {
-    Widget tile(IconData icon, String label, String? sub, Widget screen) {
-      return Expanded(
-        child: Card(
-          margin: const EdgeInsets.symmetric(horizontal: 3),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () async {
-              await Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => screen));
-              if (mounted) await _load();
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
-              child: Column(
-                children: [
-                  Icon(icon, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(height: 6),
-                  Text(label,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600)),
-                  if (sub != null)
-                    Text(sub,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            fontSize: 11,
-                            color: Theme.of(context).colorScheme.outline)),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    final debtSub = _debtNet == 0
-        ? tr('متعادل', 'Even')
-        : _debtNet > 0
-            ? tr('ليك ${egp(_debtNet)}', 'owed ${egp(_debtNet)}')
-            : tr('عليك ${egp(-_debtNet)}', 'you owe ${egp(-_debtNet)}');
-    return Row(
-      children: [
-        tile(Icons.handshake_outlined, tr('الديون', 'Debts'), debtSub,
-            const DebtsScreen()),
-        tile(Icons.groups_outlined, tr('الجمعيات', "Gam'iyas"), null,
-            const GameyaScreen()),
-        tile(Icons.savings_outlined, tr('الادخار', 'Savings'), null,
-            const SavingsScreen()),
-        tile(Icons.home_repair_service_outlined,
-            tr('صيانة البيت', 'Home upkeep'), null,
-            const HomeMaintenanceScreen()),
-      ],
-    );
-  }
-
   Widget _expenseTile(BuildContext context, Expense e) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 3),
@@ -1706,6 +1828,79 @@ class _MoneyScreenState extends State<MoneyScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+
+/// بند فى شبكة «فلوسى».
+class _Hub {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  const _Hub(this.title, this.value, this.icon, this.color, this.onTap);
+}
+
+/// صفحة قسم داخل «فلوسى». بتاخد **دالة** بتبنى المحتوى من حالة
+/// `MoneyScreen` نفسها، فلمّا تعدّل حاجة جوّه القسم بننادى `onRefresh`
+/// وبعدين نعيد البناء — من غير ما نكرّر تحميل البيانات فى كل صفحة.
+class _MoneySectionPage extends StatefulWidget {
+  final String title;
+  final List<Widget> Function() body;
+  final Future<void> Function() onRefresh;
+
+  /// زرار الإضافة جوّه القسم — إنت جوّاه لمّا تحبّ تسجّل، فالرجوع
+  /// للرئيسية عشان تضيف كان هيبقى لفّة زيادة.
+  final String? addLabel;
+  final Future<void> Function()? onAdd;
+
+  const _MoneySectionPage({
+    required this.title,
+    required this.body,
+    required this.onRefresh,
+    this.addLabel,
+    this.onAdd,
+  });
+
+  @override
+  State<_MoneySectionPage> createState() => _MoneySectionPageState();
+}
+
+class _MoneySectionPageState extends State<_MoneySectionPage> {
+  Future<void> _refresh() async {
+    await widget.onRefresh();
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.title), actions: [
+        IconButton(
+          tooltip: tr('تحديث', 'Refresh'),
+          onPressed: _refresh,
+          icon: const Icon(Icons.refresh),
+        ),
+      ]),
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+          children: widget.body(),
+        ),
+      ),
+      floatingActionButton: widget.onAdd == null
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () async {
+                await widget.onAdd!();
+                await _refresh();
+              },
+              icon: const Icon(Icons.add),
+              label: Text(widget.addLabel ?? tr('إضافة', 'Add')),
+            ),
     );
   }
 }
