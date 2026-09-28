@@ -37,10 +37,13 @@ List<Finder> _tapTypes() => <Finder>[
       find.byType(ActionChip),
       find.byType(ChoiceChip),
       find.byType(ListTile),
+      find.byType(PopupMenuButton<dynamic>),
+      find.byType(SwitchListTile),
+      find.byType(Card),
     ];
 
 /// أقصى عدد ضغطات لكل شاشة — عشان زمن المشية مايتفلّتش.
-const _maxTaps = 14;
+const _maxTaps = 20;
 
 
 /// بيقيس القصّ **من شجرة الرسم مباشرة** بدل ما يستنّى بلاغ الإطار.
@@ -74,11 +77,20 @@ List<String> overflowingFlexes(WidgetTester tester) {
   return out.toList();
 }
 
-/// بيطلّع «lib/…:سطر» من سلسلة إنشاء الودجت.
+/// بيطلّع «lib/…:سطر» من سلسلة إنشاء الودجت، ولو مالقاش مسار بيرجّع
+/// **أسماء الودجتات** بتاعة التطبيق فى السلسلة — «@ ?» لوحدها مابتفيدش.
 String _creatorLine(RenderObject ro) {
-  final m = RegExp(r'([\w/]+\.dart):(\d+):\d+')
-      .firstMatch(ro.debugCreator?.toString() ?? '');
-  return m == null ? '?' : '${m.group(1)}:${m.group(2)}';
+  final chain = ro.debugCreator?.toString() ?? '';
+  final m = RegExp(r'([\w/]+\.dart):(\d+):\d+').firstMatch(chain);
+  if (m != null) return '${m.group(1)}:${m.group(2)}';
+  final names = RegExp(r'([A-Z][A-Za-z0-9_]{3,})')
+      .allMatches(chain)
+      .map((x) => x.group(1)!)
+      .where((x) => !x.startsWith('Render'))
+      .toSet()
+      .take(3)
+      .join(' ← ');
+  return names.isEmpty ? '?' : names;
 }
 
 
@@ -104,7 +116,12 @@ List<String> truncatedShortTexts(WidgetTester tester) {
 }
 
 /// المعالج الأصلى لبلاغات فشل الاختبار — بنغلّفه مش بنلغيه.
-final TestExceptionReporter _origReporter = reportTestException;
+///
+/// 🔴 **مش `final` على مستوى الملف**: `final` فى دارت **بيتقيّم عند أول
+/// استعمال** مش عند التشغيل — يعنى كان بياخد قيمته **جوّه** المعالج الجديد
+/// بعد ما اتسنده، فيساوى نفسه ويدخل حلقة لانهائية (Stack Overflow على أول
+/// خطأ حقيقى). بنمسكه صراحةً فى `setUpAll` قبل الإسناد.
+late final TestExceptionReporter _origReporter;
 
 void main() {
   sqfliteFfiInit();
@@ -116,6 +133,7 @@ void main() {
     // فمايقدرش حد يمسحها من جوّه (`takeException` بتشتغل جوّه الاختبار بس).
     // `reportTestException` نقطة رسمية وبتتقرا **قبل** كل اختبار، فتغييرها
     // هنا مرّة واحدة مسموح. ١٩ شاشة كانت بتسقط بالضوضاء دى وهى سليمة.
+    _origReporter = reportTestException;
     reportTestException = (details, description) {
       if (details.exception.toString().contains('MissingPluginException')) {
         return;

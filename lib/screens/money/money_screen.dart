@@ -399,6 +399,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
                   _monthNav(context),
                   const SizedBox(height: 8),
                   _netCard(context),
+                  _safeToSpendLine(context),
                   const SizedBox(height: 14),
                   _hubGrid(context),
                   const SizedBox(height: 18),
@@ -1292,6 +1293,65 @@ class _MoneyScreenState extends State<MoneyScreen> {
   }
 
   /// «المتاح للصرف النهاردة» — للشهر الحالى فقط، لما فيه ميزانية.
+  /// **سطر «تقدر تصرف النهاردة»** فى الرئيسية — سطر واحد مش كارت، عشان
+  /// الرئيسية تفضل قصيرة. الكارت الكامل (بالتفاصيل) مكانه «المصاريف».
+  /// بيظهر بس لو فيه ميزانية والشهر هو الحالى، وإلا مايشغلش مكان.
+  Widget _safeToSpendLine(BuildContext context) {
+    final now = DateTime.now();
+    if (!_isCurrentMonth || _budget <= 0) return const SizedBox.shrink();
+    final monthKey =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+    final obligations = _bills
+        .where((b) => b.lastPaidMonth != monthKey)
+        .fold<double>(0, (s, b) => s + b.amount);
+    final r = safeToSpend(
+        budget: _budget,
+        spent: _total,
+        upcomingObligations: obligations,
+        now: now);
+    final scheme = Theme.of(context).colorScheme;
+    final over = r.perDay < 0;
+    final color = over ? scheme.error : scheme.primary;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Material(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: _openExpenses,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            child: Row(children: [
+              Icon(over ? Icons.warning_amber_rounded : Icons.savings_outlined,
+                  size: 19, color: color),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  over
+                      ? tr('عدّيت الميزانية', 'Over budget')
+                      : tr('تقدر تصرف النهاردة', 'You can spend today'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 13, color: scheme.onSurfaceVariant),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // مدوّر للجنيه: «996.33» رقم يومى بكسور مالهاش معنى عملى.
+              Text(egp((over ? -r.perDay : r.perDay).roundToDouble()),
+                  maxLines: 1,
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: color)),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _safeToSpendCard(BuildContext context) {
     final now = DateTime.now();
     final isCurrentMonth =

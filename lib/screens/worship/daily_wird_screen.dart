@@ -139,20 +139,28 @@ class _DailyWirdScreenState extends State<DailyWirdScreen> {
                                       value: c / p.goal, minHeight: 8),
                                 ),
                                 const SizedBox(height: 6),
+                                // العدّاد + «تصفير» + التلميح مايسعوش فى صفّ
+                                // على ٣٢٠ لمّا زرار «تصفير» يظهر (بعد أول
+                                // ضغطة عدّ) — كان بيتقصّ ٣٤px.
                                 Row(
                                   children: [
                                     Text('${arNum(c)} / ${arNum(p.goal)}',
                                         style: const TextStyle(
                                             fontWeight: FontWeight.w800)),
-                                    const Spacer(),
                                     if (c > 0)
                                       TextButton(
                                           onPressed: () => _reset(i),
                                           child: Text(tr('تصفير', 'Reset'))),
-                                    Text(tr('اضغط للعدّ', 'tap to count'),
-                                        style: TextStyle(
-                                            fontSize: 12,
-                                            color: scheme.onSurfaceVariant)),
+                                    const Spacer(),
+                                    Flexible(
+                                      child: Text(tr('اضغط للعدّ', 'tap to count'),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.end,
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: scheme.onSurfaceVariant)),
+                                    ),
                                   ],
                                 ),
                               ],
