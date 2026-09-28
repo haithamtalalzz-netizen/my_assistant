@@ -9,6 +9,8 @@ import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/seed_demo.dart';
 import 'package:my_assistant/core/theme.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+import 'shot_harness.dart';
 import 'package:my_assistant/screens/account_screen.dart';
 import 'package:my_assistant/screens/alerts_center_screen.dart';
 import 'package:my_assistant/screens/archived_data_screen.dart';
@@ -130,6 +132,8 @@ void main() {
   late Database db;
 
   setUpAll(() async {
+    // خطّ التطبيق: من غيره تجاوز الحدود فى النصّ العربى بيتحسب غلط.
+    await loadShotFonts();
     await initializeDateFormatting('ar');
     db = await databaseFactoryFfiNoIsolate.openDatabase(
         inMemoryDatabasePath,

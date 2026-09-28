@@ -2,7 +2,10 @@
 // يبنيها لوحده: بتاخد معاملات إجبارية، أو بتتفتح كـ dialog / bottom sheet.
 // نفس الغرض: **مفيش حاجة مقصوصة** من ٣٢٠px لحد تابلت ١٠٢٤.
 //   flutter test tool/sizes_extra_test.dart
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/db.dart';
@@ -25,6 +28,8 @@ import 'package:my_assistant/screens/worship/adhkar_screen.dart';
 import 'package:my_assistant/screens/worship/quran_topics_screen.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'shot_harness.dart';
+
 const _sizes = <String, Size>{
   'موبايل صغير 320': Size(320, 640),
   'موبايل عادى 360': Size(360, 800),
@@ -34,30 +39,95 @@ const _sizes = <String, Size>{
   'تابلت كبير 1024': Size(1024, 1366),
 };
 
-bool _ignorable(Object ex) {
-  final s = ex.toString();
-  return s.contains('MissingPluginException') ||
-      s.contains('Looking up a deactivated') ||
-      s.contains('HttpException') ||
-      s.contains('Invalid image data');
+/// المحور مقابل الطول المتاح.
+List<String> _ovf(WidgetTester tester) {
+  final out = <String>{};
+  for (final ro in tester.allRenderObjects.whereType<RenderFlex>()) {
+    if (!ro.hasSize) continue;
+    var sum = 0.0;
+    ro.visitChildren((c) {
+      if (c is RenderBox && c.hasSize) {
+        sum += ro.direction == Axis.horizontal ? c.size.width : c.size.height;
+      }
+    });
+    final avail =
+        ro.direction == Axis.horizontal ? ro.size.width : ro.size.height;
+    final over = sum - avail;
+    if (over <= 0.5) continue;
+    final where = _creatorLine(ro);
+    final dir = ro.direction == Axis.horizontal ? 'عرضاً' : 'طولاً';
+    out.add('قصّ ${over.round()}px $dir @ $where');
+  }
+  return out.toList();
 }
 
-String _brief(FlutterErrorDetails d) {
-  final s = d.toString();
-  final of =
-      RegExp(r'overflowed by ([\d.]+) pixels on the (\w+)').firstMatch(s);
-  final loc =
-      RegExp(r'file:///[^\s]*/lib/([^\s:]+\.dart):(\d+)').firstMatch(s);
-  final where = loc == null ? '?' : 'lib/${loc.group(1)}:${loc.group(2)}';
-  if (of != null) return 'قصّ ${of.group(1)}px ${of.group(2)} @ $where';
-  return '${d.exception.toString().split("\n").first} @ $where';
+/// بيطلّع «lib/…:سطر» من سلسلة إنشاء الودجت، ولو مالقاش مسار بيرجّع
+/// **أسماء الودجتات** بتاعة التطبيق فى السلسلة — «@ ?» لوحدها مابتفيدش.
+String _creatorLine(RenderObject ro) {
+  final chain = ro.debugCreator?.toString() ?? '';
+  final m = RegExp(r'([\w/]+\.dart):(\d+):\d+').firstMatch(chain);
+  if (m != null) return '${m.group(1)}:${m.group(2)}';
+  final names = RegExp(r'([A-Z][A-Za-z0-9_]{3,})')
+      .allMatches(chain)
+      .map((x) => x.group(1)!)
+      .where((x) => !x.startsWith('Render'))
+      .toSet()
+      .take(3)
+      .join(' ← ');
+  return names.isEmpty ? '?' : names;
+}
+
+/// القاعدة الوحيدة اللى صمدت قدام الصور هى «العرض ≈ صفر».
+List<String> _hidden(WidgetTester tester) {
+  final out = <String>{};
+  for (final ro in tester.allRenderObjects.whereType<RenderParagraph>()) {
+    if (!ro.hasSize) continue;
+    final needed = ro.getMaxIntrinsicWidth(double.infinity);
+    if (needed < 4 || ro.size.width >= 4) continue;
+    final txt = ro.text.toPlainText().trim().replaceAll('\n', ' ');
+    if (txt.isEmpty) continue;
+    out.add('نصّ مخفى (عرضه صفر): «$txt»');
+  }
+  return out.toList();
+}
+
+/// المسح بيحمّل Cairo فى `setUpAll` (`loadShotFonts`).
+List<String> _vclip(WidgetTester tester) {
+  final out = <String>{};
+  for (final ro in tester.allRenderObjects.whereType<RenderParagraph>()) {
+    if (!ro.hasSize || ro.size.width < 1) continue;
+    // 🔴 القاعدة الوحيدة اللى مافيهاش لبس: **الصندوق أقصر من سطر واحد**،
+    // يعنى النصّ مستحيل يبان كامل مهما كان.
+    //
+    // جرّبت الأوسع منها مرّتين وكانت بتكذب: `getMaxIntrinsicHeight`
+    // بترجّع ارتفاع أقصى عدد سطور مسموح، و`TextPainter` بعرض الصندوق
+    // بيحسب اللفّ — والاتنين بلّغوا عن كروت اللوحة وعناوين الشاشات وهى
+    // ظاهرة تمام (الصور أثبتت). ده كان بيطلّع ١٣ بلاغ أغلبها كاذب.
+    final line = TextPainter(
+      text: ro.text,
+      textDirection: ro.textDirection,
+      maxLines: 1,
+      textScaler: ro.textScaler,
+    )..layout();
+    if (ro.size.height >= line.height - 0.5) continue;
+    final txt = ro.text.toPlainText().trim().replaceAll('\n', ' ');
+    if (txt.isEmpty) continue;
+    out.add('نصّ متقصوص طولاً (${ro.size.height.round()} من '
+        '${line.height.round()}): «$txt»');
+  }
+  return out.toList();
 }
 
 void main() {
   sqfliteFfiInit();
+  databaseFactory = databaseFactoryFfiNoIsolate;
+  Directory('.dart_tool/sqflite_common_ffi/databases')
+      .createSync(recursive: true);
   late Database db;
 
   setUpAll(() async {
+    // من غير خطّ التطبيق، قياس العربى بيكذب.
+    await loadShotFonts();
     await initializeDateFormatting('ar');
     db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath,
         options: OpenDatabaseOptions(singleInstance: false));
@@ -81,10 +151,6 @@ void main() {
     final found = <String, List<String>>{};
     for (final e in _sizes.entries) {
       final errs = <String>[];
-      final prev = FlutterError.onError;
-      FlutterError.onError = (d) {
-        if (!_ignorable(d.exception)) errs.add(_brief(d));
-      };
       tester.takeException();
       tester.view.devicePixelRatio = 2;
       tester.view.physicalSize = e.value * 2;
@@ -106,10 +172,13 @@ void main() {
             await tester.pump(const Duration(milliseconds: 250));
           }
         }
+        errs
+          ..addAll(_ovf(tester))
+          ..addAll(_hidden(tester))
+          ..addAll(_vclip(tester));
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump(const Duration(milliseconds: 150));
       } finally {
-        FlutterError.onError = prev;
         tester.takeException();
       }
       for (final m in errs.toSet()) {

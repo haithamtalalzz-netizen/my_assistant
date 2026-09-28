@@ -13,6 +13,8 @@ sys.stdout.reconfigure(encoding='utf-8')
 SEP = os.sep
 
 # الشاشتين دول بيحمّلوا أصل ضخم بمؤشّر لانهائى — بيسمّموا اللى بعدهم
+# بيحمّلوا أصل ضخم بمؤشّر لانهائى بيسمّم اللى بعدهم (جُرِّب: ٥٢ فشل).
+# متغطّيين لوحدهم فى tool/mushaf_sizes_test.dart.
 SKIP = {'MushafScreen', 'MushafPageScreen'}
 
 entries = []
