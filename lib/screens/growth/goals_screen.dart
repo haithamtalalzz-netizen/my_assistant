@@ -46,21 +46,8 @@ class _GoalsScreenState extends State<GoalsScreen> {
     return total == 0 ? (g.done ? 1.0 : 0.0) : done / total;
   }
 
-  /// أقرب هدف للنهاية — البطل. (اللى خلص مش مرشّح، ولا اللى لسه ما بدأش.)
-  Goal? get _closest {
-    final live = [
-      for (final g in _goals)
-        if (!g.done && _ratio(g) > 0) g
-    ];
-    if (live.isEmpty) return null;
-    live.sort((a, b) => _ratio(b).compareTo(_ratio(a)));
-    return live.first;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final hero = _closest;
-    final openCount = _goals.where((g) => !g.done).length;
     return Scaffold(
       appBar: AppBar(title: Text(tr('الأهداف', 'Goals'))),
       body: _loading
@@ -70,37 +57,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 96),
                 children: [
-                  AppPad(
-                    hero == null
-                        ? AppHero(
-                            icon: Icons.flag_outlined,
-                            kicker: tr('أهدافك', 'Your goals'),
-                            title: _goals.isEmpty
-                                ? tr('ابدأ بهدف واحد', 'Start with one goal')
-                                : tr('حرّك هدف النهارده',
-                                    'Move a goal today'),
-                            primaryLabel: tr('هدف جديد', 'New goal'),
-                            primaryIcon: Icons.add,
-                            onPrimary: _goalForm,
-                          )
-                        : AppHero(
-                            icon: Icons.flag,
-                            kicker: tr('أقرب هدف للنهاية', 'Closest to done'),
-                            title: hero.title,
-                            trailingBig:
-                                '${arNum((_ratio(hero) * 100).round())}%',
-                            trailingSmall: _milestoneLabel(hero),
-                            primaryLabel: tr('افتحه', 'Open'),
-                            primaryIcon: Icons.arrow_forward,
-                            onPrimary: () => _openGoal(hero),
-                            secondaryLabel: tr('هدف جديد', 'New goal'),
-                            onSecondary: _goalForm,
-                            extra: AppHeroBar(_ratio(hero),
-                                _heroHint(hero)),
-                          ),
-                    top: 12,
-                  ),
-                  const SizedBox(height: 20),
+                  AppPad(_filterBar(), top: 12, bottom: 2),
                   if (_goals.isEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 30),
@@ -113,13 +70,8 @@ class _GoalsScreenState extends State<GoalsScreen> {
                       ),
                     )
                   else ...[
-                    AppPad(AppSectionTitle(tr('أهدافك', 'Your goals'),
-                        trailing: tr('${arNum(openCount)} شغّالة',
-                            '${arNum(openCount)} open'))),
-                    AppPad(AppCard(Column(children: [
-                      for (var i = 0; i < _goals.length; i++)
-                        _goalRow(_goals[i], last: i == _goals.length - 1),
-                    ]))),
+                    ..._groups(),
+                    const SizedBox(height: 18),
                   ],
                 ],
               ),
@@ -140,21 +92,82 @@ class _GoalsScreenState extends State<GoalsScreen> {
             '${arNum(done)} of ${arNum(total)}');
   }
 
-  String _heroHint(Goal g) {
-    final (done, total) = _progress[g.id] ?? (0, 0);
-    final left = total - done;
-    final target = g.target == null
-        ? ''
-        : tr(' · الموعد ${arShortDate(g.target!)}',
-            ' · due ${arShortDate(g.target!)}');
-    return total == 0
-        ? tr('ضيف معالم عشان تقيس تقدّمك$target',
-            'Add milestones to track progress$target')
-        : tr('باقى ${arNum(left)} معالم$target',
-            '${arNum(left)} milestones left$target');
+  /// سطر هدف جوّه كارت القسم — بشريط تقدّم.
+  /// الفلتر: شغّالة (الافتراضى) · خلصت · الكل.
+  String _filter = 'open';
+
+  Widget _filterBar() {
+    final scheme = Theme.of(context).colorScheme;
+    Widget chip(String id, String label) {
+      final on = _filter == id;
+      return Padding(
+        padding: const EdgeInsets.only(left: 7),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(99),
+          onTap: () => setState(() => _filter = id),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: on ? scheme.primary : scheme.surface,
+              borderRadius: BorderRadius.circular(99),
+              border: Border.all(
+                  color: on ? scheme.primary : scheme.outlineVariant),
+            ),
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: on ? scheme.onPrimary : scheme.onSurfaceVariant)),
+          ),
+        ),
+      );
+    }
+
+    return Row(children: [
+      chip('open', tr('شغّالة', 'Open')),
+      chip('done', tr('خلصت', 'Done')),
+      chip('all', tr('الكل', 'All')),
+    ]);
   }
 
-  /// سطر هدف جوّه كارت القسم — بشريط تقدّم.
+  /// هدف «متأخر» = ميعاده عدّى وهو لسه مخلصش.
+  bool _late(Goal g) =>
+      !g.done && g.target != null && g.target!.isBefore(dateOnly(DateTime.now()));
+
+  /// المجموعات بتقول لك **تعمل إيه**: اللى قرّب يخلص (ادفعه وخلّصه)،
+  /// اللى ماشى، واللى اتأخّر. قايمة واحدة مرتّبة بالأولوية بدل كارت
+  /// واحد فيه كله بترتيب عشوائى.
+  List<Widget> _groups() {
+    final open = [for (final g in _goals) if (!g.done) g];
+    final closing = [
+      for (final g in open)
+        if (!_late(g) && _ratio(g) >= 0.6) g
+    ];
+    final going = [
+      for (final g in open)
+        if (!_late(g) && _ratio(g) < 0.6) g
+    ];
+    final late = [for (final g in open) if (_late(g)) g];
+    final done = [for (final g in _goals) if (g.done) g];
+
+    List<Widget> section(String title, List<Goal> list) => list.isEmpty
+        ? const []
+        : [
+            AppPad(AppGroupHead(title, trail: arNum(list.length))),
+            for (var i = 0; i < list.length; i++)
+              AppPad(_goalRow(list[i], last: i == list.length - 1)),
+          ];
+
+    return [
+      if (_filter != 'done') ...[
+        ...section(tr('قرّبت تخلص', 'Almost done'), closing),
+        ...section(tr('ماشية', 'In progress'), going),
+        ...section(tr('متأخرة', 'Late'), late),
+      ],
+      if (_filter != 'open') ...section(tr('خلصت', 'Done'), done),
+    ];
+  }
+
   Widget _goalRow(Goal g, {bool last = false}) {
     final scheme = Theme.of(context).colorScheme;
     final ratio = _ratio(g);
