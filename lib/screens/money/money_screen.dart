@@ -605,9 +605,11 @@ class _MoneyScreenState extends State<MoneyScreen> {
             Row(children: [
               const Text('🔀', style: TextStyle(fontSize: 18)),
               const SizedBox(width: 8),
-              Text(tr('إيه اللى اتغيّر عن الشهر اللى فات؟',
-                  'What changed vs last month?'),
-                  style: const TextStyle(fontWeight: FontWeight.w800)),
+              Expanded(
+                child: Text(tr('إيه اللى اتغيّر عن الشهر اللى فات؟',
+                    'What changed vs last month?'),
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+              ),
             ]),
             const SizedBox(height: 10),
             for (final d in shown) ...[
@@ -943,55 +945,81 @@ class _MoneyScreenState extends State<MoneyScreen> {
   Widget _recurringIncomeTile(BuildContext context, RecurringIncome i) {
     final scheme = Theme.of(context).colorScheme;
     final due = i.isDue(DateTime.now());
+    // 🔴 كان ListTile و«قبضته ✓» فى trailing — الـtrailing بياخد العرض
+    // الفاضل بعد العنوان، فالزرار كان **بيتقصّ** على شاشة ضيقة. دلوقتى
+    // النص Expanded والزرار بياخد مقاسه الطبيعى فمستحيل يتقصّ.
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 3),
       color: due ? scheme.tertiary.withValues(alpha: .13) : null,
-      child: ListTile(
-        dense: true,
-        leading: Icon(Icons.event_repeat,
-            color: due ? scheme.tertiary : Colors.green),
-        title: Text(incomeSourceLabel(i.source),
-            style: due
-                ? const TextStyle(fontWeight: FontWeight.w600)
-                : null),
-        subtitle: Text(
-            tr('${egp(i.amount)} • يوم ${arNum(i.dayOfMonth)}${due ? ' — قبضته؟' : ''}',
-                '${egp(i.amount)} • day ${arNum(i.dayOfMonth)}${due ? ' — received?' : ''}')),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (due)
-              FilledButton.tonal(
-                onPressed: () async {
-                  await IncomeRepo()
-                      .markReceived(i, now: DateTime.now());
-                  if (mounted) await _load();
-                },
-                child: Text(tr('قبضته ✓', 'Received ✓')),
-              ),
-            PopupMenuButton<String>(
-              onSelected: (v) async {
-                switch (v) {
-                  case 'edit':
-                    await _recurringIncomeForm(i);
-                  case 'delete':
-                    if (!await confirmDelete(context,
-                        tr('الدخل الدوري "${incomeSourceLabel(i.source)}"',
-                            'recurring income "${incomeSourceLabel(i.source)}"'))) {
-                      return;
-                    }
-                    await IncomeRepo().deleteRecurring(i.id!);
-                    if (mounted) await _load();
-                }
-              },
-              itemBuilder: (_) => [
-                PopupMenuItem(value: 'edit', child: Text(tr('تعديل', 'Edit'))),
-                PopupMenuItem(
-                    value: 'delete', child: Text(tr('حذف', 'Delete'))),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+        child: Row(children: [
+          Icon(Icons.event_repeat,
+              size: 20, color: due ? scheme.tertiary : Colors.green),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(incomeSourceLabel(i.source),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight:
+                            due ? FontWeight.w700 : FontWeight.w600,
+                        color: scheme.onSurface)),
+                const SizedBox(height: 2),
+                Text(
+                    tr('${egp(i.amount)} • يوم ${arNum(i.dayOfMonth)}${due ? ' — قبضته؟' : ''}',
+                        '${egp(i.amount)} • day ${arNum(i.dayOfMonth)}${due ? ' — received?' : ''}'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 11, color: scheme.onSurfaceVariant)),
               ],
             ),
-          ],
-        ),
+          ),
+          if (due)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: FilledButton.tonal(
+                onPressed: () async {
+                  await IncomeRepo().markReceived(i, now: DateTime.now());
+                  if (mounted) await _load();
+                },
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  minimumSize: const Size(0, 36),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(tr('قبضته', 'Received'),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
+            ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, size: 20),
+            onSelected: (v) async {
+              switch (v) {
+                case 'edit':
+                  await _recurringIncomeForm(i);
+                case 'delete':
+                  if (!await confirmDelete(
+                      context,
+                      tr('الدخل الدوري "${incomeSourceLabel(i.source)}"',
+                          'recurring income "${incomeSourceLabel(i.source)}"'))) {
+                    return;
+                  }
+                  await IncomeRepo().deleteRecurring(i.id!);
+                  if (mounted) await _load();
+              }
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'edit', child: Text(tr('تعديل', 'Edit'))),
+              PopupMenuItem(value: 'delete', child: Text(tr('حذف', 'Delete'))),
+            ],
+          ),
+        ]),
       ),
     );
   }

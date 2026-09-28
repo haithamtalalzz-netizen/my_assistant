@@ -92,14 +92,10 @@ class _SpiritualStatsScreenState extends State<SpiritualStatsScreen> {
                     style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 12),
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  childAspectRatio: 1.4,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  children: [
+                // Wrap بعرض محسوب مش GridView بطول ثابت: طول الكارت
+                // بيطلع من محتواه، فمستحيل يتقصّ على أى مقاس — وعلى التابلت
+                // بيبقى ٣ فى الصف بدل ٢.
+                _statsWrap([
                     _stat('🕌', tr('صلوات في وقتها', 'Prayers logged'),
                         '${arNum(w.prayers)} / ${arNum(35)}', const Color(0xFF2E7D6B)),
                     _stat('✅', tr('أيام كاملة', 'Full-prayer days'),
@@ -117,8 +113,7 @@ class _SpiritualStatsScreenState extends State<SpiritualStatsScreen> {
                             ? '—'
                             : '${arNum(w.khatmaPercent!)}%',
                         const Color(0xFF1E7A5A)),
-                  ],
-                ),
+                ]),
                 const SizedBox(height: 16),
                 if (_month != null) _monthCard(context, _month!),
                 const SizedBox(height: 16),
@@ -250,6 +245,21 @@ class _SpiritualStatsScreenState extends State<SpiritualStatsScreen> {
                   fontSize: 12.5, fontWeight: FontWeight.w600, color: color)),
         ),
       ]);
+
+  /// كروت الإحصائيات: العرض محسوب والطول من المحتوى (مفيش قصّ).
+  Widget _statsWrap(List<Widget> cards) => LayoutBuilder(
+        builder: (context, box) {
+          final cols = box.maxWidth >= 620 ? 3 : 2;
+          final w = (box.maxWidth - 12 * (cols - 1)) / cols;
+          return Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              for (final c in cards) SizedBox(width: w, child: c),
+            ],
+          );
+        },
+      );
 
   Widget _stat(String emoji, String label, String value, Color color) {
     return Container(

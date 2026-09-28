@@ -381,7 +381,12 @@ class _ZakatScreenState extends State<ZakatScreen> {
             _stampPriceDate();
           },
         ),
-        Row(children: [
+        // Wrap: تاريخ التحديث بينزل سطر تحت على الشاشة الضيقة.
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          alignment: WrapAlignment.spaceBetween,
+          runSpacing: 4,
+          children: [
           if (_fetching)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -396,7 +401,6 @@ class _ZakatScreenState extends State<ZakatScreen> {
               icon: const Icon(Icons.public, size: 18),
               label: Text(tr('جلب سعر السوق العالمى', 'Fetch world price')),
             ),
-          const Spacer(),
           if (_priceDate != null)
             Text(
               tr('آخر تحديث: ${_priceDateDisplay()}',

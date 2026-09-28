@@ -162,8 +162,10 @@ class _FocusScreenState extends State<FocusScreen> {
                 ],
               ),
               const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 12,
+                runSpacing: 8,
                 children: [
                   FilledButton.icon(
                     icon: Icon(_running ? Icons.pause : Icons.play_arrow),
@@ -172,7 +174,6 @@ class _FocusScreenState extends State<FocusScreen> {
                         : tr('ابدأ', 'Start')),
                     onPressed: _running ? _pause : _start,
                   ),
-                  const SizedBox(width: 12),
                   OutlinedButton.icon(
                     icon: const Icon(Icons.refresh),
                     label: Text(tr('من الأول', 'Reset')),

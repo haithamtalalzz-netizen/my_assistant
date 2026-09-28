@@ -87,12 +87,15 @@ class _YearReviewScreenState extends State<YearReviewScreen> {
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : GridView.count(
-                    crossAxisCount: 2,
+                : GridView(
                     padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
-                    childAspectRatio: 1.5,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 8,
+                      crossAxisSpacing: 8,
+                      mainAxisExtent: 116,
+                    ),
                     children: [
                       for (final s in _stats)
                         Card(

@@ -237,10 +237,12 @@ class _WorshipProgramScreenState extends State<WorshipProgramScreen> {
                         fontSize: 40,
                         fontWeight: FontWeight.w900)),
                 const SizedBox(width: 10),
-                Text(
-                    tr('${arNum(d.completedCount)} من ${arNum(d.tasks.length)} بنود',
-                        '${arNum(d.completedCount)}/${arNum(d.tasks.length)} done'),
-                    style: const TextStyle(color: Colors.white70)),
+                Expanded(
+                  child: Text(
+                      tr('${arNum(d.completedCount)} من ${arNum(d.tasks.length)} بنود',
+                          '${arNum(d.completedCount)}/${arNum(d.tasks.length)} done'),
+                      style: const TextStyle(color: Colors.white70)),
+                ),
               ],
             ),
             const SizedBox(height: 10),
@@ -261,13 +263,15 @@ class _WorshipProgramScreenState extends State<WorshipProgramScreen> {
               Row(children: [
                 const Text('🔥', style: TextStyle(fontSize: 15)),
                 const SizedBox(width: 6),
-                Text(
-                    tr('${arNum(_streak)} يوم صلاة كاملة متتالية',
-                        '${arNum(_streak)}-day full-prayer streak'),
-                    style: const TextStyle(
-                        color: Color(0xFFF3D06E),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12.5)),
+                Expanded(
+                  child: Text(
+                      tr('${arNum(_streak)} يوم صلاة كاملة متتالية',
+                          '${arNum(_streak)}-day full-prayer streak'),
+                      style: const TextStyle(
+                          color: Color(0xFFF3D06E),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12.5)),
+                ),
               ]),
             ],
           ],

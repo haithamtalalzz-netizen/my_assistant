@@ -632,8 +632,12 @@ class _HabitsScreenState extends State<HabitsScreen> {
     final scheme = Theme.of(context).colorScheme;
     final days = _days[h.id] ?? const <String>{};
     final today = dateOnly(DateTime.now());
-    return Row(
-      children: [
+    // FittedBox: ٧ دواير بمقاس ثابت؛ لو المكان ضاق بتصغر بالتناسب
+    // بدل ما تتقصّ (بيحصل لما العادة معدودة فالصف بياخد زرايرها كمان).
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: AlignmentDirectional.centerStart,
+      child: Row(children: [
         for (var i = 6; i >= 0; i--)
           Builder(builder: (context) {
             final d = today.subtract(Duration(days: i));
@@ -664,7 +668,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
               ),
             );
           }),
-      ],
+      ]),
     );
   }
 }

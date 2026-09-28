@@ -45,7 +45,13 @@ class GroupHubScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
-    final cols = width > 640 ? 4 : 3;
+    // ٣ أعمدة على شاشة ٣٢٠ بتخلّى الكارت ٨٨px، فالأيقونة والشارة
+    // مايسعوش جوّه الصف. العدد بيتبع العرض بدل ما يكون ثابت.
+    final cols = width > 640
+        ? 4
+        : width < 360
+            ? 2
+            : 3;
     return Scaffold(
       appBar: AppBar(title: Text(title), actions: [searchAction(context)]),
       body: ReorderableCards(

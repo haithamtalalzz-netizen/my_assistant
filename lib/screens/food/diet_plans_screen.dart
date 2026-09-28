@@ -141,7 +141,9 @@ class _DietPlansScreenState extends State<DietPlansScreen> {
               Text(p.desc,
                   style: TextStyle(fontSize: 12.5, color: scheme.outline)),
               const SizedBox(height: 8),
-              Row(
+              // Wrap مش Row: على شاشة ضيقة بتنزل سطر تحت بدل ما تتقصّ.
+              Wrap(
+                runSpacing: 4,
                 children: [
                   _macroPill(tr('بروتين', 'P'), p.proteinPct, Colors.red),
                   _macroPill(tr('كارب', 'C'), p.carbsPct, Colors.orange),

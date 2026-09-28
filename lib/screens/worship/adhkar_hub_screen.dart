@@ -41,7 +41,8 @@ class AdhkarHubScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 170,
-          childAspectRatio: 1.15,
+          // طول ثابت: العنوان لو نزل سطرين مايتقصّش على أى عرض.
+          mainAxisExtent: 132,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
         ),

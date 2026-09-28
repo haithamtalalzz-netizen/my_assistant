@@ -240,12 +240,15 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
                   // ---- آخر القياسات ----
                   Row(
                     children: [
-                      Text(tr('آخر القياسات', 'Latest vitals'),
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w700)),
-                      const Spacer(),
+                      Expanded(
+                        child: Text(tr('آخر القياسات', 'Latest vitals'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700)),
+                      ),
                       TextButton(
                         onPressed: () => _open(const ChartsScreen()),
                         child: Text(tr('الرسوم', 'Charts')),

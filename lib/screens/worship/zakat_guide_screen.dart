@@ -82,9 +82,12 @@ class ZakatGuideScreen extends StatelessWidget {
   Widget _recipientsHeader(ColorScheme scheme) => Row(children: [
         Icon(Icons.groups_2_outlined, color: scheme.primary),
         const SizedBox(width: 8),
-        Text(
-          tr('مصارف الزكاة الثمانية (مستحقّوها)', 'The 8 recipients'),
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+        // Expanded: العنوان بيلفّ على شاشة ضيقة بدل ما يتقصّ.
+        Expanded(
+          child: Text(
+            tr('مصارف الزكاة الثمانية (مستحقّوها)', 'The 8 recipients'),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          ),
         ),
       ]);
 

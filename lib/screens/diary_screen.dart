@@ -50,10 +50,14 @@ class _DiaryScreenState extends State<DiaryScreen> {
       child: Row(children: [
         Icon(Icons.auto_stories_outlined, size: 18, color: scheme.primary),
         const SizedBox(width: 8),
-        Text(
-            tr('${arNum(_items.length)} يومية${last == null ? '' : ' • آخر كتابة ${arShortDate(last)}'}',
-                '${arNum(_items.length)} entries${last == null ? '' : ' • last ${arShortDate(last)}'}'),
-            style: TextStyle(color: scheme.outline, fontSize: 13)),
+        Expanded(
+          child: Text(
+              tr('${arNum(_items.length)} يومية${last == null ? '' : ' • آخر كتابة ${arShortDate(last)}'}',
+                  '${arNum(_items.length)} entries${last == null ? '' : ' • last ${arShortDate(last)}'}'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: scheme.outline, fontSize: 13)),
+        ),
       ]),
     );
   }

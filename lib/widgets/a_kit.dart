@@ -58,12 +58,17 @@ class AppSectionTitle extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(children: [
-        Text(title,
-            style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: scheme.onSurface)),
-        const Spacer(),
+        // Expanded بدل Spacer: العنوان الطويل بيتقصّر بنقط مش بيتقصّ.
+        Expanded(
+          child: Text(title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurface)),
+        ),
+        const SizedBox(width: 8),
         if (trailing != null)
           GestureDetector(
             onTap: onTrailingTap,
@@ -165,17 +170,33 @@ class AppHero extends StatelessWidget {
                       color: Colors.white)),
             ]),
           ),
-          if (trailingBig != null)
-            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text(trailingBig!,
-                  style: const TextStyle(
-                      fontSize: 23,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white)),
-              if (trailingSmall != null)
-                Text(trailingSmall!,
-                    style: const TextStyle(fontSize: 10, color: Colors.white70)),
-            ]),
+          if (trailingBig != null) ...[
+            const SizedBox(width: 8),
+            // Flexible + سطر واحد: نصّ زى «فاضل ٥ ساعات و٥٥ دقيقة» بيطول
+            // على حسب الوقت، وكان بيتقصّ على ٣٢٠px فى ساعات معيّنة بس —
+            // عطب مابيبانش إلا لو جرّبت الشاشة فى الوقت الصح.
+            Flexible(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(trailingBig!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: const TextStyle(
+                            fontSize: 23,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white)),
+                    if (trailingSmall != null)
+                      Text(trailingSmall!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.end,
+                          style: const TextStyle(
+                              fontSize: 10, color: Colors.white70)),
+                  ]),
+            ),
+          ],
         ]),
         if (extra != null) ...[const SizedBox(height: 14), extra!],
         if (primaryLabel != null) ...[

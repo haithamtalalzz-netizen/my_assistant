@@ -510,11 +510,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 color: Theme.of(context).colorScheme.primary),
           ),
           const SizedBox(width: 6),
-          Text(tr('يوم فيه نشاط — اضغط تشوف التفاصيل',
+          Flexible(
+            child: Text(tr('يوم فيه نشاط — اضغط تشوف التفاصيل',
               'Day with activity — tap to see details'),
+              textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 12,
                   color: Theme.of(context).colorScheme.outline)),
+          ),
         ],
       ),
     );

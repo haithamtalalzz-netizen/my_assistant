@@ -88,7 +88,10 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
             Row(children: [
               Icon(icon, size: 18, color: scheme.primary),
               const SizedBox(width: 6),
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+              Expanded(
+                child: Text(title,
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+              ),
             ]),
             const SizedBox(height: 8),
             ...children,

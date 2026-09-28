@@ -61,7 +61,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        // 🔴 كان Column ثابت جوّه Padding: على شاشة ٣٢٠×٦٤٠ المحتوى
+        // بيطلع أطول من الشاشة بـ١٩٧px فكان بيتقصّ — وده أول شاشة
+        // يشوفها أى مستخدم جديد. LayoutBuilder + تمرير + minHeight:
+        // بيفضل متوسّط بالـSpacer على الشاشة الطويلة، وبيتمرّر لو قصرت.
+        child: LayoutBuilder(
+          builder: (context, box) => SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: box.maxHeight),
+              child: IntrinsicHeight(
+                child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
@@ -162,6 +171,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
               ),
             ],
+          ),
+                ),
+              ),
+            ),
           ),
         ),
       ),

@@ -225,6 +225,8 @@ class _MedFormState extends State<MedForm> {
             const SizedBox(height: 16),
             DropdownButtonFormField<int?>(
               initialValue: _courseDays,
+              // isExpanded: بنود القائمة طويلة، بدونه بتتقصّ على ٣٢٠/٣٦٠.
+              isExpanded: true,
               decoration: InputDecoration(
                   labelText: tr('مدة الكورس — بيقف لوحده لما يخلص',
                       'Course length — auto-stops when done')),

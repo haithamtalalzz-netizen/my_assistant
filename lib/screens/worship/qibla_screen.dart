@@ -200,8 +200,17 @@ class _QiblaScreenState extends State<QiblaScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(k, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-            Text(v, style: const TextStyle(fontWeight: FontWeight.w700)),
+            Expanded(
+              child: Text(k,
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(v,
+                  textAlign: TextAlign.end,
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
           ],
         ),
       );

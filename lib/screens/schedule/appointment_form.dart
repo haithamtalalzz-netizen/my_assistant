@@ -473,6 +473,7 @@ class _AppointmentFormState extends State<AppointmentForm> {
             ],
             DropdownButtonFormField<int>(
               initialValue: _remind,
+              isExpanded: true,
               decoration: InputDecoration(labelText: tr('فكرني', 'Remind me')),
               items: [
                 for (final e in remindOptions().entries)

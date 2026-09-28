@@ -146,13 +146,16 @@ class _ReadingScreenState extends State<ReadingScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                Text(
-                    b.totalPages == 0
-                        ? _bookStatusLabel(b.status)
-                        : tr('${arNum(b.currentPage)}/${arNum(b.totalPages)} ص · ${_bookStatusLabel(b.status)}',
-                            '${arNum(b.currentPage)}/${arNum(b.totalPages)} pp · ${_bookStatusLabel(b.status)}'),
-                    style: TextStyle(fontSize: 12, color: scheme.outline)),
-                const Spacer(),
+                Expanded(
+                  child: Text(
+                      b.totalPages == 0
+                          ? _bookStatusLabel(b.status)
+                          : tr('${arNum(b.currentPage)}/${arNum(b.totalPages)} ص · ${_bookStatusLabel(b.status)}',
+                              '${arNum(b.currentPage)}/${arNum(b.totalPages)} pp · ${_bookStatusLabel(b.status)}'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12, color: scheme.outline)),
+                ),
                 if (b.totalPages > 0 && b.status != 'wishlist')
                   TextButton(
                     onPressed: () => _updatePage(b),

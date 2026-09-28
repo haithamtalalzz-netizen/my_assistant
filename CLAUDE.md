@@ -23,7 +23,7 @@ home_widget/health/speech_to_text (minSdk 26)
 **Package:** `com.hhub.my_assistant` — display name "My Assistant"
 **Language:** Arabic-first + English toggle (progressive i18n). `AppState.locale` drives MaterialApp locale/direction; `tr('عربي','English')` helper in `core/l10n.dart` — chrome/nav/settings translated, content screens migrate screen-by-screen. Theme via `AppState.themeMode` (system/light/dark).
 **Navigation:** sidebar Drawer (`screens/app_drawer.dart`) — NO bottom nav. Shell swaps 5 top screens by index; each top screen takes `Widget? drawer`. Tools/بلدنا/settings are pushed (back-arrow) from the drawer.
-**Tests:** `flutter test` — 84 passed / 0 failed
+**Tests:** `flutter test` — 447 passed / 0 failed (+ أدوات المراجعة فى `tool/`، مش بتشتغل مع الافتراضى — شوف تحت)
 **Analyze:** `flutter analyze` — must stay at 0 issues
 **Run:** `flutter run` (device/emulator) • **Build:** `flutter build apk --release`
 **DB:** schema v7 (v6→v7 adds debts + gameya + gameya_payments + home_maintenance);
@@ -116,6 +116,41 @@ re-schedules. Deleting always cancels.
    (appointment_form.dart).
 8. **Never swallow exceptions** — catch narrow and log with `dart:developer log`.
 
+## أدوات المراجعة (`tool/` — بره `flutter test` الافتراضى)
+
+الأربعة دول بيمسكوا نوع أعطاب **مابيظهرش فى سجلّ ولا فى اختبار وظيفى**:
+الشاشة بتفتح، الاختبار أخضر، والكلام مقصوص أو الزرار مش باين.
+
+| الأداة | بتمسك إيه |
+|---|---|
+| `flutter test tool/sizes_test.dart` | **كل شاشة × ٦ مقاسات** (٣٢٠ · ٣٦٠ · ٤١٤ · فولد ٦٧٣ · تابلت ٨٠٠ · تابلت ١٠٢٤) = ١٠٦ شاشة. بتبلّغ القصّ **بمكانه فى الكود**: `قصّ 252px right @ lib/screens/x.dart:82` |
+| `flutter test tool/sizes_extra_test.dart` | نفس المسح للـ١٠ حاجات اللى المولِّد مايقدرش يبنيها (بتاخد معاملات إجبارية): **السايدبار مفتوح** · هَبّة المجموعة · الأذكار · آيات موضوع · الإجراءات السريعة · الترحيب · الجولة · بوّابتى القفل والترحيب |
+| `flutter test tool/walk_screens_test.dart` | بتفتح كل شاشة وتتأكد إنها مابترميش استثناء |
+| `flutter test tool/dayflow_test.dart` | دورة اليوم كاملة (٥ مسارات) |
+
+`tool/gen_sizes.py` هو اللى بيولّد `sizes_test.dart` — **شاشة جديدة = شغّل**
+`python tool/gen_sizes.py` **وخلاص**، بتتضاف لوحدها.
+
+### قواعد «مفيش حاجة مقصوصة»
+
+طلبُه الصريح (2026-09-27): التطبيق يناسب **كل** مقاسات الموبايل والتابلت
+ومفيش حاجة مقصوصة نهائى. الأنماط اللى العطب بيجى منها:
+
+1. **نصّ فى `Row` بلا `Expanded`/`Flexible`** — أكتر سبب (١٠ من ١٩ عطب).
+   `Spacer()` **مش** حماية: بيصفّر نفسه والنصّ بيتقصّ برضه.
+2. **`childAspectRatio` فى الشبكات** — بيربط طول الكارت بعرض الشاشة، فبيتقصّ
+   على الضيّق. استخدم `mainAxisExtent` (طول ثابت)، أو `Wrap` بعرض محسوب
+   لو الطول لازم يطلع من المحتوى.
+3. **صفوف حبوب/زرايِر بمقاس ثابت** → `Wrap`، أو `FittedBox(scaleDown)`
+   لو لازم يفضلوا سطر واحد.
+4. **`DropdownButtonFormField`** ببنود طويلة محتاج `isExpanded: true`.
+5. **`Column` بـ`Spacer` بلا تمرير** — على شاشة قصيرة بيتقصّ من تحت.
+   الحل: `LayoutBuilder` + `SingleChildScrollView` + `ConstrainedBox(minHeight)`
+   + `IntrinsicHeight` (بيفضل متوسّط على الطويلة وبيتمرّر على القصيرة).
+6. **نصّ طوله بيتغيّر مع الوقت** (عدّاد «فاضل ساعة و٢٠ دقيقة») — بيتقصّ فى
+   ساعات معيّنة بس، فالمسح نفسه بيبقى متقطّع. الحل إن كل نصّ يبقى مقيَّد
+   (`Flexible` + `maxLines` + `ellipsis`) فالطول مايقدرش يعمل قصّ أصلاً.
+
 ## Android specifics
 
 - `flutter_local_notifications` needs **core library desugaring** — already
@@ -129,6 +164,8 @@ re-schedules. Deleting always cancels.
 
 1. `flutter analyze` — 0 issues
 2. `flutter test` — all pass
-3. Update SESSION_HANDOVER.md
-4. New table/column? Update the schema section in db.dart and this file if structural
-5. New feature decision? Append to PRODUCT_VISION.md
+3. لمست شاشة أو ويدجت مشترك؟ `flutter test tool/sizes_test.dart` +
+   `tool/sizes_extra_test.dart` — الخضرة العادية مابتقولش «الكلام باين»
+4. Update SESSION_HANDOVER.md
+5. New table/column? Update the schema section in db.dart and this file if structural
+6. New feature decision? Append to PRODUCT_VISION.md
