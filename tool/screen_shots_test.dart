@@ -21,6 +21,7 @@ import 'package:my_assistant/data/income_repo.dart';
 import 'package:my_assistant/data/money_repo.dart';
 import 'package:my_assistant/screens/money/money_screen.dart';
 import 'package:my_assistant/data/notes_repo.dart';
+import 'package:my_assistant/data/wardrobe_repo.dart';
 import 'package:my_assistant/data/health_repo.dart';
 import 'package:my_assistant/data/goals_repo.dart';
 import 'package:my_assistant/data/tasks_repo.dart';
@@ -195,6 +196,25 @@ void main() {
         shotApp(buildTheme(), const PrayerScreen()),
         size: const Size(390, 1100), pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('ملابسى — قطع من غير صور (المربّع الملوّن)', (tester) async {
+    // من غير صور عشان نشوف البديل: قبل كده كان مساحة بيضا فاضية.
+    final repo = WardrobeRepo();
+    for (final (n, c) in [
+      ('قميص أزرق', 'top'),
+      ('بنطلون جينز', 'bottom'),
+      ('جاكيت شتوى', 'outer'),
+      ('حذاء رياضى', 'shoes'),
+      ('حزام جلد', 'accessory'),
+      ('تيشيرت قطن', 'top'),
+    ]) {
+      await repo.save(ClothingItem(name: n, category: c, color: 'أزرق'));
+    }
+    final f0 = await shot(tester, 'real_wardrobe_nophoto',
+        shotApp(buildTheme(), const WardrobeScreen()),
+        size: const Size(390, 700), pixelRatio: 2);
+    expect(f0.lengthSync(), greaterThan(10000));
   });
 
   testWidgets('ملابسى — الشكل الجديد', (tester) async {

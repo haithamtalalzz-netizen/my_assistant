@@ -190,26 +190,41 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
     );
   }
 
+  /// لون وأيقونة حسب خانة اللبس — عشان القطعة اللى من غير صورة تبقى
+  /// مربّع ملوّن تعرفه من شكله، مش مساحة بيضا فاضية.
+  (Color, IconData) _kindStyle(String category) => switch (category) {
+        'top' => (const Color(0xFF3B82F6), Icons.checkroom),
+        'bottom' => (const Color(0xFF14B8A6), Icons.dry_cleaning),
+        'outer' => (const Color(0xFF8B5CF6), Icons.ac_unit),
+        'shoes' => (const Color(0xFFF59E0B), Icons.ice_skating),
+        _ => (const Color(0xFFEC4899), Icons.watch),
+      };
+
+  Widget _placeholder(ClothingItem it, double size) {
+    final (c, icon) = _kindStyle(it.category);
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(c.withValues(alpha: 0.12), Colors.white),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: c.withValues(alpha: 0.25)),
+      ),
+      child: Icon(icon, size: 30, color: c),
+    );
+  }
+
   Widget _thumb(ClothingItem it, double size) {
-    if (it.photo.isEmpty) {
-      return Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Icon(Icons.checkroom, size: 20),
-      );
-    }
+    if (it.photo.isEmpty) return _placeholder(it, size);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(12),
       child: AppImage(it.photo,
           width: size,
           height: size,
           fit: BoxFit.cover,
-          errorBuilder: (_, _, _) =>
-              SizedBox(width: size, height: size, child: const Icon(Icons.checkroom))),
+          // الصورة اللى اتمسحت من برّه التطبيق كانت بتسيب فراغ أبيض.
+          errorBuilder: (_, _, _) => _placeholder(it, size)),
     );
   }
 
