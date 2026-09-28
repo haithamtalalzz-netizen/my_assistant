@@ -35,7 +35,6 @@ import 'package:my_assistant/screens/diary_screen.dart';
 import 'package:my_assistant/screens/docs/doc_form.dart';
 import 'package:my_assistant/screens/docs/docs_screen.dart';
 import 'package:my_assistant/screens/emergency_view.dart';
-import 'package:my_assistant/screens/food/barcode_scan_screen.dart';
 import 'package:my_assistant/screens/food/diet_plans_screen.dart';
 import 'package:my_assistant/screens/food/fasting_screen.dart';
 import 'package:my_assistant/screens/food/food_card_screen.dart';
@@ -147,26 +146,45 @@ List<Finder> _tapTypes() => <Finder>[
 /// أقصى عدد ضغطات لكل شاشة — عشان زمن المشية مايتفلّتش.
 const _maxTaps = 14;
 
-bool _ignorable(Object ex) {
-  final s = ex.toString();
-  return s.contains('MissingPluginException') ||
-      s.contains('Looking up a deactivated') ||
-      s.contains('HttpException') ||
-      s.contains('Invalid image data');
+
+/// بيقيس القصّ **من شجرة الرسم مباشرة** بدل ما يستنّى بلاغ الإطار.
+///
+/// 🔴 ليه: استبدال `FlutterError.onError` كان بيبلع بلاغات الإطار، فلمّا
+/// يوصل خطأ **غير متزامن** (نداء إضافة بيرمى) بيلاقى حساباته فاضية ويفشل
+/// بـ«A test overrode FlutterError.onError …» — ١٩ شاشة كانت بتسقط كده
+/// وهى سليمة، ومحاولة تمرير الخطأ للمعالج الأصلى ماحلّتهاش لإن المسار ده
+/// مابيعدّيش على `onError` من الأصل.
+///
+/// الحساب هو نفس اللى `RenderFlex` بيعمله جوّاه: مجموع أطوال الأبناء على
+/// المحور مقابل الطول المتاح.
+List<String> overflowingFlexes(WidgetTester tester) {
+  final out = <String>{};
+  for (final ro in tester.allRenderObjects.whereType<RenderFlex>()) {
+    if (!ro.hasSize) continue;
+    var sum = 0.0;
+    ro.visitChildren((c) {
+      if (c is RenderBox && c.hasSize) {
+        sum += ro.direction == Axis.horizontal ? c.size.width : c.size.height;
+      }
+    });
+    final avail =
+        ro.direction == Axis.horizontal ? ro.size.width : ro.size.height;
+    final over = sum - avail;
+    if (over <= 0.5) continue;
+    final where = _creatorLine(ro);
+    final dir = ro.direction == Axis.horizontal ? 'عرضاً' : 'طولاً';
+    out.add('قصّ ${over.round()}px $dir @ $where');
+  }
+  return out.toList();
 }
 
-/// بيرجّع وصف القصّ بمكانه — وبيرجّع '' لأى خطأ تانى (المشية بتدوس على
-/// أزرار بتودّى لأماكن كتير؛ اللى يهمّنا هنا **القصّ** بس).
-String _overflow(FlutterErrorDetails d) {
-  final s = d.toString();
-  final of =
-      RegExp(r'overflowed by ([\d.]+) pixels on the (\w+)').firstMatch(s);
-  if (of == null) return '';
-  final loc =
-      RegExp(r'file:///[^\s]*/lib/([^\s:]+\.dart):(\d+)').firstMatch(s);
-  final where = loc == null ? '?' : 'lib/${loc.group(1)}:${loc.group(2)}';
-  return 'قصّ ${of.group(1)}px ${of.group(2)} @ $where';
+/// بيطلّع «lib/…:سطر» من سلسلة إنشاء الودجت.
+String _creatorLine(RenderObject ro) {
+  final m = RegExp(r'([\w/]+\.dart):(\d+):\d+')
+      .firstMatch(ro.debugCreator?.toString() ?? '');
+  return m == null ? '?' : '${m.group(1)}:${m.group(2)}';
 }
+
 
 /// بيدوّر على **نصّ اتخنق لحد ما بقى غير مرئى** — عرضه ≈ صفر وهو محتاج
 /// عرض. ده بيحصل لمّا شريط العنوان يبقى فيه أزرار كتير فالعنوان مايلاقيش
@@ -189,11 +207,25 @@ List<String> truncatedShortTexts(WidgetTester tester) {
   return out.toList();
 }
 
+/// المعالج الأصلى لبلاغات فشل الاختبار — بنغلّفه مش بنلغيه.
+final TestExceptionReporter _origReporter = reportTestException;
+
 void main() {
   sqfliteFfiInit();
   late Database db;
 
   setUpAll(() async {
+    // 🔴 إضافات زى الماسح الضوئى والكاميرا مش موجودة فى بيئة الاختبار،
+    // فبترمى `MissingPluginException` — وساعات **بعد ما الاختبار يخلص**
+    // فمايقدرش حد يمسحها من جوّه (`takeException` بتشتغل جوّه الاختبار بس).
+    // `reportTestException` نقطة رسمية وبتتقرا **قبل** كل اختبار، فتغييرها
+    // هنا مرّة واحدة مسموح. ١٩ شاشة كانت بتسقط بالضوضاء دى وهى سليمة.
+    reportTestException = (details, description) {
+      if (details.exception.toString().contains('MissingPluginException')) {
+        return;
+      }
+      _origReporter(details, description);
+    };
     await initializeDateFormatting('ar');
     db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath,
         options: OpenDatabaseOptions(singleInstance: false));
@@ -214,6 +246,13 @@ void main() {
     await AppState.setSchedule(enabled: false);
   });
 
+  /// بتفضّى بلاغات الإطار المتراكمة. `takeException` بتمسك **واحد** كل
+  /// مرة، وإضافة زى الماسح الضوئى بترمى أكتر من واحد (channel + stream)،
+  /// فمرة واحدة ماتكفيش والباقى بيفشّل الاختبار.
+  void clearErrors(WidgetTester t) {
+    for (var i = 0; i < 12 && t.takeException() != null; i++) {}
+  }
+
   // pumpAndSettle ممنوع: فيه شاشات مؤشّرها بيلفّ للأبد فبتعلّق للأبد.
   Future<void> settle(WidgetTester t, [int n = 4]) async {
     for (var i = 0; i < n; i++) {
@@ -229,7 +268,9 @@ void main() {
 
   /// بيقفل أى حوار أو صفحة اتفتحت بالضغطة عشان الشاشة ترجع لأصلها.
   Future<void> popAll(WidgetTester t) async {
-    for (var i = 0; i < 4; i++) {
+    // ٨ لفّات: ضغطة ممكن تفتح شاشة جوّه شاشة (هَب جوّه هَب)، ولو فضلت
+    // مفتوحة مؤقّتها الدورى بيفضل شغّال لآخر الاختبار.
+    for (var i = 0; i < 8; i++) {
       final navs = find.byType(Navigator);
       if (navs.evaluate().isEmpty) return;
       final NavigatorState nav;
@@ -241,7 +282,7 @@ void main() {
       if (!nav.canPop()) return;
       nav.pop();
       await settle(t, 2);
-      t.takeException();
+      clearErrors(t);
     }
   }
 
@@ -253,13 +294,9 @@ void main() {
     final found = <String, List<String>>{};
     for (final e in _sizes.entries) {
       final errs = <String>[];
-      final prev = FlutterError.onError;
-      FlutterError.onError = (d) {
-        if (_ignorable(d.exception)) return;
-        final b = _overflow(d);
-        if (b.isNotEmpty) errs.add(b);
-      };
-      tester.takeException();
+      // مفيش استبدال لـ`FlutterError.onError` خالص — بنقيس القصّ من شجرة
+      // الرسم، وبنمسح بلاغات الإطار بـ`takeException` زى أى اختبار عادى.
+      clearErrors(tester);
       tester.view.devicePixelRatio = 2;
       tester.view.physicalSize = e.value * 2;
       try {
@@ -271,6 +308,7 @@ void main() {
         ));
         await settle(tester);
         errs.addAll(truncatedShortTexts(tester));
+        errs.addAll(overflowingFlexes(tester));
 
         var taps = 0;
         for (final f in _tapTypes()) {
@@ -293,30 +331,42 @@ void main() {
               // ضغطة مش ممكنة (مخفية/برّه الشاشة) — مش عطب واجهة.
             }
             errs.addAll(truncatedShortTexts(tester));
-            tester.takeException();
+            errs.addAll(overflowingFlexes(tester));
+            clearErrors(tester);
+            // 🔴 ضغطة على خانة كتابة بتشغّل مؤقّت **وميض المؤشّر**
+            // (`EditableTextState._startCursorBlink`، دورى كل ٥٠٠ms)
+            // وبيفضل شغّال ما دام فيه تركيز — ده كان أحد سببين بيسقّطوا
+            // ٤٩ شاشة بـ«A Timer is still pending» وهى سليمة.
+            FocusManager.instance.primaryFocus?.unfocus();
+            await tester.pump(const Duration(milliseconds: 120));
             await popAll(tester);
           }
         }
+        FocusManager.instance.primaryFocus?.unfocus();
+        await popAll(tester);
+        clearErrors(tester);
         await tester.pumpWidget(const SizedBox.shrink());
-        // 🔴 لازم نعدّى وقت كفاية عشان المؤقّتات الوحيدة تشتغل قبل ما
-        // الاختبار يخلص — `core/log.dart` بيجدول تفريغ بعد ٢ ثانية، وبدون
-        // كده ٤٨ شاشة كانت بتفشل بـ«A Timer is still pending» من غير ما
-        // يكون فيها عطب أصلاً.
-        // ٦ ثوانى وهمية: بتعدّى الـSnackBar (٤ ث) والتوست.
-        for (var i = 0; i < 6; i++) {
-          await tester.pump(const Duration(seconds: 1));
+        // 🔴 تفضية بالتناوب — ودى اللى حلّت مسألة «A Timer is still
+        // pending» اللى كانت بتسقّط ٤٩ شاشة من ١٠٧ وهى سليمة:
+        //
+        //   • الوقت **الوهمى** بيشغّل المؤقّتات (SnackBar ٤ ث · توست ·
+        //     تفريغ السجلّ ٢ ث) لكنه **مابيحرّكش** نداءات قاعدة البيانات.
+        //   • `runAsync` بيشغّل الحلقة **الحقيقية** فنداء القاعدة بيخلص،
+        //     لكنه ساعتها بيجدول مؤقّتات جديدة (setState → إطار، ديباونس).
+        //
+        // يعنى مرّة واحدة من كل نوع ماتكفيش: لازم لفّات بالتناوب لحد ما
+        // الاتنين يهدوا. من غيرها الشغل الفاضل بيخلص وسط الاختبار **اللى
+        // بعده** فيفشل هو.
+        for (var round = 0; round < 3; round++) {
+          await tester.runAsync(
+              () => Future<void>.delayed(const Duration(milliseconds: 60)));
+          for (var i = 0; i < 5; i++) {
+            await tester.pump(const Duration(seconds: 1));
+          }
+          clearErrors(tester);
         }
-        // 🔴 والأهم: الوقت الوهمى **مابيحرّكش** نداءات القاعدة الحقيقية
-        // (sqflite ffi). لو سبناها، بتخلص وسط الاختبار **اللى بعده** وتجدول
-        // مؤقّت هناك، فبيفشل بـ«A Timer is still pending» وهو سليم — ده
-        // اللى كان بيسقّط ٤٨ شاشة من ١٠٧. `runAsync` بيشغّل الحلقة الحقيقية
-        // فبتخلص هنا فى مكانها.
-        await tester.runAsync(
-            () => Future<void>.delayed(const Duration(milliseconds: 120)));
-        await tester.pump(const Duration(seconds: 3));
       } finally {
-        FlutterError.onError = prev;
-        tester.takeException();
+        clearErrors(tester);
       }
       for (final m in errs.toSet()) {
         found.putIfAbsent(m, () => <String>[]).add(e.key);
@@ -341,7 +391,6 @@ void main() {
   testWidgets('AppointmentForm', (t) => tapWalk(t, () => const AppointmentForm()));
   testWidgets('AppointmentsCalendarScreen', (t) => tapWalk(t, () => const AppointmentsCalendarScreen()));
   testWidgets('ArchivedDataScreen', (t) => tapWalk(t, () => const ArchivedDataScreen()));
-  testWidgets('BarcodeScanScreen', (t) => tapWalk(t, () => const BarcodeScanScreen()));
   testWidgets('CalculatorsScreen', (t) => tapWalk(t, () => const CalculatorsScreen()));
   testWidgets('CalendarScreen', (t) => tapWalk(t, () => const CalendarScreen()));
   testWidgets('ChallengesScreen', (t) => tapWalk(t, () => const ChallengesScreen()));

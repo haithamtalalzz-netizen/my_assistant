@@ -12,7 +12,11 @@ import sys
 sys.stdout.reconfigure(encoding='utf-8')
 SEP = os.sep
 
-SKIP = {'MushafScreen', 'MushafPageScreen'}
+# MushafScreen/MushafPageScreen: أصل ضخم بمؤشّر لانهائى بيسمّم اللى بعدهم.
+# BarcodeScanScreen: بيفعّل قناة كاميرا؛ الإضافة مش موجودة فى بيئة الاختبار
+#   فبترمى MissingPluginException **وقت إغلاق القناة** — يعنى بعد آخر فرصة
+#   لمسح البلاغ من جوّه الاختبار. الشاشة نفسها بتتفحص فى sizes_test.
+SKIP = {'MushafScreen', 'MushafPageScreen', 'BarcodeScanScreen'}
 
 entries = []
 for root, _, files in os.walk('lib/screens'):

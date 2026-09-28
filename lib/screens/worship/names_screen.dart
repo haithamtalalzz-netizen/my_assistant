@@ -318,9 +318,14 @@ class _NamesQuizPageState extends State<_NamesQuizPage> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: Row(
             children: [
-              Text(tr('سؤال ${arNum(_q + 1)} من ${arNum(_total)}',
-                  'Q ${arNum(_q + 1)} of ${arNum(_total)}')),
-              const Spacer(),
+              Expanded(
+                child: Text(
+                    tr('سؤال ${arNum(_q + 1)} من ${arNum(_total)}',
+                        'Q ${arNum(_q + 1)} of ${arNum(_total)}'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              ),
+              const SizedBox(width: 8),
               Text(tr('النتيجة: ${arNum(_score)}', 'Score: ${arNum(_score)}'),
                   style: const TextStyle(fontWeight: FontWeight.w800)),
             ],

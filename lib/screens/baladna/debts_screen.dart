@@ -252,8 +252,14 @@ class _DebtsScreenState extends State<DebtsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(tr('الإجمالي عليك', 'Total you owe'),
-                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      Expanded(
+                        child: Text(tr('الإجمالي عليك', 'Total you owe'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                      const SizedBox(width: 8),
                       Text(egp(total),
                           style: TextStyle(
                               fontWeight: FontWeight.w800, color: scheme.error)),

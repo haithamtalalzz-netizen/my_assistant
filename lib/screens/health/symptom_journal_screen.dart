@@ -140,10 +140,14 @@ class _SymptomJournalScreenState extends State<SymptomJournalScreen> {
                 children: [
                   Text(tr('الشدّة:', 'Severity:')),
                   const SizedBox(width: 6),
-                  Text('${arNum(severity)} — ${_sevLabel(severity)}',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: _sevColor(severity))),
+                  Expanded(
+                    child: Text('${arNum(severity)} — ${_sevLabel(severity)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: _sevColor(severity))),
+                  ),
                 ],
               ),
               Slider(

@@ -71,8 +71,11 @@ class _GymScreenState extends State<GymScreen> {
   Future<void> _pickProgram() async {
     final chosen = await showModalBottomSheet<String>(
       context: context,
+      // 🔴 الشيت كان Column ثابت — على شاشة ٦٤٠ طول بيتقصّ من تحت
+      // ٦٨px. التمرير بيخلّيه يشتغل على أى طول.
       builder: (ctx) => SafeArea(
-        child: Column(
+        child: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
@@ -91,6 +94,7 @@ class _GymScreenState extends State<GymScreen> {
                 onTap: () => Navigator.pop(ctx, key),
               ),
           ],
+        ),
         ),
       ),
     );

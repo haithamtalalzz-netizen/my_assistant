@@ -273,6 +273,8 @@ class _HabitsScreenState extends State<HabitsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(tr('تعديل عادات يوم فائت', 'Edit past-day habits'),
+                      maxLines: 2,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.w800)),
                   Row(
@@ -285,9 +287,16 @@ class _HabitsScreenState extends State<HabitsScreen> {
                             : () => setSheet(() =>
                                 day = day.subtract(const Duration(days: 1))),
                       ),
-                      Text(arFullDate(day),
-                          style:
-                              const TextStyle(fontWeight: FontWeight.w700)),
+                      // التاريخ الكامل («الأحد ٢٨ سبتمبر ٢٠٢٦») أطول من
+                      // المكان الفاضل بين الزرارين على شاشة ضيقة.
+                      Flexible(
+                        child: Text(arFullDate(day),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w700)),
+                      ),
                       IconButton(
                         icon: const Icon(Icons.chevron_left),
                         onPressed: atYesterday
@@ -560,13 +569,17 @@ class _HabitsScreenState extends State<HabitsScreen> {
             for (var d = 1; d <= dim; d++) cell(d),
           ];
 
-          return Padding(
+          // 🔴 خريطة الشهر (٣١ خانة) + العنوان + الملخّص أطول من شاشة
+          // ٦٤٠ بـ٧١px. التمرير بيحلّها على أى طول.
+          return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(h.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 8),

@@ -52,6 +52,8 @@ class _RulesScreenState extends State<RulesScreen> {
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               DropdownButtonFormField<String>(
                 initialValue: metric,
+                // بنود زى «مياه شربتها النهاردة» أطول من عرض الحوار.
+                isExpanded: true,
                 decoration: InputDecoration(labelText: tr('لو', 'When')),
                 items: [
                   for (final k in kRuleMetricKeys)
@@ -60,13 +62,13 @@ class _RulesScreenState extends State<RulesScreen> {
                 onChanged: (v) => setD(() => metric = v ?? metric),
               ),
               const SizedBox(height: 10),
-              Row(children: [
+              // Wrap: الشريحتين + خانة الرقم مايسعوش فى صفّ على ٣٢٠.
+              Wrap(spacing: 8, runSpacing: 8, children: [
                 ChoiceChip(
                   label: Text(tr('أكبر من', 'Above')),
                   selected: op == '>',
                   onSelected: (_) => setD(() => op = '>'),
                 ),
-                const SizedBox(width: 8),
                 ChoiceChip(
                   label: Text(tr('أصغر من', 'Below')),
                   selected: op == '<',

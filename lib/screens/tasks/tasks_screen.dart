@@ -408,6 +408,7 @@ class _TasksScreenState extends State<TasksScreen> {
               if (_projects.isNotEmpty) ...[
                 DropdownButtonFormField<int?>(
                   initialValue: projectId,
+                  isExpanded: true,
                   decoration:
                       InputDecoration(labelText: tr('المشروع', 'Project')),
                   items: [

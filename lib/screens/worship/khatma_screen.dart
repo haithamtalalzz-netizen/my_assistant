@@ -257,15 +257,22 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
                   Text('${arNum((k.progress * 100).round())}%',
                       style: TextStyle(
                           color: scheme.onPrimary, fontWeight: FontWeight.w700)),
+                  const SizedBox(width: 10),
                   const Spacer(),
                   if (!k.done) ...[
                     Icon(Icons.event_available,
                         size: 16, color: scheme.onPrimary),
                     const SizedBox(width: 4),
-                    Text(
-                      tr('باقى ~${arNum(days)} يوم', '~${arNum(days)} days left'),
-                      style: TextStyle(
-                          color: scheme.onPrimary, fontWeight: FontWeight.w700),
+                    Flexible(
+                      child: Text(
+                        tr('باقى ~${arNum(days)} يوم',
+                            '~${arNum(days)} days left'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color: scheme.onPrimary,
+                            fontWeight: FontWeight.w700),
+                      ),
                     ),
                   ],
                 ],

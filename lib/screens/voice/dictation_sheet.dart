@@ -157,7 +157,11 @@ class _DictationSheetState extends State<_DictationSheet> {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
+          // Wrap: تلات أزرار مايسعوش فى صفّ واحد على ٣٢٠.
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               if (!_listening && !_unavailable)
                 OutlinedButton.icon(
@@ -165,7 +169,6 @@ class _DictationSheetState extends State<_DictationSheet> {
                   icon: const Icon(Icons.mic, size: 18),
                   label: Text(tr('سجّل تانى', 'Record again')),
                 ),
-              const Spacer(),
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: Text(tr('إلغاء', 'Cancel')),

@@ -129,10 +129,15 @@ class _WalletsScreenState extends State<WalletsScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // العنوان كان Expanded والمنسدلة بتاخد عرضها الطبيعى،
+              // فاسم محفظة طويل كان بيخنق العنوان لحد ما يختفى.
               Row(
                 children: [
-                  Expanded(child: Text(tr('من', 'From'))),
-                  DropdownButton<int>(
+                  Text(tr('من', 'From')),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: DropdownButton<int>(
+                    isExpanded: true,
                     value: from,
                     items: [
                       for (final e in _items)
@@ -141,12 +146,16 @@ class _WalletsScreenState extends State<WalletsScreen> {
                     ],
                     onChanged: (v) => setD(() => from = v ?? from),
                   ),
+                  ),
                 ],
               ),
               Row(
                 children: [
-                  Expanded(child: Text(tr('إلى', 'To'))),
-                  DropdownButton<int>(
+                  Text(tr('إلى', 'To')),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: DropdownButton<int>(
+                    isExpanded: true,
                     value: to,
                     items: [
                       for (final e in _items)
@@ -154,6 +163,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
                             value: e.wallet.id, child: Text(e.wallet.name)),
                     ],
                     onChanged: (v) => setD(() => to = v ?? to),
+                  ),
                   ),
                 ],
               ),

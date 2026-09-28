@@ -223,22 +223,24 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
                       InputDecoration(labelText: tr('اسم التحليل', 'Test name'))),
               const SizedBox(height: 6),
               // اقتراحات سريعة تملى الوحدة والنطاق.
-              SizedBox(
-                height: 36,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    for (final s in kCommonLabTests)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 6),
-                        child: ActionChip(
-                          label: Text(s.name,
-                              style: const TextStyle(fontSize: 12)),
-                          onPressed: () => setD(() => applySpec(s)),
-                        ),
-                      ),
-                  ],
-                ),
+              //
+              // 🔴 كانت `ListView` أفقية جوّه `AlertDialog(scrollable: true)`
+              // — والحوار ده بيلفّ محتواه فى `IntrinsicWidth` عشان يحسب
+              // عرضه، والـviewport **بيرفض** يدّى مقاسه الطبيعى، فالتخطيط
+              // كان بيرمى «RenderViewport does not support returning
+              // intrinsic dimensions». `Wrap` مافيهاش viewport أصلاً،
+              // وبتوّرى كل الاقتراحات مش اللى يسع فى سطر.
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final s in kCommonLabTests)
+                    ActionChip(
+                      label:
+                          Text(s.name, style: const TextStyle(fontSize: 12)),
+                      onPressed: () => setD(() => applySpec(s)),
+                    ),
+                ],
               ),
               const SizedBox(height: 8),
               Row(children: [
