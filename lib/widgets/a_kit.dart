@@ -295,6 +295,48 @@ class AppHeroBar extends StatelessWidget {
       );
 }
 
+/// شريط تقدّم **على خلفية فاتحة**.
+///
+/// [AppHeroBar] أبيض لإنه متعمول للبطل الملوّن — لو اتحطّ على كارت أبيض
+/// بيختفى خالص (حصل بالظبط أول ما الرئيسية اتحوّلت لقايمة واحدة).
+class AppProgressBar extends StatelessWidget {
+  final double value;
+  final String label;
+  final Color? color;
+  const AppProgressBar(this.value, this.label, {super.key, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final c = color ?? scheme.primary;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Expanded(
+          child: Text(label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurfaceVariant)),
+        ),
+        Text('${(value.clamp(0.0, 1.0) * 100).round()}%',
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w800, color: c)),
+      ]),
+      const SizedBox(height: 7),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(99),
+        child: LinearProgressIndicator(
+            value: value.clamp(0.0, 1.0),
+            minHeight: 7,
+            backgroundColor: scheme.outlineVariant.withValues(alpha: 0.45),
+            color: c),
+      ),
+    ]);
+  }
+}
+
 /// سطر فى خط زمنى: نقطة + خط واصل + عنوان + وقت.
 class AppTimelineRow extends StatelessWidget {
   final String time;
@@ -401,6 +443,11 @@ class AppListRow extends StatelessWidget {
   final bool checked;
   final Widget? trailing;
   final bool divider;
+
+  /// سهم فتح على الطرف — للسطر اللى بيفتح صفحة بس (وزن · ضغط · فئة
+  /// مصروف). من غيره كان بيتحطّ مربّع «خلصت» على حاجة مافيش فيها حاجة
+  /// تتقفل، وده وعد كاذب.
+  final bool chevron;
   final VoidCallback? onTap;
   final VoidCallback? onCheck;
   final VoidCallback? onLongPress;
@@ -415,6 +462,7 @@ class AppListRow extends StatelessWidget {
     this.checked = false,
     this.trailing,
     this.divider = true,
+    this.chevron = false,
     this.onTap,
     this.onCheck,
     this.onLongPress,
@@ -438,7 +486,9 @@ class AppListRow extends StatelessWidget {
                         width: 1)))
             : null,
         child: Row(children: [
-          if (check)
+          // لما يبقى فيه أيقونة، المربّع بيروح للطرف التانى فالاتنين
+          // يبانوا: الأيقونة بتقول البند إيه، والمربّع بيتقفل.
+          if (check && icon == null)
             GestureDetector(
               onTap: onCheck,
               behavior: HitTestBehavior.opaque,
@@ -484,6 +534,60 @@ class AppListRow extends StatelessWidget {
                 ]),
           ),
           ?trailing,
+          if (check && icon != null)
+            GestureDetector(
+              onTap: onCheck,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 2, right: 8),
+                child: Icon(
+                    checked
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    size: 22,
+                    color: checked ? scheme.primary : scheme.outline),
+              ),
+            )
+          else if (chevron)
+            Padding(
+              padding: const EdgeInsets.only(left: 2, right: 6),
+              child: Icon(Icons.chevron_left, size: 20, color: scheme.outline),
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// عنوان مجموعة صغيّر جوّه قايمة مسطّحة («فاتك» · «دلوقتى» · «بعد كده»).
+///
+/// مش زى [AppSectionTitle]: ده أصغر وأهدى عشان القايمة تفضل قايمة واحدة
+/// من غير ما كل مجموعة تبقى كارت لوحده.
+class AppGroupHead extends StatelessWidget {
+  final String title;
+  final String? trail;
+  final VoidCallback? onTap;
+  const AppGroupHead(this.title, {super.key, this.trail, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(2, 16, 2, 6),
+        child: Row(children: [
+          Expanded(
+            child: Text(title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w800, color: muted)),
+          ),
+          if (trail != null && trail!.isNotEmpty)
+            Text(trail!,
+                style: TextStyle(
+                    fontSize: 11.5, fontWeight: FontWeight.w700, color: muted)),
         ]),
       ),
     );

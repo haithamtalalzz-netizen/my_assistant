@@ -455,10 +455,11 @@ class _TodayScreenState extends State<TodayScreen> {
         children: [
           _greetingLine(context),
           const SizedBox(height: 12),
-          _nextHero(context),
-          if (_timeline.isNotEmpty) ...[
-            const SizedBox(height: 18),
-            _timelineSection(context),
+          if (_timelineAll.isEmpty)
+            _nextHero(context)
+          else ...[
+            _progressCard(context),
+            _dayList(context),
           ],
           const SizedBox(height: 18),
           _customSectionHeader(
@@ -694,87 +695,114 @@ class _TodayScreenState extends State<TodayScreen> {
   /// - **اللى فات ولسه ما اتعملش بيتجمّع فوق** فى قسم أحمر لوحده، عشان
   ///   مايضيعش وسط باقى اليوم (كان بيتشال من العرض أصلاً لو قديم).
   /// - **علامة «تمّ» من على الخط نفسه** — مش لازم تفتح الصفحة.
-  Widget _timelineSection(BuildContext context) {
+  /// شريط تقدّم نحيف بدل البطل الكبير — الرقم هو المهم، مش المساحة.
+  Widget _progressCard(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final p = dayTimelineProgress(_timelineAll);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: AppCard(
+        Row(children: [
+          Expanded(
+            child: AppProgressBar(
+              p.total == 0 ? 0 : p.done / p.total,
+              tr('إنجاز اليوم · ${arNum(p.done)} من ${arNum(p.total)}',
+                  'Today · ${arNum(p.done)} of ${arNum(p.total)}'),
+            ),
+          ),
+          const SizedBox(width: 10),
+          InkWell(
+            onTap: _openFullDay,
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Text(tr('اليوم كله ›', 'Full day ›'),
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: scheme.primary)),
+            ),
+          ),
+        ]),
+        padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+      ),
+    );
+  }
+
+  /// **قايمة واحدة**: فاتك · دلوقتى · بعد كده · خلصت.
+  ///
+  /// قبل كده كان بطل كبير + كارت «فاتك» + كارت «خط يومك» — تلات صناديق
+  /// لنفس الحاجة، وكل واحد بيسرق مساحة. هنا كله ورا بعضه بعناوين صغيّرة،
+  /// فبتشوف يومك من غير ما تنزّل.
+  Widget _dayList(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final now = DateTime.now();
+
     final allMissed = [
       for (final e in _timelineAll)
         if (!e.done && e.at.isBefore(now)) e
     ];
-    // **أحدث ٣ بس**: جدار أحمر من ٩ بنود أسوأ من إنه مايبانش خالص، ومحدش
-    // هيلحق الفجر الساعة ٩ بالليل.
+    // أحدث ٣ بس: جدار أحمر من ٩ بنود أسوأ من إنه مايبانش، ومحدش هيلحق
+    // الفجر الساعة ٩ بالليل.
     final missed = allMissed.length <= 3
         ? allMissed
         : allMissed.sublist(allMissed.length - 3);
-    final rest = [
-      for (final e in _timeline)
-        if (!(!e.done && e.at.isBefore(now))) e
-    ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (missed.isNotEmpty) ...[
-          AppSectionTitle(tr('فاتك', 'Missed'),
-              // المعروض مختصر — الرقم بيودّى على اليوم كله.
-              onTrailingTap: _openFullDay,
-              trailing: allMissed.length > missed.length
-                  ? tr('${arNum(missed.length)} من ${arNum(allMissed.length)} ›',
-                      '${arNum(missed.length)} of ${arNum(allMissed.length)} ›')
-                  : tr('${arNum(allMissed.length)} ›', '${arNum(allMissed.length)} ›')),
-          AppCard(Column(children: [
-            for (var i = 0; i < missed.length; i++)
-              _timelineRow(missed[i], scheme,
-                  last: i == missed.length - 1, missed: true),
-          ])),
-          const SizedBox(height: 18),
-        ],
-        // كارت فاضى مالوش لازمة — لو كل اللى فاضل فايت، «فاتك» يكفى.
-        if (rest.isNotEmpty) ...[
-          AppSectionTitle(tr('خط يومك', 'Your day'),
-              onTrailingTap: _openFullDay,
-              trailing: tr('${arNum(p.done)} من ${arNum(p.total)} خلصوا ›',
-                  '${arNum(p.done)} of ${arNum(p.total)} done ›')),
-          AppCard(Column(children: [
-            for (var i = 0; i < rest.length; i++)
-              _timelineRow(rest[i], scheme, last: i == rest.length - 1),
-          ])),
-        ],
-      ],
-    );
-  }
 
-  /// سطر على الخط — الضغط على الدايرة بيعلّم «تمّ»، والضغط على السطر بيفتح.
-  Widget _timelineRow(TimelineEvent e, ColorScheme scheme,
-      {bool last = false, bool missed = false}) {
-    final tint = missed ? scheme.error : _kindColor(e.kind, scheme);
-    return Row(children: [
-      // دايرة الإنجاز: مساحة ضغط واسعة عشان تتلمس بالإصبع بسهولة.
-      InkWell(
-        onTap: () => _setEventDone(e, !e.done),
-        customBorder: const CircleBorder(),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(
-              e.done ? Icons.check_circle : Icons.radio_button_unchecked,
-              size: 22,
-              color: e.done ? scheme.primary : tint),
-        ),
-      ),
-      Expanded(
-        child: AppTimelineRow(
-          time: e.timeLabel,
+    final upcoming = [
+      for (final e in _timelineAll)
+        if (!e.done && !e.at.isBefore(now)) e
+    ];
+    final soon = upcoming.take(1).toList();
+    final later = upcoming.skip(1).toList();
+    final done = [
+      for (final e in _timelineAll)
+        if (e.done) e
+    ];
+    final doneShown = done.length <= 2 ? done : done.sublist(0, 2);
+
+    Widget row(TimelineEvent e, {bool missedRow = false}) => AppListRow(
           title: e.title,
-          sub: missed && e.sub.isEmpty
+          sub: missedRow && e.sub.isEmpty
               ? tr('فات ميعاده', 'Overdue')
               : e.sub,
-          tint: tint,
-          done: e.done,
-          last: last,
-          showDot: false,
+          icon: _kindIcon(e.kind),
+          tint: missedRow ? scheme.error : _kindColor(e.kind, scheme),
+          check: true,
+          checked: e.done,
+          onCheck: () => _setEventDone(e, !e.done),
           onTap: () => _openEvent(e),
-        ),
-      ),
+          trailing: Padding(
+            padding: const EdgeInsets.only(left: 6),
+            child: Text(e.timeLabel,
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSurfaceVariant)),
+          ),
+        );
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (missed.isNotEmpty) ...[
+        AppGroupHead(tr('فاتك', 'Missed'),
+            trail: allMissed.length > missed.length
+                ? tr('${arNum(missed.length)} من ${arNum(allMissed.length)} ›',
+                    '${arNum(missed.length)} of ${arNum(allMissed.length)} ›')
+                : arNum(allMissed.length),
+            onTap: _openFullDay),
+        for (final e in missed) row(e, missedRow: true),
+      ],
+      if (soon.isNotEmpty) ...[
+        AppGroupHead(tr('دلوقتى', 'Now')),
+        for (final e in soon) row(e),
+      ],
+      if (later.isNotEmpty) ...[
+        AppGroupHead(tr('بعد كده', 'Later'), trail: arNum(later.length)),
+        for (final e in later) row(e),
+      ],
+      if (doneShown.isNotEmpty)
+        AppGroupHead(tr('خلصت', 'Done'),
+            trail: tr('${arNum(done.length)} ›', '${arNum(done.length)} ›'),
+            onTap: _openFullDay),
+      for (final e in doneShown) row(e),
     ]);
   }
 
