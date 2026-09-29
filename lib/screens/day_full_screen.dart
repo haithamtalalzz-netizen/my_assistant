@@ -54,6 +54,13 @@ class _DayFullScreenState extends State<DayFullScreen> {
         TimelineKind.task => Colors.orange,
       };
 
+  IconData _kindIcon(TimelineKind k) => switch (k) {
+        TimelineKind.prayer => Icons.mosque,
+        TimelineKind.appointment => Icons.event,
+        TimelineKind.med => Icons.medication_outlined,
+        TimelineKind.task => Icons.checklist,
+      };
+
   String _kindLabel(TimelineKind k) => switch (k) {
         TimelineKind.prayer => tr('صلاة', 'Prayer'),
         TimelineKind.appointment => tr('موعد', 'Appointment'),
@@ -83,20 +90,17 @@ class _DayFullScreenState extends State<DayFullScreen> {
         {String? hint, bool missed = false}) {
       if (list.isEmpty) return const SizedBox.shrink();
       return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        AppPad(AppSectionTitle(title, trailing: arNum(list.length))),
+        AppPad(AppGroupHead(title, trail: arNum(list.length))),
         if (hint != null)
           AppPad(
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: 6),
               child: Text(hint,
                   style: TextStyle(fontSize: 12, color: scheme.outline)),
             ),
           ),
-        AppPad(AppCard(Column(children: [
-          for (var i = 0; i < list.length; i++)
-            _row(list[i], last: i == list.length - 1, missed: missed),
-        ]))),
-        const SizedBox(height: 18),
+        for (var i = 0; i < list.length; i++)
+          AppPad(_row(list[i], last: i == list.length - 1, missed: missed)),
       ]);
     }
 
@@ -148,32 +152,28 @@ class _DayFullScreenState extends State<DayFullScreen> {
     final scheme = Theme.of(context).colorScheme;
     final tint = missed ? scheme.error : _kindColor(e.kind, scheme);
     final color = e.done ? scheme.primary : tint;
-    return Row(children: [
-      InkWell(
-        // الاتجاهين: يعلّم ويرجّع. ده كان ناقص خالص — البند اللى اتعلّم
-        // كان بيختفى وخلاص.
-        onTap: _busy ? null : () => _toggle(e),
-        customBorder: const CircleBorder(),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(
-              e.done ? Icons.check_circle : Icons.radio_button_unchecked,
-              size: 22,
-              color: e.done ? scheme.primary : tint),
-        ),
+    // نفس سطر الرئيسية بالظبط: أيقونة نوع البند + الوقت + مربّع بيتقفل
+    // ويترجّع. (كان كارت لكل مجموعة، والصفحة تطلع صناديق جوّه صناديق.)
+    return AppListRow(
+      title: e.title,
+      sub: e.sub.isEmpty
+          ? _kindLabel(e.kind)
+          : '${_kindLabel(e.kind)} • ${e.sub}',
+      icon: _kindIcon(e.kind),
+      tint: color,
+      check: true,
+      checked: e.done,
+      divider: !last,
+      onCheck: _busy ? null : () => _toggle(e),
+      onTap: () => widget.onOpen(e),
+      trailing: Padding(
+        padding: const EdgeInsets.only(left: 6),
+        child: Text(e.timeLabel,
+            style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: scheme.onSurfaceVariant)),
       ),
-      Expanded(
-        child: AppTimelineRow(
-          time: e.timeLabel,
-          title: e.title,
-          sub: e.sub.isEmpty ? _kindLabel(e.kind) : '${_kindLabel(e.kind)} • ${e.sub}',
-          tint: color,
-          done: e.done,
-          last: last,
-          showDot: false,
-          onTap: () => widget.onOpen(e),
-        ),
-      ),
-    ]);
+    );
   }
 }
