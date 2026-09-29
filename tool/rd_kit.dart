@@ -502,22 +502,24 @@ Widget rdChips(RdLook k, List<String> labels, {int active = 0}) => Row(
 /// 🔴 لازم Theme + Material حوالين كل موبايل: من غيرهم مافيش
 /// DefaultTextStyle، فـ`TextStyle` الفاضية بتاخد الخط الافتراضى (مالوش
 /// عربى) وكل الكلام يطلع **مربّعات** والصورة تكذب عليك.
-Widget rdPhone(RdLook k, {required List<Widget> children, Widget? fab}) =>
+Widget rdPhone(RdLook k,
+        {required List<Widget> children, Widget? fab, double height = 760}) =>
     Theme(
       data: rdTheme(k),
       child: Material(
         color: k.bg,
         child: DefaultTextStyle(
           style: TextStyle(fontFamily: 'Cairo', color: k.ink, fontSize: 13),
-          child: _rdPhoneBody(k, children, fab),
+          child: _rdPhoneBody(k, children, fab, height),
         ),
       ),
     );
 
-Widget _rdPhoneBody(RdLook k, List<Widget> children, Widget? fab) =>
+Widget _rdPhoneBody(
+        RdLook k, List<Widget> children, Widget? fab, double height) =>
     Container(
       width: 360,
-      height: 760,
+      height: height,
       color: k.bg,
       child: Stack(children: [
         // زى الشاشة الحقيقية: اللى مايبانش بيروح تحت الطيّة مش بيطلع «مقصوص».
