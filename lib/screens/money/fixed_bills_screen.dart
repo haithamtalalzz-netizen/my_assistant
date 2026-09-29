@@ -125,6 +125,18 @@ class _FixedBillsScreenState extends State<FixedBillsScreen> {
     amount.dispose();
   }
 
+  Future<void> _markPaid(RecurringBill b) async {
+    await _repo.markPaid(b.id!);
+    if (mounted) await _load();
+  }
+
+  /// الشهر الحالى YYYY-MM — عشان نعرف الفاتورة اتدفعت ولا لأ.
+  String get _thisMonth {
+    final n = DateTime.now();
+    return '${n.year.toString().padLeft(4, '0')}-'
+        '${n.month.toString().padLeft(2, '0')}';
+  }
+
   Future<void> _delete(RecurringBill b) async {
     if (!await confirmDelete(
         context, tr('فاتورة "${b.name}"', 'bill "${b.name}"'))) {
@@ -198,11 +210,27 @@ class _FixedBillsScreenState extends State<FixedBillsScreen> {
                           trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                if (_bills[i].isDue(now))
+                                // زى «قبضته» فى الدخل بالظبط.
+                                if (_bills[i].lastPaidMonth == _thisMonth)
                                   Padding(
                                     padding: const EdgeInsets.only(left: 6),
-                                    child: Icon(Icons.priority_high,
-                                        size: 16, color: scheme.error),
+                                    child: Icon(Icons.check_circle,
+                                        size: 16,
+                                        color: const Color(0xFF10B981)),
+                                  )
+                                else
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 4),
+                                    child: TextButton(
+                                      onPressed: () => _markPaid(_bills[i]),
+                                      style: TextButton.styleFrom(
+                                          visualDensity: VisualDensity.compact,
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8)),
+                                      child: Text(tr('اتدفعت', 'Paid'),
+                                          style:
+                                              const TextStyle(fontSize: 11.5)),
+                                    ),
                                   ),
                                 Text(arMoney(_bills[i].amount.round()),
                                     style: const TextStyle(

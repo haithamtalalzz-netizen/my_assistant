@@ -18,7 +18,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 65,
+      version: 66,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -438,6 +438,23 @@ class AppDb {
       // نسخة JSON الاحتياطية بتاخد الصور معاها أوتوماتيك.
       for (final ddl in _v60Tables) {
         await db.execute(ddl);
+      }
+    }
+    if (oldV < 66 && newV >= 66) {
+      // المحافظ: الذهب والفضة قيمتهم بتتحسب (وزن × سعر الجرام × نقاوة
+      // العيار)، والبنك ممكن يبقى شهادة بعائد شهرى وتاريخ انتهاء.
+      // كلها أعمدة بقيم افتراضية → المحافظ القديمة تفضل صالحة زى ما هى،
+      // واللى قيمته مكتوبة يدوى بيفضل على `opening_balance`.
+      const cols = {
+        'grams': 'REAL NOT NULL DEFAULT 0',
+        'karat': 'REAL NOT NULL DEFAULT 0',
+        'gram_price': 'REAL NOT NULL DEFAULT 0',
+        'bank_kind': "TEXT NOT NULL DEFAULT 'available'",
+        'monthly_interest': 'REAL NOT NULL DEFAULT 0',
+        'maturity': "TEXT NOT NULL DEFAULT ''",
+      };
+      for (final e in cols.entries) {
+        await _addColumnIfMissing(db, 'wallets', e.key, e.value);
       }
     }
     if (oldV < 65 && newV >= 65) {
@@ -1061,7 +1078,13 @@ class AppDb {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         type TEXT NOT NULL DEFAULT 'cash',
-        opening_balance REAL NOT NULL DEFAULT 0
+        opening_balance REAL NOT NULL DEFAULT 0,
+        grams REAL NOT NULL DEFAULT 0,
+        karat REAL NOT NULL DEFAULT 0,
+        gram_price REAL NOT NULL DEFAULT 0,
+        bank_kind TEXT NOT NULL DEFAULT 'available',
+        monthly_interest REAL NOT NULL DEFAULT 0,
+        maturity TEXT NOT NULL DEFAULT ''
       )''',
     '''
       CREATE TABLE wallet_transfers(

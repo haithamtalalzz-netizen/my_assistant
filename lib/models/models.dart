@@ -711,15 +711,41 @@ class Wallet {
   final int? id;
   final String name;
 
-  /// cash / bank / mobile / other.
+  /// cash / bank / card / mobile / gold / silver / asset / livestock / other.
   final String type;
   final double openingBalance;
+
+  // ——— ذهب وفضة: القيمة بتتحسب، مش بتتكتب ———
+  /// الوزن بالجرام.
+  final double grams;
+
+  /// العيار: ٢٤ / ٢٢ / ٢١ / ١٨ للذهب، و٩٩٩ / ٩٢٥ للفضة.
+  final double karat;
+
+  /// سعر جرام العيار الأصلى فى السوق (٢٤ للذهب · ٩٩٩ للفضة).
+  final double gramPrice;
+
+  // ——— البنوك ———
+  /// available = متاح تسحب منه · certificate = شهادة.
+  final String bankKind;
+
+  /// العائد الشهرى للشهادة.
+  final double monthlyInterest;
+
+  /// تاريخ انتهاء الشهادة YYYY-MM-DD (فاضى = مفيش).
+  final String maturity;
 
   const Wallet({
     this.id,
     required this.name,
     this.type = 'cash',
     this.openingBalance = 0,
+    this.grams = 0,
+    this.karat = 0,
+    this.gramPrice = 0,
+    this.bankKind = 'available',
+    this.monthlyInterest = 0,
+    this.maturity = '',
   });
 
   factory Wallet.fromMap(Map<String, Object?> m) => Wallet(
@@ -727,12 +753,24 @@ class Wallet {
         name: m['name'] as String,
         type: m['type'] as String? ?? 'cash',
         openingBalance: (m['opening_balance'] as num?)?.toDouble() ?? 0,
+        grams: (m['grams'] as num?)?.toDouble() ?? 0,
+        karat: (m['karat'] as num?)?.toDouble() ?? 0,
+        gramPrice: (m['gram_price'] as num?)?.toDouble() ?? 0,
+        bankKind: m['bank_kind'] as String? ?? 'available',
+        monthlyInterest: (m['monthly_interest'] as num?)?.toDouble() ?? 0,
+        maturity: m['maturity'] as String? ?? '',
       );
 
   Map<String, Object?> toMap() => {
         'name': name,
         'type': type,
         'opening_balance': openingBalance,
+        'grams': grams,
+        'karat': karat,
+        'gram_price': gramPrice,
+        'bank_kind': bankKind,
+        'monthly_interest': monthlyInterest,
+        'maturity': maturity,
       };
 }
 

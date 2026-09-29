@@ -23,6 +23,7 @@ import 'package:my_assistant/data/wallets_repo.dart';
 import 'package:my_assistant/screens/money/money_screen.dart';
 import 'package:my_assistant/screens/money/recurring_income_screen.dart';
 import 'package:my_assistant/screens/money/fixed_bills_screen.dart';
+import 'package:my_assistant/screens/money/wallets_screen.dart';
 import 'package:my_assistant/data/notes_repo.dart';
 import 'package:my_assistant/data/wardrobe_repo.dart';
 import 'package:my_assistant/data/health_repo.dart';
@@ -335,6 +336,36 @@ void main() {
     final f = await shot(tester, 'real_bills',
         shotApp(buildTheme(), const FixedBillsScreen()),
         size: const Size(390, 640), pixelRatio: 2);
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('المحافظ — ذهب وفضة وشهادة', (tester) async {
+    final w = WalletsRepo();
+    await w.save(const Wallet(name: 'كاش', type: 'cash', openingBalance: 13055));
+    await w.save(const Wallet(
+        name: 'شهادة الأهلى',
+        type: 'bank',
+        openingBalance: 100000,
+        bankKind: 'certificate',
+        monthlyInterest: 1750,
+        maturity: '2029-03-01'));
+    await w.save(const Wallet(
+        name: 'ذهب الفرح',
+        type: 'gold',
+        grams: 50,
+        karat: 21,
+        gramPrice: 5000));
+    await w.save(const Wallet(
+        name: 'فضة',
+        type: 'silver',
+        grams: 300,
+        karat: 925,
+        gramPrice: 55));
+    await w.save(const Wallet(
+        name: 'شقة المعادى', type: 'asset', openingBalance: 750000));
+    final f = await shot(tester, 'real_wallets',
+        shotApp(buildTheme(), const WalletsScreen()),
+        size: const Size(390, 720), pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
   });
 

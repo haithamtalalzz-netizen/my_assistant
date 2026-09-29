@@ -1645,6 +1645,51 @@ void main() {
     });
   });
 
+  group('ترقية قاعدة البيانات v65 ← v66', () {
+    test('محفظة قديمة بتاخد الأعمدة الجديدة من غير ما تضيع', () async {
+      final v65 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      // جدول المحافظ بشكله القديم + صفّ فيه فلوس حقيقية.
+      await v65.execute('''
+        CREATE TABLE wallets(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          type TEXT NOT NULL DEFAULT 'cash',
+          opening_balance REAL NOT NULL DEFAULT 0
+        )''');
+      await v65.insert('wallets',
+          {'name': 'كاش', 'type': 'cash', 'opening_balance': 3200});
+
+      await AppDb.upgradeSchema(v65, 65, 66);
+
+      final rows = await v65.query('wallets');
+      expect(rows.length, 1, reason: 'الصفّ القديم مايضيعش');
+      expect((rows.first['opening_balance'] as num).toDouble(), 3200);
+      expect(rows.first['bank_kind'], 'available');
+      expect((rows.first['grams'] as num).toDouble(), 0);
+      expect(rows.first['maturity'], '');
+      await v65.close();
+    });
+
+    test('الترقية تتنفّذ مرتين من غير ما تكسر', () async {
+      final db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await db.execute('''
+        CREATE TABLE wallets(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          type TEXT NOT NULL DEFAULT 'cash',
+          opening_balance REAL NOT NULL DEFAULT 0
+        )''');
+      await AppDb.upgradeSchema(db, 65, 66);
+      // ALTER TABLE ADD COLUMN بيرمى لو اتنفّذ تانى — والقاعدة ماتفتحش.
+      await AppDb.upgradeSchema(db, 65, 66);
+      final info = await db.rawQuery('PRAGMA table_info(wallets)');
+      expect(info.where((r) => r['name'] == 'grams').length, 1);
+      await db.close();
+    });
+  });
+
   group('ترقية قاعدة البيانات v26 ← v27', () {
     test('جدول دفعات الصيدلية بيتعمل', () async {
       final v26 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
@@ -6744,6 +6789,79 @@ void main() {
       expect(isValueOnlyWallet('livestock'), isTrue);
       expect(isValueOnlyWallet('cash'), isFalse);
       expect(isValueOnlyWallet('bank'), isFalse);
+    });
+  });
+
+  group('الذهب والفضة والشهادات', () {
+    test('قيمة الذهب = الوزن × سعر الجرام × نقاوة العيار', () {
+      // ٥٠ جرام عيار ٢١ وسعر جرام الـ٢٤ = ٥٬٠٠٠ → 50×5000×(21/24)
+      expect(
+          metalValue(type: 'gold', grams: 50, karat: 21, gramPrice: 5000),
+          218750);
+      // عيار ٢٤ = نقاوة كاملة
+      expect(
+          metalValue(type: 'gold', grams: 10, karat: 24, gramPrice: 5000),
+          50000);
+    });
+
+    test('الفضة نقاوتها على ٩٩٩ مش على ٢٤', () {
+      expect(metalBaseKarat('silver'), 999);
+      expect(metalBaseKarat('gold'), 24);
+      final v = metalValue(type: 'silver', grams: 100, karat: 925, gramPrice: 50);
+      expect(v, closeTo(100 * 50 * (925 / 999), 0.001));
+    });
+
+    test('من غير وزن أو سعر = صفر مش رقم غلط', () {
+      expect(metalValue(type: 'gold', grams: 0, karat: 21, gramPrice: 5000), 0);
+      expect(metalValue(type: 'gold', grams: 50, karat: 21, gramPrice: 0), 0);
+    });
+
+    test('الذهب والفضة بندين منفصلين', () {
+      expect(kWalletTypes.contains('gold'), isTrue);
+      expect(kWalletTypes.contains('silver'), isTrue);
+      expect(isMetalWallet('gold'), isTrue);
+      expect(isMetalWallet('silver'), isTrue);
+      expect(isMetalWallet('bank'), isFalse);
+    });
+
+    test('رصيد محفظة ذهب بيتحسب مش بيتكتب', () async {
+      final w = WalletsRepo();
+      await w.save(const Wallet(
+          name: 'ذهب الفرح',
+          type: 'gold',
+          grams: 50,
+          karat: 21,
+          gramPrice: 5000));
+      final list = await w.allWithBalances();
+      expect(list.single.balance, 218750);
+    });
+
+    test('الشهادة بتحفظ العائد الشهرى وتاريخ الانتهاء', () async {
+      final w = WalletsRepo();
+      await w.save(const Wallet(
+          name: 'شهادة البنك الأهلى',
+          type: 'bank',
+          openingBalance: 100000,
+          bankKind: 'certificate',
+          monthlyInterest: 1750,
+          maturity: '2029-03-01'));
+      final saved = (await w.all()).single;
+      expect(saved.bankKind, 'certificate');
+      expect(saved.monthlyInterest, 1750);
+      expect(saved.maturity, '2029-03-01');
+      // قيمتها فى الإجمالى = أصل الشهادة، والعائد بيتعرض لوحده.
+      expect(await w.totalBalance(), 100000);
+    });
+
+    test('محفظة قديمة (من غير الأعمدة الجديدة) تفضل شغّالة', () async {
+      final db = await AppDb.instance;
+      // إدخال بالأعمدة القديمة بس — زى صفّ اتكتب قبل الترقية.
+      await db.insert('wallets',
+          {'name': 'كاش قديم', 'type': 'cash', 'opening_balance': 2500});
+      final list = await WalletsRepo().allWithBalances();
+      expect(list.single.balance, 2500);
+      expect(list.single.wallet.bankKind, 'available');
+      expect(list.single.wallet.grams, 0);
     });
   });
 

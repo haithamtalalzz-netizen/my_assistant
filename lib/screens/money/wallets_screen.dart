@@ -36,79 +36,260 @@ class _WalletsScreenState extends State<WalletsScreen> {
     });
   }
 
-  IconData _iconFor(String type) => switch (type) {
-        'cash' => Icons.payments_outlined,
-        'bank' => Icons.account_balance_outlined,
-        'card' => Icons.credit_card,
-        'mobile' => Icons.phone_android_outlined,
-        _ => Icons.wallet_outlined,
-      };
+
+
+  /// وصف المحفظة تحت اسمها — بيقول اللى يخصّ نوعها:
+  /// المعدن وزنه وعياره، والشهادة عائدها وميعاد انتهائها، والباقى
+  /// نصيبه من إجمالى فلوسك.
+  String _walletSub(Wallet w, double balance) {
+    final type = walletTypeLabel(w.type);
+    if (isMetalWallet(w.type) && w.grams > 0) {
+      return '$type · ${arNum(w.grams.round())} '
+          '${tr('جرام', 'g')} · ${metalKaratLabel(w.type, w.karat)}';
+    }
+    if (w.type == 'bank' && w.bankKind == 'certificate') {
+      final bits = <String>[tr('شهادة', 'Certificate')];
+      if (w.monthlyInterest > 0) {
+        bits.add(tr('عائد ${arMoney(w.monthlyInterest.round())} فى الشهر',
+            '${arMoney(w.monthlyInterest.round())} monthly'));
+      }
+      final end = DateTime.tryParse(w.maturity);
+      if (end != null) {
+        final left = end.difference(dateOnly(DateTime.now())).inDays;
+        bits.add(left >= 0
+            ? tr('تنتهى ${arShortDate(end)} (باقى ${arNum(left)} يوم)',
+                'matures ${arShortDate(end)} (${arNum(left)}d)')
+            : tr('انتهت ${arShortDate(end)}', 'matured ${arShortDate(end)}'));
+      }
+      return bits.join(' · ');
+    }
+    if (_total > 0 && balance > 0) {
+      return '$type · ${arNum((balance / _total * 100).round())}٪ '
+          '${tr('من إجمالى فلوسك', 'of total')}';
+    }
+    return type;
+  }
 
   Future<void> _walletForm([Wallet? w]) async {
     final name = TextEditingController(text: w?.name ?? '');
     final opening = TextEditingController(
-        text: w == null ? '' : w.openingBalance.toStringAsFixed(0));
+        text: w == null || w.openingBalance == 0
+            ? ''
+            : w.openingBalance.toStringAsFixed(0));
+    final grams = TextEditingController(
+        text: w == null || w.grams == 0 ? '' : w.grams.toStringAsFixed(0));
+    final gramPrice = TextEditingController(
+        text: w == null || w.gramPrice == 0
+            ? ''
+            : w.gramPrice.toStringAsFixed(0));
+    final interest = TextEditingController(
+        text: w == null || w.monthlyInterest == 0
+            ? ''
+            : w.monthlyInterest.toStringAsFixed(0));
+
     var type = w?.type ?? kWalletTypes.first;
+    var karat = w != null && w.karat > 0 ? w.karat : metalKarats(type).first;
+    var bankKind = w?.bankKind ?? kBankKinds.first;
+    DateTime? maturity =
+        w == null || w.maturity.isEmpty ? null : DateTime.tryParse(w.maturity);
+
     final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) => AlertDialog(
-          scrollable: true,
-          title: Text(w == null ? tr('محفظة جديدة', 'New wallet') : tr('تعديل', 'Edit')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+        builder: (ctx, setD) {
+          final metal = isMetalWallet(type);
+          // القيمة بتتحدّث وأنت بتكتب — عشان تشوف الحساب قبل ما تحفظ.
+          final live = metalValue(
+              type: type,
+              grams: parseNumber(grams.text) ?? 0,
+              karat: karat,
+              gramPrice: parseNumber(gramPrice.text) ?? 0);
+          return AlertDialog(
+            scrollable: true,
+            title: Text(w == null
+                ? tr('محفظة جديدة', 'New wallet')
+                : tr('تعديل', 'Edit')),
+            content: Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(
                 controller: name,
                 autofocus: w == null,
                 decoration: InputDecoration(
-                    labelText: tr('الاسم (كاش، بنك مصر...)',
-                        'Name (cash, bank...)')),
+                    labelText: tr('الاسم (كاش · بنك مصر · شقة المعادى…)',
+                        'Name (cash, bank, flat…)')),
               ),
               const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                children: [
-                  for (final t in kWalletTypes)
+              Wrap(spacing: 6, runSpacing: 6, children: [
+                for (final t in kWalletTypes)
+                  ChoiceChip(
+                    label: Text(walletTypeLabel(t)),
+                    selected: type == t,
+                    onSelected: (_) => setD(() {
+                      type = t;
+                      if (isMetalWallet(t)) karat = metalKarats(t).first;
+                    }),
+                  ),
+              ]),
+              const SizedBox(height: 10),
+
+              // ——— ذهب / فضة: الوزن والعيار وسعر الجرام ———
+              if (metal) ...[
+                TextField(
+                  controller: grams,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setD(() {}),
+                  decoration: InputDecoration(
+                      labelText: tr('الوزن بالجرام', 'Weight in grams')),
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(tr('العيار', 'Karat'),
+                      style: const TextStyle(fontSize: 12.5)),
+                ),
+                const SizedBox(height: 4),
+                Wrap(spacing: 6, runSpacing: 6, children: [
+                  for (final k in metalKarats(type))
                     ChoiceChip(
-                      label: Text(walletTypeLabel(t)),
-                      selected: type == t,
-                      onSelected: (_) => setD(() => type = t),
+                      label: Text(metalKaratLabel(type, k)),
+                      selected: karat == k,
+                      onSelected: (_) => setD(() => karat = k),
                     ),
+                ]),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: gramPrice,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setD(() {}),
+                  decoration: InputDecoration(
+                    labelText: tr(
+                        'سعر جرام ${metalKaratLabel(type, metalBaseKarat(type))} فى السوق',
+                        'Market price per gram (${metalKaratLabel(type, metalBaseKarat(type))})'),
+                    helperText: tr('سعر السوق النهاردة — عدّله وقت ما تحب',
+                        "Today's market price — edit any time"),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: walletTypeColor(type).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(tr('قيمتها', 'Its value'),
+                            style: const TextStyle(fontSize: 12)),
+                        const SizedBox(height: 2),
+                        Text(live > 0 ? arMoney(live.round()) : '—',
+                            style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                color: walletTypeColor(type))),
+                        Text(
+                            tr('الوزن × سعر الجرام × نقاوة العيار',
+                                'grams × price × purity'),
+                            style: const TextStyle(fontSize: 11)),
+                      ]),
+                ),
+              ]
+
+              // ——— بنك: متاح ولا شهادة ———
+              else ...[
+                if (type == 'bank') ...[
+                  Wrap(spacing: 6, children: [
+                    for (final b in kBankKinds)
+                      ChoiceChip(
+                        label: Text(bankKindLabel(b)),
+                        selected: bankKind == b,
+                        onSelected: (_) => setD(() => bankKind = b),
+                      ),
+                  ]),
+                  const SizedBox(height: 10),
                 ],
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: opening,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                    labelText: tr('الرصيد الحالي (ج.م)', 'Current balance (EGP)')),
-              ),
+                TextField(
+                  controller: opening,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                      labelText: type == 'bank' && bankKind == 'certificate'
+                          ? tr('قيمة الشهادة', 'Certificate amount')
+                          : isValueOnlyWallet(type)
+                              ? tr('قيمتها التقديرية', 'Estimated value')
+                              : tr('الرصيد الحالى', 'Current balance')),
+                ),
+                if (type == 'bank' && bankKind == 'certificate') ...[
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: interest,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                        labelText: tr('العائد الشهرى', 'Monthly interest')),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final now = DateTime.now();
+                      final d = await showDatePicker(
+                        context: ctx,
+                        initialDate: maturity ??
+                            DateTime(now.year + 1, now.month, now.day),
+                        firstDate: DateTime(now.year - 1),
+                        lastDate: DateTime(now.year + 30),
+                      );
+                      if (d != null) setD(() => maturity = d);
+                    },
+                    icon: const Icon(Icons.event, size: 18),
+                    label: Text(maturity == null
+                        ? tr('تاريخ انتهاء الشهادة', 'Maturity date')
+                        : tr('تنتهى ${arShortDate(maturity!)}',
+                            'Matures ${arShortDate(maturity!)}')),
+                  ),
+                ],
+              ],
+            ]),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(tr('إلغاء', 'Cancel'))),
+              FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text(tr('حفظ', 'Save'))),
             ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(tr('إلغاء', 'Cancel'))),
-            FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: Text(tr('حفظ', 'Save'))),
-          ],
-        ),
+          );
+        },
       ),
     );
+
     if (saved == true && name.text.trim().isNotEmpty) {
+      final metal = isMetalWallet(type);
       await _repo.save(Wallet(
         id: w?.id,
         name: name.text.trim(),
         type: type,
-        openingBalance: parseNumber(opening.text) ?? 0,
+        openingBalance: metal ? 0 : (parseNumber(opening.text) ?? 0),
+        grams: metal ? (parseNumber(grams.text) ?? 0) : 0,
+        karat: metal ? karat : 0,
+        gramPrice: metal ? (parseNumber(gramPrice.text) ?? 0) : 0,
+        bankKind: type == 'bank' ? bankKind : 'available',
+        monthlyInterest: type == 'bank' && bankKind == 'certificate'
+            ? (parseNumber(interest.text) ?? 0)
+            : 0,
+        maturity: type == 'bank' && bankKind == 'certificate' && maturity != null
+            ? dayKey(maturity!)
+            : '',
       ));
       if (mounted) await _load();
     }
     name.dispose();
     opening.dispose();
+    grams.dispose();
+    gramPrice.dispose();
+    interest.dispose();
   }
 
   Future<void> _transfer() async {
@@ -235,7 +416,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
                                 style: TextStyle(
                                     color: scheme.onPrimaryContainer
                                         .withValues(alpha: 0.8))),
-                            Text(egp(_total),
+                            Text(egp(_total.round()),
                                 style: Theme.of(context)
                                     .textTheme
                                     .headlineSmall
@@ -251,16 +432,14 @@ class _WalletsScreenState extends State<WalletsScreen> {
                       Card(
                         margin: const EdgeInsets.symmetric(vertical: 3),
                         child: ListTile(
-                          leading: Icon(_iconFor(e.wallet.type),
-                              color: scheme.primary),
+                          leading: Icon(walletTypeIcon(e.wallet.type),
+                              color: walletTypeColor(e.wallet.type)),
                           title: Text(e.wallet.name),
-                          subtitle: Text(_total > 0 && e.balance > 0
-                              ? '${walletTypeLabel(e.wallet.type)} · ${arNum((e.balance / _total * 100).round())}٪ ${tr('من إجمالى فلوسك', 'of total')}'
-                              : walletTypeLabel(e.wallet.type)),
+                          subtitle: Text(_walletSub(e.wallet, e.balance)),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(egp(e.balance),
+                              Text(egp(e.balance.round()),
                                   style: TextStyle(
                                       fontWeight: FontWeight.w700,
                                       color: e.balance < 0

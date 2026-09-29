@@ -11,6 +11,7 @@ const List<String> kWalletTypes = [
   'card',
   'mobile',
   'gold',
+  'silver',
   'asset',
   'livestock',
   'other',
@@ -21,7 +22,8 @@ String walletTypeLabel(String t) => switch (t) {
       'bank' => tr('بنك', 'Bank'),
       'card' => tr('فيزا / كارت ائتمان', 'Credit card'),
       'mobile' => tr('محفظة موبايل', 'Mobile wallet'),
-      'gold' => tr('ذهب وفضة', 'Gold & silver'),
+      'gold' => tr('ذهب', 'Gold'),
+      'silver' => tr('فضة', 'Silver'),
       'asset' => tr('أصل (بيت · عربية · أرض)', 'Asset'),
       'livestock' => tr('مواشى', 'Livestock'),
       'other' => tr('أخرى', 'Other'),
@@ -32,7 +34,46 @@ String walletTypeLabel(String t) => switch (t) {
 ///
 /// الذهب والأصول والمواشى مالهاش «دخل ومصروف» — قيمتها بتتحدّث لما
 /// تقدّرها من جديد، فبتتكتب فى الرصيد الافتتاحى وخلاص.
-const Set<String> kValueOnlyWalletTypes = {'gold', 'asset', 'livestock'};
+const Set<String> kValueOnlyWalletTypes = {
+  'gold',
+  'silver',
+  'asset',
+  'livestock'
+};
+
+/// المعادن: قيمتها **بتتحسب** من الوزن والعيار وسعر الجرام.
+const Set<String> kMetalWalletTypes = {'gold', 'silver'};
+
+bool isMetalWallet(String type) => kMetalWalletTypes.contains(type);
+
+/// العيارات المتاحة لكل معدن، والرقم الأصلى اللى النقاوة بتتقاس عليه.
+///
+/// الذهب: عيار ٢٤ = ذهب صافى، فعيار ٢١ نقاوته ٢١÷٢٤.
+/// الفضة: ٩٩٩ = فضة صافية، فـ٩٢٥ نقاوتها ٩٢٥÷٩٩٩.
+List<double> metalKarats(String type) =>
+    type == 'silver' ? const [999, 925, 800] : const [24, 22, 21, 18, 14];
+
+double metalBaseKarat(String type) => type == 'silver' ? 999 : 24;
+
+String metalKaratLabel(String type, double k) => type == 'silver'
+    ? tr('فضة ${arNum(k.round())}', '${arNum(k.round())} silver')
+    : tr('عيار ${arNum(k.round())}', '${arNum(k.round())}K');
+
+/// قيمة المعدن = الوزن × سعر جرام العيار الأصلى × نقاوة العيار.
+///
+/// يعنى ٥٠ جرام عيار ٢١ وسعر جرام الـ٢٤ = ٥٬٠٠٠ →
+/// 50 × 5000 × (21÷24) = 218,750.
+double metalValue({
+  required String type,
+  required double grams,
+  required double karat,
+  required double gramPrice,
+}) {
+  if (grams <= 0 || gramPrice <= 0) return 0;
+  final base = metalBaseKarat(type);
+  final purity = karat <= 0 ? 1.0 : (karat / base);
+  return grams * gramPrice * purity;
+}
 
 bool isValueOnlyWallet(String type) => kValueOnlyWalletTypes.contains(type);
 
@@ -42,6 +83,7 @@ IconData walletTypeIcon(String t) => switch (t) {
       'card' => Icons.credit_card,
       'mobile' => Icons.phone_android,
       'gold' => Icons.diamond,
+      'silver' => Icons.circle,
       'asset' => Icons.home_work,
       'livestock' => Icons.pets,
       _ => Icons.account_balance_wallet,
@@ -54,9 +96,18 @@ Color walletTypeColor(String t) => switch (t) {
       'card' => const Color(0xFF3B82F6),
       'mobile' => const Color(0xFF06B6D4),
       'gold' => const Color(0xFFD9A441),
+      'silver' => const Color(0xFF94A3B8),
       'asset' => const Color(0xFF8B5CF6),
       'livestock' => const Color(0xFF9A6B4F),
       _ => const Color(0xFF64748B),
+    };
+
+/// نوع الحساب البنكى: متاح تسحب منه، ولا شهادة بعائد وتاريخ انتهاء.
+const List<String> kBankKinds = ['available', 'certificate'];
+
+String bankKindLabel(String k) => switch (k) {
+      'certificate' => tr('شهادة', 'Certificate'),
+      _ => tr('متاح', 'Available'),
     };
 
 class WalletsRepo {
@@ -92,7 +143,19 @@ class WalletsRepo {
   }
 
   /// رصيد محفظة = الرصيد الافتتاحي + الدخل − المصروف + التحويلات الداخلة − الخارجة.
+  ///
+  /// إلا الذهب والفضة: قيمتهم **بتتحسب** من الوزن والعيار وسعر الجرام،
+  /// فمالهمش دخل ومصروف أصلاً.
   Future<double> balanceOf(Wallet w) async {
+    if (isMetalWallet(w.type)) {
+      final v = metalValue(
+          type: w.type,
+          grams: w.grams,
+          karat: w.karat,
+          gramPrice: w.gramPrice);
+      // لو لسه مادخّلش وزن وسعر، بنرجع اللى كتبه بإيده (لو كان كاتب).
+      return v > 0 ? v : w.openingBalance;
+    }
     final db = await AppDb.instance;
     Future<double> sum(String sql, List<Object?> args) async {
       final r = await db.rawQuery(sql, args);
