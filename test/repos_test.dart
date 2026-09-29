@@ -201,7 +201,8 @@ void main() {
       final r = await LocalBrain.answer('صافي ثروتي؟');
       expect(r.handled, isTrue);
       expect(r.text.contains('ثروت'), isTrue);
-      expect(r.text.contains('1000'), isTrue);
+      // بالصيغة اللى التطبيق بيعرض بيها الفلوس (بفواصل الآلاف).
+      expect(r.text.contains(arMoney(1000)), isTrue);
     });
 
     test('مقارنة المصاريف بالشهر اللي فات', () async {
@@ -6677,6 +6678,72 @@ void main() {
           reason: 'المهام ضغط — بتستنى بكرة (ده نصّ الوعد فى الإعدادات)');
       expect(items.any((i) => i.kind == AttentionKind.backup), isFalse,
           reason: 'تذكير النسخة مش مستعجل النهارده');
+    });
+  });
+
+  group('فلوسى: مدى التواريخ والمحافظ', () {
+    test('rangeSummary بتجمع يوم وشهر وسنة وفترة', () async {
+      final m = MoneyRepo();
+      await m.add(const Expense(amount: 100, category: 'أكل', note: '', day: '2026-09-01'));
+      await m.add(const Expense(amount: 200, category: 'أكل', note: '', day: '2026-09-15'));
+      await m.add(const Expense(amount: 50, category: 'مواصلات', note: '', day: '2026-10-02'));
+      await m.add(const Expense(amount: 900, category: 'أكل', note: '', day: '2025-09-15'));
+
+      final day = await m.rangeSummary('2026-09-15', '2026-09-15');
+      expect(day.total, 200);
+      expect(day.count, 1);
+
+      final month = await m.rangeSummary('2026-09-01', '2026-09-30');
+      expect(month.total, 300);
+      expect(month.count, 2);
+
+      final year = await m.rangeSummary('2026-01-01', '2026-12-31');
+      expect(year.total, 350, reason: 'سنة 2026 من غير مصروف 2025');
+
+      final custom = await m.rangeSummary('2026-09-10', '2026-10-05');
+      expect(custom.total, 250);
+    });
+
+    test('يوم مفيهوش مصاريف = صفر مش null', () async {
+      final r = await MoneyRepo().rangeSummary('2026-09-20', '2026-09-20');
+      expect(r.total, 0);
+      expect(r.count, 0);
+    });
+
+    test('محفظة قيمة (ذهب/أصل/مواشى) رصيدها = اللى كتبته', () async {
+      final w = WalletsRepo();
+      await w.save(const Wallet(
+          name: 'ذهب الفرح', type: 'gold', openingBalance: 340000));
+      await w.save(const Wallet(
+          name: 'شقة المعادى', type: 'asset', openingBalance: 750000));
+      final list = await w.allWithBalances();
+      expect(list.length, 2);
+      expect(list.map((e) => e.balance).reduce((a, b) => a + b), 1090000);
+    });
+
+    test('إجمالى فلوسى = الكاش + الأصول مع بعض', () async {
+      final w = WalletsRepo();
+      final cashId = await w.save(
+          const Wallet(name: 'كاش', type: 'cash', openingBalance: 1000));
+      await w.save(const Wallet(
+          name: 'مواشى', type: 'livestock', openingBalance: 10000));
+      // مصروف من الكاش بيقلّله، والأصل مابيتأثرش.
+      await MoneyRepo().add(Expense(
+          amount: 250,
+          category: 'أكل',
+          note: '',
+          day: '2026-09-15',
+          walletId: cashId));
+      final total = await w.totalBalance();
+      expect(total, 10750);
+    });
+
+    test('النوع بيقول لو قيمته بتتكتب ولا بتتحسب', () {
+      expect(isValueOnlyWallet('gold'), isTrue);
+      expect(isValueOnlyWallet('asset'), isTrue);
+      expect(isValueOnlyWallet('livestock'), isTrue);
+      expect(isValueOnlyWallet('cash'), isFalse);
+      expect(isValueOnlyWallet('bank'), isFalse);
     });
   });
 

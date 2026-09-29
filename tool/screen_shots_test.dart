@@ -19,6 +19,7 @@ import 'package:my_assistant/data/meds_repo.dart';
 import 'package:my_assistant/data/bills_repo.dart';
 import 'package:my_assistant/data/income_repo.dart';
 import 'package:my_assistant/data/money_repo.dart';
+import 'package:my_assistant/data/wallets_repo.dart';
 import 'package:my_assistant/screens/money/money_screen.dart';
 import 'package:my_assistant/data/notes_repo.dart';
 import 'package:my_assistant/data/wardrobe_repo.dart';
@@ -240,27 +241,35 @@ void main() {
     expect(f.lengthSync(), greaterThan(10000));
   });
 
-  testWidgets('فلوسى — الشكل الجديد', (tester) async {
+  testWidgets('فلوسى — الشكل الجديد (محافظ + إجمالى)', (tester) async {
     final now = DateTime.now();
     String day(int d) =>
         '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}';
     final money = MoneyRepo();
-    await money.add(Expense(amount: 1800, category: 'أكل', note: 'سوبر ماركت', day: day(3)));
+    await money.add(Expense(amount: 320, category: 'أكل', note: 'سوبر ماركت', day: dayKey(now)));
+    await money.add(Expense(amount: 250, category: 'مواصلات', note: 'بنزين', day: dayKey(now)));
+    await money.add(Expense(amount: 85, category: 'صحة', note: 'دوا', day: dayKey(now)));
     await money.add(Expense(amount: 1300, category: 'أكل', note: 'مطاعم', day: day(9)));
-    await money.add(Expense(amount: 1450, category: 'مواصلات', note: 'بنزين', day: day(11)));
-    await money.add(Expense(amount: 900, category: 'صحة', note: 'دوا', day: day(14)));
-    await money.add(Expense(amount: 700, category: 'تسوق', note: 'صيانة', day: day(18)));
+
+    final w = WalletsRepo();
+    await w.save(const Wallet(name: 'كاش', type: 'cash', openingBalance: 13055));
+    await w.save(const Wallet(name: 'بنوك', type: 'bank', openingBalance: 172100));
+    await w.save(const Wallet(name: 'ذهب وفضة', type: 'gold', openingBalance: 340000));
+    await w.save(const Wallet(name: 'أصول', type: 'asset', openingBalance: 750000));
+    await w.save(const Wallet(name: 'مواشى', type: 'livestock', openingBalance: 10000));
 
     await BillsRepo().save(const RecurringBill(
         name: 'كهربا', amount: 420, dayOfMonth: 5, category: 'فواتير'));
     await BillsRepo().save(const RecurringBill(
         name: 'نت', amount: 300, dayOfMonth: 10, category: 'فواتير'));
+    await BillsRepo().save(const RecurringBill(
+        name: 'مدرسة', amount: 1380, dayOfMonth: 12, category: 'فواتير'));
     await IncomeRepo().saveRecurring(const RecurringIncome(
         source: 'المرتب', amount: 11000, dayOfMonth: 1));
 
     final f = await shot(tester, 'real_money',
         shotApp(buildTheme(), const MoneyScreen()),
-        size: const Size(390, 1200), pixelRatio: 2);
+        size: const Size(390, 1000), pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
   });
 

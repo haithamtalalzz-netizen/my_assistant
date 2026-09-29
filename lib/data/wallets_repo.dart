@@ -1,17 +1,62 @@
+import 'package:flutter/material.dart';
+
 import '../core/ar.dart';
 import '../core/db.dart';
 import '../core/l10n.dart';
 import '../models/models.dart';
 
-const List<String> kWalletTypes = ['cash', 'bank', 'card', 'mobile', 'other'];
+const List<String> kWalletTypes = [
+  'cash',
+  'bank',
+  'card',
+  'mobile',
+  'gold',
+  'asset',
+  'livestock',
+  'other',
+];
 
 String walletTypeLabel(String t) => switch (t) {
       'cash' => tr('كاش', 'Cash'),
       'bank' => tr('بنك', 'Bank'),
       'card' => tr('فيزا / كارت ائتمان', 'Credit card'),
       'mobile' => tr('محفظة موبايل', 'Mobile wallet'),
+      'gold' => tr('ذهب وفضة', 'Gold & silver'),
+      'asset' => tr('أصل (بيت · عربية · أرض)', 'Asset'),
+      'livestock' => tr('مواشى', 'Livestock'),
       'other' => tr('أخرى', 'Other'),
       _ => t,
+    };
+
+/// الأنواع اللى قيمتها **رقم بتكتبه** مش محصّلة حركات.
+///
+/// الذهب والأصول والمواشى مالهاش «دخل ومصروف» — قيمتها بتتحدّث لما
+/// تقدّرها من جديد، فبتتكتب فى الرصيد الافتتاحى وخلاص.
+const Set<String> kValueOnlyWalletTypes = {'gold', 'asset', 'livestock'};
+
+bool isValueOnlyWallet(String type) => kValueOnlyWalletTypes.contains(type);
+
+IconData walletTypeIcon(String t) => switch (t) {
+      'cash' => Icons.payments,
+      'bank' => Icons.account_balance,
+      'card' => Icons.credit_card,
+      'mobile' => Icons.phone_android,
+      'gold' => Icons.diamond,
+      'asset' => Icons.home_work,
+      'livestock' => Icons.pets,
+      _ => Icons.account_balance_wallet,
+    };
+
+/// لون ثابت لكل نوع — عشان تعرف المحفظة من لونها قبل ما تقرا.
+Color walletTypeColor(String t) => switch (t) {
+      'cash' => const Color(0xFF10B981),
+      'bank' => const Color(0xFF14B8A6),
+      'card' => const Color(0xFF3B82F6),
+      'mobile' => const Color(0xFF06B6D4),
+      'gold' => const Color(0xFFD9A441),
+      'asset' => const Color(0xFF8B5CF6),
+      'livestock' => const Color(0xFF9A6B4F),
+      _ => const Color(0xFF64748B),
     };
 
 class WalletsRepo {

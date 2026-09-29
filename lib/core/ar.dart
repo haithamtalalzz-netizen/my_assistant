@@ -68,10 +68,18 @@ String greetingFor(DateTime now) {
   return morning ? 'صباح الخير' : 'مساء الخير';
 }
 
-String egp(num v) {
-  final s = v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(2);
-  return AppState.isEnglish ? '${arNum(s)} EGP' : '${arNum(s)} ج.م';
+/// رقم فلوس بفواصل الآلاف — «1,285,155» مش «1285155».
+///
+/// على سبع خانات الفرق بين الاتنين إنك تقرا الرقم من نظرة أو تعدّه
+/// بصباعك، وده بيهمّ فى «إجمالى فلوسى» اللى فيه الأصول والذهب.
+String arMoney(num v) {
+  final rounded = v.roundToDouble() == v;
+  final f = NumberFormat(rounded ? '#,##0' : '#,##0.00', _dl());
+  return _west(f.format(v));
 }
+
+String egp(num v) =>
+    AppState.isEnglish ? '${arMoney(v)} EGP' : '${arMoney(v)} ج.م';
 
 /// بيعزل نصّ لاتينى جوّه جملة عربية عشان الـbidi ما يقلبهوش.
 ///
