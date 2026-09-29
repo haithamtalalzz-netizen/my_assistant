@@ -18,7 +18,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 66,
+      version: 67,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -439,6 +439,12 @@ class AppDb {
       for (final ddl in _v60Tables) {
         await db.execute(ddl);
       }
+    }
+    if (oldV < 67 && newV >= 67) {
+      // ترتيب ظهور المحافظ. الافتراضى صفر للكل → بيرجعوا بترتيب الـid
+      // زى الأول بالظبط لحد ما يرتّبهم بنفسه.
+      await _addColumnIfMissing(
+          db, 'wallets', 'sort_order', 'INTEGER NOT NULL DEFAULT 0');
     }
     if (oldV < 66 && newV >= 66) {
       // المحافظ: الذهب والفضة قيمتهم بتتحسب (وزن × سعر الجرام × نقاوة
@@ -1084,7 +1090,8 @@ class AppDb {
         gram_price REAL NOT NULL DEFAULT 0,
         bank_kind TEXT NOT NULL DEFAULT 'available',
         monthly_interest REAL NOT NULL DEFAULT 0,
-        maturity TEXT NOT NULL DEFAULT ''
+        maturity TEXT NOT NULL DEFAULT '',
+        sort_order INTEGER NOT NULL DEFAULT 0
       )''',
     '''
       CREATE TABLE wallet_transfers(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../data/income_repo.dart';
+import '../../data/money_categories.dart';
 import '../../models/models.dart';
 import '../../widgets/a_kit.dart';
 import '../../widgets/common.dart';
@@ -55,12 +56,23 @@ class _RecurringIncomeScreenState extends State<RecurringIncomeScreen> {
               : tr('تعديل الدخل', 'Edit income')),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
             Wrap(spacing: 6, runSpacing: 6, children: [
-              for (final s in kIncomeSources)
+              for (final s in MoneyCategories.income)
                 ChoiceChip(
                   label: Text(incomeSourceLabel(s)),
                   selected: source == s,
                   onSelected: (_) => setDialogState(() => source = s),
                 ),
+              ActionChip(
+                avatar: const Icon(Icons.add, size: 17),
+                label: Text(tr('بند جديد', 'New')),
+                onPressed: () async {
+                  final n = await askNewCategory(
+                      context, tr('بند دخل جديد', 'New income source'));
+                  if (n == null) return;
+                  await MoneyCategories.addIncome(n);
+                  setDialogState(() => source = n);
+                },
+              ),
             ]),
             const SizedBox(height: 12),
             TextField(

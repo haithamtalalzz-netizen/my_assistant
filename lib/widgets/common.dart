@@ -200,3 +200,35 @@ Future<bool> confirmDelete(BuildContext context, String what) async {
   );
   return result ?? false;
 }
+
+/// شريحة «＋ بند جديد» — بتسأل على الاسم وتضيفه فى نفس اللحظة.
+///
+/// الإضافة جوّه المنتقى نفسه بدل شاشة إعدادات: البند بيتضاف وانت
+/// بتسجّل، مش لازم تسيب اللى فى إيدك وتروح تدوّر.
+Future<String?> askNewCategory(BuildContext context, String title) async {
+  final c = TextEditingController();
+  final name = await showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(title),
+      content: TextField(
+        controller: c,
+        autofocus: true,
+        textCapitalization: TextCapitalization.sentences,
+        decoration: InputDecoration(labelText: tr('اسم البند', 'Name')),
+        onSubmitted: (v) => Navigator.pop(ctx, v),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(tr('إلغاء', 'Cancel'))),
+        FilledButton(
+            onPressed: () => Navigator.pop(ctx, c.text),
+            child: Text(tr('ضيف', 'Add'))),
+      ],
+    ),
+  );
+  c.dispose();
+  final n = name?.trim() ?? '';
+  return n.isEmpty ? null : n;
+}

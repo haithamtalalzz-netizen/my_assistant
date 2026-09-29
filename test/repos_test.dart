@@ -56,6 +56,7 @@ import 'package:my_assistant/data/mushaf_repo.dart';
 import 'package:my_assistant/core/demo_images.dart';
 import 'package:my_assistant/core/seed_demo_wardrobe.dart';
 import 'package:my_assistant/core/seed_demo.dart';
+import 'package:my_assistant/data/money_categories.dart';
 import 'package:my_assistant/data/wallets_repo.dart';
 import 'package:my_assistant/core/voice_parser.dart';
 import 'package:my_assistant/data/appointments_repo.dart';
@@ -1642,6 +1643,32 @@ void main() {
                   title: 'x', category: 'شخصي', when: base, repeat: 'weekly')
               .isRecurring,
           isTrue);
+    });
+  });
+
+  group('ترقية قاعدة البيانات v66 ← v67', () {
+    test('عمود الترتيب بيتضاف والمحافظ ماتتلخبطش', () async {
+      final v66 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
+          options: OpenDatabaseOptions(singleInstance: false));
+      await v66.execute('''
+        CREATE TABLE wallets(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          type TEXT NOT NULL DEFAULT 'cash',
+          opening_balance REAL NOT NULL DEFAULT 0
+        )''');
+      await v66.insert('wallets',
+          {'name': 'كاش', 'type': 'cash', 'opening_balance': 500});
+      await v66.insert('wallets',
+          {'name': 'بنك', 'type': 'bank', 'opening_balance': 9000});
+
+      await AppDb.upgradeSchema(v66, 66, 67);
+
+      final rows = await v66.query('wallets', orderBy: 'sort_order, id');
+      expect(rows.map((r) => r['name']).toList(), ['كاش', 'بنك'],
+          reason: 'الترتيب الافتراضى = ترتيب الإضافة زى الأول');
+      expect((rows.first['sort_order'] as num).toInt(), 0);
+      await v66.close();
     });
   });
 
@@ -6789,6 +6816,102 @@ void main() {
       expect(isValueOnlyWallet('livestock'), isTrue);
       expect(isValueOnlyWallet('cash'), isFalse);
       expect(isValueOnlyWallet('bank'), isFalse);
+    });
+  });
+
+  group('ترتيب المحافظ', () {
+    test('من غير ترتيب بتفضل بترتيب إضافتها', () async {
+      final w = WalletsRepo();
+      await w.save(const Wallet(name: 'كاش', type: 'cash'));
+      await w.save(const Wallet(name: 'بنك', type: 'bank'));
+      await w.save(const Wallet(name: 'ذهب', type: 'gold'));
+      expect((await w.all()).map((e) => e.name).toList(),
+          ['كاش', 'بنك', 'ذهب']);
+    });
+
+    test('بعد الترتيب بتظهر بالترتيب اللى اختاره', () async {
+      final w = WalletsRepo();
+      final cash = await w.save(const Wallet(name: 'كاش', type: 'cash'));
+      final bank = await w.save(const Wallet(name: 'بنك', type: 'bank'));
+      final gold = await w.save(const Wallet(name: 'ذهب', type: 'gold'));
+      await w.saveOrder([gold, cash, bank]);
+      expect((await w.all()).map((e) => e.name).toList(),
+          ['ذهب', 'كاش', 'بنك']);
+    });
+
+    test('المحفظة الجديدة بتظهر فوق مش وسط اللى اترتّبوا', () async {
+      final w = WalletsRepo();
+      final a = await w.save(const Wallet(name: 'أ', type: 'cash'));
+      final b = await w.save(const Wallet(name: 'ب', type: 'cash'));
+      await w.saveOrder([a, b]);
+      await w.save(const Wallet(name: 'ج', type: 'cash'));
+      // «ج» افتراضيها صفر، والمرتّبين بدأوا من ١ → بتطلع الأولى.
+      expect((await w.all()).first.name, 'ج');
+    });
+  });
+
+  group('بنود المصروف والدخل اللى بيضيفها', () {
+    setUp(MoneyCategories.resetForTests);
+
+    test('البنود الجاهزة موجودة من غير أى إضافة', () async {
+      await MoneyCategories.load(force: true);
+      expect(MoneyCategories.expense, kExpenseCategories);
+      expect(MoneyCategories.income, kIncomeSources);
+    });
+
+    test('البند الجديد بيتضاف بعد الجاهزين وبيفضل بعد إعادة التحميل',
+        () async {
+      await MoneyCategories.load(force: true);
+      expect(await MoneyCategories.addExpense('مدارس'), isTrue);
+      expect(MoneyCategories.expense.last, 'مدارس');
+      expect(MoneyCategories.expense.first, kExpenseCategories.first);
+
+      MoneyCategories.resetForTests();
+      await MoneyCategories.load(force: true);
+      expect(MoneyCategories.expense.contains('مدارس'), isTrue);
+    });
+
+    test('بند مكرّر أو فاضى مابيتضافش', () async {
+      await MoneyCategories.load(force: true);
+      expect(await MoneyCategories.addExpense(kExpenseCategories.first),
+          isFalse);
+      expect(await MoneyCategories.addExpense('   '), isFalse);
+      await MoneyCategories.addExpense('مدارس');
+      expect(await MoneyCategories.addExpense('مدارس'), isFalse);
+    });
+
+    test('بيتشال اللى ضفته بس — الجاهز مابيتشالش', () async {
+      await MoneyCategories.load(force: true);
+      await MoneyCategories.addExpense('مدارس');
+      expect(MoneyCategories.isCustomExpense('مدارس'), isTrue);
+      expect(MoneyCategories.isCustomExpense(kExpenseCategories.first),
+          isFalse);
+
+      await MoneyCategories.removeExpense(kExpenseCategories.first);
+      expect(MoneyCategories.expense.contains(kExpenseCategories.first),
+          isTrue, reason: 'الجاهز مايتشالش');
+
+      await MoneyCategories.removeExpense('مدارس');
+      expect(MoneyCategories.expense.contains('مدارس'), isFalse);
+    });
+
+    test('المصروف القديم على بند اتشال بيفضل باسمه', () async {
+      await MoneyCategories.load(force: true);
+      await MoneyCategories.addExpense('مدارس');
+      await MoneyRepo().add(const Expense(
+          amount: 1500, category: 'مدارس', note: '', day: '2026-09-10'));
+      await MoneyCategories.removeExpense('مدارس');
+      final byCat = await MoneyRepo().byCategory(2026, 9);
+      expect(byCat['مدارس'], 1500, reason: 'الاسم متخزّن فى المصروف نفسه');
+    });
+
+    test('بنود الدخل زيها بالظبط', () async {
+      await MoneyCategories.load(force: true);
+      expect(await MoneyCategories.addIncome('إيجار'), isTrue);
+      expect(MoneyCategories.income.contains('إيجار'), isTrue);
+      expect(MoneyCategories.isCustomIncome('إيجار'), isTrue);
+      await MoneyCategories.removeIncome('إيجار');
+      expect(MoneyCategories.income.contains('إيجار'), isFalse);
     });
   });
 

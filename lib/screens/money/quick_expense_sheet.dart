@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../data/money_categories.dart';
+import '../../widgets/common.dart';
 import '../../data/money_repo.dart';
 import '../../data/wallets_repo.dart';
 import '../../models/models.dart';
@@ -114,12 +116,38 @@ class _QuickExpenseFormState extends State<_QuickExpenseForm> {
             spacing: 6,
             runSpacing: 6,
             children: [
-              for (final c in kExpenseCategories)
-                ChoiceChip(
-                  label: Text(expenseCategoryLabel(c)),
-                  selected: _category == c,
-                  onSelected: (_) => setState(() => _category = c),
+              for (final c in MoneyCategories.expense)
+                // الدوسة المطوّلة بتشيل البند اللى انت ضفته بس.
+                // (ChoiceChip نفسها مالهاش onLongPress.)
+                GestureDetector(
+                  onLongPress: MoneyCategories.isCustomExpense(c)
+                      ? () async {
+                          await MoneyCategories.removeExpense(c);
+                          if (!mounted) return;
+                          setState(() {
+                            if (_category == c) {
+                              _category = kExpenseCategories.first;
+                            }
+                          });
+                        }
+                      : null,
+                  child: ChoiceChip(
+                    label: Text(expenseCategoryLabel(c)),
+                    selected: _category == c,
+                    onSelected: (_) => setState(() => _category = c),
+                  ),
                 ),
+              ActionChip(
+                avatar: const Icon(Icons.add, size: 17),
+                label: Text(tr('بند جديد', 'New')),
+                onPressed: () async {
+                  final n =
+                      await askNewCategory(context, tr('بند مصروف جديد', 'New category'));
+                  if (n == null) return;
+                  await MoneyCategories.addExpense(n);
+                  if (mounted) setState(() => _category = n);
+                },
+              ),
             ],
           ),
           if (_wallets.isNotEmpty) ...[

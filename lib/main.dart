@@ -39,6 +39,7 @@ import 'data/pets_repo.dart';
 import 'data/fasting_repo.dart';
 import 'data/vaccinations_repo.dart';
 import 'data/relatives_repo.dart';
+import 'data/money_categories.dart';
 import 'data/settings_repo.dart';
 import 'data/home_maintenance_repo.dart';
 import 'data/meds_repo.dart';
@@ -75,6 +76,9 @@ Future<void> _startup() async {
   await initializeDateFormatting('ar');
   await initializeDateFormatting('en');
   await AppState.load();
+  // بنود المصروف والدخل اللى ضافها بنفسه — بتتقرا مرة هنا لإن منتقيات
+  // البنود بتتبنى بشكل متزامن جوّه build.
+  await MoneyCategories.load();
   if (!kIsWeb) {
     await Notifications.init(onResponse: notificationTapHandler);
     // صوت/اهتزاز الإشعارات حسب اختيار المستخدم.

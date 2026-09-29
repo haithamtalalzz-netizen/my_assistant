@@ -38,6 +38,62 @@ class _WalletsScreenState extends State<WalletsScreen> {
 
 
 
+  /// قايمة السحب — نفس البيانات، بس كل محفظة معاها مقبض تسحب منه.
+  Widget _reorderList(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+        child: Row(children: [
+          Icon(Icons.swap_vert, size: 18, color: scheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+                tr('اسحب المحفظة لمكانها — الترتيب ده هو اللى هتشوفه فى فلوسى',
+                    'Drag to reorder — this is the order you see in My money'),
+                style:
+                    TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+          ),
+        ]),
+      ),
+      Expanded(
+        child: ReorderableListView(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 80),
+          onReorderItem: _onReorder,
+          children: [
+            for (var i = 0; i < _items.length; i++)
+              Card(
+                key: ValueKey(_items[i].wallet.id),
+                margin: const EdgeInsets.symmetric(vertical: 3),
+                child: ListTile(
+                  leading: Icon(walletTypeIcon(_items[i].wallet.type),
+                      color: walletTypeColor(_items[i].wallet.type)),
+                  title: Text(_items[i].wallet.name),
+                  subtitle: Text(walletTypeLabel(_items[i].wallet.type)),
+                  trailing: ReorderableDragStartListener(
+                    index: i,
+                    child: const Icon(Icons.drag_handle),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ]);
+  }
+
+  /// وضع الترتيب: بيقلب القايمة لسحب وإفلات.
+  bool _reordering = false;
+
+  /// onReorderItem بيظبّط الرقم الجديد بنفسه بعد شيل العنصر، فمفيش
+  /// تعديل يدوى هنا (اللى كان لازم مع onReorder القديمة).
+  Future<void> _onReorder(int oldI, int newI) async {
+    final list = [..._items];
+    list.insert(newI, list.removeAt(oldI));
+    setState(() => _items = list);
+    await _repo.saveOrder([for (final e in list) e.wallet.id!]);
+  }
+
   /// وصف المحفظة تحت اسمها — بيقول اللى يخصّ نوعها:
   /// المعدن وزنه وعياره، والشهادة عائدها وميعاد انتهائها، والباقى
   /// نصيبه من إجمالى فلوسك.
@@ -386,8 +442,16 @@ class _WalletsScreenState extends State<WalletsScreen> {
       appBar: AppBar(
         title: Text(tr('المحافظ', 'Wallets')),
         actions: [
-          searchAction(context),
           if (_items.length >= 2)
+            IconButton(
+              onPressed: () => setState(() => _reordering = !_reordering),
+              tooltip: _reordering
+                  ? tr('خلصت الترتيب', 'Done')
+                  : tr('رتّب المحافظ', 'Reorder wallets'),
+              icon: Icon(_reordering ? Icons.check : Icons.swap_vert),
+            ),
+          if (!_reordering) searchAction(context),
+          if (_items.length >= 2 && !_reordering)
             IconButton(
               onPressed: _transfer,
               tooltip: tr('تحويل', 'Transfer'),
@@ -402,7 +466,9 @@ class _WalletsScreenState extends State<WalletsScreen> {
                   icon: Icons.account_balance_wallet_outlined,
                   text: tr('ضيف محافظك (كاش، بنك، فودافون كاش) وتابع رصيد كل واحدة',
                       'Add your wallets (cash, bank, mobile) & track each balance'))
-              : ListView(
+              : _reordering
+                  ? _reorderList(context)
+                  : ListView(
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
                   children: [
                     Card(

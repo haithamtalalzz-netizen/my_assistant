@@ -132,8 +132,24 @@ class WalletsRepo {
 
   Future<List<Wallet>> all() async {
     final db = await AppDb.instance;
-    final rows = await db.query('wallets', orderBy: 'id');
+    // الترتيب اللى اختاره الأول، وبعدين الـid — فالمحافظ اللى لسه
+    // ماترتّبتش (sort_order = 0) بتفضل بترتيب إضافتها زى الأول.
+    final rows = await db.query('wallets', orderBy: 'sort_order, id');
     return rows.map(Wallet.fromMap).toList();
+  }
+
+  /// بيحفظ ترتيب الظهور الجديد — الأول فى القايمة ياخد ١.
+  ///
+  /// بنبدأ من ١ مش صفر عشان المحفظة اللى تتضاف بعدين (افتراضيها صفر)
+  /// تظهر **فوق**، مش تحت وسط اللى اترتّبوا.
+  Future<void> saveOrder(List<int> idsInOrder) async {
+    final db = await AppDb.instance;
+    final batch = db.batch();
+    for (var i = 0; i < idsInOrder.length; i++) {
+      batch.update('wallets', {'sort_order': i + 1},
+          where: 'id = ?', whereArgs: [idsInOrder[i]]);
+    }
+    await batch.commit(noResult: true);
   }
 
   Future<int> count() async {

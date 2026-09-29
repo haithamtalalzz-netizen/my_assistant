@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../data/bills_repo.dart';
+import '../../data/money_categories.dart';
 import '../../data/money_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/a_kit.dart';
@@ -88,7 +89,7 @@ class _FixedBillsScreenState extends State<FixedBillsScreen> {
               initialValue: category,
               decoration: InputDecoration(labelText: tr('الفئة', 'Category')),
               items: [
-                for (final c in kExpenseCategories)
+                for (final c in MoneyCategories.expense)
                   DropdownMenuItem(
                       value: c, child: Text(expenseCategoryLabel(c))),
               ],

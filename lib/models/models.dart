@@ -735,6 +735,9 @@ class Wallet {
   /// تاريخ انتهاء الشهادة YYYY-MM-DD (فاضى = مفيش).
   final String maturity;
 
+  /// ترتيب ظهورها — الأصغر بيظهر الأول.
+  final int sortOrder;
+
   const Wallet({
     this.id,
     required this.name,
@@ -746,6 +749,7 @@ class Wallet {
     this.bankKind = 'available',
     this.monthlyInterest = 0,
     this.maturity = '',
+    this.sortOrder = 0,
   });
 
   factory Wallet.fromMap(Map<String, Object?> m) => Wallet(
@@ -759,6 +763,7 @@ class Wallet {
         bankKind: m['bank_kind'] as String? ?? 'available',
         monthlyInterest: (m['monthly_interest'] as num?)?.toDouble() ?? 0,
         maturity: m['maturity'] as String? ?? '',
+        sortOrder: (m['sort_order'] as num?)?.toInt() ?? 0,
       );
 
   Map<String, Object?> toMap() => {
@@ -771,6 +776,7 @@ class Wallet {
         'bank_kind': bankKind,
         'monthly_interest': monthlyInterest,
         'maturity': maturity,
+        'sort_order': sortOrder,
       };
 }
 
