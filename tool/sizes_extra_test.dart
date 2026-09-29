@@ -17,6 +17,8 @@ import 'package:my_assistant/screens/group_hub_screen.dart';
 import 'package:my_assistant/screens/home/pharmacy_form.dart';
 import 'package:my_assistant/screens/home/pharmacy_screen.dart';
 import 'package:my_assistant/screens/lock_gate.dart';
+import 'package:my_assistant/screens/money/fixed_bills_screen.dart';
+import 'package:my_assistant/screens/money/recurring_income_screen.dart';
 import 'package:my_assistant/screens/onboarding_gate.dart';
 import 'package:my_assistant/screens/onboarding_screen.dart';
 import 'package:my_assistant/screens/quick_actions_settings_screen.dart';
@@ -357,4 +359,10 @@ void main() {
       'OnboardingGate',
       (t) => sweep(t,
           () => const OnboardingGate(child: Scaffold(body: SizedBox.expand()))));
+
+  testWidgets('RecurringIncomeScreen (دخلك الثابت)',
+      (t) => sweep(t, () => const RecurringIncomeScreen()));
+
+  testWidgets('FixedBillsScreen (فواتير ثابتة)',
+      (t) => sweep(t, () => const FixedBillsScreen()));
 }

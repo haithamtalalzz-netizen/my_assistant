@@ -21,6 +21,8 @@ import 'package:my_assistant/data/income_repo.dart';
 import 'package:my_assistant/data/money_repo.dart';
 import 'package:my_assistant/data/wallets_repo.dart';
 import 'package:my_assistant/screens/money/money_screen.dart';
+import 'package:my_assistant/screens/money/recurring_income_screen.dart';
+import 'package:my_assistant/screens/money/fixed_bills_screen.dart';
 import 'package:my_assistant/data/notes_repo.dart';
 import 'package:my_assistant/data/wardrobe_repo.dart';
 import 'package:my_assistant/data/health_repo.dart';
@@ -305,6 +307,34 @@ void main() {
     final f = await shot(tester, 'real_settings',
         shotApp(buildTheme(), const SettingsScreen()),
         size: const Size(390, 900), pixelRatio: 2);
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('دخلك الثابت — البنود المضافة', (tester) async {
+    final r = IncomeRepo();
+    await r.saveRecurring(const RecurringIncome(
+        source: 'راتب', amount: 11000, dayOfMonth: 1, note: 'الشغل'));
+    await r.saveRecurring(const RecurringIncome(
+        source: 'إيجار', amount: 3500, dayOfMonth: 5, note: 'شقة المعادى'));
+    await r.saveRecurring(const RecurringIncome(
+        source: 'عمل حر', amount: 1800, dayOfMonth: 20));
+    final f = await shot(tester, 'real_income',
+        shotApp(buildTheme(), const RecurringIncomeScreen()),
+        size: const Size(390, 640), pixelRatio: 2);
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('فواتير ثابتة — البنود المضافة', (tester) async {
+    final b = BillsRepo();
+    await b.save(const RecurringBill(
+        name: 'كهربا', amount: 420, dayOfMonth: 5, category: 'فواتير'));
+    await b.save(const RecurringBill(
+        name: 'نت', amount: 300, dayOfMonth: 10, category: 'فواتير'));
+    await b.save(const RecurringBill(
+        name: 'مدرسة', amount: 1380, dayOfMonth: 12, category: 'فواتير'));
+    final f = await shot(tester, 'real_bills',
+        shotApp(buildTheme(), const FixedBillsScreen()),
+        size: const Size(390, 640), pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
   });
 

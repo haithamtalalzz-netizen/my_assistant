@@ -14,6 +14,7 @@ import '../../widgets/search_action.dart';
 import 'fixed_bills_screen.dart';
 import 'income_sheet.dart';
 import 'quick_expense_sheet.dart';
+import 'recurring_income_screen.dart';
 import 'wallets_screen.dart';
 
 /// **فلوسى** — اتبنى من الأول بالتقسيمة دى:
@@ -541,7 +542,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
           icon: Icons.payments,
           tint: const Color(0xFF10B981),
           chevron: true,
-          onTap: _addIncome,
+          onTap: _openRecurringIncome,
         ),
         AppListRow(
           title: tr('ضيف فواتيرك الثابتة', 'Add your fixed bills'),
@@ -562,7 +563,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
         icon: Icons.payments,
         tint: const Color(0xFF10B981),
         chevron: true,
-        onTap: _addIncome,
+        onTap: _openRecurringIncome,
         trailing: Text(arMoney(_monthlyIncome.round()),
             style: const TextStyle(
                 fontSize: 13.5,
@@ -595,6 +596,12 @@ class _MoneyScreenState extends State<MoneyScreen> {
                 color: left >= 0 ? const Color(0xFF14B8A6) : scheme.error)),
       ),
     ]);
+  }
+
+  Future<void> _openRecurringIncome() async {
+    await Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const RecurringIncomeScreen()));
+    if (mounted) await _load();
   }
 
   Future<void> _openBills() async {
