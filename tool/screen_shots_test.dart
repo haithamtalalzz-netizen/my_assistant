@@ -20,6 +20,7 @@ import 'package:my_assistant/data/bills_repo.dart';
 import 'package:my_assistant/data/income_repo.dart';
 import 'package:my_assistant/data/money_repo.dart';
 import 'package:my_assistant/data/wallets_repo.dart';
+import 'package:my_assistant/data/wealth_history.dart';
 import 'package:my_assistant/screens/money/money_screen.dart';
 import 'package:my_assistant/screens/money/recurring_income_screen.dart';
 import 'package:my_assistant/screens/money/fixed_bills_screen.dart';
@@ -144,7 +145,7 @@ void main() {
 
     final f = await shot(tester, 'real_schedule',
         shotApp(buildTheme(), const ScheduleScreen()),
-        size: const Size(390, 1000), pixelRatio: 2);
+        size: const Size(390, 1100), pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
   });
 
@@ -256,10 +257,24 @@ void main() {
 
     final w = WalletsRepo();
     await w.save(const Wallet(name: 'كاش', type: 'cash', openingBalance: 13055));
-    await w.save(const Wallet(name: 'بنوك', type: 'bank', openingBalance: 172100));
-    await w.save(const Wallet(name: 'ذهب وفضة', type: 'gold', openingBalance: 340000));
+    await w.save(const Wallet(name: 'بنوك', type: 'bank', openingBalance: 72100));
+    await w.save(const Wallet(
+        name: 'شهادة الأهلى',
+        type: 'bank',
+        openingBalance: 100000,
+        bankKind: 'certificate',
+        monthlyInterest: 1750,
+        maturity: '2029-03-01'));
+    await w.save(const Wallet(
+        name: 'ذهب', type: 'gold', grams: 68, karat: 21));
+    await w.save(const Wallet(
+        name: 'فضة', type: 'silver', grams: 300, karat: 925));
     await w.save(const Wallet(name: 'أصول', type: 'asset', openingBalance: 750000));
     await w.save(const Wallet(name: 'مواشى', type: 'livestock', openingBalance: 10000));
+    await MetalPrices.set('gold', 5000);
+    await MetalPrices.set('silver', 55);
+    // مرجع أول الشهر أقل من الإجمالى → «زادت».
+    await WealthHistory.recordIfNew(1200000);
 
     await BillsRepo().save(const RecurringBill(
         name: 'كهربا', amount: 420, dayOfMonth: 5, category: 'فواتير'));

@@ -27,6 +27,8 @@ class _WalletsScreenState extends State<WalletsScreen> {
   }
 
   Future<void> _load() async {
+    await _repo.adoptLegacyMetalPrices();
+    await MetalPrices.load(force: true);
     final items = await _repo.allWithBalances();
     if (!mounted) return;
     setState(() {
@@ -80,6 +82,88 @@ class _WalletsScreenState extends State<WalletsScreen> {
         ),
       ),
     ]);
+  }
+
+  /// **سعر الجرام — واحد لكل معدن.**
+  ///
+  /// تحدّثه مرة وكل قطع الذهب (أو الفضة) تتحسب من جديد، بدل ما تعدّل
+  /// كل قطعة لوحدها.
+  List<Widget> _metalPriceCards(BuildContext context) {
+    final types = <String>{
+      for (final e in _items)
+        if (isMetalWallet(e.wallet.type)) e.wallet.type
+    }.toList()
+      ..sort();
+    if (types.isEmpty) return const [];
+    final scheme = Theme.of(context).colorScheme;
+    return [
+      const SizedBox(height: 8),
+      for (final t in types)
+        Card(
+          margin: const EdgeInsets.only(bottom: 4),
+          child: ListTile(
+            leading: Icon(walletTypeIcon(t), color: walletTypeColor(t)),
+            title: Text(tr(
+                'سعر جرام ${walletTypeLabel(t)} ${metalKaratLabel(t, metalBaseKarat(t))}',
+                '${walletTypeLabel(t)} price per gram')),
+            subtitle: Text(MetalPrices.of(t) > 0
+                ? tr('كل قطعك بتتحسب منه', 'All your pieces use it')
+                : tr('مااتحطّش لسه — كل قطعة بسعرها',
+                    'Not set — each piece uses its own')),
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text(
+                  MetalPrices.of(t) > 0
+                      ? arMoney(MetalPrices.of(t).round())
+                      : '—',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: walletTypeColor(t))),
+              const SizedBox(width: 4),
+              Icon(Icons.edit, size: 17, color: scheme.outline),
+            ]),
+            onTap: () => _editMetalPrice(t),
+          ),
+        ),
+    ];
+  }
+
+  Future<void> _editMetalPrice(String type) async {
+    final c = TextEditingController(
+        text: MetalPrices.of(type) > 0
+            ? MetalPrices.of(type).toStringAsFixed(0)
+            : '');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr(
+            'سعر جرام ${walletTypeLabel(type)} ${metalKaratLabel(type, metalBaseKarat(type))}',
+            '${walletTypeLabel(type)} price per gram')),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: tr('سعر السوق النهاردة', "Today's market price"),
+            helperText: tr('كل قطع ${walletTypeLabel(type)} هتتحسب منه',
+                'All your pieces will use it'),
+          ),
+          onSubmitted: (_) => Navigator.pop(ctx, true),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('إلغاء', 'Cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(tr('حفظ', 'Save'))),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await MetalPrices.set(type, parseNumber(c.text) ?? 0);
+      if (mounted) await _load();
+    }
+    c.dispose();
   }
 
   /// وضع الترتيب: بيقلب القايمة لسحب وإفلات.
@@ -155,11 +239,13 @@ class _WalletsScreenState extends State<WalletsScreen> {
         builder: (ctx, setD) {
           final metal = isMetalWallet(type);
           // القيمة بتتحدّث وأنت بتكتب — عشان تشوف الحساب قبل ما تحفظ.
+          final shared = MetalPrices.of(type);
           final live = metalValue(
               type: type,
               grams: parseNumber(grams.text) ?? 0,
               karat: karat,
-              gramPrice: parseNumber(gramPrice.text) ?? 0);
+              gramPrice:
+                  shared > 0 ? shared : (parseNumber(gramPrice.text) ?? 0));
           return AlertDialog(
             scrollable: true,
             title: Text(w == null
@@ -213,19 +299,28 @@ class _WalletsScreenState extends State<WalletsScreen> {
                     ),
                 ]),
                 const SizedBox(height: 10),
-                TextField(
-                  controller: gramPrice,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  onChanged: (_) => setD(() {}),
-                  decoration: InputDecoration(
-                    labelText: tr(
-                        'سعر جرام ${metalKaratLabel(type, metalBaseKarat(type))} فى السوق',
-                        'Market price per gram (${metalKaratLabel(type, metalBaseKarat(type))})'),
-                    helperText: tr('سعر السوق النهاردة — عدّله وقت ما تحب',
-                        "Today's market price — edit any time"),
+                // السعر بقى **واحد لكل معدن** فوق فى القايمة — هنا بنقول
+                // بس بيتحسب بكام، عشان مايبقاش رقمين متعارضين.
+                if (MetalPrices.of(type) > 0)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                        tr('بيتحسب بسعر ${arMoney(MetalPrices.of(type).round())} للجرام — تعدّله من فوق',
+                            'Uses ${arMoney(MetalPrices.of(type).round())}/g — edit it above'),
+                        style: const TextStyle(fontSize: 11.5)),
+                  )
+                else
+                  TextField(
+                    controller: gramPrice,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (_) => setD(() {}),
+                    decoration: InputDecoration(
+                      labelText: tr('سعر جرام السوق', 'Market price per gram'),
+                      helperText: tr('هيبقى سعر كل قطعك من النوع ده',
+                          'Will apply to all your pieces'),
+                    ),
                   ),
-                ),
                 const SizedBox(height: 12),
                 Container(
                   width: double.infinity,
@@ -330,7 +425,9 @@ class _WalletsScreenState extends State<WalletsScreen> {
         openingBalance: metal ? 0 : (parseNumber(opening.text) ?? 0),
         grams: metal ? (parseNumber(grams.text) ?? 0) : 0,
         karat: metal ? karat : 0,
-        gramPrice: metal ? (parseNumber(gramPrice.text) ?? 0) : 0,
+        gramPrice: metal && MetalPrices.of(type) <= 0
+            ? (parseNumber(gramPrice.text) ?? 0)
+            : 0,
         bankKind: type == 'bank' ? bankKind : 'available',
         monthlyInterest: type == 'bank' && bankKind == 'certificate'
             ? (parseNumber(interest.text) ?? 0)
@@ -493,6 +590,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
                         ),
                       ),
                     ),
+                    ..._metalPriceCards(context),
                     const SizedBox(height: 8),
                     for (final e in _items)
                       Card(

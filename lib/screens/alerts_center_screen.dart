@@ -7,6 +7,7 @@ import '../core/ar.dart';
 import '../core/l10n.dart';
 import '../widgets/a_kit.dart';
 import '../data/settings_repo.dart';
+import 'money/wallets_screen.dart';
 import '../widgets/common.dart';
 import '../widgets/search_action.dart';
 import 'baladna/debts_screen.dart';
@@ -104,6 +105,8 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
         AttentionKind.subscription => const SubscriptionsScreen(),
         AttentionKind.gameya => const GameyaScreen(),
         AttentionKind.backup => null, // إجراؤه بيطلّع النسخة، مفيش صفحة
+        // التجديد بيحصل فى البنك — الضغط بيودّيك تعدّل التاريخ.
+        AttentionKind.certificate => const WalletsScreen(),
       };
 
   ({IconData icon, Color color}) _look(AttentionKind kind) => switch (kind) {
@@ -130,6 +133,8 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
           (icon: Icons.groups_outlined, color: Colors.teal),
         AttentionKind.backup =>
           (icon: Icons.backup_outlined, color: Colors.blueGrey),
+        AttentionKind.certificate =>
+          (icon: Icons.account_balance_outlined, color: Color(0xFF14B8A6)),
       };
 
   /// يؤجّل بندًا لحد وقت معيّن ويحفظه محليًا.

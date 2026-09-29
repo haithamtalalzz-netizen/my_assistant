@@ -58,6 +58,7 @@ import 'package:my_assistant/core/seed_demo_wardrobe.dart';
 import 'package:my_assistant/core/seed_demo.dart';
 import 'package:my_assistant/data/money_categories.dart';
 import 'package:my_assistant/data/wallets_repo.dart';
+import 'package:my_assistant/data/wealth_history.dart';
 import 'package:my_assistant/core/voice_parser.dart';
 import 'package:my_assistant/data/appointments_repo.dart';
 import 'package:my_assistant/data/day_log_repo.dart';
@@ -6816,6 +6817,156 @@ void main() {
       expect(isValueOnlyWallet('livestock'), isTrue);
       expect(isValueOnlyWallet('cash'), isFalse);
       expect(isValueOnlyWallet('bank'), isFalse);
+    });
+  });
+
+  group('سعر الجرام المشترك', () {
+    setUp(MetalPrices.resetForTests);
+
+    test('سعر واحد بيتطبّق على كل قطع الذهب', () async {
+      final w = WalletsRepo();
+      await w.save(const Wallet(
+          name: 'غويشة', type: 'gold', grams: 20, karat: 21));
+      await w.save(const Wallet(
+          name: 'خاتم', type: 'gold', grams: 10, karat: 18));
+      await MetalPrices.set('gold', 5000);
+
+      final list = await w.allWithBalances();
+      expect(list[0].balance, 20 * 5000 * (21 / 24));
+      expect(list[1].balance, 10 * 5000 * (18 / 24));
+    });
+
+    test('الذهب والفضة كل واحد بسعره', () async {
+      await MetalPrices.set('gold', 5000);
+      await MetalPrices.set('silver', 60);
+      expect(MetalPrices.of('gold'), 5000);
+      expect(MetalPrices.of('silver'), 60);
+    });
+
+    test('السعر القديم اللى فى المحفظة مابيضيعش — بيبقى هو المشترك',
+        () async {
+      final w = WalletsRepo();
+      await w.save(const Wallet(
+          name: 'ذهب قديم',
+          type: 'gold',
+          grams: 50,
+          karat: 21,
+          gramPrice: 4000));
+      expect(MetalPrices.of('gold'), 0);
+      await w.adoptLegacyMetalPrices();
+      expect(MetalPrices.of('gold'), 4000);
+      expect((await w.allWithBalances()).single.balance,
+          50 * 4000 * (21 / 24));
+    });
+
+    test('من غير سعر مشترك بترجع لسعر المحفظة نفسها', () async {
+      final w = WalletsRepo();
+      await w.save(const Wallet(
+          name: 'ذهب', type: 'gold', grams: 10, karat: 24, gramPrice: 3000));
+      expect((await w.allWithBalances()).single.balance, 30000);
+    });
+  });
+
+  group('السايلة والمربوطة وعائد الشهادات', () {
+    setUp(MetalPrices.resetForTests);
+
+    test('الكاش والبنك المتاح سايلين · الذهب والأصل والشهادة مربوطين',
+        () async {
+      final w = WalletsRepo();
+      await w.save(const Wallet(name: 'كاش', type: 'cash', openingBalance: 5000));
+      await w.save(const Wallet(
+          name: 'جارى', type: 'bank', openingBalance: 20000));
+      await w.save(const Wallet(
+          name: 'شهادة',
+          type: 'bank',
+          openingBalance: 100000,
+          bankKind: 'certificate',
+          monthlyInterest: 1750));
+      await w.save(const Wallet(
+          name: 'شقة', type: 'asset', openingBalance: 750000));
+
+      final split = await w.liquidSplit();
+      expect(split.liquid, 25000, reason: 'كاش + بنك متاح');
+      expect(split.locked, 850000, reason: 'الشهادة + الأصل');
+    });
+
+    test('عائد الشهادات بيتجمع من الشهادات بس', () async {
+      final w = WalletsRepo();
+      await w.save(const Wallet(
+          name: 'شهادة ١',
+          type: 'bank',
+          bankKind: 'certificate',
+          monthlyInterest: 1750));
+      await w.save(const Wallet(
+          name: 'شهادة ٢',
+          type: 'bank',
+          bankKind: 'certificate',
+          monthlyInterest: 900));
+      await w.save(const Wallet(
+          name: 'جارى', type: 'bank', openingBalance: 5000));
+      expect(await w.monthlyCertificateInterest(), 2650);
+    });
+
+    test('الشهادة اللى قرّبت تنتهى بتترصد · واللى بعيدة لأ', () async {
+      final w = WalletsRepo();
+      final now = DateTime.now();
+      String k(int days) {
+        final d = now.add(Duration(days: days));
+        return '${d.year.toString().padLeft(4, '0')}-'
+            '${d.month.toString().padLeft(2, '0')}-'
+            '${d.day.toString().padLeft(2, '0')}';
+      }
+
+      await w.save(Wallet(
+          name: 'قرّبت',
+          type: 'bank',
+          bankKind: 'certificate',
+          maturity: k(10)));
+      await w.save(Wallet(
+          name: 'بعيدة',
+          type: 'bank',
+          bankKind: 'certificate',
+          maturity: k(200)));
+      await w.save(Wallet(
+          name: 'خلصت',
+          type: 'bank',
+          bankKind: 'certificate',
+          maturity: k(-5)));
+
+      final soon = await w.certificatesMaturingSoon(days: 30);
+      expect(soon.map((e) => e.name).toList(), ['قرّبت'],
+          reason: 'البعيدة لسه، واللى خلصت عدّت');
+    });
+  });
+
+  group('زادت ولا قلّت الشهر ده', () {
+    setUp(WealthHistory.clearForTests);
+
+    test('أول شهر = مانعرفش (null) مش صفر', () async {
+      final change = await WealthHistory.changeThisMonth(1000);
+      expect(change, isNull, reason: 'مفيش مرجع نقارن بيه');
+    });
+
+    test('بعد تسجيل المرجع الفرق بيتحسب', () async {
+      await WealthHistory.recordIfNew(1000);
+      expect(await WealthHistory.changeThisMonth(1250), 250);
+      expect(await WealthHistory.changeThisMonth(800), -200);
+    });
+
+    test('المرجع بيتسجّل مرة واحدة فى الشهر', () async {
+      await WealthHistory.recordIfNew(1000);
+      await WealthHistory.recordIfNew(9999);
+      expect(await WealthHistory.changeThisMonth(1000), 0,
+          reason: 'الفتحة التانية ماتغيّرش المرجع');
+    });
+
+    test('كل شهر ليه مرجعه', () async {
+      final sep = DateTime(2026, 9, 5);
+      final oct = DateTime(2026, 10, 3);
+      await WealthHistory.recordIfNew(1000, now: sep);
+      await WealthHistory.recordIfNew(1500, now: oct);
+      expect(await WealthHistory.changeThisMonth(1200, now: sep), 200);
+      expect(await WealthHistory.changeThisMonth(1200, now: oct), -300);
     });
   });
 

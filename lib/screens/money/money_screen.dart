@@ -6,6 +6,7 @@ import '../../data/bills_repo.dart';
 import '../../data/income_repo.dart';
 import '../../data/money_repo.dart';
 import '../../data/wallets_repo.dart';
+import '../../data/wealth_history.dart';
 import '../../models/models.dart';
 import '../../widgets/a_kit.dart';
 import '../../widgets/bar_actions.dart';
@@ -59,6 +60,13 @@ class _MoneyScreenState extends State<MoneyScreen> {
 
   double _monthlyIncome = 0;
   double _monthlyBills = 0;
+  double _certInterest = 0;
+
+  double _liquid = 0;
+  double _locked = 0;
+
+  /// الفرق عن أول الشهر — null يعنى أول شهر بنسجّل فيه، فمانعرفش.
+  double? _monthChange;
 
   @override
   void initState() {
@@ -72,19 +80,30 @@ class _MoneyScreenState extends State<MoneyScreen> {
   String _key(DateTime d) => dayKey(d);
 
   Future<void> _load() async {
+    await _wallets.adoptLegacyMetalPrices();
     final list = await _wallets.allWithBalances();
     final total = list.fold<double>(0, (s, e) => s + e.balance);
     final sum = await _money.rangeSummary(_key(_from), _key(_to));
 
     final recurring = await _income.allRecurring();
     final bills = await _bills.all();
+    final split = await _wallets.liquidSplit();
+    final cert = await _wallets.monthlyCertificateInterest();
+
+    // أول فتحة فى الشهر بتسجّل المرجع، واللى بعدها بتقارن بيه.
+    await WealthHistory.recordIfNew(total);
+    final change = await WealthHistory.changeThisMonth(total);
 
     if (!mounted) return;
     setState(() {
       _list = list;
       _total = total;
+      _liquid = split.liquid;
+      _locked = split.locked;
+      _monthChange = change;
       _spent = sum.total;
       _spentCount = sum.count;
+      _certInterest = cert;
       _monthlyIncome = recurring.fold<double>(0, (s, e) => s + e.amount);
       _monthlyBills = bills.fold<double>(0, (s, e) => s + e.amount);
       _loading = false;
@@ -304,8 +323,84 @@ class _MoneyScreenState extends State<MoneyScreen> {
               color: scheme.primary)),
       Text(tr('جنيه', 'EGP'),
           style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
+      if (_monthChange != null && _monthChange!.abs() >= 1) ...[
+        const SizedBox(height: 6),
+        _changeChip(context, _monthChange!),
+      ],
+      if (_locked > 0) ...[
+        const SizedBox(height: 10),
+        _liquidSplitBar(context),
+      ],
     ]);
   }
+
+  /// «زادت ولا قلّت الشهر ده» — الفرق عن أول الشهر.
+  Widget _changeChip(BuildContext context, double change) {
+    final up = change >= 0;
+    final c = up ? const Color(0xFF10B981) : Theme.of(context).colorScheme.error;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+      decoration: BoxDecoration(
+          color: c.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(99)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(up ? Icons.arrow_upward : Icons.arrow_downward, size: 14, color: c),
+        const SizedBox(width: 5),
+        Text(
+            up
+                ? tr('زادت ${arMoney(change.round())} الشهر ده',
+                    'Up ${arMoney(change.round())} this month')
+                : tr('قلّت ${arMoney(change.abs().round())} الشهر ده',
+                    'Down ${arMoney(change.abs().round())} this month'),
+            style: TextStyle(
+                fontSize: 11.5, fontWeight: FontWeight.w800, color: c)),
+      ]),
+    );
+  }
+
+  /// **السايلة والمربوطة** — الذهب والأصول والشهادة عندهم قيمة بس مش
+  /// فلوس فى إيدك، وده اللى بيخلّى واحد «معاه مليون» ومش لاقى إيجار.
+  Widget _liquidSplitBar(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    const green = Color(0xFF10B981);
+    final sum = _liquid + _locked;
+    final ratio = sum <= 0 ? 0.0 : (_liquid / sum).clamp(0.0, 1.0);
+    return Column(children: [
+      ClipRRect(
+        borderRadius: BorderRadius.circular(99),
+        child: SizedBox(
+          height: 8,
+          child: Row(children: [
+            Expanded(
+                flex: (ratio * 1000).round().clamp(1, 1000),
+                child: Container(color: green)),
+            Expanded(
+                flex: ((1 - ratio) * 1000).round().clamp(1, 1000),
+                child: Container(color: scheme.outlineVariant)),
+          ]),
+        ),
+      ),
+      const SizedBox(height: 6),
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        _splitLabel(tr('سايلة', 'Liquid'), _liquid, green),
+        const SizedBox(width: 14),
+        _splitLabel(tr('مربوطة', 'Locked'), _locked, scheme.onSurfaceVariant),
+      ]),
+    ]);
+  }
+
+  Widget _splitLabel(String label, double value, Color c) =>
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 5),
+        Text('$label ${arMoney(value.round())}',
+            style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w700, color: c)),
+      ]);
 
   /// المحافظ مربعات، اتنين فى الصف، وآخر مربّع «＋ محفظة جديدة».
   List<Widget> _walletGrid(BuildContext context) {
@@ -531,8 +626,10 @@ class _MoneyScreenState extends State<MoneyScreen> {
   /// المتكرّر، والفواتير من الفواتير الثابتة، والفاضل هو الفرق.
   Widget _fixedMonthly(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final left = _monthlyIncome - _monthlyBills;
-    if (_monthlyIncome == 0 && _monthlyBills == 0) {
+    // عائد الشهادات دخل ثابت زى المرتب — محسوب عندك بالفعل.
+    final income = _monthlyIncome + _certInterest;
+    final left = income - _monthlyBills;
+    if (income == 0 && _monthlyBills == 0) {
       return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         AppGroupHead(tr('اللى ثابت كل شهر', 'Every month')),
         AppListRow(
@@ -570,6 +667,20 @@ class _MoneyScreenState extends State<MoneyScreen> {
                 fontWeight: FontWeight.w900,
                 color: Color(0xFF10B981))),
       ),
+      if (_certInterest > 0)
+        AppListRow(
+          title: tr('عائد الشهادات', 'Certificate interest'),
+          sub: tr('بيجيلك كل شهر من البنك', 'From the bank every month'),
+          icon: Icons.account_balance,
+          tint: const Color(0xFF14B8A6),
+          chevron: true,
+          onTap: _openWallets,
+          trailing: Text(arMoney(_certInterest.round()),
+              style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF14B8A6))),
+        ),
       AppListRow(
         title: tr('فواتير ثابتة', 'Fixed bills'),
         sub: tr('اللى بيتدفع كل شهر', 'Paid every month'),
@@ -585,7 +696,8 @@ class _MoneyScreenState extends State<MoneyScreen> {
       ),
       AppListRow(
         title: tr('الفاضل بعدهم', 'Left after them'),
-        sub: tr('دخلك ناقص فواتيرك', 'Income minus bills'),
+        sub: tr('دخلك (بالعائد) ناقص فواتيرك',
+            'Income (incl. interest) minus bills'),
         icon: Icons.savings,
         tint: left >= 0 ? const Color(0xFF14B8A6) : scheme.error,
         divider: false,

@@ -4,6 +4,7 @@ import '../core/ar.dart';
 import '../core/db.dart';
 import '../core/l10n.dart';
 import '../models/models.dart';
+import 'settings_repo.dart';
 
 const List<String> kWalletTypes = [
   'cash',
@@ -102,6 +103,49 @@ Color walletTypeColor(String t) => switch (t) {
       _ => const Color(0xFF64748B),
     };
 
+/// **سعر جرام المعدن — واحد لكل معدن، مش لكل قطعة.**
+///
+/// قبل كده كان كل محفظة ذهب ليها سعرها، فلو عندك ٣ قطع كنت بتعدّل
+/// السعر ٣ مرات. دلوقتى السعر واحد: تحدّثه مرة وكل قطع الذهب تتحسب
+/// من جديد.
+///
+/// السعر القديم اللى فى المحفظة نفسها بيفضل موجود ويُستعمل لو السعر
+/// المشترك لسه مااتحطّش — فمحدش بيخسر رقم كان كاتبه.
+class MetalPrices {
+  static const _kGold = 'gold_gram_price';
+  static const _kSilver = 'silver_gram_price';
+
+  static double _gold = 0;
+  static double _silver = 0;
+  static bool _loaded = false;
+
+  static double of(String type) => type == 'silver' ? _silver : _gold;
+
+  static Future<void> load({bool force = false}) async {
+    if (_loaded && !force) return;
+    final st = SettingsRepo();
+    _gold = double.tryParse(await st.get(_kGold) ?? '') ?? 0;
+    _silver = double.tryParse(await st.get(_kSilver) ?? '') ?? 0;
+    _loaded = true;
+  }
+
+  static Future<void> set(String type, double price) async {
+    if (type == 'silver') {
+      _silver = price;
+      await SettingsRepo().set(_kSilver, price.toString());
+    } else {
+      _gold = price;
+      await SettingsRepo().set(_kGold, price.toString());
+    }
+  }
+
+  static void resetForTests() {
+    _gold = 0;
+    _silver = 0;
+    _loaded = false;
+  }
+}
+
 /// نوع الحساب البنكى: متاح تسحب منه، ولا شهادة بعائد وتاريخ انتهاء.
 const List<String> kBankKinds = ['available', 'certificate'];
 
@@ -164,11 +208,11 @@ class WalletsRepo {
   /// فمالهمش دخل ومصروف أصلاً.
   Future<double> balanceOf(Wallet w) async {
     if (isMetalWallet(w.type)) {
+      // السعر المشترك هو المرجع؛ واللى فى المحفظة احتياطى للقديم.
+      final price =
+          MetalPrices.of(w.type) > 0 ? MetalPrices.of(w.type) : w.gramPrice;
       final v = metalValue(
-          type: w.type,
-          grams: w.grams,
-          karat: w.karat,
-          gramPrice: w.gramPrice);
+          type: w.type, grams: w.grams, karat: w.karat, gramPrice: price);
       // لو لسه مادخّلش وزن وسعر، بنرجع اللى كتبه بإيده (لو كان كاتب).
       return v > 0 ? v : w.openingBalance;
     }
@@ -196,6 +240,68 @@ class WalletsRepo {
     return [
       for (final w in wallets) (wallet: w, balance: await balanceOf(w))
     ];
+  }
+
+  /// بياخد السعر القديم اللى كان متكتوب فى المحفظة نفسها ويخلّيه هو
+  /// السعر المشترك — مرة واحدة.
+  ///
+  /// من غير كده أول ما السعر المشترك يشتغل، الرقم اللى كان كاتبه
+  /// **يتجاهل** وقيمة الذهب تقع لصفر. ده أهم من إنه يبقى «نضيف».
+  Future<void> adoptLegacyMetalPrices() async {
+    await MetalPrices.load();
+    for (final type in kMetalWalletTypes) {
+      if (MetalPrices.of(type) > 0) continue;
+      final withPrice = (await all())
+          .where((w) => w.type == type && w.gramPrice > 0)
+          .toList();
+      if (withPrice.isEmpty) continue;
+      await MetalPrices.set(type, withPrice.first.gramPrice);
+    }
+  }
+
+  /// **فلوسك السايلة** = اللى تقدر تلمسه النهاردة (كاش · بنك متاح ·
+  /// كارت · محفظة موبايل).
+  ///
+  /// الذهب والأصول والمواشى والشهادة مربوطين: عندهم قيمة، بس مش فلوس
+  /// فى إيدك. الفرق ده هو اللى بيخلّى واحد «معاه مليون» ومش لاقى إيجار.
+  static bool isLiquid(Wallet w) =>
+      !isValueOnlyWallet(w.type) &&
+      !(w.type == 'bank' && w.bankKind == 'certificate');
+
+  Future<({double liquid, double locked})> liquidSplit() async {
+    final list = await allWithBalances();
+    var liquid = 0.0;
+    var locked = 0.0;
+    for (final e in list) {
+      if (isLiquid(e.wallet)) {
+        liquid += e.balance;
+      } else {
+        locked += e.balance;
+      }
+    }
+    return (liquid: liquid, locked: locked);
+  }
+
+  /// مجموع عائد الشهادات الشهرى — دخل ثابت زى المرتب بالظبط.
+  Future<double> monthlyCertificateInterest() async {
+    final list = await all();
+    return list
+        .where((w) => w.type == 'bank' && w.bankKind == 'certificate')
+        .fold<double>(0, (t, w) => t + w.monthlyInterest);
+  }
+
+  /// الشهادات اللى بتنتهى خلال [days] يوم.
+  Future<List<Wallet>> certificatesMaturingSoon({int days = 30}) async {
+    final today = dateOnly(DateTime.now());
+    final out = <Wallet>[];
+    for (final w in await all()) {
+      if (w.type != 'bank' || w.bankKind != 'certificate') continue;
+      final end = DateTime.tryParse(w.maturity);
+      if (end == null) continue;
+      final left = dateOnly(end).difference(today).inDays;
+      if (left >= 0 && left <= days) out.add(w);
+    }
+    return out;
   }
 
   Future<double> totalBalance() async {

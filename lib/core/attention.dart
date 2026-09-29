@@ -11,6 +11,7 @@ import '../data/plants_repo.dart';
 import '../data/relatives_repo.dart';
 import '../data/tasks_repo.dart';
 import '../data/vaccinations_repo.dart';
+import '../data/wallets_repo.dart';
 import '../models/models.dart';
 import '../data/settings_repo.dart';
 import 'ar.dart';
@@ -31,6 +32,7 @@ enum AttentionKind {
   subscription,
   gameya,
   backup,
+  certificate,
 }
 
 /// بند «محتاج منك دلوقتي» — حاجة متأخرة أو مستحقة النهارده من أى قسم.
@@ -142,6 +144,27 @@ Future<List<AttentionItem>> collectAttention([DateTime? nowArg]) async {
           'Appointment: ${a.title} — ${arTime(a.when)}'),
       urgency: soon ? 1 : 3,
       actionLabel: tr('تم', 'Done'),
+    ));
+  }
+
+  // ————— شهادة بنكية قربت تنتهى —————
+  // المعلومة موجودة عندك أصلاً (تاريخ الانتهاء) — بس مكانش حد بينادى
+  // عليك بيها قبل ما تعدّى.
+  for (final w in await WalletsRepo().certificatesMaturingSoon(days: 30)) {
+    if (w.id == null) continue;
+    final end = DateTime.tryParse(w.maturity);
+    final left = end == null
+        ? 0
+        : dateOnly(end).difference(dateOnly(now)).inDays;
+    out.add(AttentionItem(
+      kind: AttentionKind.certificate,
+      id: w.id!,
+      text: left <= 0
+          ? tr('شهادة «${w.name}» بتنتهى النهاردة',
+              'Certificate "${w.name}" matures today')
+          : tr('شهادة «${w.name}» بتنتهى بعد ${arNum(left)} يوم',
+              'Certificate "${w.name}" matures in ${arNum(left)} days'),
+      urgency: left <= 7 ? 3 : 5,
     ));
   }
 
@@ -398,5 +421,9 @@ Future<bool> performAttentionAction(AttentionItem item,
     case AttentionKind.backup:
       await BackupService.exportBackup();
       return true;
+    case AttentionKind.certificate:
+      // مفيش إجراء فورى — التجديد بيحصل فى البنك مش هنا. الضغط بيفتح
+      // المحافظ عشان تعدّل التاريخ بعد ما تجدّد.
+      return false;
   }
 }
