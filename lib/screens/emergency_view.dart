@@ -61,10 +61,10 @@ class _EmergencyViewState extends State<EmergencyView> {
 
   /// سطر بيانات — بيختفى لو فاضى (كارت الطوارئ مايعرضش خانات فاضية).
   Widget _row(BuildContext context, IconData icon, String label, String value,
-      {bool last = false}) {
+      {bool last = false, VoidCallback? onTap}) {
     if (value.isEmpty) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
-    return Container(
+    final row = Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: last
           ? null
@@ -93,8 +93,12 @@ class _EmergencyViewState extends State<EmergencyView> {
                     fontSize: 19, fontWeight: FontWeight.w700)),
           ]),
         ),
+        if (onTap != null)
+          Icon(Icons.call, size: 20, color: scheme.error),
       ]),
     );
+    if (onTap == null) return row;
+    return InkWell(onTap: onTap, child: row);
   }
 
   @override
@@ -165,23 +169,42 @@ class _EmergencyViewState extends State<EmergencyView> {
                       style: TextStyle(color: scheme.outline),
                     ),
                   )
-                else
-                  AppPad(AppCard(Column(children: [
-                    _row(context, Icons.bloodtype,
-                        tr('فصيلة الدم', 'Blood type'), ltr(_blood)),
-                    _row(context, Icons.warning_amber_rounded,
-                        tr('الحساسيات', 'Allergies'), _allergies),
-                    _row(context, Icons.monitor_heart_outlined,
-                        tr('أمراض مزمنة', 'Chronic conditions'), _conditions),
-                    _row(
+                else ...[
+                  // قايمة واحدة بعناوين: «بياناتك» اللى المسعف بيسأل
+                  // عليها الأول، بعدها «لازم يعرفوا»، بعدها الأرقام.
+                  if (_blood.isNotEmpty)
+                    AppPad(AppGroupHead(tr('بياناتك', 'About you'))),
+                  if (_blood.isNotEmpty)
+                    AppPad(_row(context, Icons.bloodtype,
+                        tr('فصيلة الدم', 'Blood type'), ltr(_blood),
+                        last: true)),
+                  if (_allergies.isNotEmpty || _conditions.isNotEmpty) ...[
+                    AppPad(AppGroupHead(tr('لازم يعرفوا', 'They must know'),
+                        trail: arNum([_allergies, _conditions]
+                            .where((e) => e.isNotEmpty)
+                            .length))),
+                    AppPad(_row(context, Icons.warning_amber_rounded,
+                        tr('الحساسيات', 'Allergies'), _allergies,
+                        last: _conditions.isEmpty)),
+                    AppPad(_row(context, Icons.monitor_heart_outlined,
+                        tr('أمراض مزمنة', 'Chronic conditions'), _conditions,
+                        last: true)),
+                  ],
+                  if (_contactPhone.isNotEmpty) ...[
+                    AppPad(AppGroupHead(
+                        tr('أرقام الطوارئ', 'Emergency numbers'))),
+                    AppPad(_row(
                         context,
                         Icons.contact_phone_outlined,
-                        tr('شخص للطوارئ', 'Emergency contact'),
                         _contactName.isEmpty
-                            ? ltr(_contactPhone)
-                            : '$_contactName — ${ltr(_contactPhone)}',
-                        last: true),
-                  ]))),
+                            ? tr('شخص للطوارئ', 'Emergency contact')
+                            : _contactName,
+                        ltr(_contactPhone),
+                        last: true,
+                        onTap: _call)),
+                  ],
+                  const SizedBox(height: 16),
+                ],
               ],
             ),
     );

@@ -25,6 +25,7 @@ import 'package:my_assistant/screens/money/money_screen.dart';
 import 'package:my_assistant/screens/money/recurring_income_screen.dart';
 import 'package:my_assistant/screens/money/fixed_bills_screen.dart';
 import 'package:my_assistant/screens/money/wallets_screen.dart';
+import 'package:my_assistant/screens/alerts_center_screen.dart';
 import 'package:my_assistant/data/notes_repo.dart';
 import 'package:my_assistant/data/wardrobe_repo.dart';
 import 'package:my_assistant/data/health_repo.dart';
@@ -381,6 +382,29 @@ void main() {
     final f = await shot(tester, 'real_wallets',
         shotApp(buildTheme(), const WalletsScreen()),
         size: const Size(390, 720), pixelRatio: 2);
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('مركز التنبيهات — مجموعات بالوقت', (tester) async {
+    // فاتورة فات ميعادها + دوا قرّب يخلص → بندين على الأقل.
+    await BillsRepo().save(const RecurringBill(
+        name: 'الكهربا', amount: 420, dayOfMonth: 1, category: 'فواتير'));
+    final f = await shot(tester, 'real_alerts',
+        shotApp(buildTheme(), const AlertsCenterScreen()),
+        size: const Size(390, 640), pixelRatio: 2);
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('كارت الطوارئ — قايمة بمجموعات', (tester) async {
+    final st = SettingsRepo();
+    await st.set('emergency_blood', 'O+');
+    await st.set('emergency_allergies', 'بنسلين');
+    await st.set('emergency_conditions', 'ضغط مرتفع — كونكور 5 مج يومى');
+    await st.set('emergency_contact_name', 'منى — الزوجة');
+    await st.set('emergency_contact_phone', '0100 123 4567');
+    final f = await shot(tester, 'real_emergency2',
+        shotApp(buildTheme(), const EmergencyView()),
+        size: const Size(390, 760), pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
   });
 

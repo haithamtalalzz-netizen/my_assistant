@@ -45,6 +45,16 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
 
   String _keyOf(AttentionItem it) => '${it.kind.name}_${it.id}_${it.slot ?? ''}';
 
+  /// مفتاح تخزين «أول مرة شُفت فيها التنبيه ده».
+  static const _kFirstSeen = 'alert_first_seen';
+
+  /// التنبيه مالوش تاريخ فى النموذج — هو محسوب من اللى مستحق دلوقتى.
+  /// فعشان نعرف «من امتى وهو معلّق»، بنسجّل أول مرة ظهر فيها.
+  Map<String, DateTime> _firstSeen = {};
+
+  /// الفلتر: الكل · محتاج تصرّف · للعلم.
+  String _filter = 'all';
+
   @override
   void initState() {
     super.initState();
@@ -76,6 +86,85 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
       _items = items.where((it) => !map.containsKey(_keyOf(it))).toList();
       _loading = false;
     });
+    await _trackFirstSeen(now);
+  }
+
+  /// بيسجّل أول ظهور لأى تنبيه جديد، وبيشيل اللى اختفى.
+  ///
+  /// التنظيف مهم: من غيره الملف بيكبر بمفاتيح لحاجات خلصت من زمان.
+  Future<void> _trackFirstSeen(DateTime now) async {
+    final st = SettingsRepo();
+    final stored = <String, DateTime>{};
+    final raw = await st.get(_kFirstSeen) ?? '';
+    if (raw.isNotEmpty) {
+      try {
+        (jsonDecode(raw) as Map).forEach((k, v) {
+          final d = DateTime.tryParse('$v');
+          if (d != null) stored[k as String] = d;
+        });
+      } on FormatException {
+        // مخزَّن تالف — نبدأ من جديد.
+      }
+    }
+    final live = {for (final it in _items) _keyOf(it)};
+    final next = <String, DateTime>{
+      for (final e in stored.entries)
+        if (live.contains(e.key)) e.key: e.value
+    };
+    for (final k in live) {
+      next[k] ??= now;
+    }
+    if (next.length != stored.length ||
+        next.keys.any((k) => !stored.containsKey(k))) {
+      await st.set(_kFirstSeen,
+          jsonEncode({for (final e in next.entries) e.key: e.value.toIso8601String()}));
+    }
+    if (mounted) setState(() => _firstSeen = next);
+  }
+
+  /// عنوان المجموعة اللى البند بيقع فيها.
+  String _bucketOf(AttentionItem it) {
+    final seen = _firstSeen[_keyOf(it)];
+    if (seen == null) return tr('النهارده', 'Today');
+    final days = dateOnly(DateTime.now()).difference(dateOnly(seen)).inDays;
+    if (days <= 0) return tr('النهارده', 'Today');
+    if (days == 1) return tr('امبارح', 'Yesterday');
+    if (days <= 7) return tr('الأسبوع ده', 'This week');
+    return tr('من زمان', 'Older');
+  }
+
+  Widget _filterBar() {
+    final scheme = Theme.of(context).colorScheme;
+    Widget chip(String id, String label) {
+      final on = _filter == id;
+      return Padding(
+        padding: const EdgeInsets.only(left: 7),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(99),
+          onTap: () => setState(() => _filter = id),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: on ? scheme.primary : scheme.surface,
+              borderRadius: BorderRadius.circular(99),
+              border: Border.all(
+                  color: on ? scheme.primary : scheme.outlineVariant),
+            ),
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: on ? scheme.onPrimary : scheme.onSurfaceVariant)),
+          ),
+        ),
+      );
+    }
+
+    return Row(children: [
+      chip('all', tr('الكل', 'All')),
+      chip('act', tr('محتاج تصرّف', 'Needs you')),
+      chip('fyi', tr('للعلم', 'FYI')),
+    ]);
   }
 
   /// تنفيذ الإجراء من التنبيه نفسه — من غير ما تفتح الصفحة.
@@ -247,24 +336,36 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
     );
   }
 
-  /// **محتاج تتصرّف** الأول، و**للعلم** تحته.
+  /// **مقسومة بالوقت**: النهارده · امبارح · الأسبوع ده · من زمان.
   ///
-  /// قبل كده كان كل تنبيه كارت لوحده بنفس الشكل، فاللى محتاج منك حاجة
-  /// واللى مجرد خبر كانوا واحد — وأنت بتدوّر بعينك على اللى عليه زرار.
+  /// التنبيه مالوش تاريخ فى النموذج (بيتحسب من اللى مستحق دلوقتى)،
+  /// فبنسجّل أول ظهور له ونجمّع عليه — كده تعرف اللى معلّق من أسبوع
+  /// من اللى طلع دلوقتى.
   List<Widget> _grouped() {
-    final act = [for (final i in _items) if (i.actionLabel != null) i];
-    final fyi = [for (final i in _items) if (i.actionLabel == null) i];
+    final shown = [
+      for (final i in _items)
+        if (_filter == 'all' ||
+            (_filter == 'act' && i.actionLabel != null) ||
+            (_filter == 'fyi' && i.actionLabel == null))
+          i
+    ];
+    const order = ['النهارده', 'امبارح', 'الأسبوع ده', 'من زمان'];
+    final buckets = <String, List<AttentionItem>>{};
+    for (final it in shown) {
+      buckets.putIfAbsent(_bucketOf(it), () => []).add(it);
+    }
+    final keys = buckets.keys.toList()
+      ..sort((a, b) {
+        final ia = order.indexOf(a);
+        final ib = order.indexOf(b);
+        return (ia < 0 ? 99 : ia).compareTo(ib < 0 ? 99 : ib);
+      });
     return [
-      if (act.isNotEmpty) ...[
-        AppGroupHead(tr('محتاج تتصرّف', 'Needs you'), trail: arNum(act.length)),
-        for (var i = 0; i < act.length; i++)
-          _tile(act[i], last: i == act.length - 1),
-      ],
-      if (fyi.isNotEmpty) ...[
-        AppGroupHead(tr('للعلم بس', 'Just so you know'),
-            trail: arNum(fyi.length)),
-        for (var i = 0; i < fyi.length; i++)
-          _tile(fyi[i], last: i == fyi.length - 1),
+      AppPad(_filterBar()),
+      for (final k in keys) ...[
+        AppGroupHead(k, trail: arNum(buckets[k]!.length)),
+        for (var i = 0; i < buckets[k]!.length; i++)
+          _tile(buckets[k]![i], last: i == buckets[k]!.length - 1),
       ],
     ];
   }

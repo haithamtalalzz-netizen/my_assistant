@@ -228,14 +228,15 @@ class AppDrawer extends StatelessWidget {
       endIndent: 14,
       color: scheme.outlineVariant.withValues(alpha: 0.35),
     );
-    // فاصل أقسام (أعرض شوية).
-    final sectionDivider = Divider(
-      height: 17,
-      thickness: 0.7,
-      indent: 30,
-      endIndent: 30,
-      color: scheme.outlineVariant.withValues(alpha: 0.5),
-    );
+    /// عنوان مجموعة — الفاصل الصامت كان بيفصل من غير ما يقول بيفصل إيه.
+    Widget sectionHead(String title) => Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
+          child: Text(title,
+              style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: scheme.onSurfaceVariant)),
+        );
 
     return Drawer(
       child: SafeArea(
@@ -326,6 +327,7 @@ class AppDrawer extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Column(children: [
+            sectionHead(tr('يومك', 'Your day')),
             // مثبّت فوق — أكتر ٣ حاجات بتتفتح.
             top(0, Icons.home_outlined, tr('الرئيسية', 'Home'), _cHome),
             rowDivider,
@@ -341,9 +343,10 @@ class AppDrawer extends StatelessWidget {
             push(Icons.sticky_note_2_outlined, tr('تذكيراتى', 'My notes'),
                 const NotesScreen(), _cNotes),
             rowDivider,
+            sectionHead(tr('حياتك', 'Your life')),
             push(Icons.flag_outlined, tr('الأهداف', 'Goals'),
                 const GoalsScreen(), _cGoals),
-            sectionDivider,
+            rowDivider,
             // الصلاة والأذكار — فوق الفلوس مباشرة (المصحف جوّاها).
             push(Icons.mosque_outlined, tr('صلاتى', 'My prayers'),
                 const PrayerScreen(), _cPrayer),
@@ -535,7 +538,7 @@ class AppDrawer extends StatelessWidget {
                   GroupHubItem(Icons.notifications_none, tr('مركز التنبيهات', 'Alerts'),
                       screen: const AlertsCenterScreen()),
                 ]),
-            sectionDivider,
+            sectionHead(tr('لو حصل طارئ', 'In an emergency')),
             // دايمًا ظاهرة في الآخر.
             push(Icons.medical_services_outlined,
                 tr('كارت الطوارئ', 'Emergency card'),
