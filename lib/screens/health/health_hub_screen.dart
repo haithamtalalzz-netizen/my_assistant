@@ -27,6 +27,7 @@ import '../gym/gym_screen.dart';
 import '../gym/progress_screen.dart';
 import '../home/pharmacy_screen.dart';
 import '../medical/medical_screen.dart';
+import '../../widgets/measurement_sheet.dart';
 
 /// لوحة صحّة موحّدة — تجمع كل حاجة صحية في مكان واحد:
 /// لقطة النهارده (مياه/نوم/خطوات/سعرات) + مداخل للجيم والتقدم البدني
@@ -703,90 +704,13 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
   }
 
   /// شباك تسجيل قياس سريع لنوع محدّد — يعيد التحميل بعد الحفظ.
+  /// الورقة نفسها اللى بتستخدمها «صحتى» — نسخة واحدة عشان ماتفرقش.
   Future<void> _openMeasurementSheet(String type) async {
-    final v1 = TextEditingController();
-    final v2 = TextEditingController();
-    final ok = await showModalBottomSheet<bool>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (ctx) {
-        final scheme = Theme.of(ctx).colorScheme;
-        return Padding(
-          padding: EdgeInsets.only(
-              left: 24,
-              right: 24,
-              top: 4,
-              bottom: 20 +
-                  MediaQuery.of(ctx).viewInsets.bottom +
-                  MediaQuery.of(ctx).viewPadding.bottom),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Icon(Icons.monitor_heart_outlined, color: scheme.primary),
-                const SizedBox(width: 8),
-                Text(tr('تسجيل $type', 'Log $type'),
-                    style: Theme.of(ctx).textTheme.titleMedium),
-              ]),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: v1,
-                      autofocus: true,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                          labelText: type == 'ضغط'
-                              ? tr('الانقباضي', 'Systolic')
-                              : tr('القيمة', 'Value')),
-                    ),
-                  ),
-                  if (type == 'ضغط') ...[
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: v2,
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                            labelText: tr('الانبساطي', 'Diastolic')),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: Text(tr('حفظ', 'Save'))),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-    if (ok == true) {
-      final a = parseNumber(v1.text);
-      if (a != null) {
-        await MeasurementsRepo().add(Measurement(
-          day: dayKey(DateTime.now()),
-          type: type,
-          value: a,
-          value2: type == 'ضغط' ? parseNumber(v2.text) : null,
-        ));
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(tr('اتسجّل القياس 📏', 'Measurement saved 📏'))));
-          await _load();
-        }
-      }
-    }
-    v1.dispose();
-    v2.dispose();
+    if (!await openMeasurementSheet(context, type)) return;
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr('اتسجّل القياس 📏', 'Measurement saved 📏'))));
+    await _load();
   }
 
   Widget _navCard({

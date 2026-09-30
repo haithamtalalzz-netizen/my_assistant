@@ -8,7 +8,10 @@ import '../../data/meds_repo.dart';
 import '../../data/settings_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/a_kit.dart';
+import '../../widgets/measurement_sheet.dart';
 import '../../widgets/search_action.dart';
+import '../food/meal_sheet.dart';
+import '../gym/walk_tracker_screen.dart';
 import 'health_hub_screen.dart';
 
 /// **صحتى** — قسمين واضحين وبعدهم البنود.
@@ -258,15 +261,26 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
 
   /// مربّع رقم. [goodWhenUp] = هل الطلوع حاجة كويسة؟
   /// (الوزن والضغط والسكر: النزول أحسن. الخطوات: الطلوع أحسن.)
+  ///
+  /// المربّع **بيتداس**: شاشة بتعرض أرقام من غير ما تسجّل منها بتخلّيك
+  /// تدوّر على مكان التسجيل فى شاشة تانية، والنتيجة إنك ماتسجّلش.
   Widget _sq(IconData icon, Color tint, String? value, String label,
-      {String? trend, bool up = false, bool goodWhenUp = false}) {
+      {String? trend,
+      bool up = false,
+      bool goodWhenUp = false,
+      VoidCallback? onTap}) {
     final scheme = Theme.of(context).colorScheme;
     final good = up == goodWhenUp;
     return Expanded(
-      child: Container(
+      child: Material(
+        color: tint.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
         padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
         decoration: BoxDecoration(
-            color: tint.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: tint.withValues(alpha: 0.22))),
         child: Column(children: [
@@ -296,9 +310,32 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
             ]),
           ],
         ]),
+          ),
+        ),
       ),
     );
   }
+
+  Future<void> _logMeasurement(String type) async {
+    if (!await openMeasurementSheet(context, type)) return;
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr('اتسجّل القياس', 'Measurement saved'))));
+    await _load();
+  }
+
+  Future<void> _logSleep() async {
+    if (!await openSleepSheet(context)) return;
+    if (mounted) await _load();
+  }
+
+  /// فيه أى رقم متسجّل أصلاً؟ لو لأ الشاشة بتقول اعمل إيه بدل ما
+  /// تسيبك قدّام ستّ شرطات.
+  bool get _anyNumber =>
+      (_day?.steps ?? 0) > 0 ||
+      (_day?.calories ?? 0) > 0 ||
+      _day?.sleep != null ||
+      _vitals.values.any((l) => l.isNotEmpty);
 
   Widget _numbersSection() {
     final d = _day;
@@ -309,30 +346,46 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
       Row(children: [
         _sq(Icons.monitor_weight_outlined, const Color(0xFF3B82F6),
             weight?.$1, tr('كيلو', 'kg'),
-            trend: weight?.$2, up: weight?.$3 ?? false),
+            trend: weight?.$2,
+            up: weight?.$3 ?? false,
+            onTap: () => _logMeasurement('وزن')),
         const SizedBox(width: 9),
         _sq(Icons.favorite_outline, const Color(0xFFF43F5E), bp?.$1,
-            tr('ضغط', 'BP')),
+            tr('ضغط', 'BP'),
+            onTap: () => _logMeasurement('ضغط')),
         const SizedBox(width: 9),
         _sq(Icons.bloodtype_outlined, const Color(0xFFF59E0B), sugar?.$1,
             tr('سكر', 'Sugar'),
-            trend: sugar?.$2, up: sugar?.$3 ?? false),
+            trend: sugar?.$2,
+            up: sugar?.$3 ?? false,
+            onTap: () => _logMeasurement('سكر')),
       ]),
       const SizedBox(height: 9),
       Row(children: [
         _sq(Icons.directions_walk, const Color(0xFF10B981),
             (d?.steps ?? 0) > 0 ? arMoney(d!.steps) : null,
             tr('خطوة', 'steps'),
-            goodWhenUp: true),
+            goodWhenUp: true, onTap: () async {
+          await Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const WalkTrackerScreen()));
+          if (mounted) await _load();
+        }),
         const SizedBox(width: 9),
-        _sq(Icons.bedtime_outlined, const Color(0xFF8B5CF6),
-            d?.sleep == null ? null : tr('${_num(d!.sleep!)} س', '${_num(d.sleep!)} h'),
+        _sq(
+            Icons.bedtime_outlined,
+            const Color(0xFF8B5CF6),
+            d?.sleep == null
+                ? null
+                : tr('${_num(d!.sleep!)} س', '${_num(d.sleep!)} h'),
             tr('نوم', 'sleep'),
-            goodWhenUp: true),
+            goodWhenUp: true,
+            onTap: _logSleep),
         const SizedBox(width: 9),
         _sq(Icons.local_fire_department_outlined, const Color(0xFFFF6F00),
             (d?.calories ?? 0) > 0 ? arMoney(d!.calories) : null,
-            tr('سعرة', 'kcal')),
+            tr('سعرة', 'kcal'), onTap: () async {
+          if (await showMealSheet(context) == true && mounted) await _load();
+        }),
       ]),
     ]);
   }
@@ -425,7 +478,10 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
                       trail: tr('${arNum(done)} من ${arNum(total)}',
                           '${arNum(done)} of ${arNum(total)}'))),
                   AppPad(_todaySection()),
-                  AppPad(AppGroupHead(tr('أرقامك', 'Your numbers'))),
+                  AppPad(AppGroupHead(tr('أرقامك', 'Your numbers'),
+                      trail: _anyNumber
+                          ? null
+                          : tr('دوس على أى مربّع تسجّل', 'Tap any to log'))),
                   AppPad(_numbersSection()),
                   AppPad(AppGroupHead(tr('بنودك', 'Your sections'))),
                   AppPad(Column(
