@@ -1070,7 +1070,7 @@ class LocalBrain {
     final repo = GoalsRepo();
     final goals = await repo.all();
     if (goals.isEmpty) {
-      return tr('مفيش أهداف. حدد هدف من «الأهداف» وأنا أتابعه معاك.',
+      return tr('مفيش أهداف. حدد هدف من «أهدافى» وأنا أتابعه معاك.',
           'No goals. Set one in Goals and I\'ll track it with you.');
     }
     final open = goals.where((g) => !g.done).toList();

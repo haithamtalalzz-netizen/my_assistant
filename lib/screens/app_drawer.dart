@@ -344,7 +344,7 @@ class AppDrawer extends StatelessWidget {
                 const NotesScreen(), _cNotes),
             rowDivider,
             sectionHead(tr('حياتك', 'Your life')),
-            push(Icons.flag_outlined, tr('الأهداف', 'Goals'),
+            push(Icons.flag_outlined, tr('أهدافى', 'My goals'),
                 const GoalsScreen(), _cGoals),
             rowDivider,
             // الصلاة والأذكار — فوق الفلوس مباشرة (المصحف جوّاها).

@@ -14,6 +14,8 @@ import 'package:my_assistant/data/habits_repo.dart';
 import 'package:my_assistant/data/meals_repo.dart';
 import 'package:my_assistant/screens/habits/habits_screen.dart';
 import 'package:my_assistant/screens/tasks/focus_screen.dart';
+import 'package:my_assistant/screens/money/wallets_screen.dart';
+import 'package:my_assistant/data/wallets_repo.dart';
 import 'package:my_assistant/widgets/quick_add_field.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -117,6 +119,34 @@ void main() {
     expect(
         (tester.widget(find.byType(TextField)) as TextField).controller!.text,
         '');
+  });
+
+  testWidgets('المحافظ: الاسم الفاضى = رسالة مش حفظ صامت', (tester) async {
+    // 🔴 العطب اللى بلّغ عنه: بيضيف محفظة ذهب، يدوس حفظ، الحوار يقفل
+    // وكأن كله تمام — والمحفظة ماتتضافش ومحدش بيقوله ليه.
+    await tester.pumpWidget(_app(const WalletsScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+
+    // حفظ من غير اسم → الحوار يفضل مفتوح والسبب مكتوب.
+    await tester.tap(find.widgetWithText(FilledButton, 'حفظ'));
+    await tester.pumpAndSettle();
+    expect(find.text('اكتب اسم للمحفظة'), findsOneWidget,
+        reason: 'لازم يقول السبب');
+    expect(find.byType(AlertDialog), findsOneWidget,
+        reason: 'الحوار مايقفلش وكأن الحفظ تمّ');
+    expect(await WalletsRepo().count(), 0);
+
+    // بعد ما يكتب الاسم → بتتحفظ فعلاً.
+    await tester.enterText(find.byType(TextField).first, 'ذهب الفرح');
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'حفظ'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(await WalletsRepo().count(), 1);
+    expect((await WalletsRepo().all()).single.name, 'ذهب الفرح');
   });
 
   testWidgets('شاشة العادات: العادة المعدودة ليها عدّاد −/+ بيشتغل',

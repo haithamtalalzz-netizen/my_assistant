@@ -49,7 +49,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('الأهداف', 'Goals'))),
+      appBar: AppBar(title: Text(tr('أهدافى', 'My goals'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
