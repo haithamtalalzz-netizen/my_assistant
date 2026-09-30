@@ -18,6 +18,7 @@ import 'package:my_assistant/screens/home/pharmacy_form.dart';
 import 'package:my_assistant/screens/home/pharmacy_screen.dart';
 import 'package:my_assistant/screens/lock_gate.dart';
 import 'package:my_assistant/screens/money/fixed_bills_screen.dart';
+import 'package:my_assistant/screens/money/money_log_screen.dart';
 import 'package:my_assistant/screens/money/recurring_income_screen.dart';
 import 'package:my_assistant/screens/onboarding_gate.dart';
 import 'package:my_assistant/screens/onboarding_screen.dart';
@@ -365,4 +366,10 @@ void main() {
 
   testWidgets('FixedBillsScreen (فواتير ثابتة)',
       (t) => sweep(t, () => const FixedBillsScreen()));
+
+  testWidgets('MoneyLogScreen (صرفت إيه)',
+      (t) => sweep(t, () => const MoneyLogScreen(kind: MoneyLogKind.spent)));
+
+  testWidgets('MoneyLogScreen (قبضت إيه)',
+      (t) => sweep(t, () => const MoneyLogScreen(kind: MoneyLogKind.received)));
 }

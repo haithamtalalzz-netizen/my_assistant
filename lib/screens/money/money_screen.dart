@@ -14,6 +14,7 @@ import '../../widgets/history_calendar.dart';
 import '../../widgets/search_action.dart';
 import 'fixed_bills_screen.dart';
 import 'income_sheet.dart';
+import 'money_log_screen.dart';
 import 'quick_expense_sheet.dart';
 import 'recurring_income_screen.dart';
 import 'wallets_screen.dart';
@@ -38,9 +39,6 @@ class MoneyScreen extends StatefulWidget {
   State<MoneyScreen> createState() => _MoneyScreenState();
 }
 
-/// مدى «صرفت إيه» — اليوم هو الافتراضى.
-enum _Range { day, month, year, custom }
-
 class _MoneyScreenState extends State<MoneyScreen> {
   final _money = MoneyRepo();
   final _wallets = WalletsRepo();
@@ -52,11 +50,12 @@ class _MoneyScreenState extends State<MoneyScreen> {
   List<({Wallet wallet, double balance})> _list = [];
   double _total = 0;
 
-  _Range _range = _Range.day;
   late DateTime _from;
   late DateTime _to;
   double _spent = 0;
   int _spentCount = 0;
+  double _received = 0;
+  int _receivedCount = 0;
 
   double _monthlyIncome = 0;
   double _monthlyBills = 0;
@@ -84,6 +83,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
     final list = await _wallets.allWithBalances();
     final total = list.fold<double>(0, (s, e) => s + e.balance);
     final sum = await _money.rangeSummary(_key(_from), _key(_to));
+    final got = await _income.rangeSummary(_key(_from), _key(_to));
 
     final recurring = await _income.allRecurring();
     final bills = await _bills.all();
@@ -103,6 +103,8 @@ class _MoneyScreenState extends State<MoneyScreen> {
       _monthChange = change;
       _spent = sum.total;
       _spentCount = sum.count;
+      _received = got.total;
+      _receivedCount = got.count;
       _certInterest = cert;
       _monthlyIncome = recurring.fold<double>(0, (s, e) => s + e.amount);
       _monthlyBills = bills.fold<double>(0, (s, e) => s + e.amount);
@@ -111,119 +113,6 @@ class _MoneyScreenState extends State<MoneyScreen> {
   }
 
   // ———————————————————— المدى ————————————————————
-
-  String get _rangeLabel => switch (_range) {
-        _Range.day => _isToday(_from)
-            ? tr('النهاردة', 'Today')
-            : arShortDate(_from),
-        _Range.month => arMonth(_from),
-        _Range.year => arNum(_from.year),
-        _Range.custom =>
-          tr('${arShortDate(_from)} ← ${arShortDate(_to)}',
-              '${arShortDate(_from)} → ${arShortDate(_to)}'),
-      };
-
-  String get _spentTitle => switch (_range) {
-        _Range.day => _isToday(_from)
-            ? tr('صرفت إيه النهاردة؟', 'Spent today?')
-            : tr('صرفت إيه يوم ${arShortDate(_from)}؟',
-                'Spent on ${arShortDate(_from)}?'),
-        _Range.month => tr('صرفت إيه الشهر ده؟', 'Spent this month?'),
-        _Range.year => tr('صرفت إيه السنة دى؟', 'Spent this year?'),
-        _Range.custom => tr('صرفت إيه فى الفترة دى؟', 'Spent in this range?'),
-      };
-
-  bool _isToday(DateTime d) =>
-      dateOnly(d) == dateOnly(DateTime.now());
-
-  Future<void> _pickRange() async {
-    final scheme = Theme.of(context).colorScheme;
-    final now = DateTime.now();
-
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
-            child: Row(children: [
-              Icon(Icons.calendar_month, color: scheme.primary, size: 20),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Text(tr('تشوف مصاريف إيه؟', 'Which period?'),
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w800)),
-              ),
-            ]),
-          ),
-          for (final o in [
-            ('day', tr('يوم واحد', 'A single day'), Icons.today),
-            ('month', tr('شهر', 'A month'), Icons.calendar_view_month),
-            ('year', tr('سنة', 'A year'), Icons.event_note),
-            ('custom', tr('فترة من … إلى', 'From … to'), Icons.date_range),
-          ])
-            ListTile(
-              leading: Icon(o.$3, color: scheme.primary),
-              title: Text(o.$2),
-              onTap: () => Navigator.pop(ctx, o.$1),
-            ),
-          const SizedBox(height: 6),
-        ]),
-      ),
-    );
-    if (choice == null || !mounted) return;
-
-    switch (choice) {
-      case 'day':
-        final d = await showDatePicker(
-          context: context,
-          initialDate: _from,
-          firstDate: DateTime(now.year - 5),
-          lastDate: DateTime(now.year + 1),
-        );
-        if (d == null) return;
-        _range = _Range.day;
-        _from = dateOnly(d);
-        _to = _from;
-      case 'month':
-        final d = await showDatePicker(
-          context: context,
-          initialDate: _from,
-          firstDate: DateTime(now.year - 5),
-          lastDate: DateTime(now.year + 1),
-          helpText: tr('اختار أى يوم فى الشهر', 'Pick any day in the month'),
-        );
-        if (d == null) return;
-        _range = _Range.month;
-        _from = DateTime(d.year, d.month, 1);
-        _to = DateTime(d.year, d.month + 1, 0);
-      case 'year':
-        final d = await showDatePicker(
-          context: context,
-          initialDate: _from,
-          firstDate: DateTime(now.year - 5),
-          lastDate: DateTime(now.year + 1),
-          helpText: tr('اختار أى يوم فى السنة', 'Pick any day in the year'),
-        );
-        if (d == null) return;
-        _range = _Range.year;
-        _from = DateTime(d.year, 1, 1);
-        _to = DateTime(d.year, 12, 31);
-      case 'custom':
-        final r = await showDateRangePicker(
-          context: context,
-          initialDateRange: DateTimeRange(start: _from, end: _to),
-          firstDate: DateTime(now.year - 5),
-          lastDate: DateTime(now.year + 1),
-        );
-        if (r == null) return;
-        _range = _Range.custom;
-        _from = dateOnly(r.start);
-        _to = dateOnly(r.end);
-    }
-    if (mounted) await _load();
-  }
 
   /// سجل الفلوس بالتقويم — نفس الشاشة القديمة، بقت ورا أيقونة.
   void _openHistory() {
@@ -293,7 +182,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
                   const SizedBox(height: 14),
                   ..._walletGrid(context),
                   const SizedBox(height: 18),
-                  _spentCard(context),
+                  _logButtons(context),
                   const SizedBox(height: 12),
                   _twoButtons(context),
                   _fixedMonthly(context),
@@ -513,75 +402,109 @@ class _MoneyScreenState extends State<MoneyScreen> {
     );
   }
 
-  /// «صرفت إيه …؟» — الضغط بيفتح اختيار المدى.
-  Widget _spentCard(BuildContext context) {
+  /// **زرارين**: «صرفت إيه» و«قبضت إيه» — كل واحد بيفتح سجلّه مقسوم
+  /// بالأيام (النهاردة · امبارح · والتواريخ اللى قبلها).
+  ///
+  /// قبل كده كان كارت واحد للمصروف بس، والدخل مكانش ليه مكان تشوفه
+  /// فيه أصلاً.
+  Widget _logButtons(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: scheme.surface,
-      borderRadius: BorderRadius.circular(20),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: _pickRange,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-          decoration: BoxDecoration(
+
+    Widget btn({
+      required String label,
+      required String value,
+      required String sub,
+      required IconData icon,
+      required Color color,
+      required VoidCallback onTap,
+    }) =>
+        Expanded(
+          child: Material(
+            color: scheme.surface,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: scheme.outlineVariant),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: scheme.outlineVariant),
+                ),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(11)),
+                          child: Icon(icon, size: 17, color: color),
+                        ),
+                        const Spacer(),
+                        Icon(Icons.chevron_left,
+                            size: 19, color: scheme.outline),
+                      ]),
+                      const SizedBox(height: 9),
+                      Text(label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 2),
+                      Text(value,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 19,
+                              fontWeight: FontWeight.w900,
+                              color: color)),
+                      Text(sub,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 10.5,
+                              color: scheme.onSurfaceVariant)),
+                    ]),
+              ),
+            ),
           ),
-          child: Row(children: [
-            Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                  color: scheme.error.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(13)),
-              child: Icon(Icons.trending_down, size: 20, color: scheme.error),
-            ),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_spentTitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 13.5, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 2),
-                    Text(
-                        _spentCount == 0
-                            ? tr('مفيش حركات · دوس تختار يوم أو شهر أو فترة',
-                                'Nothing yet · tap to pick a period')
-                            : tr(
-                                '${arNum(_spentCount)} حركة · دوس تختار يوم أو شهر أو فترة',
-                                '${arNum(_spentCount)} entries · tap to pick a period'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 10.5, color: scheme.onSurfaceVariant)),
-                  ]),
-            ),
-            const SizedBox(width: 8),
-            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text(arMoney(_spent.round()),
-                  style: TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w900,
-                      color: scheme.error)),
-              Row(children: [
-                Icon(Icons.calendar_month,
-                    size: 12, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 3),
-                Text(_rangeLabel,
-                    style: TextStyle(
-                        fontSize: 10, color: scheme.onSurfaceVariant)),
-              ]),
-            ]),
-          ]),
-        ),
+        );
+
+    // IntrinsicHeight: الـstretch جوّه صف ارتفاعه مفتوح بيفشل، والزرار
+    // الأقصر كان هيطلع مش مظبوط مع اللى جنبه.
+    return IntrinsicHeight(
+      child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      btn(
+        label: tr('صرفت إيه؟', 'What I spent'),
+        value: arMoney(_spent.round()),
+        sub: tr('${arNum(_spentCount)} حركة النهاردة',
+            '${arNum(_spentCount)} entries today'),
+        icon: Icons.trending_down,
+        color: scheme.error,
+        onTap: () => _openLog(MoneyLogKind.spent),
       ),
+      const SizedBox(width: 11),
+      btn(
+        label: tr('قبضت إيه؟', 'What I received'),
+        value: arMoney(_received.round()),
+        sub: tr('${arNum(_receivedCount)} حركة النهاردة',
+            '${arNum(_receivedCount)} entries today'),
+        icon: Icons.trending_up,
+        color: const Color(0xFF10B981),
+        onTap: () => _openLog(MoneyLogKind.received),
+      ),
+    ]),
     );
+  }
+
+  Future<void> _openLog(MoneyLogKind kind) async {
+    await Navigator.push(context,
+        MaterialPageRoute(builder: (_) => MoneyLogScreen(kind: kind)));
+    if (mounted) await _load();
   }
 
   Widget _twoButtons(BuildContext context) {

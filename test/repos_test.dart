@@ -6754,6 +6754,40 @@ void main() {
     });
   });
 
+  group('سجل صرفت إيه وقبضت إيه', () {
+    test('forRange بترجّع الحركات فى المدى بس، الأحدث الأول', () async {
+      final m = MoneyRepo();
+      await m.add(const Expense(amount: 100, category: 'أكل', note: 'أ', day: '2026-09-01'));
+      await m.add(const Expense(amount: 200, category: 'أكل', note: 'ب', day: '2026-09-15'));
+      await m.add(const Expense(amount: 300, category: 'أكل', note: 'ج', day: '2026-10-02'));
+
+      final rows = await m.forRange('2026-09-01', '2026-09-30');
+      expect(rows.length, 2);
+      expect(rows.first.note, 'ب', reason: 'الأحدث الأول');
+      expect(rows.last.note, 'أ');
+    });
+
+    test('الدخل ليه نفس الاستعلام', () async {
+      final r = IncomeRepo();
+      await r.add(const Income(amount: 11000, source: 'مرتب', note: '', day: '2026-09-01'));
+      await r.add(const Income(amount: 500, source: 'بيع', note: '', day: '2026-09-20'));
+      await r.add(const Income(amount: 900, source: 'بيع', note: '', day: '2026-08-11'));
+
+      final rows = await r.forRange('2026-09-01', '2026-09-30');
+      expect(rows.length, 2);
+      final sum = await r.rangeSummary('2026-09-01', '2026-09-30');
+      expect(sum.total, 11500);
+      expect(sum.count, 2);
+    });
+
+    test('مدى فاضى = صفر مش null', () async {
+      final sum = await IncomeRepo().rangeSummary('2026-01-01', '2026-01-31');
+      expect(sum.total, 0);
+      expect(sum.count, 0);
+      expect(await MoneyRepo().forRange('2026-01-01', '2026-01-31'), isEmpty);
+    });
+  });
+
   group('فلوسى: مدى التواريخ والمحافظ', () {
     test('rangeSummary بتجمع يوم وشهر وسنة وفترة', () async {
       final m = MoneyRepo();

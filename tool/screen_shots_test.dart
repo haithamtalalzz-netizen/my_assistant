@@ -22,6 +22,7 @@ import 'package:my_assistant/data/money_repo.dart';
 import 'package:my_assistant/data/wallets_repo.dart';
 import 'package:my_assistant/data/wealth_history.dart';
 import 'package:my_assistant/screens/money/money_screen.dart';
+import 'package:my_assistant/screens/money/money_log_screen.dart';
 import 'package:my_assistant/screens/money/recurring_income_screen.dart';
 import 'package:my_assistant/screens/money/fixed_bills_screen.dart';
 import 'package:my_assistant/screens/money/wallets_screen.dart';
@@ -405,6 +406,28 @@ void main() {
     final f = await shot(tester, 'real_emergency2',
         shotApp(buildTheme(), const EmergencyView()),
         size: const Size(390, 760), pixelRatio: 2);
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('سجل صرفت إيه — مقسوم بالأيام', (tester) async {
+    final now = DateTime.now();
+    String d(int back) {
+      final x = now.subtract(Duration(days: back));
+      return '${x.year.toString().padLeft(4, '0')}-'
+          '${x.month.toString().padLeft(2, '0')}-'
+          '${x.day.toString().padLeft(2, '0')}';
+    }
+
+    final m = MoneyRepo();
+    await m.add(Expense(amount: 320, category: 'أكل', note: 'سوبر ماركت', day: d(0)));
+    await m.add(Expense(amount: 250, category: 'مواصلات', note: 'بنزين', day: d(0)));
+    await m.add(Expense(amount: 85, category: 'صحة', note: 'دوا', day: d(1)));
+    await m.add(Expense(amount: 1300, category: 'أكل', note: 'مطاعم', day: d(3)));
+    await m.add(Expense(amount: 60, category: 'مواصلات', note: '', day: d(5)));
+
+    final f = await shot(tester, 'real_log_spent',
+        shotApp(buildTheme(), const MoneyLogScreen(kind: MoneyLogKind.spent)),
+        size: const Size(390, 780), pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
   });
 

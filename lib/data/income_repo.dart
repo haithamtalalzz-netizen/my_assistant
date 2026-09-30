@@ -44,6 +44,30 @@ class IncomeRepo {
     return rows.map(Income.fromMap).toList();
   }
 
+  /// كل الدخل بين يومين (شاملين) — الأحدث الأول.
+  Future<List<Income>> forRange(String fromDay, String toDay) async {
+    final db = await AppDb.instance;
+    final rows = await db.query('income',
+        where: 'day >= ? AND day <= ?',
+        whereArgs: [fromDay, toDay],
+        orderBy: 'day DESC, id DESC');
+    return rows.map(Income.fromMap).toList();
+  }
+
+  /// مجموع الدخل وعدد الحركات بين يومين.
+  Future<({double total, int count})> rangeSummary(
+      String fromDay, String toDay) async {
+    final db = await AppDb.instance;
+    final r = await db.rawQuery(
+        'SELECT SUM(amount) AS s, COUNT(*) AS c FROM income '
+        'WHERE day >= ? AND day <= ?',
+        [fromDay, toDay]);
+    return (
+      total: (r.first['s'] as num?)?.toDouble() ?? 0,
+      count: (r.first['c'] as num?)?.toInt() ?? 0,
+    );
+  }
+
   Future<double> totalForMonth(int year, int month) async {
     final db = await AppDb.instance;
     final rows = await db.rawQuery(

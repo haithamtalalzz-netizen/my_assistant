@@ -91,6 +91,16 @@ class MoneyRepo {
     };
   }
 
+  /// كل المصاريف بين يومين (شاملين) — الأحدث الأول.
+  Future<List<Expense>> forRange(String fromDay, String toDay) async {
+    final db = await AppDb.instance;
+    final rows = await db.query('expenses',
+        where: 'day >= ? AND day <= ?',
+        whereArgs: [fromDay, toDay],
+        orderBy: 'day DESC, id DESC');
+    return rows.map(Expense.fromMap).toList();
+  }
+
   /// مجموع المصروف بين يومين (شاملين) — عشان «صرفت إيه» تشتغل على
   /// يوم أو شهر أو سنة أو فترة من–إلى بنفس الاستعلام.
   ///
