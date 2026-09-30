@@ -5,12 +5,14 @@ import '../../core/l10n.dart';
 import '../../data/bills_repo.dart';
 import '../../data/income_repo.dart';
 import '../../data/money_repo.dart';
+import '../../data/savings_repo.dart';
 import '../../data/wallets_repo.dart';
 import '../../data/wealth_history.dart';
 import '../../models/models.dart';
 import '../../widgets/bar_actions.dart';
 import '../../widgets/history_calendar.dart';
 import '../../widgets/search_action.dart';
+import '../baladna/savings_screen.dart';
 import 'fixed_monthly_screen.dart';
 import 'income_sheet.dart';
 import 'money_log_screen.dart';
@@ -55,6 +57,11 @@ class _MoneyScreenState extends State<MoneyScreen> {
   double _received = 0;
   int _receivedCount = 0;
 
+  /// الادخار: اللى وفّرته وهدفك — من نفس بيانات شاشة الادخار.
+  double _saved = 0;
+  double _savingTarget = 0;
+  int _goals = 0;
+
   double _monthlyIncome = 0;
   double _monthlyBills = 0;
   double _certInterest = 0;
@@ -85,6 +92,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
 
     final recurring = await _income.allRecurring();
     final bills = await _bills.all();
+    final goals = await SavingsRepo().all();
     final split = await _wallets.liquidSplit();
     final cert = await _wallets.monthlyCertificateInterest();
 
@@ -104,6 +112,9 @@ class _MoneyScreenState extends State<MoneyScreen> {
       _received = got.total;
       _receivedCount = got.count;
       _certInterest = cert;
+      _goals = goals.length;
+      _saved = goals.fold<double>(0, (t, g) => t + g.saved);
+      _savingTarget = goals.fold<double>(0, (t, g) => t + g.target);
       _monthlyIncome = recurring.fold<double>(0, (s, e) => s + e.amount);
       _monthlyBills = bills.fold<double>(0, (s, e) => s + e.amount);
       _loading = false;
@@ -183,6 +194,8 @@ class _MoneyScreenState extends State<MoneyScreen> {
                   _logButtons(context),
                   const SizedBox(height: 11),
                   _fixedButton(context),
+                  const SizedBox(height: 11),
+                  _savingsButton(context),
                   const SizedBox(height: 12),
                   _twoButtons(context),
                   const SizedBox(height: 10),
@@ -584,6 +597,90 @@ class _MoneyScreenState extends State<MoneyScreen> {
         ),
       ),
     );
+  }
+
+  /// **زرار الادخار** — بيفتح شاشة الادخار اللى فى السايدبار.
+  ///
+  /// الادخار جزء من فلوسك، فمكانه هنا كمان مش فى السايدبار بس.
+  /// الشاشة نفسها ما اتغيّرتش.
+  Widget _savingsButton(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    const teal = Color(0xFF14B8A6);
+    final pct = _savingTarget <= 0
+        ? 0.0
+        : (_saved / _savingTarget).clamp(0.0, 1.0);
+
+    return Material(
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: _openSavings,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Row(children: [
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                  color: teal.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(13)),
+              child: const Icon(Icons.savings_outlined, size: 20, color: teal),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(tr('الادخار', 'Savings'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 13.5, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 2),
+                    Text(
+                        _goals == 0
+                            ? tr('حدّد هدف تدخّر له', 'Set a goal to save for')
+                            : _savingTarget > 0
+                                ? tr(
+                                    'من ${arMoney(_savingTarget.round())} · ${arNum((pct * 100).round())}٪',
+                                    'of ${arMoney(_savingTarget.round())} · ${arNum((pct * 100).round())}%')
+                                : tr('${arNum(_goals)} هدف',
+                                    '${arNum(_goals)} goals'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 10.5, color: scheme.onSurfaceVariant)),
+                  ]),
+            ),
+            const SizedBox(width: 8),
+            if (_goals > 0)
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Text(arMoney(_saved.round()),
+                    style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: teal)),
+                Text(tr('وفّرت', 'saved'),
+                    style: TextStyle(
+                        fontSize: 10, color: scheme.onSurfaceVariant)),
+              ]),
+            Icon(Icons.chevron_left, size: 19, color: scheme.outline),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openSavings() async {
+    await Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const SavingsScreen()));
+    if (mounted) await _load();
   }
 
   Future<void> _openFixedMonthly() async {

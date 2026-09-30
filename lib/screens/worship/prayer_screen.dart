@@ -195,8 +195,27 @@ class _PrayerScreenState extends State<PrayerScreen> {
     super.dispose();
   }
 
+  /// صلاة لسه ماجاش وقتها — مايصحّش تتعلّم إنها اتصلّت.
+  ///
+  /// الأذان هو الحدّ: قبله الصلاة مادخلتش أصلاً، فالعلامة كانت بتسجّل
+  /// حاجة ماحصلتش وتزوّد عدّاد الأيام المتتالية بالغلط.
+  bool _notYet(int i) {
+    final p = _prayers;
+    if (p == null) return false;
+    return p.times[i].isAfter(DateTime.now());
+  }
+
   Future<void> _togglePrayed(int i) async {
     final has = _prayed.contains(i);
+    if (!has && _notYet(i)) {
+      final t = _prayers!.times[i];
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr(
+            '${prayerNameLabel(i)} لسه ماجاش وقتها — الأذان ${arTime(t)}',
+            '${prayerNameLabel(i)} has not come in yet — ${arTime(t)}')),
+      ));
+      return;
+    }
     await _repo.togglePrayer(DateTime.now(), i, !has);
     final streak = await _repo.fullDaysStreak();
     if (!mounted) return;
@@ -332,11 +351,17 @@ class _PrayerScreenState extends State<PrayerScreen> {
       for (var i = 0; i < kPrayerNames.length; i++)
         AppListRow(
           title: prayerNameLabel(i),
+          // الشكل بيقول قبل ما تدوس: اللى لسه ماجاش وقتها مش قابلة
+          // للتعليم أصلاً.
           sub: _prayed.contains(i)
               ? tr('اتصلّت', 'Prayed')
-              : (i == idx ? tr('الجاية', 'Next') : null),
+              : _notYet(i)
+                  ? tr('لسه ماجاش وقتها', 'Not yet')
+                  : (i == idx ? tr('الجاية', 'Next') : null),
           icon: _prayerIcon(i),
-          tint: scheme.primary,
+          tint: _notYet(i) && !_prayed.contains(i)
+              ? scheme.outline
+              : scheme.primary,
           check: true,
           checked: _prayed.contains(i),
           divider: i != kPrayerNames.length - 1,

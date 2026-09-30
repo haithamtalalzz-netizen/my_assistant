@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/db.dart';
+import 'package:my_assistant/core/prayers.dart';
 import 'package:my_assistant/screens/diagnostics_screen.dart';
 import 'package:my_assistant/data/habits_repo.dart';
 import 'package:my_assistant/data/meals_repo.dart';
@@ -119,6 +120,44 @@ void main() {
     expect(
         (tester.widget(find.byType(TextField)) as TextField).controller!.text,
         '');
+  });
+
+  group('الصلاة اللى لسه ماجاش وقتها', () {
+    // الأذان هو الحدّ: قبله الصلاة مادخلتش أصلاً، فالعلامة كانت بتسجّل
+    // حاجة ماحصلتش وتزوّد عدّاد الأيام المتتالية بالغلط.
+    PrayerDay dayAround(DateTime now) => PrayerDay(
+          fajr: now.subtract(const Duration(hours: 6)),
+          dhuhr: now.subtract(const Duration(hours: 2)),
+          asr: now.subtract(const Duration(minutes: 30)),
+          maghrib: now.add(const Duration(hours: 2)),
+          isha: now.add(const Duration(hours: 4)),
+        );
+
+    test('nextIndex بيرجّع أول صلاة لسه ماجتش', () {
+      final now = DateTime(2026, 9, 30, 16, 0);
+      final d = dayAround(now);
+      expect(d.nextIndex(now), 3, reason: 'المغرب');
+      // اللى فات وقتها مش «جاية».
+      expect(d.times[0].isAfter(now), isFalse);
+      expect(d.times[2].isAfter(now), isFalse);
+      // واللى لسه.
+      expect(d.times[3].isAfter(now), isTrue);
+      expect(d.times[4].isAfter(now), isTrue);
+    });
+
+    test('بعد آخر صلاة مفيش «جاية»', () {
+      final now = DateTime(2026, 9, 30, 23, 30);
+      final d = PrayerDay(
+        fajr: DateTime(2026, 9, 30, 5),
+        dhuhr: DateTime(2026, 9, 30, 12),
+        asr: DateTime(2026, 9, 30, 15),
+        maghrib: DateTime(2026, 9, 30, 18),
+        isha: DateTime(2026, 9, 30, 20),
+      );
+      expect(d.nextIndex(now), isNull);
+      expect(d.times.every((t) => !t.isAfter(now)), isTrue,
+          reason: 'كلها عدّت فكلها تتعلّم');
+    });
   });
 
   testWidgets('المحافظ: الاسم الفاضى = رسالة مش حفظ صامت', (tester) async {
