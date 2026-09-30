@@ -19,6 +19,8 @@ import 'package:my_assistant/data/meds_repo.dart';
 import 'package:my_assistant/data/bills_repo.dart';
 import 'package:my_assistant/data/income_repo.dart';
 import 'package:my_assistant/data/money_repo.dart';
+import 'package:my_assistant/data/savings_repo.dart';
+import 'package:my_assistant/data/debts_repo.dart';
 import 'package:my_assistant/data/wallets_repo.dart';
 import 'package:my_assistant/data/wealth_history.dart';
 import 'package:my_assistant/screens/money/money_screen.dart';
@@ -279,6 +281,20 @@ void main() {
     await MetalPrices.set('silver', 55);
     // مرجع أول الشهر أقل من الإجمالى → «زادت».
     await WealthHistory.recordIfNew(1200000);
+
+    // ادخار ودين عشان الزرارين يبانوا بأرقامهم.
+    await SavingsRepo().addGoal(const SavingsGoal(
+        name: 'سفر الصيف', target: 40000, createdAt: '2026-01-01'));
+    await DebtsRepo().add(Debt(
+        person: 'أحمد',
+        amount: 5000,
+        direction: 'لى',
+        createdAt: '2026-09-01'));
+    await DebtsRepo().add(Debt(
+        person: 'محل الموبايل',
+        amount: 1800,
+        direction: 'عليا',
+        createdAt: '2026-09-10'));
 
     await BillsRepo().save(const RecurringBill(
         name: 'كهربا', amount: 420, dayOfMonth: 5, category: 'فواتير'));
