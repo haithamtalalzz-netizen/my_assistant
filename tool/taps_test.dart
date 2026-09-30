@@ -56,6 +56,7 @@ import 'package:my_assistant/screens/gym/workout_programs_screen.dart';
 import 'package:my_assistant/screens/habits/habits_screen.dart';
 import 'package:my_assistant/screens/health/cycle_screen.dart';
 import 'package:my_assistant/screens/health/health_hub_screen.dart';
+import 'package:my_assistant/screens/health/my_health_screen.dart';
 import 'package:my_assistant/screens/health/lab_results_screen.dart';
 import 'package:my_assistant/screens/health/mood_screen.dart';
 import 'package:my_assistant/screens/health/symptom_journal_screen.dart';
@@ -501,6 +502,7 @@ void main() {
   testWidgets('HadithLibraryScreen', (t) => tapWalk(t, () => const HadithLibraryScreen()));
   testWidgets('HajjUmrahScreen', (t) => tapWalk(t, () => const HajjUmrahScreen()));
   testWidgets('HealthHubScreen', (t) => tapWalk(t, () => const HealthHubScreen()));
+  testWidgets('MyHealthScreen', (t) => tapWalk(t, () => const MyHealthScreen()));
   testWidgets('HomeMaintenanceScreen', (t) => tapWalk(t, () => const HomeMaintenanceScreen()));
   testWidgets('InboxScreen', (t) => tapWalk(t, () => const InboxScreen()));
   testWidgets('InsightsScreen', (t) => tapWalk(t, () => const InsightsScreen()));

@@ -15,7 +15,10 @@ import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/theme.dart';
 import 'package:my_assistant/data/appointments_repo.dart';
+import 'package:my_assistant/data/health_repo.dart';
+import 'package:my_assistant/data/measurements_repo.dart';
 import 'package:my_assistant/data/meds_repo.dart';
+import 'package:my_assistant/screens/health/my_health_screen.dart';
 import 'package:my_assistant/data/bills_repo.dart';
 import 'package:my_assistant/data/income_repo.dart';
 import 'package:my_assistant/data/money_repo.dart';
@@ -33,7 +36,7 @@ import 'package:my_assistant/screens/money/wallets_screen.dart';
 import 'package:my_assistant/screens/alerts_center_screen.dart';
 import 'package:my_assistant/data/notes_repo.dart';
 import 'package:my_assistant/data/wardrobe_repo.dart';
-import 'package:my_assistant/data/health_repo.dart';
+
 import 'package:my_assistant/data/goals_repo.dart';
 import 'package:my_assistant/data/tasks_repo.dart';
 import 'package:my_assistant/models/models.dart';
@@ -336,6 +339,51 @@ void main() {
       size: const Size(390, 780),
       pixelRatio: 2,
     );
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('صحتى — لازم النهاردة وأرقامك', (tester) async {
+    final meds = MedsRepo();
+    await meds.save(Medication(
+        name: 'كونكور 5', dosage: '', times: const ['08:00', '21:00']));
+    final m = (await meds.all()).first;
+    await meds.setTaken(m.id!, dayKey(DateTime.now()), '08:00', true);
+    await HealthRepo().setWaterMl(dayKey(DateTime.now()), 1500);
+    await HealthRepo().setSleep(dayKey(DateTime.now()), 6);
+    final mr = MeasurementsRepo();
+    // قياسين من كل نوع عشان السهم (الاتجاه) يبان — واحد مايكفيش.
+    await mr.add(Measurement(
+        day: dayKey(DateTime.now().subtract(const Duration(days: 6))),
+        type: 'وزن',
+        value: 82.8,
+        unit: 'كجم'));
+    await mr.add(Measurement(
+        day: dayKey(DateTime.now()), type: 'وزن', value: 84, unit: 'كجم'));
+    await mr.add(Measurement(
+        day: dayKey(DateTime.now()),
+        type: 'ضغط',
+        value: 12,
+        value2: 8,
+        unit: ''));
+    await mr.upsertSteps(dayKey(DateTime.now()), 2400);
+
+    final f = await shot(
+        tester,
+        'real_health',
+        shotApp(
+            buildTheme(),
+            MyHealthScreen(sections: [
+              HealthSection(Icons.favorite_outline, 'الصحة',
+                  'دورة · عادات · مزاج · أدوية · ملف طبى', Colors.pink,
+                  () => const SizedBox()),
+              HealthSection(Icons.fitness_center, 'الرياضة',
+                  'جيم · مشى · تقدّم · تمارين', Colors.deepPurple,
+                  () => const SizedBox()),
+              HealthSection(Icons.restaurant_outlined, 'النظام الغذائي',
+                  'وجبات · صيام · وصفات', Colors.green, () => const SizedBox()),
+            ])),
+        size: const Size(390, 1000),
+        pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
   });
 

@@ -48,6 +48,7 @@ import 'package:my_assistant/screens/gym/workout_programs_screen.dart';
 import 'package:my_assistant/screens/habits/habits_screen.dart';
 import 'package:my_assistant/screens/health/cycle_screen.dart';
 import 'package:my_assistant/screens/health/health_hub_screen.dart';
+import 'package:my_assistant/screens/health/my_health_screen.dart';
 import 'package:my_assistant/screens/health/lab_results_screen.dart';
 import 'package:my_assistant/screens/health/mood_screen.dart';
 import 'package:my_assistant/screens/health/symptom_journal_screen.dart';
@@ -212,6 +213,7 @@ void main() {
   testWidgets('HadithLibraryScreen', (t) => walk(t, const HadithLibraryScreen()));
   testWidgets('HajjUmrahScreen', (t) => walk(t, const HajjUmrahScreen()));
   testWidgets('HealthHubScreen', (t) => walk(t, const HealthHubScreen()));
+  testWidgets('MyHealthScreen', (t) => walk(t, const MyHealthScreen()));
   testWidgets('HomeMaintenanceScreen', (t) => walk(t, const HomeMaintenanceScreen()));
   testWidgets('InboxScreen', (t) => walk(t, const InboxScreen()));
   testWidgets('InsightsScreen', (t) => walk(t, const InsightsScreen()));

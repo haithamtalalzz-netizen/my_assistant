@@ -17,6 +17,10 @@ class GroupHubItem {
   /// تنتهى). null = مفيش شارة. بتتنادى مرة عند بناء الهَب.
   final Future<int> Function()? badge;
 
+  /// رقم البند وحالته — عشان السطر يقول اللى وراه **قبل** ما تدوس.
+  /// null = البند مالوش رقم يتقال.
+  final Future<HubStat?> Function()? stat;
+
   const GroupHubItem(
     this.icon,
     this.label, {
@@ -24,7 +28,28 @@ class GroupHubItem {
     this.tabIndex,
     this.color,
     this.badge,
+    this.stat,
   });
+}
+
+/// اللى بيتعرض على سطر البند: وصف حى + رقم كبير + كلمة تحته.
+///
+/// الفكرة اللى طلعت من «فلوسى»: **مافيش باب بيتفتح من غير ما يقول اللى
+/// وراه**. قايمة أبواب صامتة بتخلّى كل دوسة تجربة.
+class HubStat {
+  /// سطر تحت الاسم — «الرحيق المختوم · صفحة 84».
+  final String? sub;
+
+  /// الرقم الكبير على الشمال — «3».
+  final String? big;
+
+  /// كلمة صغيرة تحت الرقم — «كتب السنة دى».
+  final String? bigSub;
+
+  /// لون الرقم — أحمر لو الرقم ده حاجة فاتت.
+  final Color? bigColor;
+
+  const HubStat({this.sub, this.big, this.bigSub, this.bigColor});
 }
 
 /// صفحة مجموعة على شكل مربعات (زي هَبّات ملف المركبة في طارة).
@@ -34,12 +59,16 @@ class GroupHubScreen extends StatelessWidget {
   final void Function(int index) onSelectTab;
   final Color? accent;
 
+  /// كارت خلاصة فوق القايمة (اختيارى) — بيقول حالة المجموعة كلها.
+  final Widget? header;
+
   const GroupHubScreen({
     super.key,
     required this.title,
     required this.items,
     required this.onSelectTab,
     this.accent,
+    this.header,
   });
 
   @override
@@ -51,13 +80,20 @@ class GroupHubScreen extends StatelessWidget {
     // زى «الديون والسلف» تتقصّ، والشاشة تبقى صفّين ونص من غير أى تفصيلة.
     // السطر بيسع الاسم كامل، وعلى الشاشة العريضة بيرجع عمودين.
     final cols = width > 640 ? 2 : 1;
+    // السطر بيعلى لما يكون فيه رقم ووصف تحت الاسم.
+    final tall = items.any((i) => i.stat != null);
     return Scaffold(
       appBar: AppBar(title: Text(title), actions: [searchAction(context)]),
-      body: ReorderableCards(
+      body: Column(children: [
+        if (header != null)
+          Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 2), child: header!),
+        Expanded(
+            child: ReorderableCards(
         // ترتيب لكل مجموعة على حدة (اضغط مطوّل واسحب).
         storageKey: 'group.$title',
         crossAxisCount: cols,
-        mainAxisExtent: 58,
+        mainAxisExtent: tall ? 68 : 58,
         spacing: 7,
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
         shrinkWrap: false,
@@ -65,7 +101,8 @@ class GroupHubScreen extends StatelessWidget {
         cards: [
           for (final it in items) ReorderCard(it.label, _tile(context, it)),
         ],
-      ),
+      )),
+      ]),
     );
   }
 
@@ -86,6 +123,18 @@ class GroupHubScreen extends StatelessWidget {
       _palette[label.hashCode.abs() % _palette.length];
 
   Widget _tile(BuildContext context, GroupHubItem it) {
+    // 🔴 FutureBuilder واحد للسطر كله. لو الاسم والرقم كل واحد فى
+    // FutureBuilder لوحده الدالة بتتنفّذ **مرتين** — استعلامين على
+    // القاعدة لكل سطر من غير ما حد يلاحظ.
+    return it.stat == null
+        ? _row(context, it, null)
+        : FutureBuilder<HubStat?>(
+            future: it.stat!(),
+            builder: (_, snap) => _row(context, it, snap.data),
+          );
+  }
+
+  Widget _row(BuildContext context, GroupHubItem it, HubStat? st) {
     final scheme = Theme.of(context).colorScheme;
     final color = it.color ?? _colorFor(it.label);
     return Material(
@@ -123,15 +172,59 @@ class GroupHubScreen extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(it.label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 13.5,
-                      height: 1.2,
-                      fontWeight: FontWeight.w700,
-                      color: scheme.onSurface)),
+              child: it.stat == null
+                  ? Text(it.label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 13.5,
+                          height: 1.2,
+                          fontWeight: FontWeight.w700,
+                          color: scheme.onSurface))
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(it.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                color: scheme.onSurface)),
+                        // لحد ما الرقم يوصل السطر بيفضل فاضى مش «...» —
+                        // فالسطر مابينطّش لما البيانات توصل.
+                        const SizedBox(height: 2),
+                        Text(st?.sub ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 10.5,
+                                color: scheme.onSurfaceVariant)),
+                      ],
+                    ),
             ),
+            if (st?.big != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 8, left: 4),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(st!.big!,
+                          style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w900,
+                              color: st.bigColor ?? color)),
+                      if (st.bigSub != null)
+                        Text(st.bigSub!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 9.5,
+                                color: scheme.onSurfaceVariant)),
+                    ]),
+              ),
             if (it.badge != null)
               FutureBuilder<int>(
                 future: it.badge!(),

@@ -9,6 +9,7 @@ import '../../data/appointments_repo.dart';
 import '../../data/meds_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/a_kit.dart';
+import '../../widgets/month_grid.dart';
 import '../../widgets/common.dart';
 import 'appointment_form.dart';
 import 'med_form.dart';
@@ -68,9 +69,40 @@ class _AppointmentsTab extends StatefulWidget {
 class _AppointmentsTabState extends State<_AppointmentsTab> {
   final _repo = AppointmentsRepo();
   bool _loading = true;
-  List<Appointment> _upcoming = [];
   List<Appointment> _overdue = [];
-  List<Appointment> _done = [];
+
+  /// كل المواعيد — التقويم محتاج **الشهر كله** مش القادم بس، عشان يحط
+  /// نقطة على الأيام اللى فاتت كمان (وده اللى بيخلّى التقويم أرشيف).
+  List<Appointment> _all = [];
+  DateTime _month = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  DateTime _selected = dateOnly(DateTime.now());
+
+  /// كام موعد فى كل يوم — مفتاح `dayKey`.
+  Map<String, int> get _counts {
+    final m = <String, int>{};
+    for (final a in _all) {
+      final k = dayKey(a.when);
+      m[k] = (m[k] ?? 0) + 1;
+    }
+    return m;
+  }
+
+  List<Appointment> get _onSelected {
+    final d = dateOnly(_selected);
+    return [
+      for (final a in _all)
+        if (dateOnly(a.when) == d) a
+    ]..sort((a, b) => a.when.compareTo(b.when));
+  }
+
+  /// اللى بعد اليوم المختار — أقرب خمسة، عشان الشاشة تفضل تقول «وبعدين؟».
+  List<Appointment> get _afterSelected {
+    final d = dateOnly(_selected);
+    return [
+      for (final a in _all)
+        if (!a.done && dateOnly(a.when).isAfter(d)) a
+    ].take(5).toList();
+  }
 
   @override
   void initState() {
@@ -83,12 +115,9 @@ class _AppointmentsTabState extends State<_AppointmentsTab> {
     final startOfToday = dateOnly(DateTime.now());
     if (!mounted) return;
     setState(() {
-      _upcoming = all
-          .where((a) => !a.done && !a.when.isBefore(startOfToday))
-          .toList();
+      _all = all;
       _overdue =
           all.where((a) => !a.done && a.when.isBefore(startOfToday)).toList();
-      _done = all.where((a) => a.done).toList().reversed.take(20).toList();
       _loading = false;
     });
   }
@@ -106,43 +135,6 @@ class _AppointmentsTabState extends State<_AppointmentsTab> {
     }
     await _repo.delete(a.id!);
     if (mounted) await _load();
-  }
-
-  /// الفلتر: القادمة (الافتراضى) · اللى تمت · الكل.
-  String _filter = 'upcoming';
-
-  Widget _filterBar() {
-    final scheme = Theme.of(context).colorScheme;
-    Widget chip(String id, String label) {
-      final on = _filter == id;
-      return Padding(
-        padding: const EdgeInsets.only(left: 7),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(99),
-          onTap: () => setState(() => _filter = id),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: on ? scheme.primary : scheme.surface,
-              borderRadius: BorderRadius.circular(99),
-              border: Border.all(
-                  color: on ? scheme.primary : scheme.outlineVariant),
-            ),
-            child: Text(label,
-                style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: on ? scheme.onPrimary : scheme.onSurfaceVariant)),
-          ),
-        ),
-      );
-    }
-
-    return Row(children: [
-      chip('upcoming', tr('القادمة', 'Upcoming')),
-      chip('done', tr('اللى تمت', 'Done')),
-      chip('all', tr('الكل', 'All')),
-    ]);
   }
 
   /// سطر موعد جوّه كارت القسم — نفس الإجراءات القديمة بالظبط.
@@ -263,36 +255,55 @@ class _AppointmentsTabState extends State<_AppointmentsTab> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: _loading
-
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 96),
                 children: [
-                  AppPad(_filterBar(), top: 12, bottom: 4),
-                  if (_filter != 'done' && _overdue.isNotEmpty)
+                  AppPad(
+                      MonthGrid(
+                        month: _month,
+                        selected: _selected,
+                        counts: _counts,
+                        onSelect: (d) => setState(() {
+                          _selected = d;
+                          _month = DateTime(d.year, d.month, 1);
+                        }),
+                        onMonthChange: (m) => setState(() => _month = m),
+                      ),
+                      top: 12,
+                      bottom: 4),
+                  // الفايت من غير ما يتعمل فوق: عمره ما هتلاقيه وانت
+                  // بتتفرّج على التقويم، ولازم تعمل فيه حاجة.
+                  if (_overdue.isNotEmpty)
                     _group(tr('فاتت من غير ما تتعمل', 'Missed'), _overdue,
                         trailing: arNum(_overdue.length)),
-                  if (_filter != 'done')
-                    if (_upcoming.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 20),
-                        child: EmptyHint(
-                          icon: Icons.event_available,
-                          text: tr('مفيش مواعيد قادمة — ضيف موعد بزرار +',
-                              'No upcoming appointments — add one with +'),
-                          actionLabel: tr('ضيف موعد', 'Add appointment'),
-                          onAction: _openForm,
+                  if (_onSelected.isEmpty)
+                    AppPad(Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      child: Row(children: [
+                        Icon(Icons.event_available,
+                            size: 18, color: scheme.outline),
+                        const SizedBox(width: 9),
+                        Expanded(
+                          child: Text(
+                              tr('${_dayLabel(_selected)} — مافيش مواعيد',
+                                  '${_dayLabel(_selected)} — nothing booked'),
+                              style: TextStyle(
+                                  fontSize: 12.5,
+                                  color: scheme.onSurfaceVariant)),
                         ),
-                      )
-                    else
-                      ..._byDay(_upcoming),
-                  if (_filter != 'upcoming' && _done.isNotEmpty)
-                    _group(tr('اللي تمت', 'Done'), _done,
-                        trailing: arNum(_done.length), faded: true),
+                      ]),
+                    ))
+                  else
+                    _group(_dayLabel(_selected), _onSelected,
+                        trailing: arNum(_onSelected.length)),
+                  if (_afterSelected.isNotEmpty)
+                    ..._byDay(_afterSelected),
                   const SizedBox(height: 18),
                 ],
               ),

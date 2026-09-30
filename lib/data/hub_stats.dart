@@ -1,0 +1,203 @@
+// أرقام بنود الهَبّات — «مافيش باب بيتفتح من غير ما يقول اللى وراه».
+//
+// القاعدة دى طلعت من «فلوسى»: الشاشة كانت قايمة أبواب صامتة، فكل دوسة
+// كانت تجربة. لمّا كل زرار بقى بيقول رقمه بقيت تعرف من غير ما تفتح.
+// الملف ده بيجمع الأرقام دى فى مكان واحد عشان:
+//   · الشاشات تفضل شاشات — الاستعلام مايتكتبش جوّه الودجت.
+//   · الأرقام تتختبر لوحدها (اختبار `hub_stats_test.dart`).
+//
+// 🔴 كل دالة هنا بترجّع null لو البند فاضى، عشان السطر يفضل ساكت بدل
+// ما يقول «0» — الصفر بيتقرا كأنه حاجة اتحسبت، والفاضى مش نفس الحاجة.
+import 'package:flutter/material.dart';
+
+import '../core/ar.dart';
+import '../core/l10n.dart';
+import '../screens/group_hub_screen.dart';
+import '../models/models.dart';
+import 'challenges_repo.dart';
+import 'courses_repo.dart';
+import 'diaries_repo.dart';
+import 'habits_repo.dart';
+import 'passwords_repo.dart';
+import 'quit_repo.dart';
+import 'reading_repo.dart';
+import 'relatives_repo.dart';
+
+const _late = Color(0xFFEF4444);
+
+/// كام يوم عدّى على تاريخ ISO — أو null لو التاريخ بايظ.
+int? _daysSince(String iso) {
+  final d = DateTime.tryParse(iso);
+  return d == null ? null : dateOnly(DateTime.now()).difference(dateOnly(d)).inDays;
+}
+
+// ————————————————— تطوّرى —————————————————
+
+/// القراءة: الكتاب اللى بتقرا فيه دلوقتى + كام كتاب خلّصت.
+Future<HubStat?> readingStat() async {
+  final books = await ReadingRepo().all();
+  if (books.isEmpty) return null;
+  final done = books.where((b) => b.status == 'done').length;
+  final now = books.where((b) => b.status == 'reading').toList();
+  final cur = now.isEmpty ? null : now.first;
+  return HubStat(
+    sub: cur == null
+        ? tr('${arNum(books.length)} كتاب فى المكتبة',
+            '${arNum(books.length)} books')
+        : tr('«${cur.title}» · صفحة ${arNum(cur.currentPage)}',
+            '"${cur.title}" · page ${arNum(cur.currentPage)}'),
+    big: arNum(done),
+    bigSub: tr('كتاب خلّصته', 'finished'),
+  );
+}
+
+/// التعلّم: الكورس الشغّال ونسبته + عدد الشغّالين.
+Future<HubStat?> coursesStat() async {
+  final all = await CoursesRepo().all();
+  if (all.isEmpty) return null;
+  final active = all.where((c) => c.status != 'done').toList();
+  final cur = active.isEmpty ? null : active.first;
+  final pct = cur == null || cur.totalUnits <= 0
+      ? null
+      : (cur.doneUnits / cur.totalUnits * 100).round();
+  return HubStat(
+    sub: cur == null
+        ? tr('كلهم خلصوا', 'All done')
+        : pct == null
+            ? cur.title
+            : tr('${cur.title} · ${arNum(pct)}٪', '${cur.title} · $pct%'),
+    big: arNum(active.length),
+    bigSub: tr('كورس شغّال', 'in progress'),
+  );
+}
+
+/// العادات: أطول سلسلة شغّالة دلوقتى.
+Future<HubStat?> habitsStat() async {
+  final stats = await HabitsRepo().analytics();
+  if (stats.isEmpty) return null;
+  final best = stats.reduce((a, b) => b.streak > a.streak ? b : a);
+  if (best.streak == 0) {
+    return HubStat(
+      sub: tr('${arNum(stats.length)} عادة · مافيش سلسلة شغّالة',
+          '${arNum(stats.length)} habits · no active streak'),
+    );
+  }
+  return HubStat(
+    sub: tr('أطول سلسلة: ${best.habit.name}',
+        'Longest streak: ${best.habit.name}'),
+    big: arNum(best.streak),
+    bigSub: tr('يوم', 'days'),
+  );
+}
+
+/// التحديات: التحدى الشغّال واليوم اللى انت فيه.
+Future<HubStat?> challengesStat() async {
+  final all = await ChallengesRepo().all();
+  if (all.isEmpty) return null;
+  final live = <Challenge, int>{};
+  for (final c in all) {
+    final passed = _daysSince(c.startDate);
+    if (passed == null || passed < 0) continue;
+    if (passed < c.days) live[c] = passed + 1;
+  }
+  if (live.isEmpty) {
+    return HubStat(
+      sub: tr('${arNum(all.length)} تحدى خلصوا', '${arNum(all.length)} finished'),
+    );
+  }
+  final first = live.entries.first;
+  return HubStat(
+    sub: tr('${first.key.name} · يوم ${arNum(first.value)} من ${arNum(first.key.days)}',
+        '${first.key.name} · day ${arNum(first.value)} of ${arNum(first.key.days)}'),
+    big: arNum(live.length),
+    bigSub: tr('شغّال', 'active'),
+  );
+}
+
+/// اليوميات: عدد التدوينات وآخر مرة كتبت.
+Future<HubStat?> diaryStat() async {
+  final all = await DiariesRepo().all();
+  if (all.isEmpty) return null;
+  final last = _daysSince(all.first.day);
+  return HubStat(
+    sub: last == null
+        ? null
+        : last == 0
+            ? tr('كتبت النهاردة', 'Written today')
+            : tr('آخر تدوينة من ${arNum(last)} يوم',
+                'Last entry ${arNum(last)} days ago'),
+    big: arNum(all.length),
+    bigSub: tr('تدوينة', 'entries'),
+  );
+}
+
+/// عدّاد الإقلاع: كام يوم وانت بعيد + اللى وفّرته.
+Future<HubStat?> quitStat() async {
+  final all = await QuitRepo().all();
+  if (all.isEmpty) return null;
+  final c = all.first;
+  final days = _daysSince(c.startDate) ?? 0;
+  final saved = c.dailySaving * days;
+  return HubStat(
+    sub: saved > 0
+        ? tr('${c.name} · وفّرت ${egp(saved)}',
+            '${c.name} · saved ${egp(saved)}')
+        : c.name,
+    big: arNum(days),
+    bigSub: tr('يوم', 'days'),
+  );
+}
+
+/// صلة الرحم: مين فات ميعاد الاطمئنان عليه.
+///
+/// الرقم هنا **اللى فات** مش الإجمالى — لإن ده اللى بيخلّيك تفتح.
+Future<HubStat?> relativesStat() async {
+  final repo = RelativesRepo();
+  final all = await repo.all();
+  if (all.isEmpty) return null;
+  final due = await repo.due(DateTime.now());
+  if (due.isEmpty) {
+    return HubStat(
+      sub: tr('كلهم مطمّن عليهم', 'All caught up'),
+      big: arNum(all.length),
+      bigSub: tr('حد', 'people'),
+    );
+  }
+  return HubStat(
+    sub: tr('محتاج تطمن على ${arNum(due.length)}',
+        '${arNum(due.length)} to check on'),
+    big: arNum(due.length),
+    bigSub: tr('فاتت', 'overdue'),
+    bigColor: _late,
+  );
+}
+
+/// كلمات السر: عددها — وإنها على الجهاز مش على أى سيرفر.
+Future<HubStat?> passwordsStat() async {
+  final all = await PasswordsRepo().all();
+  if (all.isEmpty) return null;
+  return HubStat(
+    sub: tr('محفوظة على الجهاز', 'Stored on this device'),
+    big: arNum(all.length),
+    bigSub: tr('كلمة', 'saved'),
+  );
+}
+
+/// خلاصة «تطوّرى» كلها: كام يوم من الأسبوع فيه نشاط + أطول سلسلة.
+///
+/// «فيه نشاط» = عملت عادة واحدة على الأقل فى اليوم ده. ده أصدق مقياس
+/// متاح دلوقتى؛ لو اتضاف مصدر تانى (قراءة/كورس) يتضم هنا.
+Future<(int daysThisWeek, int bestStreak)> growthWeek() async {
+  final repo = HabitsRepo();
+  final today = dateOnly(DateTime.now());
+  var days = 0;
+  for (var i = 0; i < 7; i++) {
+    final d = today.subtract(Duration(days: i));
+    if ((await repo.doneOn(dayKey(d))).isNotEmpty) days++;
+  }
+  final stats = await repo.analytics();
+  final best = stats.isEmpty
+      ? 0
+      : stats.map((s) => s.streak).reduce((a, b) => a > b ? a : b);
+  return (days, best);
+}

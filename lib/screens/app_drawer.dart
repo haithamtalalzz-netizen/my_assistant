@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import '../core/ar.dart';
 import '../core/app_state.dart';
 import '../core/l10n.dart';
+import '../data/hub_stats.dart';
+import '../widgets/growth_week_card.dart';
+import 'health/my_health_screen.dart';
 import '../data/settings_repo.dart';
 import 'account_screen.dart';
 import 'schedule/schedule_screen.dart';
@@ -47,7 +50,6 @@ import 'gym/progress_screen.dart';
 import 'gym/walk_tracker_screen.dart';
 import 'gym/workout_programs_screen.dart';
 import 'health/cycle_screen.dart';
-import 'health/health_hub_screen.dart';
 import 'home/pharmacy_screen.dart';
 import 'inbox_screen.dart';
 import 'medical/medical_screen.dart';
@@ -199,7 +201,7 @@ class AppDrawer extends StatelessWidget {
 
     // مجموعة → بتفتح صفحة فيها بنودها على شكل مربعات (زي هَبّات ملف المركبة).
     Widget groupTile(IconData icon, String title, List<GroupHubItem> items,
-            {Widget? trailingBadge, Color? accent}) =>
+            {Widget? trailingBadge, Color? accent, Widget? header}) =>
         _navRow(
           context: context,
           icon: icon,
@@ -216,6 +218,7 @@ class AppDrawer extends StatelessWidget {
                           items: items,
                           onSelectTab: onSelect,
                           accent: accent,
+                          header: header,
                         )));
           },
         );
@@ -351,91 +354,106 @@ class AppDrawer extends StatelessWidget {
             push(Icons.mosque_outlined, tr('صلاتى', 'My prayers'),
                 const PrayerScreen(), _cPrayer),
             rowDivider,
-            // ---- صحتى (يجمع الصحة + الرياضة + النظام الغذائي) ----
-            groupTile(Icons.health_and_safety_outlined, tr('صحتى', 'My health'),
-                accent: Colors.pink,
-                [
-                  GroupHubItem(Icons.dashboard_outlined,
-                      tr('لوحة الصحة', 'Health hub'),
-                      color: Colors.pink,
-                      screen: const HealthHubScreen()),
-                  GroupHubItem(Icons.favorite_outline, tr('الصحة', 'Health'),
-                      color: Colors.pink,
-                      screen: GroupHubScreen(
-                        title: tr('الصحة', 'Health'),
-                        onSelectTab: onSelect,
-                        accent: Colors.pink,
-                        items: [
-                          if (AppState.gender.value == 'female')
-                            GroupHubItem(Icons.favorite,
-                                tr('الدورة الشهرية', 'Menstrual cycle'),
-                                screen: const CycleScreen(),
-                                color: Colors.pink),
-                          GroupHubItem(Icons.task_alt, tr('العادات', 'Habits'),
-                              tabIndex: 3),
-                          GroupHubItem(
-                              Icons.mood, tr('تتبّع المزاج', 'Mood tracker'),
-                              screen: const MoodScreen()),
-                          GroupHubItem(Icons.medication_outlined,
-                              tr('الأدوية', 'Medications'),
-                              screen: const MedsScreen()),
-                          GroupHubItem(Icons.medical_information_outlined,
-                              tr('الملف الطبي', 'Medical file'),
-                              screen: const MedicalScreen()),
-                          GroupHubItem(Icons.medication_outlined,
-                              tr('صيدلية البيت', 'Home pharmacy'),
-                              screen: const PharmacyScreen()),
-                        ],
-                      )),
-                  GroupHubItem(Icons.fitness_center, tr('الرياضة', 'Exercise'),
-                      color: Colors.deepPurple,
-                      screen: GroupHubScreen(
-                        title: tr('الرياضة', 'Exercise'),
-                        onSelectTab: onSelect,
-                        accent: Colors.deepPurple,
-                        items: [
-                          GroupHubItem(Icons.fitness_center, tr('الجيم', 'Gym'),
-                              screen: const GymScreen()),
-                          GroupHubItem(Icons.directions_run,
-                              tr('تتبّع المشي/الجري', 'Walk / run'),
-                              screen: const WalkTrackerScreen()),
-                          GroupHubItem(Icons.monitor_weight_outlined,
-                              tr('التقدم البدني', 'Body progress'),
-                              screen: const ProgressScreen()),
-                          GroupHubItem(Icons.menu_book_outlined,
-                              tr('مكتبة التمارين', 'Exercise library'),
-                              screen: const ExerciseLibraryScreen()),
-                          GroupHubItem(Icons.list_alt_outlined,
-                              tr('برامج التمارين', 'Workout programs'),
-                              screen: const WorkoutProgramsScreen()),
-                        ],
-                      )),
-                  GroupHubItem(
-                      Icons.restaurant_outlined, tr('النظام الغذائي', 'Nutrition'),
-                      color: Colors.green,
-                      screen: GroupHubScreen(
-                        title: tr('النظام الغذائي', 'Nutrition'),
-                        onSelectTab: onSelect,
-                        accent: Colors.green,
-                        items: [
-                          GroupHubItem(Icons.menu_book_outlined,
-                              tr('دليل الأكل', 'Food guide'),
-                              screen: const FoodCardScreen()),
-                          GroupHubItem(Icons.restaurant_menu,
-                              tr('الأنظمة الغذائية', 'Diet plans'),
-                              screen: const DietPlansScreen()),
-                          GroupHubItem(Icons.calendar_view_week_outlined,
-                              tr('مخطّط الوجبات', 'Meal planner'),
-                              screen: const MealPlannerScreen()),
-                          GroupHubItem(Icons.timer_outlined,
-                              tr('الصيام المتقطّع', 'Intermittent fasting'),
-                              screen: const FastingScreen()),
-                          GroupHubItem(Icons.restaurant_menu_outlined,
-                              tr('دفتر الوصفات', 'Recipes'),
-                              screen: const RecipesScreen()),
-                        ],
-                      )),
-                ]),
+            // ---- صحتى ----
+            // كانت قايمة أبواب مافيهاش ولا رقم. بقت شاشة: لازم النهاردة
+            // (بتعلّم عليه من هنا) · أرقامك · وبعدين الأبواب.
+            push(
+                Icons.health_and_safety_outlined,
+                tr('صحتى', 'My health'),
+                MyHealthScreen(
+                  onSelectTab: onSelect,
+                  sections: [
+                    HealthSection(
+                        Icons.favorite_outline,
+                        tr('الصحة', 'Health'),
+                        tr('دورة · عادات · مزاج · أدوية · ملف طبى',
+                            'Cycle · habits · mood · meds · file'),
+                        Colors.pink,
+                        () => GroupHubScreen(
+                              title: tr('الصحة', 'Health'),
+                              onSelectTab: onSelect,
+                              accent: Colors.pink,
+                              items: [
+                                if (AppState.gender.value == 'female')
+                                  GroupHubItem(Icons.favorite,
+                                      tr('الدورة الشهرية', 'Menstrual cycle'),
+                                      screen: const CycleScreen(),
+                                      color: Colors.pink),
+                                GroupHubItem(
+                                    Icons.task_alt, tr('العادات', 'Habits'),
+                                    tabIndex: 3),
+                                GroupHubItem(Icons.mood,
+                                    tr('تتبّع المزاج', 'Mood tracker'),
+                                    screen: const MoodScreen()),
+                                GroupHubItem(Icons.medication_outlined,
+                                    tr('الأدوية', 'Medications'),
+                                    screen: const MedsScreen()),
+                                GroupHubItem(Icons.medical_information_outlined,
+                                    tr('الملف الطبي', 'Medical file'),
+                                    screen: const MedicalScreen()),
+                                GroupHubItem(Icons.medication_outlined,
+                                    tr('صيدلية البيت', 'Home pharmacy'),
+                                    screen: const PharmacyScreen()),
+                              ],
+                            )),
+                    HealthSection(
+                        Icons.fitness_center,
+                        tr('الرياضة', 'Exercise'),
+                        tr('جيم · مشى · تقدّم · تمارين',
+                            'Gym · walking · progress'),
+                        Colors.deepPurple,
+                        () => GroupHubScreen(
+                              title: tr('الرياضة', 'Exercise'),
+                              onSelectTab: onSelect,
+                              accent: Colors.deepPurple,
+                              items: [
+                                GroupHubItem(
+                                    Icons.fitness_center, tr('الجيم', 'Gym'),
+                                    screen: const GymScreen()),
+                                GroupHubItem(Icons.directions_run,
+                                    tr('تتبّع المشي/الجري', 'Walk / run'),
+                                    screen: const WalkTrackerScreen()),
+                                GroupHubItem(Icons.monitor_weight_outlined,
+                                    tr('التقدم البدني', 'Body progress'),
+                                    screen: const ProgressScreen()),
+                                GroupHubItem(Icons.menu_book_outlined,
+                                    tr('مكتبة التمارين', 'Exercise library'),
+                                    screen: const ExerciseLibraryScreen()),
+                                GroupHubItem(Icons.list_alt_outlined,
+                                    tr('برامج التمارين', 'Workout programs'),
+                                    screen: const WorkoutProgramsScreen()),
+                              ],
+                            )),
+                    HealthSection(
+                        Icons.restaurant_outlined,
+                        tr('النظام الغذائي', 'Nutrition'),
+                        tr('وجبات · صيام · وصفات', 'Meals · fasting · recipes'),
+                        Colors.green,
+                        () => GroupHubScreen(
+                              title: tr('النظام الغذائي', 'Nutrition'),
+                              onSelectTab: onSelect,
+                              accent: Colors.green,
+                              items: [
+                                GroupHubItem(Icons.menu_book_outlined,
+                                    tr('دليل الأكل', 'Food guide'),
+                                    screen: const FoodCardScreen()),
+                                GroupHubItem(Icons.restaurant_menu,
+                                    tr('الأنظمة الغذائية', 'Diet plans'),
+                                    screen: const DietPlansScreen()),
+                                GroupHubItem(Icons.calendar_view_week_outlined,
+                                    tr('مخطّط الوجبات', 'Meal planner'),
+                                    screen: const MealPlannerScreen()),
+                                GroupHubItem(Icons.timer_outlined,
+                                    tr('الصيام المتقطّع', 'Intermittent fasting'),
+                                    screen: const FastingScreen()),
+                                GroupHubItem(Icons.restaurant_menu_outlined,
+                                    tr('دفتر الوصفات', 'Recipes'),
+                                    screen: const RecipesScreen()),
+                              ],
+                            )),
+                  ],
+                ),
+                Colors.pink),
             rowDivider,
             // ---- فلوسى ----
             groupTile(
@@ -476,29 +494,32 @@ class AppDrawer extends StatelessWidget {
             rowDivider,
             groupTile(Icons.self_improvement, tr('تطوّري', 'Growth'),
                 accent: Colors.indigo,
+                header: const GrowthWeekCard(),
                 [
                   // «الأهداف» بقى بند مستقل فوق (تحت «تذكيراتى»).
+                  // كل بند بيقول رقمه قبل ما تدوس — القاعدة اللى طلعت
+                  // من «فلوسى».
                   GroupHubItem(Icons.school_outlined, tr('التعلّم', 'Learning'),
-                      screen: const CoursesScreen()),
+                      screen: const CoursesScreen(), stat: coursesStat),
                   GroupHubItem(Icons.menu_book_outlined, tr('القراءة', 'Reading'),
-                      screen: const ReadingScreen()),
+                      screen: const ReadingScreen(), stat: readingStat),
                   GroupHubItem(Icons.insights_outlined,
                       tr('تحليلات العادات', 'Habit analytics'),
-                      screen: const HabitAnalyticsScreen()),
+                      screen: const HabitAnalyticsScreen(), stat: habitsStat),
                   GroupHubItem(Icons.flag_outlined, tr('التحديات', 'Challenges'),
-                      screen: const ChallengesScreen()),
+                      screen: const ChallengesScreen(), stat: challengesStat),
                   GroupHubItem(Icons.auto_stories_outlined,
                       tr('اليوميات', 'Diary'),
-                      screen: const DiaryScreen()),
+                      screen: const DiaryScreen(), stat: diaryStat),
                   GroupHubItem(Icons.emoji_events_outlined,
                       tr('عدّاد الإقلاع', 'Quit counter'),
-                      screen: const QuitScreen()),
+                      screen: const QuitScreen(), stat: quitStat),
                   GroupHubItem(Icons.diversity_1_outlined,
                       tr('صلة الرحم', 'Keep in touch'),
-                      screen: const RelativesScreen()),
+                      screen: const RelativesScreen(), stat: relativesStat),
                   GroupHubItem(Icons.key_outlined,
                       tr('كلمات السر', 'Passwords'),
-                      screen: const PasswordsScreen()),
+                      screen: const PasswordsScreen(), stat: passwordsStat),
                 ]),
             rowDivider,
             groupTile(Icons.insights_outlined,

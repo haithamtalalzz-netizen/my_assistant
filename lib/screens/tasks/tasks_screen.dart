@@ -51,17 +51,46 @@ class _TasksScreenState extends State<TasksScreen> {
     _load();
   }
 
+  /// كل المهام — مننا بنشتق المعروض حسب الفلتر.
+  ///
+  /// بنجيبها **مرة واحدة** لإن كروت المشاريع فوق محتاجة عداد لكل مشروع؛
+  /// لو كل كارت استعلم لوحده هنعمل استعلام لكل مشروع كل مرة الشاشة
+  /// تترسم.
+  List<Task> _allTasks = [];
+
   Future<void> _load() async {
     final projects = await _repo.projects();
-    final tasks = await _repo.tasks(projectId: _filter);
+    final tasks = await _repo.tasks();
     final subs = await _repo.subtaskProgressAll();
     if (!mounted) return;
     setState(() {
       _projects = projects;
-      _tasks = tasks;
+      _allTasks = tasks;
+      _tasks = _applyFilter(tasks);
       _subs = subs;
       _loading = false;
     });
+  }
+
+  List<Task> _applyFilter(List<Task> all) => switch (_filter) {
+        null => all,
+        -1 => [for (final t in all) if (t.projectId == null) t],
+        final id => [for (final t in all) if (t.projectId == id) t],
+      };
+
+  void _setFilter(int? value) => setState(() {
+        // دوسة تانية على نفس المشروع بترجّعك للكل — من غير كده مفيش
+        // طريقة تخرج من مشروع غير ما تدوّر على زرار «الكل».
+        _filter = _filter == value ? null : value;
+        _tasks = _applyFilter(_allTasks);
+      });
+
+  /// (خلصت، الإجمالى) لمشروع — أو للمهام من غير مشروع لو [id] = -1.
+  (int, int) _projectCount(int? id) {
+    final list = id == -1
+        ? [for (final t in _allTasks) if (t.projectId == null) t]
+        : [for (final t in _allTasks) if (t.projectId == id) t];
+    return (list.where((t) => t.done).length, list.length);
   }
 
   String? _projectName(int? id) {
@@ -90,7 +119,7 @@ class _TasksScreenState extends State<TasksScreen> {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: Text(tr('المهام', 'Tasks')),
+        title: Text(tr('مهامى', 'My tasks')),
         actions: [
           searchAction(context),
           IconButton(
@@ -119,8 +148,11 @@ class _TasksScreenState extends State<TasksScreen> {
                 padding: const EdgeInsets.only(bottom: 96),
                 children: [
                   const SizedBox(height: 6),
-                  _filterChips(scheme),
-                  const SizedBox(height: 2),
+                  _projectCards(scheme),
+                  AppPad(AppGroupHead(_openTitle,
+                      trail: tr(
+                          '${arNum(_doneList.length)} من ${arNum(_tasks.length)}',
+                          '${arNum(_doneList.length)} of ${arNum(_tasks.length)}'))),
                   if (_tasks.isEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 30),
@@ -186,31 +218,154 @@ class _TasksScreenState extends State<TasksScreen> {
           AppPad(_taskTile(list[i], scheme, last: i == list.length - 1)),
       ]);
 
-  Widget _filterChips(ColorScheme scheme) {
-    Widget chip(String label, int? value) => Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 3),
-          child: ChoiceChip(
-            label: Text(label),
-            selected: _filter == value,
-            onSelected: (_) {
-              setState(() => _filter = value);
-              _load();
-            },
+  /// ألوان المشاريع — لون ثابت لكل مشروع من اسمه عشان تعرفه من لونه.
+  static const _projectPalette = [
+    Color(0xFFF59E0B),
+    Color(0xFF3B82F6),
+    Color(0xFF8B5CF6),
+    Color(0xFF10B981),
+    Color(0xFFEC4899),
+    Color(0xFF06B6D4),
+  ];
+
+  Color _projectColor(Project p) => p.color != 0
+      ? Color(p.color)
+      : _projectPalette[p.name.hashCode.abs() % _projectPalette.length];
+
+  /// كروت المشاريع فوق الشاشة.
+  ///
+  /// شريط الشرائح القديم كان بيقول اسم المشروع بس — الكارت بيقول
+  /// **كام خلصت من كام**، وده اللى بيخلّيك تعرف المشروع الواقف فين من
+  /// غير ما تفتحه.
+  Widget _projectCards(ColorScheme scheme) {
+    Widget card(String name, Color c, IconData icon, int? value) {
+      final (done, total) = _projectCount(value);
+      final on = _filter == value;
+      return Padding(
+        padding: const EdgeInsets.only(left: 9),
+        child: SizedBox(
+          width: 158,
+          child: Material(
+            color: c.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(20),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => _setFilter(value),
+              child: Container(
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: c.withValues(alpha: on ? 0.9 : 0.25),
+                      width: on ? 2 : 1),
+                ),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                            color: scheme.surface,
+                            borderRadius: BorderRadius.circular(12)),
+                        child: Icon(icon, size: 17, color: c),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 12.5, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 5),
+                      Text(
+                          tr('${arNum(done)} من ${arNum(total)}',
+                              '${arNum(done)} of ${arNum(total)}'),
+                          style: TextStyle(
+                              fontSize: 10.5, color: scheme.onSurfaceVariant)),
+                      const SizedBox(height: 7),
+                      // 🔴 المسار أبيض: لو خد لون الكارت الملوّن بيختفى
+                      // والشريط يبان مليان دايماً.
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(99),
+                        child: LinearProgressIndicator(
+                          value: total == 0 ? 0 : done / total,
+                          minHeight: 6,
+                          backgroundColor: scheme.surface,
+                          valueColor: AlwaysStoppedAnimation(c),
+                        ),
+                      ),
+                    ]),
+              ),
+            ),
           ),
-        );
-    return SizedBox(
-      height: 48,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        children: [
-          chip(tr('الكل', 'All'), null),
-          chip(tr('بدون مشروع', 'No project'), -1),
-          for (final p in _projects) chip(p.name, p.id),
-        ],
-      ),
-    );
+        ),
+      );
+    }
+
+    final (noProjDone, noProjTotal) = _projectCount(-1);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (_projects.isNotEmpty) ...[
+        AppPad(AppGroupHead(tr('مشاريعك', 'Your projects'),
+            trail: arNum(_projects.length))),
+        SizedBox(
+          height: 152,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 7),
+            children: [
+              for (final p in _projects)
+                card(p.name, _projectColor(p), Icons.folder_outlined, p.id),
+            ],
+          ),
+        ),
+        const SizedBox(height: 9),
+      ],
+      if (noProjTotal > 0)
+        AppPad(Material(
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(18),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => _setFilter(-1),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                    color: _filter == -1
+                        ? scheme.primary
+                        : scheme.outlineVariant,
+                    width: _filter == -1 ? 2 : 1),
+              ),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.inbox_outlined,
+                    size: 17, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 8),
+                Text(tr('من غير مشروع', 'No project'),
+                    style: const TextStyle(
+                        fontSize: 12.5, fontWeight: FontWeight.w700)),
+                const SizedBox(width: 8),
+                Text(
+                    tr('${arNum(noProjDone)} من ${arNum(noProjTotal)}',
+                        '${arNum(noProjDone)} of ${arNum(noProjTotal)}'),
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                        color: scheme.onSurfaceVariant)),
+              ]),
+            ),
+          ),
+        )),
+    ]);
   }
+
+  /// عنوان القسم المفتوح — اسم المشروع وعدّاده، أو «كل المهام».
+  String get _openTitle => switch (_filter) {
+        null => tr('كل المهام', 'All tasks'),
+        -1 => tr('من غير مشروع', 'No project'),
+        final id => _projectName(id) ?? tr('مشروع', 'Project'),
+      };
 
   Widget _taskTile(Task t, ColorScheme scheme, {bool last = false}) {
     final pName = _projectName(t.projectId);
@@ -242,12 +397,16 @@ class _TasksScreenState extends State<TasksScreen> {
       trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                  color: _priorityColors[t.priority], shape: BoxShape.circle),
-            ),
+            // نقطة على **كل** مهمة مالهاش مفتاح، فبتتقرا كزينة مش كمعلومة.
+            // العالية بس هى اللى ليها علامة، فالعلامة تبقى معناها واضح.
+            if (t.priority >= 2 && !t.done)
+              Container(
+                width: 9,
+                height: 9,
+                margin: const EdgeInsets.only(left: 2),
+                decoration: BoxDecoration(
+                    color: _priorityColors[t.priority], shape: BoxShape.circle),
+              ),
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert, size: 20),
               onSelected: (v) {

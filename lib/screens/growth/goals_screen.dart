@@ -21,6 +21,12 @@ class _GoalsScreenState extends State<GoalsScreen> {
   List<Goal> _goals = [];
   final Map<int, (int, int)> _progress = {};
 
+  /// أول معلم لسه ماخلصش لكل هدف — دى «الخطوة الجاية».
+  ///
+  /// الهدف مابيتحققش لوحده: «أحفظ جزء عمّ» قاعد على صفر من شهور لإنه
+  /// مش قايل تعمل إيه بعد كده. الشاشة بقت تقول الخطوة نفسها.
+  final Map<int, String?> _nextStep = {};
+
   @override
   void initState() {
     super.initState();
@@ -30,8 +36,12 @@ class _GoalsScreenState extends State<GoalsScreen> {
   Future<void> _load() async {
     final goals = await _repo.all();
     _progress.clear();
+    _nextStep.clear();
     for (final g in goals) {
-      if (g.id != null) _progress[g.id!] = await _repo.progress(g.id!);
+      if (g.id == null) continue;
+      _progress[g.id!] = await _repo.progress(g.id!);
+      final ms = await _repo.milestones(g.id!);
+      _nextStep[g.id!] = ms.where((m) => !m.done).map((m) => m.title).firstOrNull;
     }
     if (!mounted) return;
     setState(() {
@@ -84,15 +94,6 @@ class _GoalsScreenState extends State<GoalsScreen> {
     );
   }
 
-  String _milestoneLabel(Goal g) {
-    final (done, total) = _progress[g.id] ?? (0, 0);
-    return total == 0
-        ? tr('لا معالم', 'No milestones')
-        : tr('${arNum(done)} من ${arNum(total)}',
-            '${arNum(done)} of ${arNum(total)}');
-  }
-
-  /// سطر هدف جوّه كارت القسم — بشريط تقدّم.
   /// الفلتر: شغّالة (الافتراضى) · خلصت · الكل.
   String _filter = 'open';
 
@@ -154,8 +155,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
         ? const []
         : [
             AppPad(AppGroupHead(title, trail: arNum(list.length))),
-            for (var i = 0; i < list.length; i++)
-              AppPad(_goalRow(list[i], last: i == list.length - 1)),
+            for (final g in list) AppPad(_goalCard(g)),
           ];
 
     return [
@@ -168,61 +168,138 @@ class _GoalsScreenState extends State<GoalsScreen> {
     ];
   }
 
-  Widget _goalRow(Goal g, {bool last = false}) {
+  /// كام يوم فاضل للموعد — أو null لو مافيش موعد.
+  int? _daysLeft(Goal g) =>
+      g.target?.difference(dateOnly(DateTime.now())).inDays;
+
+  String _deadlineLabel(Goal g) {
+    final d = _daysLeft(g);
+    if (d == null) return tr('من غير موعد', 'No deadline');
+    if (d < 0) return tr('عدّى بـ${arNum(-d)} يوم', '${arNum(-d)} days late');
+    if (d == 0) return tr('النهاردة', 'Today');
+    return tr('فاضل ${arNum(d)} يوم', '${arNum(d)} days left');
+  }
+
+  /// كارت هدف: النسبة + الشريط + **الخطوة الجاية**.
+  ///
+  /// الخطوة هى اللى بتفرّق: من غيرها الهدف رقم بتتفرّج عليه، ومعاها
+  /// بقى حاجة تعملها دلوقتى. وهدف من غير معالم بيقول «حدّد أول خطوة»
+  /// بدل ما يقعد على صفر ساكت.
+  Widget _goalCard(Goal g) {
     final scheme = Theme.of(context).colorScheme;
     final ratio = _ratio(g);
-    return InkWell(
-      onTap: () => _openGoal(g),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 13),
-        decoration: last
-            ? null
-            : BoxDecoration(
-                border: Border(
-                    bottom: BorderSide(
-                        color: scheme.outlineVariant.withValues(alpha: 0.7)))),
-        child: Column(children: [
-          Row(children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(g.title,
+    final step = _nextStep[g.id];
+    final late = _late(g);
+    final tint = g.done
+        ? scheme.outline
+        : late
+            ? scheme.error
+            : scheme.primary;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => _openGoal(g),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Column(children: [
+              Row(children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                      color: tint.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Icon(g.done ? Icons.check : Icons.flag_outlined,
+                      size: 18, color: tint),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Text(g.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
                           decoration:
                               g.done ? TextDecoration.lineThrough : null,
                           color: g.done ? scheme.outline : scheme.onSurface)),
-                  const SizedBox(height: 2),
-                  Text(
-                      g.target == null
-                          ? _milestoneLabel(g)
-                          : '${_milestoneLabel(g)} · ${arShortDate(g.target!)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 11, color: scheme.onSurfaceVariant)),
-                ],
+                ),
+                const SizedBox(width: 8),
+                Text('${arNum((ratio * 100).round())}%',
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        color: tint)),
+              ]),
+              const SizedBox(height: 11),
+              // المسار لازم يبان عشان النسبة تتقرا: شريط من غير مسار
+              // بيبان مليان دايماً.
+              ClipRRect(
+                borderRadius: BorderRadius.circular(99),
+                child: LinearProgressIndicator(
+                  value: ratio,
+                  minHeight: 8,
+                  backgroundColor: scheme.outlineVariant.withValues(alpha: 0.6),
+                  valueColor: AlwaysStoppedAnimation(tint),
+                ),
               ),
-            ),
-            Text('${arNum((ratio * 100).round())}%',
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: g.done ? scheme.outline : scheme.primary)),
-          ]),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-                value: ratio,
-                minHeight: 6,
-                backgroundColor: scheme.outlineVariant.withValues(alpha: 0.5)),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(11),
+                decoration: BoxDecoration(
+                    color: tint.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(14)),
+                child: Row(children: [
+                  Icon(
+                      step == null
+                          ? Icons.add_circle_outline
+                          : Icons.arrow_circle_left_outlined,
+                      size: 17,
+                      color: tint),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(tr('الخطوة الجاية', 'Next step'),
+                              style: TextStyle(
+                                  fontSize: 9.5,
+                                  color: scheme.onSurfaceVariant)),
+                          const SizedBox(height: 2),
+                          Text(
+                              step ??
+                                  (g.done
+                                      ? tr('خلص', 'Done')
+                                      : tr('حدّد أول خطوة',
+                                          'Set the first step')),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w800)),
+                        ]),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(_deadlineLabel(g),
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: late ? FontWeight.w800 : FontWeight.w600,
+                          color:
+                              late ? scheme.error : scheme.onSurfaceVariant)),
+                ]),
+              ),
+            ]),
           ),
-        ]),
+        ),
       ),
     );
   }
