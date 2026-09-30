@@ -23,6 +23,7 @@ import 'package:my_assistant/data/wallets_repo.dart';
 import 'package:my_assistant/data/wealth_history.dart';
 import 'package:my_assistant/screens/money/money_screen.dart';
 import 'package:my_assistant/screens/money/money_log_screen.dart';
+import 'package:my_assistant/screens/money/fixed_monthly_screen.dart';
 import 'package:my_assistant/screens/money/recurring_income_screen.dart';
 import 'package:my_assistant/screens/money/fixed_bills_screen.dart';
 import 'package:my_assistant/screens/money/wallets_screen.dart';
@@ -428,6 +429,30 @@ void main() {
     final f = await shot(tester, 'real_log_spent',
         shotApp(buildTheme(), const MoneyLogScreen(kind: MoneyLogKind.spent)),
         size: const Size(390, 780), pixelRatio: 2);
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('اللى ثابت كل شهر — بيجيلك وبيروح عليك', (tester) async {
+    await IncomeRepo().saveRecurring(const RecurringIncome(
+        source: 'راتب', amount: 11000, dayOfMonth: 1, note: 'الشغل'));
+    await IncomeRepo().saveRecurring(const RecurringIncome(
+        source: 'إيجار', amount: 3500, dayOfMonth: 5, note: 'شقة المعادى'));
+    await BillsRepo().save(const RecurringBill(
+        name: 'كهربا', amount: 420, dayOfMonth: 5, category: 'فواتير'));
+    await BillsRepo().save(const RecurringBill(
+        name: 'نت', amount: 300, dayOfMonth: 10, category: 'فواتير'));
+    await BillsRepo().save(const RecurringBill(
+        name: 'مدرسة', amount: 1380, dayOfMonth: 12, category: 'فواتير'));
+    await WalletsRepo().save(const Wallet(
+        name: 'شهادة الأهلى',
+        type: 'bank',
+        openingBalance: 100000,
+        bankKind: 'certificate',
+        monthlyInterest: 1750));
+
+    final f = await shot(tester, 'real_fixed_monthly',
+        shotApp(buildTheme(), const FixedMonthlyScreen()),
+        size: const Size(390, 860), pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
   });
 

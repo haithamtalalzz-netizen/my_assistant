@@ -8,15 +8,13 @@ import '../../data/money_repo.dart';
 import '../../data/wallets_repo.dart';
 import '../../data/wealth_history.dart';
 import '../../models/models.dart';
-import '../../widgets/a_kit.dart';
 import '../../widgets/bar_actions.dart';
 import '../../widgets/history_calendar.dart';
 import '../../widgets/search_action.dart';
-import 'fixed_bills_screen.dart';
+import 'fixed_monthly_screen.dart';
 import 'income_sheet.dart';
 import 'money_log_screen.dart';
 import 'quick_expense_sheet.dart';
-import 'recurring_income_screen.dart';
 import 'wallets_screen.dart';
 
 /// **فلوسى** — اتبنى من الأول بالتقسيمة دى:
@@ -183,9 +181,11 @@ class _MoneyScreenState extends State<MoneyScreen> {
                   ..._walletGrid(context),
                   const SizedBox(height: 18),
                   _logButtons(context),
+                  const SizedBox(height: 11),
+                  _fixedButton(context),
                   const SizedBox(height: 12),
                   _twoButtons(context),
-                  _fixedMonthly(context),
+                  const SizedBox(height: 10),
                 ],
               ),
             ),
@@ -543,105 +543,86 @@ class _MoneyScreenState extends State<MoneyScreen> {
     ]);
   }
 
-  /// اللى ثابت كل شهر — دخلك · فواتير ثابتة · الفاضل بعدهم.
+  /// **زرار «اللى ثابت كل شهر»** — بنفس شكل زرارى السجل.
   ///
-  /// التلاتة محسوبين من بياناتك مش مكتوبين بالإيد: الدخل من الدخل
-  /// المتكرّر، والفواتير من الفواتير الثابتة، والفاضل هو الفرق.
-  Widget _fixedMonthly(BuildContext context) {
+  /// كان ٣ سطور فى آخر الصفحة بتقول الإجمالى من غير ما تقول جاى منين
+  /// ولا رايح فين. بقى سطر واحد بالرقم المهم (بيفضل كام)، والصفحة
+  /// جوّاه فيها البنود نفسها.
+  Widget _fixedButton(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    // عائد الشهادات دخل ثابت زى المرتب — محسوب عندك بالفعل.
     final income = _monthlyIncome + _certInterest;
     final left = income - _monthlyBills;
-    if (income == 0 && _monthlyBills == 0) {
-      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        AppGroupHead(tr('اللى ثابت كل شهر', 'Every month')),
-        AppListRow(
-          title: tr('ضيف دخلك الثابت', 'Add your recurring income'),
-          sub: tr('عشان تعرف بيفضل معاك كام كل شهر',
-              'So you know what is left each month'),
-          icon: Icons.payments,
-          tint: const Color(0xFF10B981),
-          chevron: true,
-          onTap: _openRecurringIncome,
+    const teal = Color(0xFF14B8A6);
+    final has = income > 0 || _monthlyBills > 0;
+
+    return Material(
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: _openFixedMonthly,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Row(children: [
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                  color: teal.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(13)),
+              child: const Icon(Icons.event_repeat, size: 20, color: teal),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(tr('اللى ثابت كل شهر', 'Every month'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 13.5, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 2),
+                    Text(
+                        has
+                            ? tr(
+                                'بيجيلك ${arMoney(income.round())} · بيروح ${arMoney(_monthlyBills.round())}',
+                                'in ${arMoney(income.round())} · out ${arMoney(_monthlyBills.round())}')
+                            : tr('ضيف دخلك الثابت وفواتيرك',
+                                'Add your income and bills'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 10.5, color: scheme.onSurfaceVariant)),
+                  ]),
+            ),
+            const SizedBox(width: 8),
+            if (has)
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Text(arMoney(left.round()),
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: left >= 0 ? teal : scheme.error)),
+                Text(tr('بيفضل', 'left'),
+                    style: TextStyle(
+                        fontSize: 10, color: scheme.onSurfaceVariant)),
+              ]),
+            Icon(Icons.chevron_left, size: 19, color: scheme.outline),
+          ]),
         ),
-        AppListRow(
-          title: tr('ضيف فواتيرك الثابتة', 'Add your fixed bills'),
-          sub: tr('كهربا · نت · مدرسة', 'Electricity · internet · school'),
-          icon: Icons.receipt_long,
-          tint: const Color(0xFFF59E0B),
-          chevron: true,
-          divider: false,
-          onTap: _openBills,
-        ),
-      ]);
-    }
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      AppGroupHead(tr('اللى ثابت كل شهر', 'Every month')),
-      AppListRow(
-        title: tr('دخلك', 'Income'),
-        sub: tr('الدخل المتكرّر', 'Recurring income'),
-        icon: Icons.payments,
-        tint: const Color(0xFF10B981),
-        chevron: true,
-        onTap: _openRecurringIncome,
-        trailing: Text(arMoney(_monthlyIncome.round()),
-            style: const TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFF10B981))),
       ),
-      if (_certInterest > 0)
-        AppListRow(
-          title: tr('عائد الشهادات', 'Certificate interest'),
-          sub: tr('بيجيلك كل شهر من البنك', 'From the bank every month'),
-          icon: Icons.account_balance,
-          tint: const Color(0xFF14B8A6),
-          chevron: true,
-          onTap: _openWallets,
-          trailing: Text(arMoney(_certInterest.round()),
-              style: const TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF14B8A6))),
-        ),
-      AppListRow(
-        title: tr('فواتير ثابتة', 'Fixed bills'),
-        sub: tr('اللى بيتدفع كل شهر', 'Paid every month'),
-        icon: Icons.receipt_long,
-        tint: const Color(0xFFF59E0B),
-        chevron: true,
-        onTap: _openBills,
-        trailing: Text(arMoney(_monthlyBills.round()),
-            style: const TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFFF59E0B))),
-      ),
-      AppListRow(
-        title: tr('الفاضل بعدهم', 'Left after them'),
-        sub: tr('دخلك (بالعائد) ناقص فواتيرك',
-            'Income (incl. interest) minus bills'),
-        icon: Icons.savings,
-        tint: left >= 0 ? const Color(0xFF14B8A6) : scheme.error,
-        divider: false,
-        trailing: Text(arMoney(left.round()),
-            style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w900,
-                color: left >= 0 ? const Color(0xFF14B8A6) : scheme.error)),
-      ),
-    ]);
+    );
   }
 
-  Future<void> _openRecurringIncome() async {
+  Future<void> _openFixedMonthly() async {
     await Navigator.push(context,
-        MaterialPageRoute(builder: (_) => const RecurringIncomeScreen()));
-    if (mounted) await _load();
-  }
-
-  Future<void> _openBills() async {
-    await Navigator.push(
-        context, MaterialPageRoute(builder: (_) => const FixedBillsScreen()));
+        MaterialPageRoute(builder: (_) => const FixedMonthlyScreen()));
     if (mounted) await _load();
   }
 }
