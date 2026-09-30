@@ -177,9 +177,9 @@ class _MoneyScreenState extends State<MoneyScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
                 children: [
                   _totalBlock(context),
-                  const SizedBox(height: 14),
-                  ..._walletGrid(context),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 16),
+                  _walletsButton(context),
+                  const SizedBox(height: 11),
                   _logButtons(context),
                   const SizedBox(height: 11),
                   _fixedButton(context),
@@ -291,111 +291,77 @@ class _MoneyScreenState extends State<MoneyScreen> {
                 fontSize: 11, fontWeight: FontWeight.w700, color: c)),
       ]);
 
-  /// المحافظ مربعات، اتنين فى الصف، وآخر مربّع «＋ محفظة جديدة».
-  List<Widget> _walletGrid(BuildContext context) {
-    final cells = <Widget>[
-      for (final e in _list) _walletTile(context, e.wallet, e.balance),
-      _addTile(context),
-    ];
-    final rows = <Widget>[];
-    for (var i = 0; i < cells.length; i += 2) {
-      rows.add(Padding(
-        padding: EdgeInsets.only(bottom: i + 2 < cells.length ? 10 : 0),
-        // IntrinsicHeight: من غيره الصف بيوسّط، فالمربّع القصير يطلع
-        // مش مظبوط مع اللى جنبه.
-        child: IntrinsicHeight(
-          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Expanded(child: cells[i]),
-            const SizedBox(width: 10),
-            Expanded(
-                child: i + 1 < cells.length
-                    ? cells[i + 1]
-                    : const SizedBox.shrink()),
-          ]),
-        ),
-      ));
-    }
-    return rows;
-  }
-
-  Widget _walletTile(BuildContext context, Wallet w, double balance) {
-    final c = walletTypeColor(w.type);
-    return Material(
-      color: Color.alphaBlend(
-          c.withValues(alpha: 0.10), Theme.of(context).colorScheme.surface),
-      borderRadius: BorderRadius.circular(18),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: _openWallets,
-        child: Container(
-          padding: const EdgeInsets.all(11),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: c.withValues(alpha: 0.25)),
-          ),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Container(
-                width: 30,
-                height: 30,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(10)),
-                child: Icon(walletTypeIcon(w.type), size: 16, color: c),
-              ),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Text(w.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 11.5, fontWeight: FontWeight.w800)),
-              ),
-            ]),
-            const SizedBox(height: 8),
-            Text(arMoney(balance.round()),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w900, color: c)),
-          ]),
-        ),
-      ),
-    );
-  }
-
-  Widget _addTile(BuildContext context) {
+  /// **زرار المحافظ** — بنفس شكل باقى الأزرار.
+  ///
+  /// كانت مربعات بتاخد نص الشاشة، والإجمالى فوقها بيقول نفس الرقم.
+  /// بقت سطر واحد بيقول عندك كام محفظة وإيه هى، والتفاصيل جوّه.
+  Widget _walletsButton(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final names = [for (final e in _list) e.wallet.name].join(' · ');
+
     return Material(
       color: scheme.surface,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: _openWallets,
         child: Container(
-          padding: const EdgeInsets.all(11),
+          padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(color: scheme.outlineVariant),
           ),
           child: Row(children: [
-            Icon(Icons.add_circle_outline, size: 19, color: scheme.primary),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                  _list.isEmpty
-                      ? tr('ضيف أول محفظة', 'Add your first wallet')
-                      : tr('محفظة جديدة', 'New wallet'),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 11.5,
-                      height: 1.25,
-                      fontWeight: FontWeight.w700,
-                      color: scheme.onSurfaceVariant)),
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                  color: scheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(13)),
+              child: Icon(Icons.account_balance_wallet_outlined,
+                  size: 20, color: scheme.primary),
             ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        _list.isEmpty
+                            ? tr('ضيف أول محفظة', 'Add your first wallet')
+                            : tr('محافظك', 'Your wallets'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 13.5, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 2),
+                    Text(
+                        _list.isEmpty
+                            ? tr('كاش · بنك · ذهب · أصول · مواشى',
+                                'cash · bank · gold · assets')
+                            : names,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 10.5, color: scheme.onSurfaceVariant)),
+                  ]),
+            ),
+            const SizedBox(width: 8),
+            if (_list.isNotEmpty)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                decoration: BoxDecoration(
+                    color: scheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(99)),
+                child: Text(arNum(_list.length),
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w900,
+                        color: scheme.primary)),
+              ),
+            Icon(Icons.chevron_left, size: 19, color: scheme.outline),
           ]),
         ),
       ),
