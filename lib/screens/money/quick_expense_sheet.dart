@@ -19,23 +19,52 @@ Future<bool?> showQuickExpenseSheet(BuildContext context,
       padding: EdgeInsets.only(
           bottom: MediaQuery.of(ctx).viewInsets.bottom +
               MediaQuery.of(ctx).viewPadding.bottom),
-      child: _QuickExpenseForm(
+      child: QuickExpenseForm(
           initialAmount: initialAmount, initialNote: initialNote),
     ),
   );
 }
 
-class _QuickExpenseForm extends StatefulWidget {
+/// **صفحة مصروف جديد** — نفس الخانات، بس شاشة كاملة.
+///
+/// الورقة السفلية لسه موجودة للتسجيل السريع من برّه «فلوسى» (زرار
+/// الشل والإجراءات السريعة)؛ هنا الشاشة الكاملة لمّا تكون داخل
+/// «فلوسى» أصلاً وعايز تسجّل بتركيز.
+Future<bool?> openExpensePage(BuildContext context,
+        {double? initialAmount, String? initialNote}) =>
+    Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: Text(tr('مصروف جديد', 'New expense'))),
+          body: SingleChildScrollView(
+            child: QuickExpenseForm(
+                initialAmount: initialAmount,
+                initialNote: initialNote,
+                showTitle: false),
+          ),
+        ),
+      ),
+    );
+
+class QuickExpenseForm extends StatefulWidget {
   final double? initialAmount;
   final String? initialNote;
 
-  const _QuickExpenseForm({this.initialAmount, this.initialNote});
+  /// العنوان جوّه الفورم — بيتقفل فى الصفحة لإن الشريط العلوى بيقوله.
+  final bool showTitle;
+
+  const QuickExpenseForm(
+      {super.key,
+      this.initialAmount,
+      this.initialNote,
+      this.showTitle = true});
 
   @override
-  State<_QuickExpenseForm> createState() => _QuickExpenseFormState();
+  State<QuickExpenseForm> createState() => _QuickExpenseFormState();
 }
 
-class _QuickExpenseFormState extends State<_QuickExpenseForm> {
+class _QuickExpenseFormState extends State<QuickExpenseForm> {
   final _amount = TextEditingController();
   final _note = TextEditingController();
   String _category = kExpenseCategories.first;
@@ -97,12 +126,14 @@ class _QuickExpenseFormState extends State<_QuickExpenseForm> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(tr('سجل مصروف', 'Log expense'),
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
+          if (widget.showTitle) ...[
+            Text(tr('سجل مصروف', 'Log expense'),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+          ],
           TextField(
             controller: _amount,
             autofocus: true,

@@ -17,19 +17,35 @@ Future<bool?> showIncomeSheet(BuildContext context) {
       padding: EdgeInsets.only(
           bottom: MediaQuery.of(ctx).viewInsets.bottom +
               MediaQuery.of(ctx).viewPadding.bottom),
-      child: const _IncomeForm(),
+      child: const IncomeForm(),
     ),
   );
 }
 
-class _IncomeForm extends StatefulWidget {
-  const _IncomeForm();
+/// **صفحة دخل جديد** — التوأم بتاع [openExpensePage].
+Future<bool?> openIncomePage(BuildContext context) => Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: Text(tr('دخل جديد', 'New income'))),
+          body: const SingleChildScrollView(
+            child: IncomeForm(showTitle: false),
+          ),
+        ),
+      ),
+    );
+
+class IncomeForm extends StatefulWidget {
+  /// العنوان جوّه الفورم — بيتقفل فى الصفحة لإن الشريط العلوى بيقوله.
+  final bool showTitle;
+
+  const IncomeForm({super.key, this.showTitle = true});
 
   @override
-  State<_IncomeForm> createState() => _IncomeFormState();
+  State<IncomeForm> createState() => _IncomeFormState();
 }
 
-class _IncomeFormState extends State<_IncomeForm> {
+class _IncomeFormState extends State<IncomeForm> {
   final _amount = TextEditingController();
   final _note = TextEditingController();
   String _source = kIncomeSources.first;
@@ -84,12 +100,14 @@ class _IncomeFormState extends State<_IncomeForm> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(tr('سجل دخل', 'Log income'),
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
+          if (widget.showTitle) ...[
+            Text(tr('سجل دخل', 'Log income'),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+          ],
           TextField(
             controller: _amount,
             autofocus: true,

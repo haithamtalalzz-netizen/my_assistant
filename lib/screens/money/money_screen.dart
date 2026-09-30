@@ -143,12 +143,12 @@ class _MoneyScreenState extends State<MoneyScreen> {
   }
 
   Future<void> _addExpense() async {
-    final ok = await showQuickExpenseSheet(context);
+    final ok = await openExpensePage(context);
     if (ok == true && mounted) await _load();
   }
 
   Future<void> _addIncome() async {
-    final ok = await showIncomeSheet(context);
+    final ok = await openIncomePage(context);
     if (ok == true && mounted) await _load();
   }
 

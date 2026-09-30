@@ -24,6 +24,7 @@ import 'package:my_assistant/data/wealth_history.dart';
 import 'package:my_assistant/screens/money/money_screen.dart';
 import 'package:my_assistant/screens/money/money_log_screen.dart';
 import 'package:my_assistant/screens/money/fixed_monthly_screen.dart';
+import 'package:my_assistant/screens/money/quick_expense_sheet.dart';
 import 'package:my_assistant/screens/money/recurring_income_screen.dart';
 import 'package:my_assistant/screens/money/fixed_bills_screen.dart';
 import 'package:my_assistant/screens/money/wallets_screen.dart';
@@ -453,6 +454,29 @@ void main() {
     final f = await shot(tester, 'real_fixed_monthly',
         shotApp(buildTheme(), const FixedMonthlyScreen()),
         size: const Size(390, 860), pixelRatio: 2);
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('مصروف جديد — صفحة كاملة', (tester) async {
+    await WalletsRepo().save(
+        const Wallet(name: 'كاش', type: 'cash', openingBalance: 5000));
+    await WalletsRepo()
+        .save(const Wallet(name: 'بنك', type: 'bank', openingBalance: 20000));
+    final f = await shot(
+      tester,
+      'real_add_expense',
+      shotApp(
+        buildTheme(),
+        Scaffold(
+          appBar: AppBar(title: const Text('مصروف جديد')),
+          body: const SingleChildScrollView(
+            child: QuickExpenseForm(showTitle: false),
+          ),
+        ),
+      ),
+      size: const Size(390, 700),
+      pixelRatio: 2,
+    );
     expect(f.lengthSync(), greaterThan(10000));
   });
 
