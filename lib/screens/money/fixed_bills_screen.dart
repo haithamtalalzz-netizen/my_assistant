@@ -8,6 +8,7 @@ import '../../data/money_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/a_kit.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 /// **الفواتير الثابتة** — كهربا · نت · مدرسة · اشتراكات.
 ///
@@ -154,7 +155,8 @@ class _FixedBillsScreenState extends State<FixedBillsScreen> {
     final total = _bills.fold<double>(0, (t, b) => t + b.amount);
 
     return Scaffold(
-      appBar: AppBar(title: Text(tr('فواتير ثابتة', 'Fixed bills'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('فواتير ثابتة', 'Fixed bills'))),
       floatingActionButton: FloatingActionButton(
         heroTag: 'bills_fab',
         onPressed: () => _form(),

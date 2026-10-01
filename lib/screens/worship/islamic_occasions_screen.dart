@@ -5,6 +5,7 @@ import '../../core/app_state.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/log.dart';
+import '../../core/privacy.dart';
 
 /// المناسبات الإسلامية — عدّ تنازلى لأقرب حدث بالتقويم الهجرى.
 class IslamicOccasionsScreen extends StatelessWidget {
@@ -46,7 +47,8 @@ class IslamicOccasionsScreen extends StatelessWidget {
       ..sort((a, b) => a.date.compareTo(b.date));
 
     return Scaffold(
-      appBar: AppBar(title: Text(tr('المناسبات الإسلامية', 'Islamic occasions'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('المناسبات الإسلامية', 'Islamic occasions'))),
       body: ListView.builder(
         padding: const EdgeInsets.all(12),
         itemCount: items.length,

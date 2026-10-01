@@ -4,6 +4,7 @@ import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/zakat.dart';
 import '../../core/zakat_guide.dart';
+import '../../core/privacy.dart';
 
 /// دليل الزكاة — بند مستقل يشرح بنودها ومصارفها الثمانية والملزمين بها.
 class ZakatGuideScreen extends StatelessWidget {
@@ -13,7 +14,8 @@ class ZakatGuideScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('دليل الزكاة', 'Zakat guide'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('دليل الزكاة', 'Zakat guide'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 28),
         children: [

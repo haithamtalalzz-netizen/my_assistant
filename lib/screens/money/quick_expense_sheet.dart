@@ -7,6 +7,7 @@ import '../../widgets/common.dart';
 import '../../data/money_repo.dart';
 import '../../data/wallets_repo.dart';
 import '../../models/models.dart';
+import '../../core/privacy.dart';
 
 /// تسجيل مصروف في أقل من ٣ ثواني — مبلغ + فئة وخلاص.
 /// [initialAmount] و[initialNote] بيتملوا تلقائيًا من ماسح الفواتير.
@@ -36,7 +37,8 @@ Future<bool?> openExpensePage(BuildContext context,
       context,
       MaterialPageRoute(
         builder: (_) => Scaffold(
-          appBar: AppBar(title: Text(tr('مصروف جديد', 'New expense'))),
+          appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('مصروف جديد', 'New expense'))),
           body: SingleChildScrollView(
             child: QuickExpenseForm(
                 initialAmount: initialAmount,

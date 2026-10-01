@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/health_calc.dart';
+import '../../core/privacy.dart';
 
 /// حاسبات مفيدة — كتلة الجسم، القسط، البقشيش، الخصم، محوّل الوحدات،
 /// الزكاة، معدّل الأيض، وفرق التواريخ.
@@ -59,7 +60,8 @@ class _CalculatorsScreenState extends State<CalculatorsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('حاسبات', 'Calculators'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('حاسبات', 'Calculators'))),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [

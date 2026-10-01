@@ -5,6 +5,7 @@ import '../../core/l10n.dart';
 import '../../data/pets_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 /// الحيوانات الأليفة — قائمة، كل واحد يفتح صفحته بأحداثه (تطعيم/بيطري/أكل).
 class PetsScreen extends StatefulWidget {
@@ -38,7 +39,8 @@ class _PetsScreenState extends State<PetsScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('الحيوانات الأليفة', 'Pets'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('الحيوانات الأليفة', 'Pets'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -161,7 +163,8 @@ class _PetDetailState extends State<_PetDetail> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.pet.name)),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(widget.pet.name)),
       body: _events.isEmpty
           ? ListView(children: [
               const SizedBox(height: 60),

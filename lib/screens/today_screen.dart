@@ -417,6 +417,7 @@ class _TodayScreenState extends State<TodayScreen> {
         title: Text(tr('الرئيسية', 'Home')),
         actions: [
           const PrivacyAction(),
+          const PrivacyAction(),
           _alertsAction(context),
           searchAction(context)
         ],
@@ -435,7 +436,7 @@ class _TodayScreenState extends State<TodayScreen> {
         ),
         child: _loading
             ? const Center(child: CircularProgressIndicator())
-            : PrivacyBlur(_body(context)),
+            : _body(context),
       ),
     );
   }

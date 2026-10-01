@@ -6,6 +6,7 @@ import '../../core/exercise_library.dart';
 import '../../core/l10n.dart';
 import '../../data/settings_repo.dart';
 import '../../widgets/search_action.dart';
+import '../../core/privacy.dart';
 
 /// مكتبة التمارين — استعراض التمارين بالعضلة والمعدّات مع طريقة الأداء.
 class ExerciseLibraryScreen extends StatefulWidget {
@@ -62,7 +63,8 @@ class _ExerciseLibraryScreenState extends State<ExerciseLibraryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(tr('مكتبة التمارين', 'Exercise library')),
-        actions: [searchAction(context)],
+        actions: [
+          const PrivacyAction(),searchAction(context)],
       ),
       body: Column(
         children: [

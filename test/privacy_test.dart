@@ -83,6 +83,38 @@ void main() {
     expect(taps, 2);
   });
 
+  testWidgets('الطبقة العامة: بتغطّى أى شاشة + زرار فتح واضح فوقها',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      builder: (_, child) =>
+          PrivacyShell(child: child ?? const SizedBox.shrink()),
+      home: Scaffold(
+        appBar: AppBar(title: const Text('شاشة أى حاجة')),
+        body: const Center(child: Text('بيانات خاصة')),
+      ),
+    ));
+
+    // مفتوح: مفيش ضبابة ولا زرار عائم.
+    expect(find.byType(ImageFiltered), findsNothing);
+    expect(find.byIcon(Icons.visibility_off), findsNothing);
+
+    Privacy.hidden.value = true;
+    await tester.pumpAndSettle();
+
+    // الشاشة دى **ماحدّش لمسها** — الطبقة العامة هى اللى غطّتها.
+    // لو التغطية كانت بتتعمل شاشة شاشة، الشاشة دى كانت هتفضل مكشوفة،
+    // وفى التطبيق ١٣٣ شريط فى ١١٩ ملف — واحدة منهم هتتنسى أكيد.
+    expect(find.byType(ImageFiltered), findsOneWidget);
+
+    // وزرار الفتح لازم يبقى **فوق** الضبابة: زرار الشريط نفسه بيتضبّب،
+    // فمن غيره مافيش طريقة تفتح غير إنك تدوس على حتة مش شايفها.
+    final unlock = find.byIcon(Icons.visibility_off);
+    expect(unlock, findsOneWidget);
+    await tester.tap(unlock);
+    await tester.pumpAndSettle();
+    expect(Privacy.hidden.value, isFalse);
+  });
+
   testWidgets('الزرار بيقلب الحالة وبيغيّر أيقونته', (tester) async {
     await tester.pumpWidget(const MaterialApp(
       home: Scaffold(appBar: null, body: PrivacyAction()),

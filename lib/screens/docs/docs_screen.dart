@@ -19,6 +19,7 @@ import '../../data/money_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 import 'doc_form.dart';
+import '../../core/privacy.dart';
 
 class DocsScreen extends StatefulWidget {
   final Widget? drawer;
@@ -134,6 +135,7 @@ class _DocsScreenState extends State<DocsScreen> {
       appBar: AppBar(
           title: Text(tr('خزنة المستندات', 'Documents')),
           actions: [
+          const PrivacyAction(),
             IconButton(
               tooltip: tr('تصدير PDF', 'Export PDF'),
               icon: const Icon(Icons.picture_as_pdf_outlined),

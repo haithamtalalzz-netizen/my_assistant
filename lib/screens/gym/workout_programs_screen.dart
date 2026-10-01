@@ -4,6 +4,7 @@ import '../../core/l10n.dart';
 import '../../widgets/search_action.dart';
 import '../../core/workout_programs.dart';
 import '../../data/workout_repo.dart';
+import '../../core/privacy.dart';
 
 /// مكتبة برامج التمارين الجاهزة — بيت/جيم، بأجهزة أو من غير.
 class WorkoutProgramsScreen extends StatefulWidget {
@@ -113,7 +114,8 @@ class _WorkoutProgramsScreenState extends State<WorkoutProgramsScreen> {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('برامج التمارين', 'Workout programs')),
-          actions: [searchAction(context)]),
+          actions: [
+          const PrivacyAction(),searchAction(context)]),
       body: Column(
         children: [
           Padding(

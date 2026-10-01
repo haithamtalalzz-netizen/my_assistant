@@ -6,6 +6,7 @@ import '../../data/plants_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 import '../../widgets/search_action.dart';
+import '../../core/privacy.dart';
 
 /// متابعة نباتات البيت — كل نبتة ليها ميعاد ري، والتطبيق بيفكّرك النهار المناسب.
 class PlantsScreen extends StatefulWidget {
@@ -126,7 +127,8 @@ class _PlantsScreenState extends State<PlantsScreen> {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('نباتات البيت', 'Home plants')),
-          actions: [searchAction(context)]),
+          actions: [
+          const PrivacyAction(),searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty

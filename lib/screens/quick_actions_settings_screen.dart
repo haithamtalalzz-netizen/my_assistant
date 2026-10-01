@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/l10n.dart';
+import '../core/privacy.dart';
 
 /// الترتيب/التفعيل الافتراضي لأزرار الإضافة السريعة — الأكتر استخدامًا يوميًا؛
 /// الباقي متاح في «خصّص الأزرار السريعة». (مصدر واحد يستخدمه كل حاجة.)
@@ -102,6 +103,7 @@ class _QuickActionsSettingsScreenState
       appBar: AppBar(
         title: Text(tr('خصّص الأزرار السريعة', 'Customize quick actions')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('استرجاع الافتراضي', 'Reset to default'),
             icon: const Icon(Icons.restore),

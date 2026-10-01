@@ -7,6 +7,7 @@ import '../../widgets/search_action.dart';
 import '../../data/habits_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 class HabitsScreen extends StatefulWidget {
   final Widget? drawer;
@@ -353,6 +354,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
       appBar: AppBar(
           title: Text(tr('العادات', 'Habits')),
           actions: [
+          const PrivacyAction(),
             IconButton(
               tooltip: tr('تعديل يوم فائت', 'Edit a past day'),
               icon: const Icon(Icons.edit_calendar_outlined),

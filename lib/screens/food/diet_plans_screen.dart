@@ -6,6 +6,7 @@ import '../../core/l10n.dart';
 import '../../data/measurements_repo.dart';
 import '../../data/settings_repo.dart';
 import '../../widgets/search_action.dart';
+import '../../core/privacy.dart';
 
 /// شاشة الأنظمة الغذائية — يختار المستخدم نظام يتفعّل ويظبط هدف السعرات والماكروز.
 class DietPlansScreen extends StatefulWidget {
@@ -66,7 +67,8 @@ class _DietPlansScreenState extends State<DietPlansScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(tr('الأنظمة الغذائية', 'Diet plans')),
-        actions: [searchAction(context)],
+        actions: [
+          const PrivacyAction(),searchAction(context)],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

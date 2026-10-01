@@ -7,6 +7,7 @@ import '../../data/debts_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 import '../../widgets/search_action.dart';
+import '../../core/privacy.dart';
 
 class DebtsScreen extends StatefulWidget {
   const DebtsScreen({super.key});
@@ -126,6 +127,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
       appBar: AppBar(
           title: Text(tr('الديون والسلف', 'Debts & loans')),
           actions: [
+          const PrivacyAction(),
             IconButton(
               tooltip: tr('خطة السداد', 'Payoff plan'),
               icon: const Icon(Icons.trending_down),

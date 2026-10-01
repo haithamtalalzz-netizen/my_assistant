@@ -29,6 +29,7 @@ import 'notes_screen.dart';
 import 'diary_screen.dart';
 import 'recipes_screen.dart';
 import 'baladna/relatives_screen.dart';
+import '../core/privacy.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -251,6 +252,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ),
         actions: [
+          const PrivacyAction(),
           if (_ctrl.text.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.close),

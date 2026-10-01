@@ -6,6 +6,7 @@ import '../../data/wallets_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 import '../../widgets/search_action.dart';
+import '../../core/privacy.dart';
 
 class WalletsScreen extends StatefulWidget {
   const WalletsScreen({super.key});
@@ -314,6 +315,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
       appBar: AppBar(
         title: Text(tr('المحافظ', 'Wallets')),
         actions: [
+          const PrivacyAction(),
           if (_items.length >= 2)
             IconButton(
               onPressed: () => setState(() => _reordering = !_reordering),

@@ -10,6 +10,7 @@ import '../../widgets/common.dart';
 import '../../widgets/search_action.dart';
 import 'focus_screen.dart';
 import '../../core/calendar_sync.dart';
+import '../../core/privacy.dart';
 
 /// المهام والمشاريع — قوائم مهام بأولويات ومواعيد، مجمّعة فى مشاريع.
 class TasksScreen extends StatefulWidget {
@@ -121,6 +122,7 @@ class _TasksScreenState extends State<TasksScreen> {
       appBar: AppBar(
         title: Text(tr('مهامى', 'My tasks')),
         actions: [
+          const PrivacyAction(),
           searchAction(context),
           IconButton(
             tooltip: tr('جلسة تركيز', 'Focus session'),

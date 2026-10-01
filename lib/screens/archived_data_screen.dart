@@ -5,6 +5,7 @@ import '../core/archived_data.dart';
 import '../core/l10n.dart';
 import '../core/log.dart';
 import '../widgets/common.dart';
+import '../core/privacy.dart';
 
 /// «استرجاع البيانات المؤرشفة» — البنود اللى اتشالت من التطبيق بياناتها
 /// اتحفظت وقت الترقية (مااتمسحتش). الشاشة دى بتوريها وبتصدّرها JSON.
@@ -77,6 +78,7 @@ class _ArchivedDataScreenState extends State<ArchivedDataScreen> {
     final total = _items.fold<int>(0, (a, b) => a + b.rowCount);
     return Scaffold(
       appBar: AppBar(
+          actions: const [PrivacyAction()],
         title: Text(tr('البيانات المؤرشفة', 'Archived data')),
       ),
       body: _loading

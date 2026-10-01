@@ -10,6 +10,7 @@ import '../../data/medical_repo.dart';
 import '../../data/money_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/wheel_date_picker.dart';
+import '../../core/privacy.dart';
 
 /// تخصصات طبية شائعة (اختيار سريع — المستخدم يقدر يكتب أي تخصص).
 const List<String> kMedicalSpecialties = [
@@ -174,6 +175,7 @@ class _MedicalFormState extends State<MedicalForm> {
     final isNew = widget.record == null;
     return Scaffold(
       appBar: AppBar(
+          actions: const [PrivacyAction()],
           title: Text(isNew
               ? tr('سجل طبي جديد', 'New medical record')
               : tr('تعديل السجل', 'Edit record'))),

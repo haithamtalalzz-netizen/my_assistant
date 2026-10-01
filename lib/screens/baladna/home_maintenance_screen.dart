@@ -6,6 +6,7 @@ import '../../widgets/search_action.dart';
 import '../../data/home_maintenance_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 class HomeMaintenanceScreen extends StatefulWidget {
   const HomeMaintenanceScreen({super.key});
@@ -55,7 +56,8 @@ class _HomeMaintenanceScreenState extends State<HomeMaintenanceScreen> {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('صيانة البيت', 'Home maintenance')),
-          actions: [searchAction(context)]),
+          actions: [
+          const PrivacyAction(),searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

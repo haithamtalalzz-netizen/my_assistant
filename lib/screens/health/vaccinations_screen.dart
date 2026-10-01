@@ -7,6 +7,7 @@ import '../../data/vaccinations_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 import '../../widgets/wheel_date_picker.dart';
+import '../../core/privacy.dart';
 
 /// سجل التطعيمات — تطعيمات بشرية بتاريخها وجرعتها الجاية، مع تذكير قبلها بأسبوع.
 class VaccinationsScreen extends StatefulWidget {
@@ -42,6 +43,7 @@ class _VaccinationsScreenState extends State<VaccinationsScreen> {
       appBar: AppBar(
         title: Text(tr('سجل التطعيمات', 'Vaccinations')),
         actions: [
+          const PrivacyAction(),
           if (_items.isNotEmpty)
             IconButton(
               tooltip: tr('تقرير PDF', 'PDF report'),

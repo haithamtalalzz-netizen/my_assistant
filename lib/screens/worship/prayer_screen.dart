@@ -35,6 +35,7 @@ import 'tasbih_screen.dart';
 import 'worship_history_screen.dart';
 import 'zakat_guide_screen.dart';
 import 'zakat_screen.dart';
+import '../../core/privacy.dart';
 
 /// صفحة الصلاة والأذكار — مواعيد الصلاة + تتبّعها + بوصلة القبلة + أدوات دينية.
 class PrayerScreen extends StatefulWidget {
@@ -232,6 +233,7 @@ class _PrayerScreenState extends State<PrayerScreen> {
       appBar: AppBar(
         title: Text(tr('صلاتى', 'My prayers')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('سجل العبادات', 'Worship history'),
             icon: const Icon(Icons.calendar_month),

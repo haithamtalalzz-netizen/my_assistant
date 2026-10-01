@@ -11,6 +11,7 @@ import '../../core/l10n.dart';
 import '../../core/prayers.dart';
 import '../../data/settings_repo.dart';
 import '../../data/worship_repo.dart';
+import '../../core/privacy.dart';
 
 /// بوصلة القبلة — سهم أخضر بيوجّهك لاتجاه الكعبة، بيتحرّك مع مستشعر البوصلة.
 class QiblaScreen extends StatefulWidget {
@@ -103,7 +104,8 @@ class _QiblaScreenState extends State<QiblaScreen> {
     final aligned = _aligned;
 
     return Scaffold(
-      appBar: AppBar(title: Text(tr('اتجاه القبلة', 'Qibla direction'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('اتجاه القبلة', 'Qibla direction'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(

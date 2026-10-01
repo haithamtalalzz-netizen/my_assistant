@@ -14,6 +14,7 @@ import '../../widgets/a_kit.dart';
 import '../../widgets/common.dart';
 import 'clothing_form.dart';
 import 'outfit_screen.dart';
+import '../../core/privacy.dart';
 
 class WardrobeScreen extends StatefulWidget {
   final Widget? drawer;
@@ -235,6 +236,7 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
       appBar: AppBar(
         title: Text(tr('ملابسى', 'My clothes')),
         actions: [
+          const PrivacyAction(),
           searchAction(context),
           IconButton(
             onPressed: _suggestOutfit,

@@ -7,6 +7,7 @@ import '../../data/lab_results_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
 import '../../widgets/wheel_date_picker.dart';
+import '../../core/privacy.dart';
 
 /// مؤشرات التحاليل الطبية — تتبّع نتائج التحاليل واتجاهها عبر الزمن.
 class LabResultsScreen extends StatefulWidget {
@@ -55,7 +56,8 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('مؤشرات التحاليل', 'Lab results'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('مؤشرات التحاليل', 'Lab results'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -370,7 +372,8 @@ class _LabDetailScreenState extends State<_LabDetailScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.name)),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(widget.name)),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(

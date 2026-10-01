@@ -7,6 +7,7 @@ import '../../core/prayers.dart';
 import '../../data/settings_repo.dart';
 import '../../data/worship_repo.dart';
 import '../../core/log.dart';
+import '../../core/privacy.dart';
 
 /// تتبّع الصيام — صيام اليوم + الأيام المستحبّة (اثنين/خميس/الأيام البيض)
 /// + تذكير السحور والإفطار.
@@ -92,7 +93,8 @@ class _NafilFastingScreenState extends State<NafilFastingScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('الصيام', 'Fasting'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('الصيام', 'Fasting'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(

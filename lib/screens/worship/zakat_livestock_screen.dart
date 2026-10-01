@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/zakat_livestock.dart';
+import '../../core/privacy.dart';
 
 /// حاسبة زكاة الزروع والثمار + الأنعام (الغنم/البقر/الإبل).
 class ZakatLivestockScreen extends StatefulWidget {
@@ -31,6 +32,7 @@ class _ZakatLivestockScreenState extends State<ZakatLivestockScreen> {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
+          actions: const [PrivacyAction()],
           title: Text(tr('زكاة الأنعام والزروع', 'Livestock & crops zakat'))),
       body: ListView(
         padding: const EdgeInsets.all(14),

@@ -6,6 +6,7 @@ import '../core/ar.dart';
 import '../core/l10n.dart';
 import '../data/day_log_repo.dart';
 import '../widgets/common.dart';
+import '../core/privacy.dart';
 
 /// «آلة الزمن» — افتح أى يوم من حياتك وشوف كل اللى اتسجّل فيه (من كل الأقسام)
 /// عبر `DayLogRepo.forDay`. تنقّل بين الأيام أو اقفز لتاريخ أو ليوم عشوائى.
@@ -82,6 +83,7 @@ class _TimeMachineScreenState extends State<TimeMachineScreen> {
       appBar: AppBar(
         title: Text(tr('آلة الزمن', 'Time machine')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('زى ده السنة اللى فاتت', 'Same day last year'),
             icon: const Icon(Icons.history_toggle_off),

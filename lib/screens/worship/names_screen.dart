@@ -7,6 +7,7 @@ import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/religion_data.dart';
 import '../../data/settings_repo.dart';
+import '../../core/privacy.dart';
 
 /// أسماء الله الحسنى — شبكة الـ99 + المعنى عند الضغط + وضع الحفظ.
 class NamesScreen extends StatefulWidget {
@@ -93,6 +94,7 @@ class _NamesScreenState extends State<NamesScreen> {
       appBar: AppBar(
         title: Text(tr('أسماء الله الحسنى', 'Names of Allah')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('اختبار الأسماء', 'Names quiz'),
             icon: const Icon(Icons.quiz_outlined),
@@ -271,7 +273,8 @@ class _NamesQuizPageState extends State<_NamesQuizPage> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('اختبار الأسماء', 'Names quiz'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('اختبار الأسماء', 'Names quiz'))),
       body: _q >= _total ? _result(scheme) : _question(scheme),
     );
   }

@@ -5,6 +5,7 @@ import '../../core/l10n.dart';
 import '../../data/memorization_repo.dart';
 import '../../widgets/common.dart';
 import '../../widgets/quick_add_field.dart';
+import '../../core/privacy.dart';
 
 /// «حفظ ومراجعة القرآن» بالتكرار المتباعد — ضيف سورة/صفحة، وراجعها لما تستحق؛
 /// المراجعة الناجحة بتباعد الموعد، والضعيفة بترجّعها لأول الصف.
@@ -65,7 +66,8 @@ class _MemorizationScreenState extends State<MemorizationScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('حفظ ومراجعة القرآن', 'Memorization'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('حفظ ومراجعة القرآن', 'Memorization'))),
       body: Column(children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),

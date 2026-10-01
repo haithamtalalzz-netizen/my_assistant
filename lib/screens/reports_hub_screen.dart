@@ -9,6 +9,7 @@ import '../core/month_report.dart';
 import 'brain/charts_screen.dart';
 import 'brain/insights_screen.dart';
 import 'reports/custom_pdf_screen.dart';
+import '../core/privacy.dart';
 
 /// لوحة التقارير — مدخل واحد لكل أنواع التقارير والتحليلات.
 class ReportsHubScreen extends StatelessWidget {
@@ -19,7 +20,8 @@ class ReportsHubScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('التقارير', 'Reports')),
-          actions: [searchAction(context)]),
+          actions: [
+          const PrivacyAction(),searchAction(context)]),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [

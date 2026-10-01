@@ -5,6 +5,7 @@ import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/prayers.dart';
 import '../../data/worship_repo.dart';
+import '../../core/privacy.dart';
 
 /// إحصائية روحية أسبوعية — صلاة/أذكار/سنن/صيام/ختمة خلال آخر 7 أيام.
 class SpiritualStatsScreen extends StatefulWidget {
@@ -75,6 +76,7 @@ class _SpiritualStatsScreenState extends State<SpiritualStatsScreen> {
       appBar: AppBar(
         title: Text(tr('إحصائيتك الروحية', 'Your spiritual week')),
         actions: [
+          const PrivacyAction(),
           if (w != null)
             IconButton(
               tooltip: tr('مشاركة', 'Share'),

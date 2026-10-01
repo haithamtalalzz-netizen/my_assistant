@@ -36,6 +36,7 @@ import 'diagnostics_screen.dart';
 import 'lock_gate.dart';
 import 'archived_data_screen.dart';
 import 'quick_actions_settings_screen.dart';
+import '../core/privacy.dart';
 
 const List<String> kBloodTypes = [
   '', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'
@@ -878,6 +879,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
+          actions: const [PrivacyAction()],
           title: Text(inCat ? _catTitle(_openCat!) : tr('الإعدادات', 'Settings')),
           leading: inCat
               ? IconButton(

@@ -408,6 +408,22 @@ void main() {
     expect(f.lengthSync(), greaterThan(10000));
   });
 
+  testWidgets('الطبقة العامة — شاشة تانية بتتغطّى كمان', (tester) async {
+    // الاختبار الحقيقى للطبقة العامة: شاشة **ماحدش لمسها** لازم تتغطّى.
+    // لو التغطية اتعملت شاشة شاشة، الشاشة دى كانت هتفضل مكشوفة.
+    final repo = TasksRepo();
+    await repo.save(Task(
+        title: 'دهان الأوضة',
+        dueAt: DateTime.now().toIso8601String(),
+        createdAt: DateTime.now().toIso8601String()));
+    Privacy.hidden.value = true;
+    final f = await shot(tester, 'real_tasks_hidden',
+        shotApp(buildTheme(), const TasksScreen()),
+        size: const Size(390, 700), pixelRatio: 2);
+    Privacy.hidden.value = false;
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
   testWidgets('الإعدادات — أيقونات ملوّنة', (tester) async {
     final f = await shot(tester, 'real_settings',
         shotApp(buildTheme(), const SettingsScreen()),

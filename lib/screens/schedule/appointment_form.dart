@@ -10,6 +10,7 @@ import '../../data/appointments_repo.dart';
 import '../../data/settings_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/wheel_date_picker.dart';
+import '../../core/privacy.dart';
 
 /// القوالب اللى المستخدم ضافها بنفسه (زرار ＋ جنب «قوالب سريعة») —
 /// قايمة عناوين متخزّنة JSON فى الإعدادات، فبتسافر مع النسخة الاحتياطية.
@@ -328,6 +329,7 @@ class _AppointmentFormState extends State<AppointmentForm> {
               ? tr('موعد جديد', 'New appointment')
               : tr('تعديل موعد', 'Edit appointment')),
           actions: [
+          const PrivacyAction(),
             IconButton(
               tooltip: tr('أضف لتقويم الموبايل', 'Add to phone calendar'),
               icon: const Icon(Icons.event_available_outlined),

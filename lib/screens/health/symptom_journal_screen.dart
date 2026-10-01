@@ -5,6 +5,7 @@ import '../../core/l10n.dart';
 import '../../data/symptoms_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 /// مفكرة الأعراض — سجّل أعراضك بشدّتها؛ تفيد فى متابعة حالتك وتجهيز زيارة الدكتور.
 class SymptomJournalScreen extends StatefulWidget {
@@ -54,7 +55,8 @@ class _SymptomJournalScreenState extends State<SymptomJournalScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('مفكرة الأعراض', 'Symptom journal'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('مفكرة الأعراض', 'Symptom journal'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

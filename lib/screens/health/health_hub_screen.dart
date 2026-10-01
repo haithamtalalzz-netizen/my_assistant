@@ -28,6 +28,7 @@ import '../gym/progress_screen.dart';
 import '../home/pharmacy_screen.dart';
 import '../medical/medical_screen.dart';
 import '../../widgets/measurement_sheet.dart';
+import '../../core/privacy.dart';
 
 /// لوحة صحّة موحّدة — تجمع كل حاجة صحية في مكان واحد:
 /// لقطة النهارده (مياه/نوم/خطوات/سعرات) + مداخل للجيم والتقدم البدني
@@ -192,6 +193,7 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
       appBar: AppBar(
           title: Text(tr('لوحة الصحة', 'Health hub')),
           actions: [
+          const PrivacyAction(),
             searchAction(context),
             IconButton(
               onPressed: _openHistory,

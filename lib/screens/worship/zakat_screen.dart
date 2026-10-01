@@ -7,6 +7,7 @@ import '../../core/zakat.dart';
 import '../../data/settings_repo.dart';
 import 'zakat_guide_screen.dart';
 import 'zakat_livestock_screen.dart';
+import '../../core/privacy.dart';
 
 /// حاسبة زكاة المال — أعمق وأشمل: نقود، ذهب (عدّة قطع بعيارات مختلفة)،
 /// فضة، عروض تجارة، استثمارات، وديون مرجوّة لك، ناقص الديون المستحقة عليك.
@@ -157,6 +158,7 @@ class _ZakatScreenState extends State<ZakatScreen> {
       appBar: AppBar(
         title: Text(tr('حاسبة الزكاة', 'Zakat calculator')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('دليل الزكاة', 'Zakat guide'),
             icon: const Icon(Icons.menu_book_outlined),

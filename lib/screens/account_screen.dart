@@ -6,6 +6,7 @@ import '../data/settings_repo.dart';
 import 'lock_gate.dart';
 import 'onboarding_gate.dart';
 import 'shell.dart';
+import '../core/privacy.dart';
 
 /// صفحة الحساب — حاليًا حساب محلي على الجهاز (اسم + إيميل).
 /// تسجيل الدخول بالإيميل وتأكيده عبر رسالة قيد الإعداد (يحتاج خادم/Firebase).
@@ -94,7 +95,8 @@ class _AccountScreenState extends State<AccountScreen> {
     final scheme = Theme.of(context).colorScheme;
     final name = _name.text.trim();
     return Scaffold(
-      appBar: AppBar(title: Text(tr('حسابي', 'My account'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('حسابي', 'My account'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(

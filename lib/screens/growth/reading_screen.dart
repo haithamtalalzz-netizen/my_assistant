@@ -6,6 +6,7 @@ import '../../core/l10n.dart';
 import '../../data/reading_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 /// تتبّع القراءة — كتبك وتقدّمك فيها.
 class ReadingScreen extends StatefulWidget {
@@ -51,6 +52,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
       appBar: AppBar(
         title: Text(tr('القراءة', 'Reading')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('ابحث عن كتاب', 'Search a book'),
             icon: const Icon(Icons.travel_explore),

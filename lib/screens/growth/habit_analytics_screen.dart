@@ -4,6 +4,7 @@ import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../data/habits_repo.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 /// تحليلات العادات — أى عادة أقوى، أطول سلسلة، أكتر يوم بتلتزم فيه.
 class HabitAnalyticsScreen extends StatefulWidget {
@@ -56,7 +57,8 @@ class _HabitAnalyticsScreenState extends State<HabitAnalyticsScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('تحليلات العادات', 'Habit analytics'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('تحليلات العادات', 'Habit analytics'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _stats.isEmpty

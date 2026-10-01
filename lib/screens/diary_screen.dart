@@ -7,6 +7,7 @@ import '../widgets/search_action.dart';
 import '../data/diaries_repo.dart';
 import '../models/models.dart';
 import '../widgets/common.dart';
+import '../core/privacy.dart';
 
 class DiaryScreen extends StatefulWidget {
   const DiaryScreen({super.key});
@@ -67,7 +68,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('اليوميات', 'Diary')),
-          actions: [searchAction(context)]),
+          actions: [
+          const PrivacyAction(),searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
@@ -204,6 +206,7 @@ class _DiaryEditorState extends State<_DiaryEditor> {
       appBar: AppBar(
         title: Text(tr('يومية النهارده', "Today's entry")),
         actions: [
+          const PrivacyAction(),
           IconButton(
               onPressed: _save,
               icon: const Icon(Icons.check),

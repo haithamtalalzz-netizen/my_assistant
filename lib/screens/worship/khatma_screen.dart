@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../data/worship_repo.dart';
+import '../../core/privacy.dart';
 
 /// عدّاد ختمة القرآن — تتبّع الورد اليومى وكام يوم تخلّص الختمة.
 class KhatmaScreen extends StatefulWidget {
@@ -63,6 +64,7 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
       appBar: AppBar(
         title: Text(tr('ختمة القرآن', 'Quran khatma')),
         actions: [
+          const PrivacyAction(),
           if (_k != null)
             IconButton(
               tooltip: tr('شارك تقدّمك', 'Share progress'),

@@ -53,17 +53,20 @@ class PrivacyBlur extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<bool>(
-        valueListenable: Privacy.hidden,
-        builder: (_, hidden, _) => hidden
-            ? IgnorePointer(
-                child: ImageFiltered(
-                  imageFilter: ImageFilter.blur(
-                      sigmaX: sigma, sigmaY: sigma, tileMode: TileMode.decal),
-                  child: child,
-                ),
-              )
-            : child,
-      );
+    valueListenable: Privacy.hidden,
+    builder: (_, hidden, _) => hidden
+        ? IgnorePointer(
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(
+                sigmaX: sigma,
+                sigmaY: sigma,
+                tileMode: TileMode.decal,
+              ),
+              child: child,
+            ),
+          )
+        : child,
+  );
 }
 
 /// زرار القفل/الفتح اللى بيتحط فى شريط الشاشة.
@@ -72,17 +75,83 @@ class PrivacyAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<bool>(
-        valueListenable: Privacy.hidden,
-        builder: (ctx, hidden, _) => IconButton(
-          tooltip: hidden
-              ? (isAr(ctx) ? 'اظهر بياناتى' : 'Show my data')
-              : (isAr(ctx) ? 'اخفِ بياناتى' : 'Hide my data'),
-          icon: Icon(hidden ? Icons.visibility_off : Icons.visibility_outlined),
-          color: hidden ? Theme.of(ctx).colorScheme.primary : null,
-          onPressed: Privacy.toggle,
-        ),
-      );
+    valueListenable: Privacy.hidden,
+    builder: (ctx, hidden, _) => IconButton(
+      tooltip: hidden
+          ? (isAr(ctx) ? 'اظهر بياناتى' : 'Show my data')
+          : (isAr(ctx) ? 'اخفِ بياناتى' : 'Hide my data'),
+      icon: Icon(hidden ? Icons.visibility_off : Icons.visibility_outlined),
+      color: hidden ? Theme.of(ctx).colorScheme.primary : null,
+      onPressed: Privacy.toggle,
+    ),
+  );
 }
 
 bool isAr(BuildContext context) =>
     Localizations.localeOf(context).languageCode == 'ar';
+
+/// **الطبقة العامة** — بتتحط فى `MaterialApp.builder` فتغطّى التطبيق
+/// كله: كل شاشة، وكل حوار، وكل ورقة سفلية، والسايدبار كمان.
+///
+/// ليه عامة بدل ما كل شاشة تلفّ جسمها:
+/// فى التطبيق **١٣٣ شريط علوى فى ١١٩ ملف**. لفّ كل جسم بإيدى معناه إنى
+/// هنسى واحد — والشاشة المنسية هى بالظبط التسريب اللى البند ده متعمول
+/// عشانه. والطبقة العامة كمان بتغطّى أى شاشة تتضاف بعد كده من غير ما
+/// حد يفتكر.
+///
+/// مافيش `IgnorePointer` هنا **بقصد**: لمّا يكون التطبيق **كله** مضبّب
+/// مافيش «صفحة واضحة ورا الستارة» — أى حتة تدوس عليها هتوصلك لحاجة
+/// مضبّبة برضه. (الـ`IgnorePointer` ضرورى فى [PrivacyBlur] اللى بتغطّى
+/// جزء من شاشة بس.)
+class PrivacyShell extends StatelessWidget {
+  final Widget child;
+  const PrivacyShell({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
+    valueListenable: Privacy.hidden,
+    builder: (ctx, hidden, _) {
+      if (!hidden) return child;
+      return Stack(
+        children: [
+          ImageFiltered(
+            imageFilter: ImageFilter.blur(
+              sigmaX: 10,
+              sigmaY: 10,
+              tileMode: TileMode.decal,
+            ),
+            child: child,
+          ),
+          // زرار الفتح **فوق** الضبابة عشان يفضل واضح: زرار الشريط
+          // نفسه بيتضبّب مع الباقى، فمن غير الزرار ده مافيش طريقة
+          // تفتح غير إنك تدوس على حتة مش شايفها.
+          Positioned(
+            top: MediaQuery.of(ctx).padding.top + 6,
+            left: 10,
+            child: _UnlockButton(),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+class _UnlockButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.primary,
+      shape: const CircleBorder(),
+      elevation: 3,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: Privacy.toggle,
+        child: Padding(
+          padding: const EdgeInsets.all(9),
+          child: Icon(Icons.visibility_off, size: 21, color: scheme.onPrimary),
+        ),
+      ),
+    );
+  }
+}

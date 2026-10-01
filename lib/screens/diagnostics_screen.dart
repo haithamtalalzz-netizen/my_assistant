@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import '../core/l10n.dart';
 import '../core/log.dart';
 import '../widgets/common.dart';
+import '../core/privacy.dart';
 
 /// «شارك التشخيص» — بيعرض ملف اللوج المحلى (آخر الأخطاء والقياسات) وبيديك
 /// تشاركه أو تنسخه أو تمسحه.
@@ -76,6 +77,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
       appBar: AppBar(
         title: Text(tr('التشخيص', 'Diagnostics')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('تحديث', 'Refresh'),
             icon: const Icon(Icons.refresh),

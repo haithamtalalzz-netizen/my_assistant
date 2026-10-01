@@ -7,6 +7,7 @@ import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/religion_more.dart';
 import '../../data/settings_repo.dart';
+import '../../core/privacy.dart';
 
 /// دليل العمرة والحج — خطوات مرتّبة قابلة للتعليم + عدّاد أشواط الطواف/السعى.
 class HajjUmrahScreen extends StatefulWidget {
@@ -55,6 +56,7 @@ class _HajjUmrahScreenState extends State<HajjUmrahScreen> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
+          actions: const [PrivacyAction()],
           title: Text(tr('العمرة والحج', 'Umrah & Hajj')),
           bottom: TabBar(tabs: [
             Tab(text: tr('العمرة', 'Umrah')),

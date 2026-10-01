@@ -182,6 +182,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
       appBar: AppBar(
         title: Text(tr('فلوسى', 'My money')),
         actions: [
+          const PrivacyAction(),
           // بره `barActions`: الزرار ده عمره ما يروح جوّه قايمة «⋮» —
           // لو اتخبّى محدش هيلاقيه وقت ما يحتاجه.
           const PrivacyAction(),
@@ -195,12 +196,9 @@ class _MoneyScreenState extends State<MoneyScreen> {
           ]),
         ],
       ),
-      // الجسم كله بيتضبّب مع بعضه — مش نُص الشاشة. لو الأزرار فضلت
-      // شغّالة وهى مضبّبة، دوسة واحدة بتفتح صفحة فيها نفس الأرقام
-      // واضحة، والضبابة تبقى ستارة على باب مفتوح.
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : PrivacyBlur(RefreshIndicator(
+          : RefreshIndicator(
               onRefresh: _load,
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
@@ -221,7 +219,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
                   const SizedBox(height: 10),
                 ],
               ),
-            )),
+            ),
     );
   }
 

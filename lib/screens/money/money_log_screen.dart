@@ -6,6 +6,7 @@ import '../../data/income_repo.dart';
 import '../../data/money_repo.dart';
 import '../../widgets/a_kit.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 /// بيشتغل على المصروف ولا الدخل.
 enum MoneyLogKind { spent, received }
@@ -153,6 +154,7 @@ class _MoneyLogScreenState extends State<MoneyLogScreen> {
             ? tr('صرفت إيه', 'What I spent')
             : tr('قبضت إيه', 'What I received')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             onPressed: _pickRange,
             tooltip: tr('اختار فترة', 'Pick a period'),

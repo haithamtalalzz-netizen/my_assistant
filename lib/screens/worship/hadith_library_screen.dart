@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/ar.dart';
 import '../../core/hadith_books.dart';
 import '../../core/l10n.dart';
+import '../../core/privacy.dart';
 
 /// مكتبة الحديث — كتب كاملة بنصّها من Sunnah.com، بأبوابها وببحث.
 class HadithLibraryScreen extends StatelessWidget {
@@ -46,7 +47,8 @@ class HadithLibraryScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      appBar: AppBar(title: Text(tr('مكتبة الحديث', 'Hadith library'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('مكتبة الحديث', 'Hadith library'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -119,7 +121,8 @@ class _BookScreenState extends State<_BookScreen> {
     final b = _book;
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(b?.title ?? tr('تحميل…', 'Loading…'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(b?.title ?? tr('تحميل…', 'Loading…'))),
       body: b == null
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -237,7 +240,8 @@ class _ChapterScreen extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final list = book.inChapter(chapter.id);
     return Scaffold(
-      appBar: AppBar(title: Text(chapter.name)),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(chapter.name)),
       body: ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         itemCount: list.length,

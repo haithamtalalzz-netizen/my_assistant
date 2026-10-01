@@ -8,6 +8,7 @@ import '../../core/egyptian_dishes.dart';
 import '../../core/usda_food_db.dart';
 import '../../data/meals_repo.dart';
 import '../../models/models.dart';
+import '../../core/privacy.dart';
 
 /// دليل الأكل: بحث فى ~٦٠٠٠ صنف بقيمهم الغذائية الكاملة — أرقام USDA حرفياً.
 /// (العدد الفعلى بيتقرا من الأصل نفسه وقت التشغيل، مش متكتوب هنا.)
@@ -70,7 +71,8 @@ class _FoodCardScreenState extends State<FoodCardScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('دليل الأكل', 'Food guide'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('دليل الأكل', 'Food guide'))),
       body: Column(
         children: [
           Padding(

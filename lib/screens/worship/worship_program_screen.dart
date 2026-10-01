@@ -13,6 +13,7 @@ import 'khatma_screen.dart';
 import 'memorization_screen.dart';
 import 'prayer_screen.dart';
 import 'sadaqah_screen.dart';
+import '../../core/privacy.dart';
 
 /// «برنامجى الدينى» — خطة اليوم الموجّهة: بتجمع الصلوات والأذكار وورد القرآن
 /// والسنن والحفظ والقيام والصدقة فى مسار واحد بنسبة إنجاز وسلسلة ومستوى.
@@ -161,7 +162,8 @@ class _WorshipProgramScreenState extends State<WorshipProgramScreen> {
     final scheme = Theme.of(context).colorScheme;
     final d = _day;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('برنامجى الدينى', 'My worship program'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('برنامجى الدينى', 'My worship program'))),
       body: _loading || d == null
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

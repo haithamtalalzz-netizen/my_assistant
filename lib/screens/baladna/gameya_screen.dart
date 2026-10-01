@@ -9,6 +9,7 @@ import '../../models/models.dart';
 import '../../widgets/common.dart';
 import '../../widgets/search_action.dart';
 import '../../widgets/wheel_date_picker.dart';
+import '../../core/privacy.dart';
 
 class GameyaScreen extends StatefulWidget {
   const GameyaScreen({super.key});
@@ -53,7 +54,8 @@ class _GameyaScreenState extends State<GameyaScreen> {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('الجمعيات', "Gam'iyas")),
-          actions: [searchAction(context)]),
+          actions: [
+          const PrivacyAction(),searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

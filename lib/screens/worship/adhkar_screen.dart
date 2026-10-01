@@ -6,6 +6,7 @@ import '../../core/l10n.dart';
 import '../../core/religion_data.dart';
 import '../../data/settings_repo.dart';
 import '../../data/worship_repo.dart';
+import '../../core/privacy.dart';
 
 /// قارئ الأذكار (الصباح/المساء) — كل ذِكر معاه عدّاد، دوس عليه ينقص لحد ما يخلص.
 class AdhkarScreen extends StatefulWidget {
@@ -66,6 +67,7 @@ class _AdhkarScreenState extends State<AdhkarScreen> {
             ? tr('أذكار الصباح', 'Morning adhkar')
             : tr('أذكار المساء', 'Evening adhkar')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('تصغير الخط', 'Smaller text'),
             icon: const Icon(Icons.text_decrease),

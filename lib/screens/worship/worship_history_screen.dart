@@ -8,6 +8,7 @@ import '../../core/prayers.dart';
 import '../../data/worship_repo.dart';
 import '../../widgets/month_year_wheel.dart';
 import 'edit_worship_day_sheet.dart';
+import '../../core/privacy.dart';
 
 /// تقويم/سجل العبادات — ترجع للأيام الماضية تشوف صلّيت إيه وقريت قرآن أدّ إيه.
 class WorshipHistoryScreen extends StatefulWidget {
@@ -155,7 +156,8 @@ class _WorshipHistoryScreenState extends State<WorshipHistoryScreen> {
     final today = DateTime.now();
 
     return Scaffold(
-      appBar: AppBar(title: Text(tr('سجل العبادات', 'Worship history'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('سجل العبادات', 'Worship history'))),
       body: Column(
         children: [
           Row(

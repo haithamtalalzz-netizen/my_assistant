@@ -7,6 +7,7 @@ import '../../core/app_images.dart';
 import '../../core/l10n.dart';
 import '../../data/wardrobe_repo.dart';
 import '../../models/models.dart';
+import '../../core/privacy.dart';
 
 class ClothingForm extends StatefulWidget {
   final ClothingItem? item;
@@ -108,6 +109,7 @@ class _ClothingFormState extends State<ClothingForm> {
     final isNew = widget.item == null;
     return Scaffold(
       appBar: AppBar(
+          actions: const [PrivacyAction()],
           title: Text(isNew
               ? tr('قطعة ملابس جديدة', 'New clothing item')
               : tr('تعديل القطعة', 'Edit item'))),

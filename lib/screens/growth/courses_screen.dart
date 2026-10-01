@@ -5,6 +5,7 @@ import '../../core/l10n.dart';
 import '../../data/courses_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 /// التعلّم — كورسات/دورات بتتبّع تقدّم بالوحدات.
 class CoursesScreen extends StatefulWidget {
@@ -43,7 +44,8 @@ class _CoursesScreenState extends State<CoursesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('التعلّم', 'Learning'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('التعلّم', 'Learning'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

@@ -20,6 +20,7 @@ import 'home/plants_screen.dart';
 import 'money/subscriptions_screen.dart';
 import 'schedule/schedule_screen.dart';
 import 'tasks/tasks_screen.dart';
+import '../core/privacy.dart';
 
 /// مركز التنبيهات — كل اللى محتاج انتباهك النهارده فى مكان واحد.
 ///
@@ -301,6 +302,7 @@ class _AlertsCenterScreenState extends State<AlertsCenterScreen> {
       appBar: AppBar(
           title: Text(tr('التنبيهات', 'Alerts')),
           actions: [
+          const PrivacyAction(),
             if (_items.any((i) => i.actionLabel != null))
               IconButton(
                 tooltip: tr('خلّص المتاح', 'Clear actionable'),

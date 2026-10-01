@@ -8,6 +8,7 @@ import '../../core/med_forms.dart';
 import '../../data/pharmacy_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/wheel_date_picker.dart';
+import '../../core/privacy.dart';
 
 /// صف دفعة قابل للتعديل (كمية + صلاحية مستقلة).
 class BatchEdit {
@@ -190,6 +191,7 @@ class _PharmacyFormState extends State<PharmacyForm> {
             ? tr('دوا جديد', 'New medicine')
             : tr('تعديل', 'Edit')),
         actions: [
+          const PrivacyAction(),
           TextButton(
             onPressed: _canSave ? _save : null,
             child: Text(tr('حفظ', 'Save')),

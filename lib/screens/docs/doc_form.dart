@@ -12,6 +12,7 @@ import '../../core/ocr.dart';
 import '../../data/docs_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/wheel_date_picker.dart';
+import '../../core/privacy.dart';
 
 const List<int> kRemindDaysOptions = [7, 15, 30, 60, 90];
 
@@ -317,6 +318,7 @@ class _DocFormState extends State<DocForm> {
     final isNew = widget.doc == null;
     return Scaffold(
       appBar: AppBar(
+          actions: const [PrivacyAction()],
           title: Text(isNew
               ? tr('مستند جديد', 'New document')
               : tr('تعديل مستند', 'Edit document'))),

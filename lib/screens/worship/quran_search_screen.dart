@@ -4,6 +4,7 @@ import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/quran_data.dart';
 import 'mushaf_page_screen.dart';
+import '../../core/privacy.dart';
 
 /// بحث فى نص القرآن (متحقَّق) → ينقلك لصفحة المصحف.
 class QuranSearchScreen extends StatefulWidget {
@@ -81,7 +82,8 @@ class _QuranSearchScreenState extends State<QuranSearchScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('بحث فى القرآن', 'Search the Quran'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('بحث فى القرآن', 'Search the Quran'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(

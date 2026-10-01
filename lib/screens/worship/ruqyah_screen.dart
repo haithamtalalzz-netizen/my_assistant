@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/quran_data.dart';
+import '../../core/privacy.dart';
 
 /// الرقية الشرعية — آيات وأذكار (النصوص من المصحف المتحقَّق) + عدّاد تكرار ٣×.
 class RuqyahScreen extends StatefulWidget {
@@ -31,7 +32,8 @@ class _RuqyahScreenState extends State<RuqyahScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('الرقية الشرعية', 'Ruqyah'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('الرقية الشرعية', 'Ruqyah'))),
       body: FutureBuilder<List<QuranSurah>>(
         future: QuranData.surahs(),
         builder: (context, snap) {

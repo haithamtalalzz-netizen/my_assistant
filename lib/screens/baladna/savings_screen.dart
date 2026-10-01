@@ -6,6 +6,7 @@ import '../../widgets/search_action.dart';
 import '../../data/savings_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 class SavingsScreen extends StatefulWidget {
   const SavingsScreen({super.key});
@@ -178,7 +179,8 @@ class _SavingsScreenState extends State<SavingsScreen> {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('أهداف الادخار', 'Savings goals')),
-          actions: [searchAction(context)]),
+          actions: [
+          const PrivacyAction(),searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _goals.isEmpty

@@ -10,6 +10,7 @@ import '../../data/measurements_repo.dart';
 import '../../data/money_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 /// رسوم بيانية من بياناتك: نوم آخر ٣٠ يوم، مصاريف آخر ٦ شهور، الوزن.
 class ChartsScreen extends StatefulWidget {
@@ -212,7 +213,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('إحصائياتك', 'Charts')),
-          actions: [searchAction(context)]),
+          actions: [
+          const PrivacyAction(),searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(

@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/mawarith.dart';
+import '../../core/privacy.dart';
 
 /// حاسبة المواريث — الحالات الشائعة.
 class MawarithScreen extends StatefulWidget {
@@ -54,6 +55,7 @@ class _MawarithScreenState extends State<MawarithScreen> {
       appBar: AppBar(
         title: Text(tr('حاسبة المواريث', 'Inheritance')),
         actions: [
+          const PrivacyAction(),
           if (res.shares.isNotEmpty)
             IconButton(
               tooltip: tr('طباعة / مشاركة', 'Print / share'),

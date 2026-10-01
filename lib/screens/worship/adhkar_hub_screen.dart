@@ -6,6 +6,7 @@ import 'adhkar_situations_screen.dart';
 import 'adhkar_reminders_screen.dart';
 import 'daily_wird_screen.dart';
 import 'post_prayer_dhikr_screen.dart';
+import '../../core/privacy.dart';
 
 /// كارت «الأذكار» الموحّد — يجمع كل أدوات الأذكار فى مكان واحد بدل ٦ كروت
 /// منفصلة فى صفحة «صلاتى».
@@ -36,7 +37,8 @@ class AdhkarHubScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      appBar: AppBar(title: Text(tr('الأذكار', 'Adhkar'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('الأذكار', 'Adhkar'))),
       body: GridView.builder(
         padding: const EdgeInsets.all(16),
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(

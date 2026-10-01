@@ -5,6 +5,7 @@ import '../../core/l10n.dart';
 import '../../core/quran_data.dart';
 import '../../data/settings_repo.dart';
 import 'mushaf_page_screen.dart';
+import '../../core/privacy.dart';
 
 /// المصحف — قائمة السور تفتح على صفحات المصحف (مصحف المدينة) + متابعة من آخر صفحة.
 class MushafScreen extends StatefulWidget {
@@ -40,7 +41,8 @@ class _MushafScreenState extends State<MushafScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('المصحف', 'Quran'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('المصحف', 'Quran'))),
       body: FutureBuilder<List<QuranSurah>>(
         future: QuranData.surahs(),
         builder: (context, snap) {

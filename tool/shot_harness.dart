@@ -16,6 +16,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:my_assistant/core/privacy.dart';
 
 const String shotsDir = 'build/design_shots';
 
@@ -88,5 +89,11 @@ Widget shotApp(ThemeData theme, Widget home) => MaterialApp(
         GlobalCupertinoLocalizations.delegate,
       ],
       theme: theme,
+      // 🔴 نفس `builder` بتاع التطبيق الحقيقى. من غيره الهارنس بيبنى
+      // MaterialApp **مختلف** عن اللى بيشتغل على الموبايل، فالصورة
+      // تطلع شاشة مكشوفة والتطبيق مغطّيها — أداة تحقّق مابتعيدش بناء
+      // الإقلاع بتخترع أعطاب وتخبّى حقيقية.
+      builder: (_, child) =>
+          PrivacyShell(child: child ?? const SizedBox.shrink()),
       home: Directionality(textDirection: TextDirection.rtl, child: home),
     );

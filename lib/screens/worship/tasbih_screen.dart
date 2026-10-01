@@ -8,6 +8,7 @@ import '../../core/l10n.dart';
 import '../../core/religion_data.dart';
 import '../../data/settings_repo.dart';
 import '../../data/worship_repo.dart';
+import '../../core/privacy.dart';
 
 /// المسبحة الإلكترونية — دوس عشان تسبّح، بيعدّ فى مجموعات من 33.
 class TasbihScreen extends StatefulWidget {
@@ -131,6 +132,7 @@ class _TasbihScreenState extends State<TasbihScreen> {
       appBar: AppBar(
         title: Text(tr('المسبحة', 'Tasbih')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('تصفير العدّاد', 'Reset counter'),
             onPressed: _resetCounter,

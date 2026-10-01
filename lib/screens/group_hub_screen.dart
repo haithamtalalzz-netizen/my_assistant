@@ -4,6 +4,7 @@ import '../core/l10n.dart';
 import '../widgets/reorderable_cards.dart';
 import '../core/ar.dart';
 import '../widgets/search_action.dart';
+import '../core/privacy.dart';
 
 /// عنصر في هَب المجموعة — إما بيفتح شاشة (screen) أو بيبدّل تبويب في الـShell.
 class GroupHubItem {
@@ -83,7 +84,8 @@ class GroupHubScreen extends StatelessWidget {
     // السطر بيعلى لما يكون فيه رقم ووصف تحت الاسم.
     final tall = items.any((i) => i.stat != null);
     return Scaffold(
-      appBar: AppBar(title: Text(title), actions: [searchAction(context)]),
+      appBar: AppBar(title: Text(title), actions: [
+          const PrivacyAction(),searchAction(context)]),
       body: Column(children: [
         if (header != null)
           Padding(

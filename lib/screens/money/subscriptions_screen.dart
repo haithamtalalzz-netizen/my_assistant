@@ -5,6 +5,7 @@ import '../../core/l10n.dart';
 import '../../data/subscriptions_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 /// الاشتراكات الدورية — نتفليكس/جيم/إنترنت + تنبيه التجديد + إجمالى شهرى.
 class SubscriptionsScreen extends StatefulWidget {
@@ -124,7 +125,8 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('الاشتراكات', 'Subscriptions'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('الاشتراكات', 'Subscriptions'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

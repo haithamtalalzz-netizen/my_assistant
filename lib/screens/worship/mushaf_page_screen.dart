@@ -14,6 +14,7 @@ import '../../data/settings_repo.dart';
 import '../../data/worship_repo.dart';
 import 'quran_search_screen.dart';
 import '../../core/log.dart';
+import '../../core/privacy.dart';
 
 /// عرض صفحات المصحف كصور + سحب لأعلى (تفسير الصفحة + نبذة السورة) + تلاوة تُعلّم
 /// الآية الجارية وتمشى مع الصفحات.
@@ -482,6 +483,7 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
           ),
         ),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('القارئ', 'Reciter'),
             icon: const Icon(Icons.record_voice_over),

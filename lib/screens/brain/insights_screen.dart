@@ -10,6 +10,7 @@ import '../../data/insights_repo.dart';
 import '../../data/settings_repo.dart';
 import 'charts_screen.dart';
 import 'chat_screen.dart';
+import '../../core/privacy.dart';
 
 class InsightsScreen extends StatefulWidget {
   /// لو اتمرر الدرج الجانبي، الشاشة بتشتغل كبند رئيسي (همبرجر بدل سهم الرجوع).
@@ -62,6 +63,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
       appBar: AppBar(
         title: Text(tr('رؤى المدير', 'Insights')),
         actions: [
+          const PrivacyAction(),
           searchAction(context),
           IconButton(
             onPressed: () => Navigator.push(context,

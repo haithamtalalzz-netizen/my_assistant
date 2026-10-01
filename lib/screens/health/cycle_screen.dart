@@ -8,6 +8,7 @@ import '../../data/cycle_repo.dart';
 import '../../data/settings_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 /// تتبّع الدورة الشهرية للسيدات — تسجيل البدايات + توقّع الدورة الجاية وأيام الخصوبة.
 class CycleScreen extends StatefulWidget {
@@ -193,6 +194,7 @@ class _CycleScreenState extends State<CycleScreen> {
       appBar: AppBar(
         title: Text(tr('الدورة الشهرية', 'Menstrual cycle')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('تقرير PDF للطبيبة', 'PDF report for doctor'),
             icon: const Icon(Icons.picture_as_pdf_outlined),

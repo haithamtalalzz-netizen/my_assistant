@@ -8,6 +8,7 @@ import '../core/l10n.dart';
 import '../widgets/a_kit.dart';
 import 'settings_screen.dart';
 import '../data/settings_repo.dart';
+import '../core/privacy.dart';
 
 /// كارت الطوارئ — متاح من شاشة القفل من غير بصمة عمدًا:
 /// وقت الطوارئ أي حد ماسك الموبايل لازم يوصل للمعلومات دي.
@@ -109,7 +110,8 @@ class _EmergencyViewState extends State<EmergencyView> {
         _conditions.isEmpty &&
         _contactPhone.isEmpty;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('كارت الطوارئ', 'Emergency card'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('كارت الطوارئ', 'Emergency card'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(

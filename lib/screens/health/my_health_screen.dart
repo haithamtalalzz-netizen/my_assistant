@@ -13,6 +13,7 @@ import '../../widgets/search_action.dart';
 import '../food/meal_sheet.dart';
 import '../gym/walk_tracker_screen.dart';
 import 'health_hub_screen.dart';
+import '../../core/privacy.dart';
 
 /// **صحتى** — قسمين واضحين وبعدهم البنود.
 ///
@@ -455,6 +456,7 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
       appBar: AppBar(
         title: Text(tr('صحتى', 'My health')),
         actions: [
+          const PrivacyAction(),
           searchAction(context),
           IconButton(
             tooltip: tr('لوحة الصحة', 'Health dashboard'),

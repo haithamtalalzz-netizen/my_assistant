@@ -10,6 +10,7 @@ import '../../widgets/search_action.dart';
 import '../../data/body_progress_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
@@ -73,7 +74,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('التقدّم والمقاسات', 'Progress & measurements')),
-          actions: [searchAction(context)]),
+          actions: [
+          const PrivacyAction(),searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _entries.isEmpty

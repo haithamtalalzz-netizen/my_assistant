@@ -12,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/year_review.dart';
+import '../../core/privacy.dart';
 
 /// المراجعة السنوية — ملخّص سنتك عبر كل البنود + تصدير PDF.
 class YearReviewScreen extends StatefulWidget {
@@ -49,6 +50,7 @@ class _YearReviewScreenState extends State<YearReviewScreen> {
       appBar: AppBar(
         title: Text(tr('المراجعة السنوية', 'Year in review')),
         actions: [
+          const PrivacyAction(),
           if (!kIsWeb)
             IconButton(
               tooltip: tr('تصدير PDF', 'Export PDF'),

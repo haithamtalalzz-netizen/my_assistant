@@ -5,6 +5,7 @@ import '../../core/l10n.dart';
 import '../../widgets/search_action.dart';
 import '../../data/settings_repo.dart';
 import '../../data/workout_repo.dart';
+import '../../core/privacy.dart';
 
 const List<String> kWeekdayNames = [
   'الإثنين', 'التلات', 'الأربع', 'الخميس', 'الجمعة', 'السبت', 'الحد'
@@ -86,7 +87,8 @@ class _WorkoutPlanScreenState extends State<WorkoutPlanScreen> {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('خطة التمرين', 'Workout plan')),
-          actions: [searchAction(context)]),
+          actions: [
+          const PrivacyAction(),searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(

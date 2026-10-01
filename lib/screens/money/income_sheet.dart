@@ -7,6 +7,7 @@ import '../../data/money_categories.dart';
 import '../../widgets/common.dart';
 import '../../data/wallets_repo.dart';
 import '../../models/models.dart';
+import '../../core/privacy.dart';
 
 /// تسجيل دخل بسرعة — مبلغ + مصدر وخلاص.
 Future<bool?> showIncomeSheet(BuildContext context) {
@@ -27,7 +28,8 @@ Future<bool?> openIncomePage(BuildContext context) => Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => Scaffold(
-          appBar: AppBar(title: Text(tr('دخل جديد', 'New income'))),
+          appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('دخل جديد', 'New income'))),
           body: const SingleChildScrollView(
             child: IncomeForm(showTitle: false),
           ),

@@ -6,6 +6,7 @@ import '../../data/meds_repo.dart';
 import '../../data/pharmacy_repo.dart';
 import '../../models/models.dart';
 import '../../core/med_forms.dart';
+import '../../core/privacy.dart';
 
 /// أنواع الأدوية ووحداتها (قيم عربية مخزّنة).
 
@@ -121,6 +122,7 @@ class _MedFormState extends State<MedForm> {
     final isNew = widget.medication == null;
     return Scaffold(
       appBar: AppBar(
+          actions: const [PrivacyAction()],
           title: Text(isNew
               ? tr('دواء جديد', 'New medication')
               : tr('تعديل دواء', 'Edit medication'))),

@@ -11,6 +11,7 @@ import '../../widgets/common.dart';
 import 'fixed_bills_screen.dart';
 import 'recurring_income_screen.dart';
 import 'wallets_screen.dart';
+import '../../core/privacy.dart';
 
 /// **اللى ثابت كل شهر** — بيجيلك إيه وبيروح عليك إيه، وبيفضل كام.
 ///
@@ -80,7 +81,8 @@ class _FixedMonthlyScreenState extends State<FixedMonthlyScreen> {
     final empty = _incomes.isEmpty && _billList.isEmpty && _certs.isEmpty;
 
     return Scaffold(
-      appBar: AppBar(title: Text(tr('اللى ثابت كل شهر', 'Every month'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('اللى ثابت كل شهر', 'Every month'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/l10n.dart';
 import '../../core/religion_data.dart';
 import '../../data/settings_repo.dart';
+import '../../core/privacy.dart';
 
 /// أدعية مأثورة مصنّفة + بحث.
 class DuasScreen extends StatefulWidget {
@@ -65,7 +66,8 @@ class _DuasScreenState extends State<DuasScreen> {
     final scheme = Theme.of(context).colorScheme;
     final results = _results;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('أدعية مأثورة', 'Supplications'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('أدعية مأثورة', 'Supplications'))),
       body: Column(
         children: [
           Padding(

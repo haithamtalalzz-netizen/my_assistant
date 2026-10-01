@@ -11,6 +11,7 @@ import '../../core/local_brain.dart';
 import '../../data/brain_context.dart';
 import '../../data/settings_repo.dart';
 import '../../core/log.dart';
+import '../../core/privacy.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -289,6 +290,7 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: Text(tr('اسأل مديرك', 'Ask your manager')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('أسئلة مفتوحة (Gemini)', 'Open questions (Gemini)'),
             onPressed: _openGeminiSetup,

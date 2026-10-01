@@ -7,6 +7,7 @@ import '../../widgets/search_action.dart';
 import '../../data/relatives_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 class RelativesScreen extends StatefulWidget {
   const RelativesScreen({super.key});
@@ -144,7 +145,8 @@ class _RelativesScreenState extends State<RelativesScreen> {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('صلة الرحم', 'Keep in touch')),
-          actions: [searchAction(context)]),
+          actions: [
+          const PrivacyAction(),searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty

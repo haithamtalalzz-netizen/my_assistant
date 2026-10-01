@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/dashboard_stats.dart';
 import '../core/l10n.dart';
 import '../widgets/dash_card.dart';
+import '../core/privacy.dart';
 
 /// اللوحة الشاملة — نفس كروت الرئيسية بس فى صفحة لوحدها (عرض كامل).
 class DashboardScreen extends StatefulWidget {
@@ -45,6 +46,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: Text(tr('لوحة شاملة', 'Dashboard')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('تحديث', 'Refresh'),
             icon: const Icon(Icons.refresh),

@@ -6,6 +6,7 @@ import '../../data/wishlist_repo.dart';
 import '../../data/savings_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 /// قائمة الأمنيات — حاجات عايز تشتريها بأولوية وسعر.
 class WishlistScreen extends StatefulWidget {
@@ -49,7 +50,8 @@ class _WishlistScreenState extends State<WishlistScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('قائمة الأمنيات', 'Wishlist'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('قائمة الأمنيات', 'Wishlist'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

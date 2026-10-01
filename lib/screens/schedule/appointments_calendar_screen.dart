@@ -7,6 +7,7 @@ import '../../core/l10n.dart';
 import '../../data/appointments_repo.dart';
 import '../../widgets/month_year_wheel.dart';
 import 'appointment_form.dart';
+import '../../core/privacy.dart';
 
 /// عرض شهرى للمواعيد — نقاط على الأيام اللى فيها مواعيد، والضغط على يوم يوري
 /// مواعيده ويسمح بالإضافة. بيتنقّل للأمام والخلف (مش زى تقاويم السجل).
@@ -137,7 +138,8 @@ class _AppointmentsCalendarScreenState
     final today = DateTime.now();
 
     return Scaffold(
-      appBar: AppBar(title: Text(tr('تقويم المواعيد', 'Appointments calendar'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('تقويم المواعيد', 'Appointments calendar'))),
       body: Column(
         children: [
           Row(

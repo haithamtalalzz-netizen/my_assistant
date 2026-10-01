@@ -6,6 +6,7 @@ import '../../data/goals_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/a_kit.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 /// الأهداف بمعالم — كل هدف له معالم، والتقدّم من المعالم المكتملة.
 class GoalsScreen extends StatefulWidget {
@@ -59,7 +60,8 @@ class _GoalsScreenState extends State<GoalsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('أهدافى', 'My goals'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('أهدافى', 'My goals'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -429,6 +431,7 @@ class _GoalDetailState extends State<_GoalDetail> {
       appBar: AppBar(
         title: Text(_goal.title),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: _goal.done ? tr('إلغاء الإنجاز', 'Reopen') : tr('تم', 'Done'),
             icon: Icon(_goal.done ? Icons.undo : Icons.check_circle_outline),

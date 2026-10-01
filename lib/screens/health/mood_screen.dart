@@ -6,6 +6,7 @@ import '../../core/l10n.dart';
 import '../../data/mood_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 /// تتبّع المزاج — سجّل مزاجك كل يوم وشوف اتجاهه.
 class MoodScreen extends StatefulWidget {
@@ -59,7 +60,8 @@ class _MoodScreenState extends State<MoodScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('تتبّع المزاج', 'Mood tracker'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('تتبّع المزاج', 'Mood tracker'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(

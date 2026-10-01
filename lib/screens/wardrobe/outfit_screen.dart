@@ -7,6 +7,7 @@ import '../../core/l10n.dart';
 import '../../data/settings_repo.dart';
 import '../../data/wardrobe_repo.dart';
 import '../../models/models.dart';
+import '../../core/privacy.dart';
 
 /// «ألبس إيه النهارده؟» — صفحة كاملة بتعرض **الطقم كله بصوره الكبيرة**،
 /// قطعة لكل فئة من الملابس.
@@ -239,6 +240,7 @@ class _OutfitScreenState extends State<OutfitScreen> {
         appBar: AppBar(
           title: Text(tr('ألبس إيه النهارده؟', 'What to wear today?')),
           actions: [
+          const PrivacyAction(),
             IconButton(
               tooltip: tr('إطلالاتى المحفوظة', 'Saved looks'),
               icon: const Icon(Icons.bookmarks_outlined),

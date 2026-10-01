@@ -5,6 +5,7 @@ import '../core/custom_rules.dart';
 import '../core/l10n.dart';
 import '../data/rules_repo.dart';
 import '../widgets/common.dart';
+import '../core/privacy.dart';
 
 /// «قواعدى» — قواعد يصنعها المستخدم («لو مصاريف الأسبوع عدّت X نبّهنى»)،
 /// وبتبيّن أنهى قاعدة بتتحقق دلوقتى من بياناتك الحالية.
@@ -132,7 +133,8 @@ class _RulesScreenState extends State<RulesScreen> {
     final scheme = Theme.of(context).colorScheme;
     final firing = _rules.where(_firing).length;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('قواعدى', 'My rules'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('قواعدى', 'My rules'))),
       floatingActionButton: _loading
           ? null
           : FloatingActionButton.extended(

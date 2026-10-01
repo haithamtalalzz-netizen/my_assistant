@@ -7,6 +7,7 @@ import '../../data/money_categories.dart';
 import '../../models/models.dart';
 import '../../widgets/a_kit.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 /// **دخلك الثابت** — المرتب وأى دخل بيتكرّر كل شهر.
 ///
@@ -165,7 +166,8 @@ class _RecurringIncomeScreenState extends State<RecurringIncomeScreen> {
     const green = Color(0xFF10B981);
 
     return Scaffold(
-      appBar: AppBar(title: Text(tr('دخلك الثابت', 'Recurring income'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('دخلك الثابت', 'Recurring income'))),
       floatingActionButton: FloatingActionButton(
         heroTag: 'income_fab',
         onPressed: () => _form(),

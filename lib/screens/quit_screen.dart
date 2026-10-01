@@ -6,6 +6,7 @@ import '../widgets/search_action.dart';
 import '../data/quit_repo.dart';
 import '../models/models.dart';
 import '../widgets/common.dart';
+import '../core/privacy.dart';
 
 class QuitScreen extends StatefulWidget {
   const QuitScreen({super.key});
@@ -139,7 +140,8 @@ class _QuitScreenState extends State<QuitScreen> {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('عدّاد الإقلاع', 'Quit counter')),
-          actions: [searchAction(context)]),
+          actions: [
+          const PrivacyAction(),searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty

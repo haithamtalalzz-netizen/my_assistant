@@ -6,6 +6,7 @@ import '../../core/l10n.dart';
 import '../../core/quran_data.dart';
 import '../../core/religious_stories.dart';
 import '../../core/tafsir_data.dart';
+import '../../core/privacy.dart';
 
 /// كارت «القصص والسيرة» الموحّد فى «صلاتى» — هَب يجمع:
 /// قصص الأنبياء · قصص قرآنية · السيرة النبوية المختصرة · الأربعون النووية.
@@ -39,7 +40,8 @@ class ReligiousContentScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      appBar: AppBar(title: Text(tr('القصص والسيرة', 'Stories & seerah'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('القصص والسيرة', 'Stories & seerah'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -117,7 +119,8 @@ class _StoriesListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(title)),
       body: ListView.builder(
         padding: const EdgeInsets.all(12),
         itemCount: stories.length,
@@ -188,7 +191,8 @@ class _StoryReaderScreenState extends State<_StoryReaderScreen> {
     final scheme = Theme.of(context).colorScheme;
     final story = widget.story;
     return Scaffold(
-      appBar: AppBar(title: Text(story.name)),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(story.name)),
       body: _data == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -362,7 +366,8 @@ class _SeerahScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('السيرة النبوية المختصرة', 'Seerah'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('السيرة النبوية المختصرة', 'Seerah'))),
       body: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: kSeerahTimeline.length + 1,
@@ -441,7 +446,8 @@ class _ArbainScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('الأربعون النووية', 'An-Nawawi 40'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('الأربعون النووية', 'An-Nawawi 40'))),
       body: FutureBuilder<List<ArbainHadith>>(
         future: ArbainData.all(),
         builder: (_, snap) {

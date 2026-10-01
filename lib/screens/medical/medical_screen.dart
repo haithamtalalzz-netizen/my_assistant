@@ -7,6 +7,7 @@ import '../../models/models.dart';
 import '../../widgets/search_action.dart';
 import '../../widgets/common.dart';
 import 'medical_form.dart';
+import '../../core/privacy.dart';
 
 class MedicalScreen extends StatefulWidget {
   final Widget? drawer;
@@ -74,6 +75,7 @@ class _MedicalScreenState extends State<MedicalScreen> {
       appBar: AppBar(
         title: Text(tr('الملف الطبي', 'Medical file')),
         actions: [
+          const PrivacyAction(),
           if (specialties.isNotEmpty)
             PopupMenuButton<String?>(
               tooltip: tr('فلتر التخصص', 'Filter by specialty'),

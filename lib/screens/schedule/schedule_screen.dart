@@ -14,6 +14,7 @@ import '../../widgets/common.dart';
 import 'appointment_form.dart';
 import 'med_form.dart';
 import '../../core/calendar_sync.dart';
+import '../../core/privacy.dart';
 
 class ScheduleScreen extends StatelessWidget {
   final Widget? drawer;
@@ -29,6 +30,7 @@ class ScheduleScreen extends StatelessWidget {
         // (زر «عرض شهري» جوّاها بيفتح التقويم — البند المستقل القديم اتشال).
         title: Text(tr('مواعيدى', 'My calendar')),
         actions: [
+          const PrivacyAction(),
           searchAction(context),
           IconButton(
             tooltip: tr('عرض شهري', 'Month view'),
@@ -53,7 +55,8 @@ class MedsScreen extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           title: Text(tr('الأدوية', 'Medications')),
-          actions: [searchAction(context)],
+          actions: [
+          const PrivacyAction(),searchAction(context)],
         ),
         body: const _MedsTab(),
       );

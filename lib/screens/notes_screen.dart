@@ -10,6 +10,7 @@ import '../widgets/common.dart';
 import 'note_reminder_sheet.dart';
 import 'voice/dictation_sheet.dart';
 import 'voice/voice_memo_sheet.dart';
+import '../core/privacy.dart';
 
 /// «تذكيراتى» — ملاحظات حرّة تكتبها بسرعة وتلاقيها. المثبّت فوق.
 class NotesScreen extends StatefulWidget {
@@ -311,6 +312,7 @@ class _NotesScreenState extends State<NotesScreen> {
       appBar: AppBar(
         title: Text(tr('تذكيراتى', 'My notes')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('ملاحظة بصوتك', 'Note by voice'),
             icon: const Icon(Icons.mic_none),

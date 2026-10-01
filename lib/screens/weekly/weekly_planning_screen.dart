@@ -7,6 +7,7 @@ import '../../data/appointments_repo.dart';
 import '../../data/weekly_repo.dart';
 import '../../models/models.dart';
 import '../schedule/appointment_form.dart';
+import '../../core/privacy.dart';
 
 /// طقس التخطيط الأسبوعي — ١٠ دقايق: مراجعة الأسبوع، ٣ أسئلة، تجهيز الجاي.
 class WeeklyPlanningScreen extends StatefulWidget {
@@ -83,7 +84,8 @@ class _WeeklyPlanningScreenState extends State<WeeklyPlanningScreen> {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('التخطيط الأسبوعي', 'Weekly planning')),
-          actions: [searchAction(context)]),
+          actions: [
+          const PrivacyAction(),searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Stepper(

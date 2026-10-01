@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/religion_more.dart';
+import '../../core/privacy.dart';
 
 /// أذكار المواقف اليومية (نوم/طعام/سفر/دخول وخروج…) — مع بحث ونسخ.
 class AdhkarSituationsScreen extends StatefulWidget {
@@ -31,7 +32,8 @@ class _AdhkarSituationsScreenState extends State<AdhkarSituationsScreen> {
     final scheme = Theme.of(context).colorScheme;
     final list = _filtered;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('أذكار المواقف', 'Daily-life adhkar'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('أذكار المواقف', 'Daily-life adhkar'))),
       body: Column(
         children: [
           Padding(

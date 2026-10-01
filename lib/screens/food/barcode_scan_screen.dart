@@ -4,6 +4,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../core/food_db.dart';
 import '../../core/l10n.dart';
+import '../../core/privacy.dart';
 
 /// يفتح ماسح الباركود ويرجّع صنف غذائى من Open Food Facts (أو null).
 Future<FoodItem?> scanBarcodeForFood(BuildContext context) {
@@ -57,7 +58,8 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('مسح باركود', 'Scan barcode'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('مسح باركود', 'Scan barcode'))),
       body: Column(
         children: [
           if (!kIsWeb && _controller != null)

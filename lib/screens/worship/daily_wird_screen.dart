@@ -5,6 +5,7 @@ import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/religion_more.dart';
 import '../../data/worship_repo.dart';
+import '../../core/privacy.dart';
 
 /// الوِرد اليومى — أذكار بأهداف يومية مع عدّاد يتصفّر كل يوم.
 class DailyWirdScreen extends StatefulWidget {
@@ -64,7 +65,8 @@ class _DailyWirdScreenState extends State<DailyWirdScreen> {
     final doneCount =
         kWirdPhrases.asMap().entries.where((e) => (_counts[e.key] ?? 0) >= e.value.goal).length;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('الوِرد اليومى', 'Daily wird'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('الوِرد اليومى', 'Daily wird'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(

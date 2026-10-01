@@ -7,6 +7,7 @@ import '../../core/quran_data.dart';
 import '../../core/quran_topics.dart';
 import '../../core/religious_stories.dart' show StoryPassage;
 import '../../core/tafsir_data.dart';
+import '../../core/privacy.dart';
 
 /// فهرس القرآن الموضوعى + أدعية القرآن — آيات حسب الموضوع بنصّها من المصحف
 /// المدمج (Tanzil) مع التفسير الميسّر عند الطلب.
@@ -20,6 +21,7 @@ class QuranTopicsScreen extends StatelessWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
+          actions: const [PrivacyAction()],
           title: Text(tr('آيات ودعوات', 'Topics & duas')),
           bottom: TabBar(tabs: [
             Tab(text: tr('حسب الموضوع', 'By topic')),
@@ -120,7 +122,8 @@ class _VersesScreenState extends State<VersesScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(widget.title)),
       body: _data == null
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(

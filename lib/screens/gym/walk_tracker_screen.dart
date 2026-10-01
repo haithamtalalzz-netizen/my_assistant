@@ -9,6 +9,7 @@ import '../../data/activity_repo.dart';
 import '../../data/measurements_repo.dart';
 import '../../data/settings_repo.dart';
 import '../../models/models.dart';
+import '../../core/privacy.dart';
 
 /// شاشة تتبّع المشي/الجري بالـGPS — مسافة ومدة وسرعة وسعرات لحظية.
 class WalkTrackerScreen extends StatefulWidget {
@@ -150,7 +151,8 @@ class _WalkTrackerScreenState extends State<WalkTrackerScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('تتبّع المشي/الجري', 'Walk / run tracker'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('تتبّع المشي/الجري', 'Walk / run tracker'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [

@@ -10,6 +10,7 @@ import '../../core/password_tools.dart';
 import '../../data/passwords_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 /// كلمات السر — الوصول محمى بالبصمة (زى الخزنة السرية: قفل وصول، مش تشفير).
 class PasswordsScreen extends StatefulWidget {
@@ -61,7 +62,8 @@ class _PasswordsScreenState extends State<PasswordsScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('كلمات السر', 'Passwords'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('كلمات السر', 'Passwords'))),
       body: _checking
           ? const Center(child: CircularProgressIndicator())
           : !_authed

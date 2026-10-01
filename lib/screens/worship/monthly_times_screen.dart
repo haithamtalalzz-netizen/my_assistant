@@ -15,6 +15,7 @@ import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/prayers.dart';
 import '../../data/settings_repo.dart';
+import '../../core/privacy.dart';
 
 /// تقويم مواقيت الصلاة لشهر كامل + طباعة/مشاركة PDF.
 class MonthlyTimesScreen extends StatefulWidget {
@@ -51,6 +52,7 @@ class _MonthlyTimesScreenState extends State<MonthlyTimesScreen> {
       appBar: AppBar(
         title: Text(tr('مواقيت الشهر', 'Monthly times')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('طباعة / مشاركة', 'Print / share'),
             icon: _sharing

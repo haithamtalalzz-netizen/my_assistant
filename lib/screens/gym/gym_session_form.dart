@@ -6,6 +6,7 @@ import '../../data/gym_repo.dart';
 import '../../data/workout_repo.dart';
 import '../../models/models.dart';
 import 'rest_timer.dart';
+import '../../core/privacy.dart';
 
 class _SetEntry {
   final exercise = TextEditingController();
@@ -94,6 +95,7 @@ class _GymSessionFormState extends State<GymSessionForm> {
       appBar: AppBar(
         title: Text(tr('تسجيل تمرين', 'Log workout')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('مؤقّت الراحة', 'Rest timer'),
             icon: const Icon(Icons.timer_outlined),

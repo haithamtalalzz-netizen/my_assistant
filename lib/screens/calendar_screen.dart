@@ -7,6 +7,7 @@ import '../core/l10n.dart';
 import '../widgets/search_action.dart';
 import '../core/month_report.dart';
 import '../data/day_log_repo.dart';
+import '../core/privacy.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -302,6 +303,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       appBar: AppBar(
         title: Text(tr('تقويم النتيجة', 'Activity calendar')),
         actions: [
+          const PrivacyAction(),
           searchAction(context),
           if (!(_month.year == DateTime.now().year &&
               _month.month == DateTime.now().month))

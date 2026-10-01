@@ -7,6 +7,7 @@ import '../../core/l10n.dart';
 import '../../data/fasting_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 /// الصيام المتقطّع — مؤقّت نافذة الصيام (16:8 وغيره) + سجل + عدّاد الأسبوع.
 class FastingScreen extends StatefulWidget {
@@ -67,7 +68,8 @@ class _FastingScreenState extends State<FastingScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('الصيام المتقطّع', 'Intermittent fasting'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('الصيام المتقطّع', 'Intermittent fasting'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(

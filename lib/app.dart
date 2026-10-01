@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/app_state.dart';
+import 'core/privacy.dart';
 import 'core/theme.dart';
 import 'screens/lock_gate.dart';
 import 'screens/onboarding_gate.dart';
@@ -37,6 +38,10 @@ class MyAssistantApp extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
+            // طبقة الخصوصية فوق التطبيق كله — شاشة واحدة تتنسى معناها
+            // تسريب، فالتغطية بتتعمل مرة واحدة هنا مش شاشة شاشة.
+            builder: (_, child) =>
+                PrivacyShell(child: child ?? const SizedBox()),
             home: const OnboardingGate(child: LockGate(child: Shell())),
           ),
         ),

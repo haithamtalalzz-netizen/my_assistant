@@ -11,6 +11,7 @@ import '../models/models.dart';
 import '../widgets/common.dart';
 import '../widgets/quick_add_field.dart';
 import 'schedule/appointment_form.dart';
+import '../core/privacy.dart';
 
 /// صندوق الوارد: أفكار سريعة غير مصنفة — تتسجل في ثانية وتتصنف بعدين.
 class InboxScreen extends StatefulWidget {
@@ -119,7 +120,8 @@ class _InboxScreenState extends State<InboxScreen> {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('صندوق الوارد', 'Inbox')),
-          actions: [searchAction(context)]),
+          actions: [
+          const PrivacyAction(),searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(

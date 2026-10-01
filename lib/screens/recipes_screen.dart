@@ -9,6 +9,7 @@ import '../widgets/search_action.dart';
 import '../data/recipes_repo.dart';
 import '../models/models.dart';
 import '../widgets/common.dart';
+import '../core/privacy.dart';
 
 class RecipesScreen extends StatefulWidget {
   const RecipesScreen({super.key});
@@ -117,7 +118,8 @@ class _RecipesScreenState extends State<RecipesScreen> {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('دفتر الوصفات', 'Recipes')),
-          actions: [searchAction(context)]),
+          actions: [
+          const PrivacyAction(),searchAction(context)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
@@ -267,6 +269,7 @@ class _RecipeFormState extends State<_RecipeForm> {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
+          actions: const [PrivacyAction()],
           title: Text(widget.recipe == null
               ? tr('وصفة جديدة', 'New recipe')
               : tr('تعديل الوصفة', 'Edit recipe'))),

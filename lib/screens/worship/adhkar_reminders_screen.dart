@@ -4,6 +4,7 @@ import '../../core/adhkar_reminders.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../data/settings_repo.dart';
+import '../../core/privacy.dart';
 
 /// إعداد تذكير أذكار الصباح والمساء — تنبيهين يوميين في الأوقات اللى تختارها.
 class AdhkarRemindersScreen extends StatefulWidget {
@@ -68,7 +69,8 @@ class _AdhkarRemindersScreenState extends State<AdhkarRemindersScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('تذكير الأذكار', 'Adhkar reminders'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('تذكير الأذكار', 'Adhkar reminders'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(padding: const EdgeInsets.all(14), children: [

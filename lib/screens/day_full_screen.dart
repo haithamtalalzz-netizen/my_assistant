@@ -4,6 +4,7 @@ import '../core/ar.dart';
 import '../core/day_timeline.dart';
 import '../core/l10n.dart';
 import '../widgets/a_kit.dart';
+import '../core/privacy.dart';
 
 /// **يومك بالكامل** — كل بنود النهارده: اللى خلص واللى فات واللى جاى.
 ///
@@ -105,7 +106,8 @@ class _DayFullScreenState extends State<DayFullScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(tr('يومك بالكامل', 'Your full day'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('يومك بالكامل', 'Your full day'))),
       body: _events.isEmpty
           ? Center(
               child: Text(tr('مفيش بنود النهارده', 'Nothing scheduled today'),

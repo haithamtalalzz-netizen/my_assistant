@@ -9,6 +9,7 @@ import '../../models/models.dart';
 import '../../widgets/common.dart';
 import '../schedule/med_form.dart';
 import 'pharmacy_form.dart';
+import '../../core/privacy.dart';
 
 class PharmacyScreen extends StatefulWidget {
   const PharmacyScreen({super.key});
@@ -131,6 +132,7 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
         _expiredOnly ? _items.where((it) => _isExpired(it, now)).toList() : _items;
     return Scaffold(
       appBar: AppBar(title: Text(tr('صيدلية البيت', 'Home pharmacy')), actions: [
+          const PrivacyAction(),
         IconButton(
           tooltip: tr('المنتهى فقط', 'Expired only'),
           isSelected: _expiredOnly,

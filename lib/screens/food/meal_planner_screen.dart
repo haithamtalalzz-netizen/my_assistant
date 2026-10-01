@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/l10n.dart';
 import '../../data/meal_plan_repo.dart';
 import '../../data/meals_repo.dart';
+import '../../core/privacy.dart';
 
 /// مخطّط الوجبات الأسبوعى — تكتب وجبة لكل يوم/خانة، وتقدر تضيف الكل لقائمة التسوق.
 class MealPlannerScreen extends StatefulWidget {
@@ -60,6 +61,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
       appBar: AppBar(
         title: Text(tr('مخطّط الوجبات', 'Meal planner')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('أضف الكل لقائمة التسوق', 'Add all to shopping list'),
             icon: const Icon(Icons.add_shopping_cart_outlined),

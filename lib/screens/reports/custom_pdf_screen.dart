@@ -6,6 +6,7 @@ import '../../core/ar.dart';
 import '../../core/custom_report.dart';
 import '../../core/l10n.dart';
 import '../../widgets/wheel_date_picker.dart';
+import '../../core/privacy.dart';
 
 /// شاشة تقرير PDF مخصّص — يختار المستخدم البنود ومدى التاريخ.
 class CustomPdfScreen extends StatefulWidget {
@@ -74,7 +75,8 @@ class _CustomPdfScreenState extends State<CustomPdfScreen> {
   Widget build(BuildContext context) {
     final allSelected = _selected.length == kReportSections.length;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('تقرير PDF مخصّص', 'Custom PDF report'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('تقرير PDF مخصّص', 'Custom PDF report'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [

@@ -7,6 +7,7 @@ import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/notifications.dart';
 import '../../data/tasks_repo.dart';
+import '../../core/privacy.dart';
 
 /// جلسة تركيز (بومودورو) — عدّاد تنازلى بيتسجّل فى focus_sessions لما يخلص،
 /// واختيارى يرتبط بمهمة معينة.
@@ -114,7 +115,8 @@ class _FocusScreenState extends State<FocusScreen> {
     final progress =
         _minutes == 0 ? 0.0 : 1 - (_remaining / (_minutes * 60));
     return Scaffold(
-      appBar: AppBar(title: Text(tr('جلسة تركيز 🍅', 'Focus session 🍅'))),
+      appBar: AppBar(
+          actions: const [PrivacyAction()],title: Text(tr('جلسة تركيز 🍅', 'Focus session 🍅'))),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),

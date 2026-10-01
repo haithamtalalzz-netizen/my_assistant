@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../data/settings_repo.dart';
+import '../../core/privacy.dart';
 
 /// أذكار ما بعد الصلاة — تسلسل موجّه بالضغط.
 class PostPrayerDhikrScreen extends StatefulWidget {
@@ -127,6 +128,7 @@ class _PostPrayerDhikrScreenState extends State<PostPrayerDhikrScreen> {
       appBar: AppBar(
         title: Text(tr('أذكار بعد الصلاة', 'Post-prayer adhkar')),
         actions: [
+          const PrivacyAction(),
           IconButton(onPressed: _reset, icon: const Icon(Icons.refresh)),
         ],
       ),

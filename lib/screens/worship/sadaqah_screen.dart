@@ -4,6 +4,7 @@ import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../data/worship_extras_repo.dart';
 import '../../widgets/common.dart';
+import '../../core/privacy.dart';
 
 /// تتبّع الصدقات — سجّل صدقاتك وحدّد هدفًا شهريًّا.
 class SadaqahScreen extends StatefulWidget {
@@ -123,6 +124,7 @@ class _SadaqahScreenState extends State<SadaqahScreen> {
       appBar: AppBar(
         title: Text(tr('صدقاتى', 'My charity')),
         actions: [
+          const PrivacyAction(),
           IconButton(
             tooltip: tr('الهدف الشهرى', 'Monthly goal'),
             icon: const Icon(Icons.flag_outlined),
