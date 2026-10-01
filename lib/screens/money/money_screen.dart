@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
+import '../../core/privacy.dart';
 import '../../core/l10n.dart';
 import '../../data/bills_repo.dart';
 import '../../data/income_repo.dart';
@@ -180,18 +181,26 @@ class _MoneyScreenState extends State<MoneyScreen> {
       drawer: widget.drawer,
       appBar: AppBar(
         title: Text(tr('فلوسى', 'My money')),
-        actions: barActions(context, [
+        actions: [
+          // بره `barActions`: الزرار ده عمره ما يروح جوّه قايمة «⋮» —
+          // لو اتخبّى محدش هيلاقيه وقت ما يحتاجه.
+          const PrivacyAction(),
+          ...barActions(context, [
           BarAction(Icons.search, tr('بحث', 'Search'),
               () => openSearch(context)),
           BarAction(Icons.calendar_month_outlined,
               tr('سجل الفلوس', 'Money history'), _openHistory),
           BarAction(Icons.account_balance_wallet_outlined,
               tr('إدارة المحافظ', 'Manage wallets'), _openWallets),
-        ]),
+          ]),
+        ],
       ),
+      // الجسم كله بيتضبّب مع بعضه — مش نُص الشاشة. لو الأزرار فضلت
+      // شغّالة وهى مضبّبة، دوسة واحدة بتفتح صفحة فيها نفس الأرقام
+      // واضحة، والضبابة تبقى ستارة على باب مفتوح.
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
+          : PrivacyBlur(RefreshIndicator(
               onRefresh: _load,
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
@@ -212,7 +221,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
                   const SizedBox(height: 10),
                 ],
               ),
-            ),
+            )),
     );
   }
 

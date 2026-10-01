@@ -4283,7 +4283,13 @@ void main() {
       expect(v['weekly_spend'], 300, reason: 'اليوم + خلال أسبوع، مش القديم');
       expect(v['today_steps'], 8000);
       expect(v['today_water'], 6);
-      expect(v['monthly_spend']! >= 300, isTrue);
+      // 🔴 «مصاريف الشهر» **تقويمية** (`day LIKE 'YYYY-MM%'`)، فمصروف من
+      // ٣ أيام ممكن يكون الشهر اللى فات لو النهاردة أول الشهر. الاختبار
+      // كان مكتوب بافتراض إنهم نفس الشهر، فكان بيسقط **كل أول شهر** —
+      // وسقط فعلاً أول أكتوبر. السلوك سليم؛ الافتراض هو اللى كان غلط.
+      final within3SameMonth = within.startsWith(today.substring(0, 7));
+      expect(v['monthly_spend'], within3SameMonth ? 300 : 200,
+          reason: 'الشهر التقويمى من غير القديم (٤٠ يوم)');
     });
 
     test('RulesRepo: add/all/enabled/delete', () async {

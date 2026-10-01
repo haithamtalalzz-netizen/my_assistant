@@ -9,6 +9,7 @@ import 'package:hijri/hijri_calendar.dart';
 
 import '../core/app_state.dart';
 import '../core/ar.dart';
+import '../core/privacy.dart';
 import '../core/day_progress.dart';
 import '../core/day_timeline.dart';
 import '../core/home_layout.dart';
@@ -414,7 +415,11 @@ class _TodayScreenState extends State<TodayScreen> {
       drawer: widget.drawer,
       appBar: AppBar(
         title: Text(tr('الرئيسية', 'Home')),
-        actions: [_alertsAction(context), searchAction(context)],
+        actions: [
+          const PrivacyAction(),
+          _alertsAction(context),
+          searchAction(context)
+        ],
       ),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 450),
@@ -430,7 +435,7 @@ class _TodayScreenState extends State<TodayScreen> {
         ),
         child: _loading
             ? const Center(child: CircularProgressIndicator())
-            : _body(context),
+            : PrivacyBlur(_body(context)),
       ),
     );
   }

@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/db.dart';
+import 'package:my_assistant/core/privacy.dart';
 import 'package:my_assistant/core/theme.dart';
 import 'package:my_assistant/data/appointments_repo.dart';
 import 'package:my_assistant/data/health_repo.dart';
@@ -132,6 +133,18 @@ void main() {
       pixelRatio: 2,
     );
     expect(f.lengthSync(), greaterThan(10000));
+
+    // الرئيسية **مقفولة** — الصاحب يشوف شكل التطبيق مش بياناتك.
+    Privacy.hidden.value = true;
+    final hh = await shot(
+      tester,
+      'real_home_hidden',
+      shotApp(buildTheme(), const TodayScreen()),
+      size: const Size(390, 1100),
+      pixelRatio: 2,
+    );
+    Privacy.hidden.value = false;
+    expect(hh.lengthSync(), greaterThan(10000));
   });
 
 
@@ -312,6 +325,14 @@ void main() {
         shotApp(buildTheme(), const MoneyScreen()),
         size: const Size(390, 1000), pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
+
+    // نفس الشاشة **مقفولة** — الصورة هى اللى بتقول الضبابة كفاية ولا لأ.
+    Privacy.hidden.value = true;
+    final h = await shot(tester, 'real_money_hidden',
+        shotApp(buildTheme(), const MoneyScreen()),
+        size: const Size(390, 1000), pixelRatio: 2);
+    Privacy.hidden.value = false;
+    expect(h.lengthSync(), greaterThan(10000));
   });
 
   testWidgets('هَب المجموعة (صحتى) — قايمة بدل مربعات', (tester) async {

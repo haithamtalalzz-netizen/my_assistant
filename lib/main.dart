@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import 'app.dart';
 import 'core/app_state.dart';
+import 'core/privacy.dart';
 // على الويب: يظبط فاكتوري sqflite (IndexedDB)؛ على الموبايل: لا شيء.
 import 'core/db_init_web.dart' if (dart.library.io) 'core/db_init_stub.dart';
 import 'core/backup.dart';
@@ -76,6 +77,9 @@ Future<void> _startup() async {
   await initializeDateFormatting('ar');
   await initializeDateFormatting('en');
   await AppState.load();
+  // وضع الخصوصية بيتحمّل بدرى: لو اتقفل قبل كده لازم يفضل مقفول
+  // من أول إطار — فتحة لحظة واحدة كفاية إن الرقم يتشاف.
+  await Privacy.load();
   // بنود المصروف والدخل اللى ضافها بنفسه — بتتقرا مرة هنا لإن منتقيات
   // البنود بتتبنى بشكل متزامن جوّه build.
   await MoneyCategories.load();
