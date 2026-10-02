@@ -12,7 +12,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/ar.dart';
+import 'package:my_assistant/core/day_timeline.dart';
 import 'package:my_assistant/core/db.dart';
+import 'package:my_assistant/screens/day_full_screen.dart';
 import 'package:my_assistant/core/privacy.dart';
 import 'package:my_assistant/core/theme.dart';
 import 'package:my_assistant/data/appointments_repo.dart';
@@ -421,6 +423,46 @@ void main() {
         shotApp(buildTheme(), const TasksScreen()),
         size: const Size(390, 700), pixelRatio: 2);
     Privacy.hidden.value = false;
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
+  testWidgets('يومك بالكامل — الشكل الحالى', (tester) async {
+    final d = DateTime.now();
+    DateTime at(int h, int m) => DateTime(d.year, d.month, d.day, h, m);
+    final events = [
+      TimelineEvent(
+          at: at(5, 23),
+          title: 'الفجر',
+          kind: TimelineKind.prayer,
+          sub: 'فات ميعاده'),
+      TimelineEvent(
+          at: at(8, 0),
+          title: 'كونكور 5',
+          kind: TimelineKind.med,
+          sub: 'قرص',
+          done: true),
+      TimelineEvent(at: at(10, 30), title: 'د. أحمد — أسنان',
+          kind: TimelineKind.appointment, sub: 'عيادة المهندسين'),
+      TimelineEvent(at: at(12, 0), title: 'xarelto 20mg',
+          kind: TimelineKind.med, sub: 'مرة يوميا'),
+      TimelineEvent(at: at(12, 46), title: 'الضهر', kind: TimelineKind.prayer),
+      TimelineEvent(at: at(16, 8), title: 'العصر', kind: TimelineKind.prayer),
+      TimelineEvent(at: at(17, 0), title: 'دهان الأوضة',
+          kind: TimelineKind.task, sub: 'مهمة'),
+      TimelineEvent(at: at(18, 40), title: 'المغرب', kind: TimelineKind.prayer),
+      TimelineEvent(at: at(19, 57), title: 'العشا', kind: TimelineKind.prayer),
+    ];
+    final f = await shot(
+        tester,
+        'real_day_full',
+        shotApp(
+            buildTheme(),
+            DayFullScreen(
+                events: events,
+                onToggle: (e, v) async => events,
+                onOpen: (_) {})),
+        size: const Size(390, 1000),
+        pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
   });
 
