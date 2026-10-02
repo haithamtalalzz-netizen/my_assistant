@@ -5,9 +5,12 @@
 // اليوم فى التقويم، وأرقام البنود، والخطوة الجاية. الصورة بتقول الشكل
 // طالع كويس؛ دى بتقول الرقم صح.
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:my_assistant/core/day_timeline.dart';
 import 'package:my_assistant/core/db.dart';
+import 'package:my_assistant/screens/day_full_screen.dart';
 import 'package:my_assistant/data/challenges_repo.dart';
 import 'package:my_assistant/data/goals_repo.dart';
 import 'package:my_assistant/data/hub_stats.dart';
@@ -211,6 +214,72 @@ void main() {
           createdAt: DateTime.now().toIso8601String()));
       final ms = await repo.milestones(id);
       expect(ms.where((m) => !m.done).map((m) => m.title).firstOrNull, isNull);
+    });
+  });
+
+  group('خط اليوم — الترتيب والفلتر', () {
+    DateTime at(int h, int m) {
+      final n = DateTime.now();
+      return DateTime(n.year, n.month, n.day, h, m);
+    }
+
+    final events = [
+      TimelineEvent(at: at(12, 46), title: 'الضهر', kind: TimelineKind.prayer),
+      TimelineEvent(
+          at: at(8, 0),
+          title: 'كونكور',
+          kind: TimelineKind.med,
+          done: true),
+      TimelineEvent(at: at(5, 23), title: 'الفجر', kind: TimelineKind.prayer),
+    ];
+
+    testWidgets('البنود بتتعرض **بترتيب الساعة** مش بالمجموعات',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        locale: const Locale('ar'),
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        supportedLocales: const [Locale('ar')],
+        home: DayFullScreen(
+            events: events,
+            onToggle: (e, v) async => events,
+            onOpen: (_) {}),
+      ));
+      await tester.pumpAndSettle();
+
+      // الترتيب المعروض لازم يبقى بالساعة: الفجر → كونكور → الضهر.
+      // لو الصفحة رجعت تفرز بالمجموعات، «كونكور» (اللى خلص) هينزل آخر
+      // الصفحة وترتيبه هيبقى ٣ بدل ٢ — وده اللى الاختبار ده بيمنعه.
+      final texts = tester
+          .widgetList<Text>(find.byType(Text))
+          .map((t) => t.data)
+          .whereType<String>()
+          .toList();
+      final iFajr = texts.indexOf('الفجر');
+      final iMed = texts.indexOf('كونكور');
+      final iDuhr = texts.indexOf('الضهر');
+      expect(iFajr, greaterThanOrEqualTo(0));
+      expect(iFajr < iMed, isTrue, reason: 'الفجر 5:23 قبل كونكور 8:00');
+      expect(iMed < iDuhr, isTrue,
+          reason: 'اللى خلص لازم يفضل مكانه فى اليوم مش ينزل آخر الصفحة');
+    });
+
+    testWidgets('الصفحة بتفتح على المجموعة اللى اتبعتتلها', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        locale: const Locale('ar'),
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        supportedLocales: const [Locale('ar')],
+        home: DayFullScreen(
+            events: events,
+            filter: DayFilter.done,
+            onToggle: (e, v) async => events,
+            onOpen: (_) {}),
+      ));
+      await tester.pumpAndSettle();
+
+      // «خلصوا» بس — الفجر والضهر مالهمش مكان هنا.
+      expect(find.text('كونكور'), findsOneWidget);
+      expect(find.text('الفجر'), findsNothing);
+      expect(find.text('الضهر'), findsNothing);
     });
   });
 }

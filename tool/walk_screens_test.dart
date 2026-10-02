@@ -118,6 +118,7 @@ import 'package:my_assistant/screens/worship/worship_program_screen.dart';
 import 'package:my_assistant/screens/worship/zakat_guide_screen.dart';
 import 'package:my_assistant/screens/worship/zakat_livestock_screen.dart';
 import 'package:my_assistant/screens/worship/zakat_screen.dart';
+import 'package:my_assistant/screens/day_full_screen.dart';
 
 /// استثناءات بيئة الاختبار مش أعطاب: قنوات المنصّة (بوصلة · إشعارات ·
 /// مستشعرات) مش موجودة، والشبكة مقفولة فتحميل الصور بيفشل.
@@ -198,6 +199,10 @@ void main() {
   testWidgets('CycleScreen', (t) => walk(t, const CycleScreen()));
   testWidgets('DailyWirdScreen', (t) => walk(t, const DailyWirdScreen()));
   testWidgets('DashboardScreen', (t) => walk(t, const DashboardScreen()));
+  testWidgets('DayFullScreen', (t) => walk(t, DayFullScreen(
+          events: const [],
+          onToggle: (e, v) async => const [],
+          onOpen: (_) {})));
   testWidgets('DebtsScreen', (t) => walk(t, const DebtsScreen()));
   testWidgets('DiagnosticsScreen', (t) => walk(t, const DiagnosticsScreen()));
   testWidgets('DiaryScreen', (t) => walk(t, const DiaryScreen()));

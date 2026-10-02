@@ -666,12 +666,13 @@ class _TodayScreenState extends State<TodayScreen> {
   Future<void> _completeEvent(TimelineEvent ev) => _setEventDone(ev, true);
 
   /// بيفتح **يومك بالكامل** — كل البنود، واللى خلص يتقلب منها.
-  void _openFullDay() {
+  void _openFullDay([DayFilter filter = DayFilter.all]) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => DayFullScreen(
           events: _timelineAll,
+          filter: filter,
           onOpen: _openEvent,
           onToggle: (e, done) async {
             await _setEventDone(e, done);
@@ -703,33 +704,80 @@ class _TodayScreenState extends State<TodayScreen> {
   /// شريط تقدّم نحيف بدل البطل الكبير — الرقم هو المهم، مش المساحة.
   Widget _progressCard(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final p = dayTimelineProgress(_timelineAll);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: AppCard(
-        Row(children: [
-          Expanded(
-            child: AppProgressBar(
-              p.total == 0 ? 0 : p.done / p.total,
-              tr('إنجاز اليوم · ${arNum(p.done)} من ${arNum(p.total)}',
-                  'Today · ${arNum(p.done)} of ${arNum(p.total)}'),
+    final now = DateTime.now();
+    final doneN = _timelineAll.where((e) => e.done).length;
+    final missedN =
+        _timelineAll.where((e) => !e.done && e.at.isBefore(now)).length;
+    final upN = _timelineAll.length - doneN - missedN;
+
+    // كل رقم **زرار بيفتح على نوعه** — بدل لينك واحد بيفتح على الكل
+    // وبعدين تدوّر انت. والرقم نفسه بيقولك لازم تعمل إيه قبل ما تدوس.
+    Widget box(int n, String label, Color c, IconData icon, DayFilter f) =>
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 9),
+            child: Material(
+              color: c.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(18),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => _openFullDay(f),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: c.withValues(alpha: 0.25))),
+                  child: Column(children: [
+                    Icon(icon, size: 17, color: c),
+                    const SizedBox(height: 6),
+                    Text(arNum(n),
+                        style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: c)),
+                    Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 10, color: scheme.onSurfaceVariant)),
+                  ]),
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 10),
+        );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(
+            child: Text(tr('خط اليوم', 'Day timeline'),
+                style: const TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w800)),
+          ),
           InkWell(
             onTap: _openFullDay,
             child: Padding(
               padding: const EdgeInsets.all(4),
               child: Text(tr('اليوم كله ›', 'Full day ›'),
                   style: TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 11,
                       fontWeight: FontWeight.w800,
                       color: scheme.primary)),
             ),
           ),
         ]),
-        padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
-      ),
+        const SizedBox(height: 9),
+        Row(children: [
+          box(doneN, tr('خلصوا', 'done'), scheme.primary,
+              Icons.check_circle_outline, DayFilter.done),
+          box(upN, tr('جايين', 'coming'), Colors.blue, Icons.schedule,
+              DayFilter.upcoming),
+          box(missedN, tr('فاتوا', 'missed'), scheme.error,
+              Icons.error_outline, DayFilter.missed),
+        ]),
+      ]),
     );
   }
 
