@@ -678,6 +678,13 @@ class _TodayScreenState extends State<TodayScreen> {
             await _setEventDone(e, done);
             return _timelineAll;
           },
+          // بعد ما تضيف موعد/مهمة/دوا، الرئيسية بتحمّل من جديد والصفحة
+          // بتاخد الخط المحدّث — من غير كده الحاجة الجديدة ماتظهرش
+          // غير لما تقفل الصفحة وتفتحها.
+          onReload: () async {
+            await _load();
+            return _timelineAll;
+          },
         ),
       ),
     );

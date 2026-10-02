@@ -9,6 +9,7 @@ import '../../widgets/a_kit.dart';
 import '../../widgets/common.dart';
 import '../../widgets/bar_actions.dart';
 import '../../widgets/search_action.dart';
+import 'task_form_sheet.dart';
 import 'focus_screen.dart';
 import '../../core/calendar_sync.dart';
 import '../../core/privacy.dart';
@@ -444,147 +445,17 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
+  /// الفورم اتنقل لـ`task_form_sheet.dart` عشان «خط اليوم» يستعمله
+  /// كمان — نسخة واحدة مايبقاش فيه اتنين يفرقوا.
   Future<void> _taskForm([Task? task]) async {
-    final title = TextEditingController(text: task?.title ?? '');
-    final notes = TextEditingController(text: task?.notes ?? '');
-    var priority = task?.priority ?? 1;
-    var projectId = task?.projectId ?? (_filter != null && _filter! > 0 ? _filter : null);
-    var repeatRule = task?.repeatRule ?? '';
-    DateTime? due = task?.due;
-
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) => AlertDialog(
-          scrollable: true,
-          title: Text(task == null ? tr('مهمة جديدة', 'New task') : tr('تعديل مهمة', 'Edit task')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: title,
-                autofocus: task == null,
-                decoration: InputDecoration(labelText: tr('العنوان', 'Title')),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: notes,
-                maxLines: 2,
-                decoration: InputDecoration(
-                    labelText: tr('ملاحظات (اختيارى)', 'Notes (optional)')),
-              ),
-              const SizedBox(height: 14),
-              Text(tr('الأولوية', 'Priority'),
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 6,
-                children: [
-                  for (var p = 0; p <= 2; p++)
-                    ChoiceChip(
-                      label: Text(_priorityLabel(p)),
-                      selected: priority == p,
-                      onSelected: (_) => setD(() => priority = p),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // التكرار: المهمة المتكررة بتترحّل لموعدها الجاى بدل ما تتقفل.
-              Text(tr('التكرار', 'Repeat'),
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 6,
-                children: [
-                  for (final r in const ['', 'daily', 'weekly', 'monthly'])
-                    ChoiceChip(
-                      label: Text(_repeatLabel(r)),
-                      selected: repeatRule == r,
-                      onSelected: (_) => setD(() => repeatRule = r),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (_projects.isNotEmpty) ...[
-                DropdownButtonFormField<int?>(
-                  initialValue: projectId,
-                  isExpanded: true,
-                  decoration:
-                      InputDecoration(labelText: tr('المشروع', 'Project')),
-                  items: [
-                    DropdownMenuItem(value: null, child: Text(tr('بدون', 'None'))),
-                    for (final p in _projects)
-                      DropdownMenuItem(value: p.id, child: Text(p.name)),
-                  ],
-                  onChanged: (v) => projectId = v,
-                ),
-                const SizedBox(height: 12),
-              ],
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(due == null
-                        ? tr('بدون موعد', 'No due date')
-                        : arDateTime(due!)),
-                  ),
-                  if (due != null)
-                    IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () => setD(() => due = null)),
-                  TextButton.icon(
-                    icon: const Icon(Icons.event, size: 18),
-                    label: Text(tr('موعد', 'Due')),
-                    onPressed: () async {
-                      final d = await showDatePicker(
-                        context: ctx,
-                        initialDate: due ?? DateTime.now(),
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2100),
-                      );
-                      if (d == null) return;
-                      if (!ctx.mounted) return;
-                      final t = await showTimePicker(
-                        context: ctx,
-                        initialTime: TimeOfDay.fromDateTime(due ?? DateTime.now()),
-                      );
-                      setD(() => due = DateTime(
-                          d.year, d.month, d.day, t?.hour ?? 9, t?.minute ?? 0));
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(tr('إلغاء', 'Cancel'))),
-            FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: Text(tr('حفظ', 'Save'))),
-          ],
-        ),
-      ),
+    final ok = await openTaskForm(
+      context,
+      task: task,
+      defaultProjectId:
+          task?.projectId ?? (_filter != null && _filter! > 0 ? _filter : null),
+      projects: _projects,
     );
-
-    if (saved == true && title.text.trim().isNotEmpty) {
-      await _repo.save(Task(
-        id: task?.id,
-        projectId: projectId,
-        title: title.text.trim(),
-        notes: notes.text.trim(),
-        dueAt: due?.toIso8601String(),
-        priority: priority,
-        done: task?.done ?? false,
-        doneAt: task?.doneAt,
-        repeatRule: repeatRule,
-        createdAt: task?.createdAt ?? DateTime.now().toIso8601String(),
-      ));
-      if (mounted) await _load();
-    }
-    title.dispose();
-    notes.dispose();
+    if (ok && mounted) await _load();
   }
 
   /// شيت المهام الفرعية — تشيك-ليست جوه المهمة: إضافة/تعليم/حذف.

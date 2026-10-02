@@ -460,6 +460,7 @@ void main() {
             DayFullScreen(
                 events: events,
                 onToggle: (e, v) async => events,
+                onReload: () async => events,
                 onOpen: (_) {})),
         size: const Size(390, 1000),
         pixelRatio: 2);

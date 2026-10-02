@@ -5,6 +5,9 @@ import '../core/day_timeline.dart';
 import '../core/l10n.dart';
 import '../core/privacy.dart';
 import '../widgets/a_kit.dart';
+import 'schedule/appointment_form.dart';
+import 'schedule/med_form.dart';
+import 'tasks/task_form_sheet.dart';
 
 /// أى مجموعة الصفحة مفتوحة عليها.
 enum DayFilter { all, missed, upcoming, done }
@@ -32,12 +35,17 @@ class DayFullScreen extends StatefulWidget {
   /// الصفحة بتفتح على المجموعة دى (الرئيسية بتبعتها لمّا تدوس على رقم).
   final DayFilter filter;
 
+  /// بيتنادى بعد ما تضيف حاجة جديدة — بيرجّع الخط بعد التحديث.
+  /// null = أزرار الإضافة ماتتعرضش (زى لمّا الصفحة تتفتح فى اختبار).
+  final Future<List<TimelineEvent>> Function()? onReload;
+
   const DayFullScreen({
     super.key,
     required this.events,
     required this.onToggle,
     required this.onOpen,
     this.filter = DayFilter.all,
+    this.onReload,
   });
 
   @override
@@ -223,9 +231,90 @@ class _DayFullScreenState extends State<DayFullScreen> {
                 // اليوم كله عدّى — الخط بينزل آخر القايمة عشان يفضل صادق.
                 if (nowAt < 0 && _filter == DayFilter.all && shown.isNotEmpty)
                   AppPad(_nowMarker()),
+                if (widget.onReload != null) AppPad(_addRow(), top: 6),
               ],
             ),
     );
+  }
+
+  /// **تلات أزرار إضافة** تحت الخط.
+  ///
+  /// التلاتة قدّامك على طول بدل زرار واحد بيفتح قايمة: انت بتضيف وانت
+  /// واقف قدام الخط، فكل دوسة زيادة بتفرق.
+  ///
+  /// الصلوات مش معاهم **بقصد**: محسوبة من مدينتك، مش حاجة تضيفها.
+  Widget _addRow() {
+    final scheme = Theme.of(context).colorScheme;
+
+    Widget box(String label, Color c, IconData icon, Future<bool> Function() open) =>
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Material(
+              color: c.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(17),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: _busy ? null : () => _add(open),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(17),
+                      border: Border.all(color: c.withValues(alpha: 0.3))),
+                  child: Column(children: [
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(Icons.add, size: 15, color: c),
+                      const SizedBox(width: 3),
+                      Icon(icon, size: 15, color: c),
+                    ]),
+                    const SizedBox(height: 5),
+                    Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: c)),
+                  ]),
+                ),
+              ),
+            ),
+          ),
+        );
+
+    return Row(children: [
+      box(tr('موعد', 'Appointment'), Colors.blue, Icons.event, () async {
+        final saved = await Navigator.push<bool>(context,
+            MaterialPageRoute(builder: (_) => const AppointmentForm()));
+        return saved == true;
+      }),
+      box(tr('مهمة', 'Task'), Colors.orange, Icons.checklist_rtl,
+          // الميعاد الافتراضى **النهاردة**: انت واقف على خط اليوم، فمهمة
+          // من غير ميعاد مش هتظهر على الخط أصلاً.
+          () => openTaskForm(context, defaultDue: DateTime.now())),
+      box(tr('دوا', 'Medicine'), scheme.error, Icons.medication_outlined,
+          () async {
+        final saved = await Navigator.push<bool>(
+            context, MaterialPageRoute(builder: (_) => const MedForm()));
+        return saved == true;
+      }),
+    ]);
+  }
+
+  Future<void> _add(Future<bool> Function() open) async {
+    setState(() => _busy = true);
+    final added = await open();
+    if (!mounted) return;
+    if (!added) {
+      setState(() => _busy = false);
+      return;
+    }
+    final next = await widget.onReload!();
+    if (!mounted) return;
+    setState(() {
+      _events = next;
+      _busy = false;
+    });
   }
 
   /// الخط اللى بيقول انت فين من يومك.

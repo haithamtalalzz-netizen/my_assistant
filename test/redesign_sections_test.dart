@@ -263,6 +263,45 @@ void main() {
           reason: 'اللى خلص لازم يفضل مكانه فى اليوم مش ينزل آخر الصفحة');
     });
 
+    testWidgets('أزرار الإضافة التلاتة بتبان — والصلاة مش منهم',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        locale: const Locale('ar'),
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        supportedLocales: const [Locale('ar')],
+        home: DayFullScreen(
+            events: events,
+            onToggle: (e, v) async => events,
+            onReload: () async => events,
+            onOpen: (_) {}),
+      ));
+      await tester.pumpAndSettle();
+
+      // بندوّر على علامة «＋» نفسها مش على الكلمة: «دوا» بتظهر كمان
+      // كنوع البند على السطور، فالبحث بالاسم بيعدّ حاجات مش أزرار.
+      expect(find.byIcon(Icons.add), findsNWidgets(3),
+          reason: 'تلات أزرار إضافة بالظبط');
+      // التلاتة اللى ينفع يتضافوا — والصلاة مش منهم بقصد: محسوبة من
+      // مدينتك، فزرار «＋ صلاة» هيوعد بحاجة مش موجودة.
+      expect(find.byIcon(Icons.event), findsWidgets);
+      expect(find.byIcon(Icons.checklist_rtl), findsOneWidget);
+      expect(find.byIcon(Icons.medication_outlined), findsWidgets);
+    });
+
+    testWidgets('من غير onReload الأزرار مابتبانش', (tester) async {
+      // الصفحة ممكن تتفتح من مكان مالوش طريقة يعيد التحميل — ساعتها
+      // زرار الإضافة هيضيف حاجة وماتظهرش، وده أسوأ من إنه مايبانش.
+      await tester.pumpWidget(MaterialApp(
+        locale: const Locale('ar'),
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        supportedLocales: const [Locale('ar')],
+        home: DayFullScreen(
+            events: events, onToggle: (e, v) async => events, onOpen: (_) {}),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.add), findsNothing);
+    });
+
     testWidgets('الصفحة بتفتح على المجموعة اللى اتبعتتلها', (tester) async {
       await tester.pumpWidget(MaterialApp(
         locale: const Locale('ar'),
