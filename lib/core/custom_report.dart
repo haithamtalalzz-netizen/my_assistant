@@ -96,7 +96,7 @@ class CustomReport {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('مساعدي',
+                    pw.Text('Vida',
                         style: pw.TextStyle(
                             font: font,
                             fontSize: 20,
@@ -201,6 +201,6 @@ class CustomReport {
     final file = File(p.join(temp.path, 'report.csv'));
     // ﻿ = BOM عشان Excel يقرا UTF-8 عربي صح.
     await file.writeAsString('﻿$csv');
-    await Share.shareXFiles([XFile(file.path)], text: 'تقرير مساعدي (Excel)');
+    await Share.shareXFiles([XFile(file.path)], text: 'تقرير Excel من Vida');
   }
 }

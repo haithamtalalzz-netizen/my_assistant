@@ -1312,7 +1312,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             return;
                           }
                           await Share.shareXFiles([XFile(file.path)],
-                              text: 'My Assistant backup');
+                              text: 'Vida backup');
                         },
                 ),
                 const Divider(height: 20),

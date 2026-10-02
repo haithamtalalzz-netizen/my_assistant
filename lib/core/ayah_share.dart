@@ -75,7 +75,7 @@ class _AyahCard extends StatelessWidget {
                     fontSize: 18,
                     fontFamily: 'Cairo')),
             const SizedBox(height: 6),
-            Text('مساعدي',
+            Text('Vida',
                 style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.5),
                     fontSize: 13,

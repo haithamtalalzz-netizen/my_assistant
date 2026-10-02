@@ -53,7 +53,7 @@ class CycleReport {
         pw.Text('تقرير الدورة الشهرية',
             style: pw.TextStyle(font: font, fontSize: 18)),
         line('${name.isEmpty ? '' : '$name — '}${arFullDate(now)}'),
-        line('اتولد تلقائيًا من تطبيق My Assistant للعرض على الطبيبة.'),
+        line('للعرض على الطبيبة — اتولد تلقائيًا من تطبيق Vida'),
         header('ملخص'),
         line('عدد الدورات المسجّلة: ${arNum(starts.length)}'),
         line('متوسط طول الدورة: ${arNum(pred.avgCycleLength)} يوم'),

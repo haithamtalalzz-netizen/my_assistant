@@ -18,18 +18,18 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="مساعدي — مدير شخصي: صحة، مواعيد، فلوس، مستندات، عادات.">
+  <meta name="description" content="Vida — مدير شخصي: صحة، مواعيد، فلوس، مستندات، عادات.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="مساعدي">
+  <meta name="apple-mobile-web-app-title" content="Vida">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>مساعدي</title>
+  <title>Vida</title>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -42,7 +42,7 @@
               text-align:center;padding:24px">
     <div style="width:40px;height:40px;border:4px solid #223;border-top-color:#2FDE9B;
                 border-radius:50%;animation:sp 1s linear infinite"></div>
-    <div>جاري تحميل «مساعدي»…<br><small style="color:#5a6b85">أول فتح بياخد لحظات</small></div>
+    <div>جاري تحميل «Vida»…<br><small style="color:#5a6b85">أول فتح بياخد لحظات</small></div>
   </div>
   <style>@keyframes sp{to{transform:rotate(360deg)}}</style>
   <pre id="booterr"
@@ -80,7 +80,7 @@
       var poll = setInterval(function () {
         tries++;
         // التطبيق اشتغل (غيّر عنوان الصفحة) → نشيل شاشة التحميل بعد لحظة.
-        if (document.title === 'My Assistant') { titleSeen++; }
+        if (document.title === 'Vida') { titleSeen++; }
         if (anyCanvas(document) || titleSeen >= 4) {
           var boot = document.getElementById('boot');
           if (boot) boot.remove();

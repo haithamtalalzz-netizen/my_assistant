@@ -148,7 +148,7 @@ class _YearReviewScreenState extends State<YearReviewScreen> {
           pw.Text('المراجعة السنوية — ${arNum(_year)}',
               style: pw.TextStyle(font: font, fontSize: 20)),
           pw.SizedBox(height: 4),
-          pw.Text('اتولّدت تلقائيًا من تطبيق My Assistant.',
+          pw.Text('اتولّدت تلقائيًا من تطبيق Vida',
               style: pw.TextStyle(font: font, fontSize: 10)),
           pw.SizedBox(height: 12),
           pw.TableHelper.fromTextArray(

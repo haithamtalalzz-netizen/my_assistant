@@ -46,7 +46,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
       return;
     }
     await Share.shareXFiles([XFile(file.path)],
-        subject: tr('تشخيص مساعدي', 'My Assistant diagnostics'));
+        subject: tr('تشخيص Vida', 'Vida diagnostics'));
   }
 
   Future<void> _copy() async {

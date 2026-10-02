@@ -162,8 +162,8 @@ class _KhatmaScreenState extends State<KhatmaScreen> {
     final pct = (k.progress * 100).round();
     final juz = (k.currentPage / 20).clamp(0, 30).ceil();
     final msg = k.done
-        ? tr('ختمت القرآن الكريم كاملًا 🎉 — عبر تطبيق My Assistant',
-            'I completed reading the whole Quran 🎉 — via My Assistant')
+        ? tr('ختمت القرآن الكريم كاملًا 🎉 — عبر تطبيق Vida',
+            'I completed reading the whole Quran 🎉 — via Vida')
         : tr(
             'تقدّمى فى ختمة القرآن: ${arNum(k.currentPage)}/${arNum(k.totalPages)} صفحة (٪${arNum(pct)}) — الجزء ${arNum(juz)}. 🤲',
             'My Quran khatma: ${arNum(k.currentPage)}/${arNum(k.totalPages)} pages (${arNum(pct)}%), juz ${arNum(juz)}. 🤲');

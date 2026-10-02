@@ -91,7 +91,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               const SizedBox(height: 16),
               Icon(Icons.auto_awesome, size: 64, color: scheme.primary),
               const SizedBox(height: 16),
-              Text(tr('أهلًا بيك في مساعدي', 'Welcome to My Assistant'),
+              Text(tr('أهلًا بيك فى Vida', 'Welcome to Vida'),
                   textAlign: TextAlign.center,
                   style: Theme.of(context)
                       .textTheme

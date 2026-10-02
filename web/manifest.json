@@ -1,11 +1,11 @@
 {
-    "name": "مساعدي",
-    "short_name": "مساعدي",
+    "name": "Vida",
+    "short_name": "Vida",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0B1C3D",
     "theme_color": "#0B1C3D",
-    "description": "مساعدي — مدير شخصي: صحة، مواعيد، فلوس، مستندات، عادات.",
+    "description": "Vida — مدير شخصي: صحة، مواعيد، فلوس، مستندات، عادات.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

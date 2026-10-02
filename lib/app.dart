@@ -25,7 +25,7 @@ class MyAssistantApp extends StatelessWidget {
             AppState.gender,
           ]),
           builder: (context, _) => MaterialApp(
-            title: 'My Assistant',
+            title: 'Vida',
             debugShowCheckedModeBanner: false,
             theme: buildTheme(),
             darkTheme: buildDarkTheme(),

@@ -45,7 +45,7 @@ class MonthReport {
       build: (context) => [
         pw.Text('سجل ${arMonth(monthDate)}',
             style: pw.TextStyle(font: font, fontSize: 18)),
-        pw.Text('اتولد تلقائيًا من تطبيق My Assistant.',
+        pw.Text('اتولد تلقائيًا من تطبيق Vida',
             style: pw.TextStyle(font: font, fontSize: 10)),
         if (active.isEmpty)
           pw.Padding(

@@ -94,7 +94,7 @@ class _LockGateState extends State<LockGate> with WidgetsBindingObserver {
   Future<void> _tryUnlock() async {
     try {
       final ok = await _auth.authenticate(
-        localizedReason: tr('افتح My Assistant', 'Unlock My Assistant'),
+        localizedReason: tr('افتح Vida', 'Unlock Vida'),
         options: const AuthenticationOptions(stickyAuth: true),
       );
       if (ok && mounted) {

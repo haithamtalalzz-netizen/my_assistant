@@ -109,7 +109,7 @@ class DoctorReport {
         pw.Text('تقرير صحي — آخر ٣٠ يوم',
             style: pw.TextStyle(font: font, fontSize: 18)),
         line('${name.isEmpty ? '' : '$name — '}${arFullDate(now)}'),
-        line('اتولد تلقائيًا من تطبيق My Assistant للعرض على الطبيب.'),
+        line('للعرض على الطبيب — اتولد تلقائيًا من تطبيق Vida'),
         header('الأدوية الحالية والالتزام'),
         if (meds.isEmpty) line('لا يوجد أدوية متسجلة.'),
         for (final m in meds)

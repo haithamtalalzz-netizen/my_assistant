@@ -88,7 +88,7 @@ class BackupService {
         temp.path, 'my_assistant_backup_${dayKey(DateTime.now())}.zip'));
     await out.writeAsBytes(bytes);
     await Share.shareXFiles([XFile(out.path)],
-        text: 'نسخة احتياطية من My Assistant');
+        text: 'نسخة احتياطية من Vida');
     // نسجّل إن المستخدم طلّع نسخة برّه الجهاز — التذكير بيعتمد عليها.
     await SettingsRepo().set('last_manual_export', DateTime.now().toIso8601String());
   }
@@ -180,7 +180,7 @@ class BackupService {
     }
     final dbEntry = archive.findFile(dbEntryName);
     if (dbEntry == null) {
-      throw const FormatException('الملف ده مش نسخة احتياطية من My Assistant');
+      throw const FormatException('الملف ده مش نسخة احتياطية من Vida');
     }
     final newBytes = dbEntry.content as List<int>;
     if (!looksLikeSqlite(newBytes)) {

@@ -14,7 +14,7 @@ class TourSlide {
 List<TourSlide> tourSlides() => [
       TourSlide(
         Icons.waving_hand_outlined,
-        tr('أهلاً بيك فى مساعدي 👋', 'Welcome to My Assistant 👋'),
+        tr('👋 أهلاً بيك فى Vida', '👋 Welcome to Vida'),
         tr(
             'ده مديرك الشخصى — بيلمّ حياتك كلها فى مكان واحد: مواعيدك وفلوسك وصحتك وعباداتك. كل بياناتك محفوظة على تليفونك بس، مفيش أى حاجة بتتبعت لأى سيرفر.',
             'Your personal manager — appointments, money, health & worship in one place. All your data stays on your phone; nothing is sent to any server.'),

@@ -45,7 +45,7 @@ class SectionPdf {
       footer: (context) => pw.Align(
         alignment: pw.Alignment.centerLeft,
         child: pw.Text(
-          'My Assistant — ${arNum(context.pageNumber)}/${arNum(context.pagesCount)}',
+          'Vida — ${arNum(context.pageNumber)}/${arNum(context.pagesCount)}',
           style: pw.TextStyle(font: font, fontSize: 9, color: PdfColors.grey600),
         ),
       ),

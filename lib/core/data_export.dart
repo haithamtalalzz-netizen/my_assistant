@@ -57,7 +57,7 @@ class DataExport {
     final file = File(p.join(temp.path, 'my_assistant_data_$stamp.zip'));
     await file.writeAsBytes(zipBytes);
     await Share.shareXFiles([XFile(file.path)],
-        text: 'كل بيانات مساعدي (CSV لكل قسم)');
+        text: 'كل بيانات Vida — CSV لكل قسم');
     return csvs.length;
   }
 
