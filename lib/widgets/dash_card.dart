@@ -148,11 +148,18 @@ class DashCardTile extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 2),
+            // 🔴 كان `SizedBox(height: 26)` والسطرين محتاجين ٢٨ — فنُص
+            // السطر التانى بيتقطع على **كل** المقاسات (٣٢٠ لحد ١٠٢٤)،
+            // واتشاف فى صورة موبايل. `SizedBox` بتقصّ من غير ما ترمى
+            // استثناء (مش زى `Row`/`Column`) فالأداة كانت خضرا.
+            //
+            // دلوقتى الارتفاع طبيعى (الـ`Spacer` فوق بيمتصّ الفرق)
+            // و`ellipsis` بتخلّى النصّ الطويل ينتهى بـ«…» بدل ما يتشرح.
             SizedBox(
-              height: 26,
               width: double.infinity,
               child: Text(stat.sub,
                   maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style:
                       TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
             ),

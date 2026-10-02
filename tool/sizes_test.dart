@@ -214,6 +214,58 @@ List<String> _vClipped(WidgetTester tester) {
   return out.toList();
 }
 
+/// هل العنصر ده جوّه خانة إدخال؟ (`InputDecorator` بيقيس بشكل مضلّل.)
+bool _insideInputDecorator(RenderObject ro) {
+  RenderObject? n = ro.parent;
+  var depth = 0;
+  while (n != null && depth < 12) {
+    final t = n.runtimeType.toString();
+    if (t.contains('Decoration') || t.contains('InputDecorator')) return true;
+    n = n.parent;
+    depth++;
+  }
+  return false;
+}
+
+/// بيدوّر على **نصّ اتشرح من نُصّه**: الصندوق أقصر من الارتفاع اللى
+/// النصّ محتاجه فعلاً جوّه عرضه — فآخر سطر بيتقطع نُصّين.
+///
+/// ده نوع رابع من القصّ **ماكانش بيتمسك**: `_vClipped` بتفحص «الصندوق
+/// أقصر من سطر واحد»، فصندوق بيسع سطر ونُص بيعدّى. وFlutter مابيرميش
+/// استثناء لإن `SizedBox` بتقصّ من غير شكوى — مش زى `Row`/`Column`.
+///
+/// اتكشف من صورة موبايل: كروت «كروتك» صندوق سطرها التحت ٢٦ والسطرين
+/// محتاجين ٢٨، فنُص سطر كان بيتقطع على **كل** المقاسات والأداة خضرا.
+///
+/// القاعدة مضبوطة عن قصد: بنقيس بنفس `maxLines` وبنفس العرض الفعلى،
+/// فالنصّ اللى بينتهى بـ«…» سليم (ده اختصار مقصود مش قصّ)، واللى
+/// بيتقطع بالعرض بس هو اللى بيتبلّغ.
+List<String> _slicedLine(WidgetTester tester) {
+  final out = <String>{};
+  for (final ro in tester.allRenderObjects.whereType<RenderParagraph>()) {
+    if (!ro.hasSize || ro.size.width < 1 || ro.size.height < 1) continue;
+    final txt = ro.text.toPlainText().trim();
+    if (txt.isEmpty) continue;
+    if (txt.runes.every((r) => r >= 0xE000 && r <= 0xF8FF)) continue;
+    // 🔴 عناوين خانات الإدخال **بتكذب**: `InputDecorator` بيقيس العنوان
+    // فى صندوق ضيّق وبيصغّره بـTransform وهو بيعوّم، فالصندوق المقاس
+    // أصغر من الكلام والنصّ مع ذلك ظاهر تمام. اتأكدت بالصورة: فورم على
+    // ٣٢٠ بكل خاناته والعناوين سليمة، والكاشف كان بيبلّغ عن ٧ منها.
+    if (_insideInputDecorator(ro)) continue;
+    final tp = TextPainter(
+      text: ro.text,
+      textDirection: ro.textDirection,
+      maxLines: ro.maxLines,
+      textScaler: ro.textScaler,
+    )..layout(maxWidth: ro.size.width);
+    // بكسل واحد سماح لفروق التقريب.
+    if (tp.height <= ro.size.height + 1) continue;
+    out.add('سطر متشرح (صندوق ${ro.size.height.round()} / محتاج '
+        '${tp.height.round()}): «$txt»');
+  }
+  return out.toList();
+}
+
 void main() {
   sqfliteFfiInit();
   // ضغطة على «النسخة الاحتياطية» بتفتح القاعدة **بمسارها** مش عبر
@@ -265,6 +317,7 @@ void main() {
         }
         errs.addAll(_truncatedShort(tester));
         errs.addAll(_vClipped(tester));
+        errs.addAll(_slicedLine(tester));
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump(const Duration(milliseconds: 150));
       } finally {

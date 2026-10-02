@@ -20,7 +20,11 @@ class BarAction {
 /// بيختفى خالص** — مش بيتقصّ، بيروح. حصل فى «الجيم» و«المحفظة» ومحدّش
 /// حاسس، لإن الاختفاء ده مابيرميش أى خطأ ومافيش اختبار بيشوفه؛
 /// `tool/sizes_test.dart` بقى بيمسكه بقاعدة «عرض النصّ ≈ صفر».
-List<Widget> barActions(BuildContext context, List<BarAction> items) {
+/// [reserved] = عدد الأيقونات اللى بتتعرض **برّه** القايمة دى (زى زرار
+/// عليه Badge مايقدرش ينزل فى قايمة). من غيرها الدالة بتحسب إن الشاشة
+/// فاضية وتسيب كل حاجة ظاهرة، فالعنوان يتقصّ برضه.
+List<Widget> barActions(BuildContext context, List<BarAction> items,
+    {int reserved = 0}) {
   IconButton btn(BarAction a) => IconButton(
         icon: Icon(a.icon),
         tooltip: a.label,
@@ -28,8 +32,10 @@ List<Widget> barActions(BuildContext context, List<BarAction> items) {
       );
 
   final width = MediaQuery.of(context).size.width;
-  // ١٤٠px محجوزة للعنوان، وكل أيقونة بتاخد ٤٨px تقريبًا.
-  final fits = ((width - 140) / 48).floor();
+  // الأرقام دى اتقاست مع الثيم الحالى (أيقونة ٢١ · `titleSpacing` ١٠):
+  // الزرار بياخد ~٤٢px، والعنوان محتاج ~١٦٠ عشان اسم زى «الديون والسلف»
+  // يبان كامل. لو الثيم اتغيّر، `tool/sizes_test` هو اللى هيقول.
+  final fits = ((width - 160) / 42).floor() - reserved;
   if (fits >= items.length) return [for (final a in items) btn(a)];
 
   // بنسيب خانة للـ«⋮» نفسه.

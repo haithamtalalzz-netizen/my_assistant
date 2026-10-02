@@ -205,9 +205,15 @@ ThemeData _common(ColorScheme scheme,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
+      // 🔴 الأرقام دى اتظبطت بالقياس مش بالذوق: على موبايل ٣٢٠ بـ٤
+      // أيقونات فى الشريط، العنوان ماكانش بيلاقى مكان فيتقصّ («الديون
+      // ...»). الخط ٢٢ والأيقونة ٢٤ والمسافة ١٦ كانوا بياكلوا العرض.
+      titleSpacing: 10,
+      iconTheme: IconThemeData(size: 22, color: scheme.onSurface),
+      actionsIconTheme: IconThemeData(size: 21, color: scheme.onSurface),
       titleTextStyle: TextStyle(
         fontFamily: 'Cairo',
-        fontSize: 22,
+        fontSize: 19,
         fontWeight: FontWeight.w800,
         color: scheme.onSurface,
       ),

@@ -7,6 +7,7 @@ import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../core/log.dart';
 import '../../core/seed_demo_wardrobe.dart';
+import '../../widgets/bar_actions.dart';
 import '../../widgets/search_action.dart';
 import '../../data/wardrobe_repo.dart';
 import '../../models/models.dart';
@@ -236,13 +237,19 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
       appBar: AppBar(
         title: Text(tr('ملابسى', 'My clothes')),
         actions: [
-          const PrivacyAction(),
-          searchAction(context),
-          IconButton(
-            onPressed: _suggestOutfit,
-            tooltip: tr('إيه ألبس؟', 'What to wear?'),
-            icon: const Icon(Icons.auto_awesome),
-          ),
+          // زرار الغسيل عليه Badge فمايقدرش ينزل فى قايمة — فبيتحسب
+          // كـ`reserved` عشان الباقى يعرف إن فيه خانة متاخدة.
+          ...barActions(
+              context,
+              [
+                BarAction(Icons.visibility_outlined,
+                    tr('اخفِ بياناتى', 'Hide data'), Privacy.toggle),
+                BarAction(Icons.search, tr('بحث', 'Search'),
+                    () => openSearch(context)),
+                BarAction(Icons.auto_awesome, tr('إيه ألبس؟', 'What to wear?'),
+                    _suggestOutfit),
+              ],
+              reserved: 2),
           IconButton(
             tooltip: tr('سلة الغسيل', 'Laundry'),
             onPressed: () {

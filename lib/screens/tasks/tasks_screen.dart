@@ -7,6 +7,7 @@ import '../../data/tasks_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/a_kit.dart';
 import '../../widgets/common.dart';
+import '../../widgets/bar_actions.dart';
 import '../../widgets/search_action.dart';
 import 'focus_screen.dart';
 import '../../core/calendar_sync.dart';
@@ -121,26 +122,23 @@ class _TasksScreenState extends State<TasksScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(tr('مهامى', 'My tasks')),
-        actions: [
-          const PrivacyAction(),
-          searchAction(context),
-          IconButton(
-            tooltip: tr('جلسة تركيز', 'Focus session'),
-            icon: const Icon(Icons.timer_outlined),
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const FocusScreen())),
-          ),
-          IconButton(
-            tooltip: tr('تقرير PDF', 'PDF report'),
-            icon: const Icon(Icons.picture_as_pdf_outlined),
-            onPressed: _exportPdf,
-          ),
-          IconButton(
-            tooltip: tr('المشاريع', 'Projects'),
-            icon: const Icon(Icons.folder_outlined),
-            onPressed: _manageProjects,
-          ),
-        ],
+        // ٥ أيقونات على موبايل ٣٢٠ كانت بتاكل العنوان («مهامى» بيتقصّ).
+        // `barActions` بتنزّل اللى مايسعش فى قايمة «⋮».
+        actions: barActions(context, [
+          BarAction(Icons.visibility_outlined, tr('اخفِ بياناتى', 'Hide data'),
+              Privacy.toggle),
+          BarAction(
+              Icons.search, tr('بحث', 'Search'), () => openSearch(context)),
+          BarAction(
+              Icons.timer_outlined,
+              tr('جلسة تركيز', 'Focus session'),
+              () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const FocusScreen()))),
+          BarAction(Icons.picture_as_pdf_outlined, tr('تقرير PDF', 'PDF report'),
+              _exportPdf),
+          BarAction(Icons.folder_outlined, tr('المشاريع', 'Projects'),
+              _manageProjects),
+        ]),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

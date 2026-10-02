@@ -6,6 +6,7 @@ import '../../core/section_pdf.dart';
 import '../../data/debts_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../widgets/bar_actions.dart';
 import '../../widgets/search_action.dart';
 import '../../core/privacy.dart';
 
@@ -126,20 +127,18 @@ class _DebtsScreenState extends State<DebtsScreen> {
     return Scaffold(
       appBar: AppBar(
           title: Text(tr('الديون والسلف', 'Debts & loans')),
-          actions: [
-          const PrivacyAction(),
-            IconButton(
-              tooltip: tr('خطة السداد', 'Payoff plan'),
-              icon: const Icon(Icons.trending_down),
-              onPressed: _showPayoffPlan,
-            ),
-            IconButton(
-              tooltip: tr('تقرير PDF', 'PDF report'),
-              icon: const Icon(Icons.picture_as_pdf_outlined),
-              onPressed: _exportPdf,
-            ),
-            searchAction(context),
-          ]),
+          // «الديون والسلف» اسم طويل، و٤ أيقونات كانت بتقصّه على ٣٢٠
+          // و٣٦٠ كمان. اللى مايسعش بينزل فى «⋮».
+          actions: barActions(context, [
+            BarAction(Icons.visibility_outlined,
+                tr('اخفِ بياناتى', 'Hide data'), Privacy.toggle),
+            BarAction(Icons.trending_down, tr('خطة السداد', 'Payoff plan'),
+                _showPayoffPlan),
+            BarAction(Icons.picture_as_pdf_outlined,
+                tr('تقرير PDF', 'PDF report'), _exportPdf),
+            BarAction(
+                Icons.search, tr('بحث', 'Search'), () => openSearch(context)),
+          ])),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

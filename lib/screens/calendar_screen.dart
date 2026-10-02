@@ -4,6 +4,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import '../core/app_state.dart';
 import '../core/ar.dart';
 import '../core/l10n.dart';
+import '../widgets/bar_actions.dart';
 import '../widgets/search_action.dart';
 import '../core/month_report.dart';
 import '../data/day_log_repo.dart';
@@ -302,36 +303,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(tr('تقويم النتيجة', 'Activity calendar')),
-        actions: [
-          const PrivacyAction(),
-          searchAction(context),
+        // «تقويم النتيجة» مع ٥ أيقونات كان بيتقصّ على ٣٢٠.
+        actions: barActions(context, [
+          BarAction(Icons.visibility_outlined, tr('اخفِ بياناتى', 'Hide data'),
+              Privacy.toggle),
+          BarAction(
+              Icons.search, tr('بحث', 'Search'), () => openSearch(context)),
           if (!(_month.year == DateTime.now().year &&
               _month.month == DateTime.now().month))
-            IconButton(
-              tooltip: tr('ارجع للشهر الحالي', 'Jump to this month'),
-              icon: const Icon(Icons.today_outlined),
-              onPressed: () {
-                final now = DateTime.now();
-                setState(() {
-                  _month = DateTime(now.year, now.month);
-                  _loading = true;
-                });
-                _load();
-              },
-            ),
-          IconButton(
-            tooltip: tr('فلتر الأنواع', 'Filter types'),
-            icon: Icon(_hiddenKinds.isEmpty
-                ? Icons.filter_list
-                : Icons.filter_list_alt),
-            onPressed: _openFilter,
-          ),
-          IconButton(
-            tooltip: tr('تصدير الشهر PDF', 'Export month PDF'),
-            icon: const Icon(Icons.ios_share),
-            onPressed: _exportMonth,
-          ),
-        ],
+            BarAction(Icons.today_outlined,
+                tr('ارجع للشهر الحالي', 'Jump to this month'), () {
+              final now = DateTime.now();
+              setState(() {
+                _month = DateTime(now.year, now.month);
+                _loading = true;
+              });
+              _load();
+            }),
+          BarAction(
+              _hiddenKinds.isEmpty ? Icons.filter_list : Icons.filter_list_alt,
+              tr('فلتر الأنواع', 'Filter types'),
+              _openFilter),
+          BarAction(Icons.ios_share, tr('تصدير الشهر PDF', 'Export month PDF'),
+              _exportMonth),
+        ]),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
