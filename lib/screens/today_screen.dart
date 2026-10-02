@@ -417,7 +417,6 @@ class _TodayScreenState extends State<TodayScreen> {
         title: Text(tr('الرئيسية', 'Home')),
         actions: [
           const PrivacyAction(),
-          const PrivacyAction(),
           _alertsAction(context),
           searchAction(context)
         ],

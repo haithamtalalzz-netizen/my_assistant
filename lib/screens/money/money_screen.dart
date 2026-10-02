@@ -182,7 +182,6 @@ class _MoneyScreenState extends State<MoneyScreen> {
       appBar: AppBar(
         title: Text(tr('فلوسى', 'My money')),
         actions: [
-          const PrivacyAction(),
           // بره `barActions`: الزرار ده عمره ما يروح جوّه قايمة «⋮» —
           // لو اتخبّى محدش هيلاقيه وقت ما يحتاجه.
           const PrivacyAction(),

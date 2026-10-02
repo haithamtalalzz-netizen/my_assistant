@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/core/seed_demo.dart';
+import 'package:my_assistant/core/privacy.dart';
 import 'package:my_assistant/core/theme.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -163,6 +164,11 @@ void main() {
     }
     final ex = tester.takeException();
     if (ex != null && !_ignorable(ex)) fail(ex.toString());
+    // 🔴 زرار عين مكرر: الاسكريبت اللى حطّ الزرار فى ١٣١ شريط ضافه كمان
+    // فى الشاشتين اللى كانوا حاططينه بإيدى، فطلع زرارين جنب بعض.
+    // الفحص بالعين على ١٠٦ شاشة بينسى؛ السطر ده بيمسكها كلها.
+    expect(find.byType(PrivacyAction).evaluate().length <= 1, isTrue,
+        reason: 'زرار الخصوصية اتكرر فى نفس الشريط');
     // وإقفالها: كود بيستعمل context بعد dispose بيبان هنا.
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 200));
