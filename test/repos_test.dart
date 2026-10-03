@@ -105,7 +105,6 @@ import 'package:my_assistant/data/search_repo.dart';
 import 'package:my_assistant/data/settings_repo.dart';
 import 'package:my_assistant/data/body_progress_repo.dart';
 import 'package:my_assistant/data/challenges_repo.dart';
-import 'package:my_assistant/data/diaries_repo.dart';
 import 'package:my_assistant/data/gym_repo.dart';
 import 'package:my_assistant/data/insights_repo.dart';
 import 'package:my_assistant/data/medical_repo.dart';
@@ -6229,16 +6228,6 @@ void main() {
       expect((await repo.all()).single.day, '2026-09-01');
     });
 
-    test('اليوميات بترجع بالأحدث والحذف بيشيل واحدة بس', () async {
-      final repo = DiariesRepo();
-      final iso = DateTime.now().toIso8601String();
-      await repo.add(Diary(day: '2026-09-01', text: 'يوم قديم', createdAt: iso));
-      final id2 = await repo.add(
-          Diary(day: '2026-09-20', text: 'يوم جديد', createdAt: iso));
-      expect((await repo.all()).first.text, 'يوم جديد');
-      await repo.delete(id2);
-      expect((await repo.all()).single.text, 'يوم قديم');
-    });
   });
 
   group('محرّك الرؤى', () {
@@ -6511,16 +6500,10 @@ void main() {
       expect(notes.first.title, contains('مهمة'));
     });
 
-    test('بيلاقى اليوميات والوصفات وصلة الرحم', () async {
-      final iso = DateTime.now().toIso8601String();
-      await DiariesRepo()
-          .add(Diary(day: '2026-09-28', text: 'يوم جميل فى الإسكندرية',
-              createdAt: iso));
+    test('بيلاقى الوصفات وصلة الرحم', () async {
       await RecipesRepo().save(const Recipe(name: 'كشرى', ingredients: 'رز'));
       await RelativesRepo().save(const Relative(name: 'خالد', phone: '0100'));
 
-      expect((await SearchRepo().search('الإسكندرية'))
-          .any((h) => h.kind == 'diary'), isTrue);
       expect((await SearchRepo().search('كشرى'))
           .any((h) => h.kind == 'recipe'), isTrue);
       expect((await SearchRepo().search('خالد'))

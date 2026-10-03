@@ -16,7 +16,6 @@ import '../screens/group_hub_screen.dart';
 import '../models/models.dart';
 import 'challenges_repo.dart';
 import 'courses_repo.dart';
-import 'diaries_repo.dart';
 import 'habits_repo.dart';
 import 'passwords_repo.dart';
 import 'quit_repo.dart';
@@ -111,23 +110,6 @@ Future<HubStat?> challengesStat() async {
         '${first.key.name} · day ${arNum(first.value)} of ${arNum(first.key.days)}'),
     big: arNum(live.length),
     bigSub: tr('شغّال', 'active'),
-  );
-}
-
-/// اليوميات: عدد التدوينات وآخر مرة كتبت.
-Future<HubStat?> diaryStat() async {
-  final all = await DiariesRepo().all();
-  if (all.isEmpty) return null;
-  final last = _daysSince(all.first.day);
-  return HubStat(
-    sub: last == null
-        ? null
-        : last == 0
-            ? tr('كتبت النهاردة', 'Written today')
-            : tr('آخر تدوينة من ${arNum(last)} يوم',
-                'Last entry ${arNum(last)} days ago'),
-    big: arNum(all.length),
-    bigSub: tr('تدوينة', 'entries'),
   );
 }
 

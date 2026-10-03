@@ -18,7 +18,6 @@ import '../data/bills_repo.dart';
 import '../data/body_progress_repo.dart';
 import '../data/challenges_repo.dart';
 import '../data/debts_repo.dart';
-import '../data/diaries_repo.dart';
 import '../data/gameya_repo.dart';
 import '../data/habits_repo.dart';
 import '../data/health_repo.dart';
@@ -215,9 +214,7 @@ Future<int> seedDemoData() async {
   await add(() => BodyProgressRepo()
       .add(BodyProgress(day: d(7), weight: 83, waist: 92)));
 
-  // ---- يوميات + وصفة + تحديات + وارد ----
-  await add(() => DiariesRepo().add(Diary(
-      day: d(), text: 'يوم كويس، خلّصت شغل كتير.', createdAt: now.toIso8601String())));
+  // ---- وصفة + تحديات + وارد ----
   await add(() => RecipesRepo().save(const Recipe(
       name: 'كشري', ingredients: 'رز\nعدس\nمكرونة', steps: 'اسلق وقلّب')));
   await add(() => ChallengesRepo().add(

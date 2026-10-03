@@ -61,18 +61,6 @@ class SearchRepo {
       ));
     }
 
-    // اليوميات.
-    await add(
-        'SELECT text, day FROM diaries WHERE text LIKE ? '
-        'ORDER BY day DESC LIMIT 10',
-        [like], (r) {
-      final t = (r['text'] as String).trim();
-      return SearchHit(
-          kind: 'diary',
-          title: t.length > 60 ? '${t.substring(0, 60)}…' : t,
-          subtitle: '${tr('يومية', 'Diary')} • ${r['day']}');
-    });
-
     // الوصفات.
     await add(
         'SELECT name, ingredients FROM recipes '

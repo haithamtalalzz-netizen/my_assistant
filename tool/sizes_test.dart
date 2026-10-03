@@ -30,7 +30,6 @@ import 'package:my_assistant/screens/calendar_screen.dart';
 import 'package:my_assistant/screens/challenges_screen.dart';
 import 'package:my_assistant/screens/dashboard_screen.dart';
 import 'package:my_assistant/screens/diagnostics_screen.dart';
-import 'package:my_assistant/screens/diary_screen.dart';
 import 'package:my_assistant/screens/docs/doc_form.dart';
 import 'package:my_assistant/screens/docs/docs_screen.dart';
 import 'package:my_assistant/screens/emergency_view.dart';
@@ -361,7 +360,6 @@ void main() {
           onOpen: (_) {})));
   testWidgets('DebtsScreen', (t) => sweep(t, () => const DebtsScreen()));
   testWidgets('DiagnosticsScreen', (t) => sweep(t, () => const DiagnosticsScreen()));
-  testWidgets('DiaryScreen', (t) => sweep(t, () => const DiaryScreen()));
   testWidgets('DietPlansScreen', (t) => sweep(t, () => const DietPlansScreen()));
   testWidgets('DocForm', (t) => sweep(t, () => const DocForm()));
   testWidgets('DocsScreen', (t) => sweep(t, () => const DocsScreen()));

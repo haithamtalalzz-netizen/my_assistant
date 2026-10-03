@@ -862,35 +862,6 @@ class Plant {
       !nextWater().isAfter(DateTime(now.year, now.month, now.day));
 }
 
-class Diary {
-  final int? id;
-
-  /// YYYY-MM-DD.
-  final String day;
-  final String text;
-  final String createdAt;
-
-  const Diary({
-    this.id,
-    required this.day,
-    required this.text,
-    required this.createdAt,
-  });
-
-  factory Diary.fromMap(Map<String, Object?> m) => Diary(
-        id: m['id'] as int?,
-        day: m['day'] as String,
-        text: m['text'] as String,
-        createdAt: m['created_at'] as String? ?? '',
-      );
-
-  Map<String, Object?> toMap() => {
-        'day': day,
-        'text': text,
-        'created_at': createdAt,
-      };
-}
-
 class Recipe {
   final int? id;
   final String name;

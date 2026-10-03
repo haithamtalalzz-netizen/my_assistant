@@ -1105,6 +1105,9 @@ class AppDb {
 
   static const List<String> _v21Tables = [
     '''
+      -- 🔴 بند «اليوميات» **اتشال من الواجهة** (2026-10-03) والجدول ده
+      -- فضل بقصد: فيه كلام الناس عن أيامهم، ومسحه مايترجعش.
+      -- شيل البند ≠ امسح البيانات.
       CREATE TABLE diaries(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         day TEXT NOT NULL,

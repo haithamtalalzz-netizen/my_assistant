@@ -35,7 +35,6 @@ import 'baladna/relatives_screen.dart';
 import 'baladna/savings_screen.dart';
 import 'calendar_screen.dart';
 import 'challenges_screen.dart';
-import 'diary_screen.dart';
 import 'time_machine_screen.dart';
 import 'rules_screen.dart';
 import 'food/diet_plans_screen.dart';
@@ -502,9 +501,6 @@ class AppDrawer extends StatelessWidget {
                       screen: const HabitAnalyticsScreen(), stat: habitsStat),
                   GroupHubItem(Icons.flag_outlined, tr('التحديات', 'Challenges'),
                       screen: const ChallengesScreen(), stat: challengesStat),
-                  GroupHubItem(Icons.auto_stories_outlined,
-                      tr('اليوميات', 'Diary'),
-                      screen: const DiaryScreen(), stat: diaryStat),
                   GroupHubItem(Icons.emoji_events_outlined,
                       tr('عدّاد الإقلاع', 'Quit counter'),
                       screen: const QuitScreen(), stat: quitStat),
