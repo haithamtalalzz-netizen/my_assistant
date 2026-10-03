@@ -243,6 +243,40 @@ void main() {
             ));
   });
 
+  // نفس الهَبّة بس **بأرقامها**: السطر ساعتها بيشيل أيقونة + اسم + وصف
+  // + رقم + كلمة تحت الرقم + شارة حمرا + سهم. ده أضيق صف فى التطبيق،
+  // فلازم يتمسح على ٣٢٠px زى أى شاشة.
+  testWidgets('GroupHubScreen (بأرقامها + شارة)', (t) async {
+    await sweep(
+        t,
+        () => GroupHubScreen(
+              title: 'المتابعة والأدوات',
+              accent: Colors.blue,
+              onSelectTab: (_) {},
+              items: [
+                // أطول تركيبة ممكنة: اسم طويل + وصف طويل + رقم + كلمة
+                // تحته + شارة — كلهم فى صف واحد.
+                GroupHubItem(Icons.folder_outlined, 'المستندات والأوراق الرسمية',
+                    badge: () async => 2,
+                    stat: () async => const HubStat(
+                        sub: 'بطاقة · رخصة · عقود · شهادات',
+                        big: '12',
+                        bigSub: 'ورقة')),
+                GroupHubItem(Icons.rule, 'قواعدى',
+                    stat: () async => const HubStat(
+                        sub: 'لو حصل كذا نبّهنى',
+                        big: '1',
+                        bigSub: 'بتتحقق',
+                        bigColor: Color(0xFFEF4444))),
+                GroupHubItem(Icons.event_repeat, 'التخطيط الأسبوعى',
+                    stat: () async =>
+                        const HubStat(sub: 'طقس 10 دقايق آخر الأسبوع')),
+                const GroupHubItem(
+                    Icons.emoji_events_outlined, 'المراجعة السنوية'),
+              ],
+            ));
+  });
+
   testWidgets('AdhkarScreen (أذكار الصباح)',
       (t) => sweep(t, () => const AdhkarScreen(morning: true)));
 

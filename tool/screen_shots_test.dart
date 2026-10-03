@@ -37,7 +37,10 @@ import 'package:my_assistant/screens/money/recurring_income_screen.dart';
 import 'package:my_assistant/screens/money/fixed_bills_screen.dart';
 import 'package:my_assistant/screens/money/wallets_screen.dart';
 import 'package:my_assistant/screens/alerts_center_screen.dart';
+import 'package:my_assistant/data/hub_stats.dart';
+import 'package:my_assistant/data/inbox_repo.dart';
 import 'package:my_assistant/data/notes_repo.dart';
+import 'package:my_assistant/data/rules_repo.dart';
 
 import 'package:my_assistant/data/goals_repo.dart';
 import 'package:my_assistant/data/tasks_repo.dart';
@@ -307,29 +310,60 @@ void main() {
     expect(h.lengthSync(), greaterThan(10000));
   });
 
-  testWidgets('هَب المجموعة (صحتى) — قايمة بدل مربعات', (tester) async {
+  // هَب «المتابعة والأدوات» — كل بند بيقول رقمه قبل ما تدوس.
+  //
+  // اللقطة القديمة هنا كانت لهَب «صحتى» القديم (لوحة الصحة + الأدوية +
+  // صيدلية البيت كـتلات أبواب) — البنود دى اتدمجت، فاللقطة بقت بتصوّر
+  // حاجة مش موجودة. استبدلناها بالهَب اللى لسه اتغيّر.
+  testWidgets('هَب المتابعة والأدوات — قايمة بأرقامها', (tester) async {
+    final today = dayKey(DateTime.now());
+    // بيانات تخلّى الأرقام تبان: رسمين فيهم قراءة، يومين فيهم نشاط،
+    // قاعدة بتتحقق، ورقتين، وفكرتين فى الوارد.
+    await HealthRepo().setSleep(today, 7);
+    await MeasurementsRepo()
+        .add(Measurement(day: today, type: 'وزن', value: 95, unit: 'كجم'));
+    await RulesRepo().add(const CustomRule(
+        metric: 'today_steps',
+        op: '<',
+        threshold: 10000,
+        message: 'قوم امشى شويّة'));
+    await InboxRepo().add('أسأل الدكتور عن التحليل');
+    await InboxRepo().add('أدوّر على كتاب التاريخ');
+    final db = await AppDb.instance;
+    await db.insert('documents', {'title': 'البطاقة', 'type': 'id'});
+    await db.insert('documents', {'title': 'رخصة العربية', 'type': 'license'});
+
     final f = await shot(
       tester,
-      'real_group_hub',
+      'real_tools_hub',
       shotApp(
         buildTheme(),
         GroupHubScreen(
-          title: 'صحتى',
+          title: 'المتابعة والأدوات',
           onSelectTab: (_) {},
-          items: const [
-            GroupHubItem(Icons.dashboard_outlined, 'لوحة الصحة'),
-            GroupHubItem(Icons.medication_outlined, 'الأدوية'),
-            GroupHubItem(Icons.favorite_outline, 'الدورة الشهرية'),
-            GroupHubItem(Icons.repeat, 'العادات'),
-            GroupHubItem(Icons.mood, 'تتبّع المزاج'),
-            GroupHubItem(Icons.medical_information_outlined, 'الملف الطبي'),
-            GroupHubItem(Icons.local_pharmacy_outlined, 'صيدلية البيت'),
-            GroupHubItem(Icons.fitness_center, 'الجيم'),
-            GroupHubItem(Icons.restaurant_outlined, 'دليل الأكل'),
+          accent: Colors.blue,
+          items: [
+            GroupHubItem(Icons.lightbulb_outline, 'رؤى المدير',
+                stat: insightsStat),
+            const GroupHubItem(
+                Icons.emoji_events_outlined, 'المراجعة السنوية'),
+            GroupHubItem(Icons.bar_chart, 'إحصائياتك', stat: chartsStat),
+            GroupHubItem(Icons.picture_as_pdf_outlined, 'تقارير PDF',
+                stat: pdfReportsStat),
+            GroupHubItem(Icons.calendar_month_outlined, 'تقويم النتيجة',
+                stat: calendarStat),
+            GroupHubItem(Icons.rule, 'قواعدى', stat: rulesStat),
+            GroupHubItem(Icons.inbox_outlined, 'صندوق الوارد',
+                stat: inboxStat),
+            GroupHubItem(Icons.calculate_outlined, 'حاسبات',
+                stat: calculatorsStat),
+            GroupHubItem(Icons.event_repeat, 'التخطيط الأسبوعى',
+                stat: weeklyPlanStat),
+            GroupHubItem(Icons.folder_outlined, 'المستندات', stat: docsStat),
           ],
         ),
       ),
-      size: const Size(390, 780),
+      size: const Size(390, 900),
       pixelRatio: 2,
     );
     expect(f.lengthSync(), greaterThan(10000));

@@ -23,7 +23,6 @@ import 'passwords/passwords_screen.dart';
 import '../data/bills_repo.dart';
 import '../data/docs_repo.dart';
 import '../data/income_repo.dart';
-import 'alerts_center_screen.dart';
 import 'reports_hub_screen.dart';
 import 'reports/year_review_screen.dart';
 import 'reports/calculators_screen.dart';
@@ -35,7 +34,6 @@ import 'baladna/relatives_screen.dart';
 import 'baladna/savings_screen.dart';
 import 'calendar_screen.dart';
 import 'challenges_screen.dart';
-import 'time_machine_screen.dart';
 import 'rules_screen.dart';
 import 'food/diet_plans_screen.dart';
 import 'food/food_card_screen.dart';
@@ -516,37 +514,43 @@ class AppDrawer extends StatelessWidget {
                 accent: Colors.blue,
                 [
                   GroupHubItem(Icons.lightbulb_outline,
-                      tr('رؤى المدير', 'Insights'), tabIndex: 5),
+                      tr('رؤى المدير', 'Insights'),
+                      tabIndex: 5, stat: insightsStat),
                   GroupHubItem(Icons.emoji_events_outlined,
                       tr('المراجعة السنوية', 'Year in review'),
                       screen: const YearReviewScreen()),
-                  GroupHubItem(Icons.pie_chart_outline, tr('التقارير', 'Reports'),
-                      screen: const ReportsHubScreen()),
                   GroupHubItem(Icons.bar_chart, tr('إحصائياتك', 'Charts'),
-                      screen: const ChartsScreen()),
-                  GroupHubItem(Icons.calculate_outlined, tr('حاسبات', 'Calculators'),
-                      screen: const CalculatorsScreen()),
+                      screen: const ChartsScreen(), stat: chartsStat),
+                  GroupHubItem(Icons.picture_as_pdf_outlined,
+                      tr('تقارير PDF', 'PDF reports'),
+                      screen: const ReportsHubScreen(), stat: pdfReportsStat),
+                  // «آلة الزمن» اتدمجت فى التقويم: الاتنين كانوا بيقروا
+                  // من نفس المصدر ويعرضوا نفس الحاجة، والفرق إن واحدة
+                  // بتمشّى بين الأيام — فالسهمين دول نزلوا فى التقويم.
                   GroupHubItem(Icons.calendar_month_outlined,
                       tr('تقويم النتيجة', 'Activity calendar'),
-                      screen: const CalendarScreen()),
-                  GroupHubItem(Icons.history_toggle_off,
-                      tr('آلة الزمن', 'Time machine'),
-                      screen: const TimeMachineScreen()),
+                      screen: const CalendarScreen(), stat: calendarStat),
                   GroupHubItem(Icons.rule, tr('قواعدى', 'My rules'),
-                      screen: const RulesScreen()),
+                      screen: const RulesScreen(), stat: rulesStat),
                   GroupHubItem(Icons.inbox_outlined,
                       tr('صندوق الوارد', 'Inbox'),
-                      screen: const InboxScreen()),
+                      screen: const InboxScreen(), stat: inboxStat),
+                  GroupHubItem(Icons.calculate_outlined,
+                      tr('حاسبات', 'Calculators'),
+                      screen: const CalculatorsScreen(), stat: calculatorsStat),
                   GroupHubItem(Icons.event_repeat,
                       tr('التخطيط الأسبوعي', 'Weekly planning'),
-                      screen: const WeeklyPlanningScreen()),
+                      screen: const WeeklyPlanningScreen(),
+                      stat: weeklyPlanStat),
                   GroupHubItem(Icons.folder_outlined,
                       tr('المستندات', 'Documents'),
                       tabIndex: 4,
+                      stat: docsStat,
                       badge: () async =>
                           (await DocsRepo().expiringSoon()).length),
-                  GroupHubItem(Icons.notifications_none, tr('مركز التنبيهات', 'Alerts'),
-                      screen: const AlertsCenterScreen()),
+                  // «مركز التنبيهات» اتشال: الجرس اللى فى الرئيسية
+                  // بيفتحه وبيعرض العدد كمان، فالبند هنا كان مدخل تانى
+                  // لنفس الشاشة.
                 ]),
             sectionHead(tr('لو حصل طارئ', 'In an emergency')),
             // دايمًا ظاهرة في الآخر.

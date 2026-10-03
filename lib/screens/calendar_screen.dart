@@ -241,58 +241,101 @@ class _CalendarScreenState extends State<CalendarScreen> {
         _ => s.onSurfaceVariant,
       };
 
+  /// ورقة يوم واحد — **وفيها سهمين تمشّى بيهم بين الأيام**.
+  ///
+  /// السهمين دول هُمّ اللى كانت «آلة الزمن» موجودة عشانهم: الشاشتين
+  /// كانوا بيقروا من نفس المصدر (`DayLogRepo.forDay`) ويعرضوا نفس
+  /// الحاجة، والفرق الوحيد إن واحدة بتمشّى بين الأيام. فبدل شاشتين
+  /// لنفس السؤال («شوف يوم فات»)، التقويم بقى يعمل الاتنين.
   Future<void> _openDay(DateTime date) async {
-    final key = dayKey(date);
-    final all = await _repo.forDay(key);
-    final events =
-        all.where((e) => !_hiddenKinds.contains(e.kind)).toList();
-    if (!mounted) return;
-    final scheme = Theme.of(context).colorScheme;
+    var day = date;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.6,
-        maxChildSize: 0.9,
-        minChildSize: 0.3,
-        builder: (ctx, controller) => Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(arFullDate(date),
-                  style: Theme.of(ctx)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              Expanded(
-                child: events.isEmpty
-                    ? Center(
-                        child: Text(tr('مفيش نشاط اليوم ده', 'No activity that day'),
-                            style: TextStyle(color: scheme.outline)))
-                    : ListView.builder(
-                        controller: controller,
-                        itemCount: events.length,
-                        itemBuilder: (ctx, i) {
-                          final e = events[i];
-                          return ListTile(
-                            dense: true,
-                            visualDensity: VisualDensity.compact,
-                            leading: Icon(_iconFor(e.kind),
-                                size: 20, color: _colorFor(e.kind, scheme)),
-                            title: Text(e.text),
-                            trailing: e.time == null
-                                ? null
-                                : Text(e.time!,
-                                    style: TextStyle(color: scheme.outline)),
-                          );
-                        },
-                      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.6,
+          maxChildSize: 0.9,
+          minChildSize: 0.3,
+          builder: (ctx, controller) {
+            final scheme = Theme.of(ctx).colorScheme;
+            final today = dateOnly(DateTime.now());
+            // مافيش «بكرة» فى الماضى: اليوم هو آخر يوم ليه سجل.
+            final canForward = dateOnly(day).isBefore(today);
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    IconButton(
+                      tooltip: tr('اليوم اللى قبله', 'Previous day'),
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: () => setSheet(() =>
+                          day = day.subtract(const Duration(days: 1))),
+                    ),
+                    Expanded(
+                      child: Text(arFullDate(day),
+                          textAlign: TextAlign.center,
+                          style: Theme.of(ctx)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700)),
+                    ),
+                    IconButton(
+                      tooltip: tr('اليوم اللى بعده', 'Next day'),
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: canForward
+                          ? () => setSheet(
+                              () => day = day.add(const Duration(days: 1)))
+                          : null,
+                    ),
+                  ]),
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: FutureBuilder<List<DayEvent>>(
+                      future: _repo.forDay(dayKey(day)),
+                      builder: (ctx, snap) {
+                        if (!snap.hasData) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                        final events = snap.data!
+                            .where((e) => !_hiddenKinds.contains(e.kind))
+                            .toList();
+                        if (events.isEmpty) {
+                          return Center(
+                              child: Text(
+                                  tr('مفيش نشاط اليوم ده',
+                                      'No activity that day'),
+                                  style: TextStyle(color: scheme.outline)));
+                        }
+                        return ListView.builder(
+                          controller: controller,
+                          itemCount: events.length,
+                          itemBuilder: (ctx, i) {
+                            final e = events[i];
+                            return ListTile(
+                              dense: true,
+                              visualDensity: VisualDensity.compact,
+                              leading: Icon(_iconFor(e.kind),
+                                  size: 20, color: _colorFor(e.kind, scheme)),
+                              title: Text(e.text),
+                              trailing: e.time == null
+                                  ? null
+                                  : Text(e.time!,
+                                      style: TextStyle(color: scheme.outline)),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

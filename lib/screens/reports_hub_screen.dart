@@ -6,8 +6,6 @@ import '../core/doctor_report.dart';
 import '../core/l10n.dart';
 import '../widgets/search_action.dart';
 import '../core/month_report.dart';
-import 'brain/charts_screen.dart';
-import 'brain/insights_screen.dart';
 import 'reports/custom_pdf_screen.dart';
 import '../core/privacy.dart';
 
@@ -19,32 +17,15 @@ class ReportsHubScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          title: Text(tr('التقارير', 'Reports')),
+          title: Text(tr('تقارير PDF', 'PDF reports')),
           actions: [
           const PrivacyAction(),searchAction(context)]),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [
-          _card(
-            context,
-            icon: Icons.bar_chart,
-            color: Colors.blue,
-            title: tr('إحصائياتك', 'Charts'),
-            subtitle: tr('رسوم بيانية: نوم · مصروفات · وزن',
-                'Graphs: sleep · spending · weight'),
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const ChartsScreen())),
-          ),
-          _card(
-            context,
-            icon: Icons.lightbulb_outline,
-            color: Colors.amber,
-            title: tr('رؤى المدير', 'Insights'),
-            subtitle: tr('تحليلات وأنماط من بياناتك',
-                'Patterns & correlations from your data'),
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const InsightsScreen())),
-          ),
+          // «إحصائياتك» و«رؤى المدير» اتشالوا من هنا: الاتنين بنود
+          // مستقلة فى نفس الهَب، فالشاشة دى كانت بتضيف دوسة من غير ما
+          // تضيف حاجة. بقت للتقارير الورقية بس.
           _card(
             context,
             icon: Icons.tune,

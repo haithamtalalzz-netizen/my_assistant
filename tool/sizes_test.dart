@@ -85,7 +85,6 @@ import 'package:my_assistant/screens/settings_screen.dart';
 import 'package:my_assistant/screens/shell.dart';
 import 'package:my_assistant/screens/tasks/focus_screen.dart';
 import 'package:my_assistant/screens/tasks/tasks_screen.dart';
-import 'package:my_assistant/screens/time_machine_screen.dart';
 import 'package:my_assistant/screens/today_screen.dart';
 import 'package:my_assistant/screens/weekly/weekly_planning_screen.dart';
 import 'package:my_assistant/screens/workout/workout_plan_screen.dart';
@@ -430,7 +429,6 @@ void main() {
   testWidgets('SymptomJournalScreen', (t) => sweep(t, () => const SymptomJournalScreen()));
   testWidgets('TasbihScreen', (t) => sweep(t, () => const TasbihScreen()));
   testWidgets('TasksScreen', (t) => sweep(t, () => const TasksScreen()));
-  testWidgets('TimeMachineScreen', (t) => sweep(t, () => const TimeMachineScreen()));
   testWidgets('TodayScreen', (t) => sweep(t, () => const TodayScreen()));
   testWidgets('VaccinationsScreen', (t) => sweep(t, () => const VaccinationsScreen()));
   testWidgets('WalkTrackerScreen', (t) => sweep(t, () => const WalkTrackerScreen()));

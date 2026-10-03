@@ -11,16 +11,25 @@
 import 'package:flutter/material.dart';
 
 import '../core/ar.dart';
+import '../core/custom_rules.dart';
+import '../core/db.dart';
+import '../core/insights.dart';
 import '../core/l10n.dart';
 import '../screens/group_hub_screen.dart';
 import '../models/models.dart';
 import 'challenges_repo.dart';
+import 'day_log_repo.dart';
+import 'docs_repo.dart';
+import 'inbox_repo.dart';
+import 'insights_repo.dart';
 import 'courses_repo.dart';
 import 'habits_repo.dart';
 import 'passwords_repo.dart';
 import 'quit_repo.dart';
 import 'reading_repo.dart';
 import 'relatives_repo.dart';
+import 'rules_repo.dart';
+import 'weekly_repo.dart';
 
 const _late = Color(0xFFEF4444);
 
@@ -182,4 +191,145 @@ Future<(int daysThisWeek, int bestStreak)> growthWeek() async {
       ? 0
       : stats.map((s) => s.streak).reduce((a, b) => a > b ? a : b);
   return (days, best);
+}
+
+// ————————————————— المتابعة والأدوات —————————————————
+
+/// الرسوم: كام رسم **هيرسم فعلاً**، مش كام رسم موجود.
+///
+/// الفرق هو كل الفايدة: شاشة الرسوم فيها ٨ رسوم، بس الرسم اللى مالوش
+/// بيانات بيطلع صندوق فاضى. فالرقم بيعدّ المصادر اللى فيها قراءة.
+Future<HubStat?> chartsStat() async {
+  final db = await AppDb.instance;
+  final from = dayKey(dateOnly(DateTime.now()).subtract(const Duration(days: 29)));
+
+  Future<bool> anyDay(String table) async =>
+      (await db.query(table, where: 'day >= ?', whereArgs: [from], limit: 1))
+          .isNotEmpty;
+
+  var n = 0;
+  for (final t in const ['sleep_logs', 'fitness_logs', 'steps_logs', 'water_logs']) {
+    if (await anyDay(t)) n++;
+  }
+  if ((await db.query('measurements',
+          where: 'type = ?', whereArgs: ['وزن'], limit: 1))
+      .isNotEmpty) {
+    n++;
+  }
+  if ((await db.query('expenses', limit: 1)).isNotEmpty) n++;
+
+  if (n == 0) return null;
+  return HubStat(
+    sub: tr('نوم · خطوات · مياه · وزن · مصاريف',
+        'Sleep · steps · water · weight · spending'),
+    big: arNum(n),
+    bigSub: tr('رسم فيه بيانات', 'with data'),
+  );
+}
+
+/// تقارير PDF — تلاتة ثابتة (مخصّص · الشهر · الدكتور).
+Future<HubStat?> pdfReportsStat() async => HubStat(
+      sub: tr('مخصّص · الشهر · الدكتور', 'Custom · month · doctor'),
+      big: arNum(3),
+      bigSub: tr('تقرير', 'reports'),
+    );
+
+/// الحاسبات — تمانية ثابتة.
+Future<HubStat?> calculatorsStat() async => HubStat(
+      sub: tr('زكاة · كتلة جسم · قسط · وحدات', 'Zakat · BMI · loan · units'),
+      big: arNum(8),
+    );
+
+/// تقويم النتيجة: كام يوم فيه نشاط فى الشهر ده.
+Future<HubStat?> calendarStat() async {
+  final now = DateTime.now();
+  final days = await DayLogRepo().daysWithActivity(now.year, now.month);
+  if (days.isEmpty) return null;
+  return HubStat(
+    sub: tr('دوس على يوم تشوفه كله', 'Tap a day to see all of it'),
+    big: arNum(days.length),
+    bigSub: tr('يوم فيه نشاط', 'active days'),
+  );
+}
+
+/// قواعدى: كام قاعدة **بتتحقق دلوقتى** — مش كام قاعدة عندك.
+///
+/// الفرق مهم: «٥ قواعد» رقم ساكت، و«١ بتتحقق» رقم بيناديك تفتح.
+Future<HubStat?> rulesStat() async {
+  final rules = await RulesRepo().all();
+  if (rules.isEmpty) return null;
+  final values = await metricValues();
+  final firing = rules
+      .where((r) =>
+          r.enabled && ruleFires(r.op, values[r.metric] ?? 0, r.threshold))
+      .length;
+  if (firing == 0) {
+    return HubStat(
+      sub: tr('مفيش قاعدة بتتحقق دلوقتى', 'Nothing triggering now'),
+      big: arNum(rules.length),
+      bigSub: tr('قاعدة', 'rules'),
+    );
+  }
+  return HubStat(
+    sub: tr('لو حصل كذا نبّهنى', 'Alert me when…'),
+    big: arNum(firing),
+    bigSub: tr('بتتحقق', 'firing'),
+    bigColor: _late,
+  );
+}
+
+/// صندوق الوارد: كام فكرة لسه ما اتصنّفتش.
+Future<HubStat?> inboxStat() async {
+  final n = await InboxRepo().count();
+  if (n == 0) return null;
+  return HubStat(
+    sub: tr('فكرة سريعة تصنّفها بعدين', 'Quick notes to sort later'),
+    big: arNum(n),
+  );
+}
+
+/// التخطيط الأسبوعى: آخر مرة خطّطت فيها امتى.
+///
+/// البند ده مالوش «عدد»، فالرقم اللى يهم هو **آخر مرة** — لإن قيمته إنه
+/// طقس أسبوعى، والسؤال الوحيد عنه: عملته الأسبوع ده ولا لأ.
+Future<HubStat?> weeklyPlanStat() async {
+  final now = DateTime.now();
+  final repo = WeeklyRepo();
+  // بندوّر لورا ١٢ أسبوع على آخر مراجعة متسجّلة.
+  for (var w = 0; w < 12; w++) {
+    final d = now.subtract(Duration(days: 7 * w));
+    if (await repo.forWeek(currentWeekKey(d)) == null) continue;
+    return HubStat(
+      sub: switch (w) {
+        0 => tr('خطّطت الأسبوع ده', 'Planned this week'),
+        1 => tr('آخر مرة الأسبوع اللى فات', 'Last done a week ago'),
+        _ => tr('آخر مرة من ${arNum(w)} أسابيع', 'Last done ${arNum(w)} weeks ago'),
+      },
+      bigColor: w > 1 ? _late : null,
+    );
+  }
+  return HubStat(sub: tr('طقس ${arNum(10)} دقايق آخر الأسبوع', 'A 10-minute weekly ritual'));
+}
+
+/// المستندات: عددها. اللى قرب ينتهى بتقوله الشارة الحمرا على الكارت،
+/// فمش بنكرّره هنا.
+Future<HubStat?> docsStat() async {
+  final all = await DocsRepo().all();
+  if (all.isEmpty) return null;
+  return HubStat(
+    sub: tr('بطاقة · رخصة · عقود', 'ID · licence · contracts'),
+    big: arNum(all.length),
+    bigSub: tr('ورقة', 'docs'),
+  );
+}
+
+/// رؤى المدير: كام رؤية طلعت من بياناتك فعلاً.
+Future<HubStat?> insightsStat() async {
+  final n = buildInsights(await InsightsRepo().assemble()).length;
+  if (n == 0) return null;
+  return HubStat(
+    sub: tr('أنماط من بياناتك', 'Patterns from your data'),
+    big: arNum(n),
+    bigSub: tr('رؤية', 'insights'),
+  );
 }
