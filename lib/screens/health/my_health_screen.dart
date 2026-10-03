@@ -21,6 +21,7 @@ import 'vaccinations_screen.dart';
 import '../../widgets/measurement_sheet.dart';
 import '../../widgets/search_action.dart';
 import '../food/meal_sheet.dart';
+import 'exercise_sheet.dart';
 import '../gym/walk_tracker_screen.dart';
 import '../../core/privacy.dart';
 
@@ -42,7 +43,20 @@ class MyHealthScreen extends StatefulWidget {
   /// البنود اللى تحت — بتيجى من السايدبار عشان الشاشة ماتعرفش بالشاشات.
   final List<HealthSection> sections;
 
-  const MyHealthScreen({super.key, this.onSelectTab, this.sections = const []});
+  /// مكتبتَى «الرياضة» و«الأكل». اتشالوا من السايدبار، فبيتفتحوا من
+  /// سطرهم هنا — لإن جوّاهم شاشات (مخطّط الوجبات · الأنظمة الغذائية ·
+  /// الصيام) **مالهاش باب تانى فى التطبيق كله**، وحذف البند كان
+  /// هييتّمها.
+  final Widget Function()? exerciseHub;
+  final Widget Function()? foodHub;
+
+  const MyHealthScreen({
+    super.key,
+    this.onSelectTab,
+    this.sections = const [],
+    this.exerciseHub,
+    this.foodHub,
+  });
 
   @override
   State<MyHealthScreen> createState() => _MyHealthScreenState();
@@ -448,6 +462,7 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
     String? big,
     required List<(String, VoidCallback)> chips,
     required VoidCallback onMore,
+    VoidCallback? onOpenHub,
   }) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
@@ -472,21 +487,32 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
             ),
             const SizedBox(width: 11),
             Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 13.5, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 2),
-                    Text(sub,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 11, color: scheme.onSurfaceVariant)),
-                  ]),
+              child: InkWell(
+                onTap: onOpenHub,
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Flexible(
+                          child: Text(title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w800)),
+                        ),
+                        if (onOpenHub != null)
+                          Icon(Icons.chevron_left,
+                              size: 17, color: scheme.outline),
+                      ]),
+                      const SizedBox(height: 2),
+                      Text(sub,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 11, color: scheme.onSurfaceVariant)),
+                    ]),
+              ),
             ),
             if (big != null)
               Padding(
@@ -560,6 +586,19 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
         () => DayLog.undoExercise(id));
   }
 
+  Future<void> _openHub(Widget Function() build) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => build()));
+    if (mounted) await _load();
+  }
+
+  Future<void> _openExerciseSheet() async {
+    final id = await showExerciseSheet(context);
+    if (id == null || !mounted) return;
+    await _load();
+    _undoBar(tr('اتسجّلت التمرينة', 'Workout logged'),
+        () => DayLog.undoExercise(id));
+  }
+
   Future<void> _quickMeal(String slot) async {
     final id = await DayLog.repeatMeal(slot);
     // أول مرة فى الخانة دى: مفيش حاجة نكرّرها، فبنفتح الورقة بدل ما
@@ -584,20 +623,20 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
         color: const Color(0xFF8B5CF6),
         title: tr('رياضة', 'Exercise'),
         sub: _exercise.isEmpty
-            ? tr('دوس على زرار جاهز يتسجّل على طول',
-                'Tap a preset — it logs instantly')
-            : _exercise.what,
+            ? tr('دوس على زرار جاهز، أو «＋» تكتب تمرينة',
+                'Tap a preset, or + to write one')
+            : _exercise.calories > 0
+                ? tr('${_exercise.what} · حرقت ${arMoney(_exercise.calories)}',
+                    '${_exercise.what} · ${arMoney(_exercise.calories)} burned')
+                : _exercise.what,
         big: _exercise.isEmpty
             ? null
             : tr('${arNum(_exercise.minutes)} د', '${_exercise.minutes}m'),
         chips: [
           for (final p in _presets) (p.label, () => _quickExercise(p)),
         ],
-        onMore: () async {
-          await Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const WalkTrackerScreen()));
-          if (mounted) await _load();
-        },
+        onMore: _openExerciseSheet,
+        onOpenHub: widget.exerciseHub == null ? null : () => _openHub(widget.exerciseHub!),
       ),
       _doneRow(
         icon: Icons.restaurant_outlined,
@@ -614,6 +653,7 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
         onMore: () async {
           if (await showMealSheet(context) == true && mounted) await _load();
         },
+        onOpenHub: widget.foodHub == null ? null : () => _openHub(widget.foodHub!),
       ),
     ]);
   }

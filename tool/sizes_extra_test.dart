@@ -14,6 +14,8 @@ import 'package:my_assistant/core/seed_demo.dart';
 import 'package:my_assistant/core/theme.dart';
 import 'package:my_assistant/screens/app_drawer.dart';
 import 'package:my_assistant/screens/group_hub_screen.dart';
+import 'package:my_assistant/screens/health/exercise_sheet.dart';
+import 'package:my_assistant/screens/health/my_health_screen.dart';
 import 'package:my_assistant/screens/home/pharmacy_form.dart';
 import 'package:my_assistant/screens/home/pharmacy_screen.dart';
 import 'package:my_assistant/screens/lock_gate.dart';
@@ -353,6 +355,13 @@ void main() {
   testWidgets('فورم الصيدلية — حوار حقيقى فوق الشاشة', (t) async {
     await sweep(t, () => const PharmacyScreen(),
         open: (ctx) => showPharmacyForm(ctx, item: full));
+  });
+
+  // ورقة «سجّل تمرينة»: تلات خانات وصفّين چيبس — أضيق حاجة فيها
+  // خانتَى المدة والسعرات جنب بعض على ٣٢٠px.
+  testWidgets('ورقة تسجيل التمرينة', (t) async {
+    await sweep(t, () => const MyHealthScreen(),
+        open: (ctx) => showExerciseSheet(ctx));
   });
 
   testWidgets('DayFullScreen (يومك بالكامل)', (t) async {

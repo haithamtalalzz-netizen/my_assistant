@@ -50,6 +50,7 @@ import 'package:my_assistant/data/tasks_repo.dart';
 import 'package:my_assistant/models/models.dart';
 import 'package:my_assistant/screens/group_hub_screen.dart';
 import 'package:my_assistant/screens/notes_screen.dart';
+import 'package:my_assistant/screens/health/exercise_sheet.dart';
 import 'package:my_assistant/screens/settings_screen.dart';
 import 'package:my_assistant/screens/watch_help_screen.dart';
 import 'package:my_assistant/screens/growth/goals_screen.dart';
@@ -319,6 +320,27 @@ void main() {
   // اللقطة القديمة هنا كانت لهَب «صحتى» القديم (لوحة الصحة + الأدوية +
   // صيدلية البيت كـتلات أبواب) — البنود دى اتدمجت، فاللقطة بقت بتصوّر
   // حاجة مش موجودة. استبدلناها بالهَب اللى لسه اتغيّر.
+  testWidgets('ورقة سجّل تمرينة', (tester) async {
+    final f = await shot(
+        tester,
+        'real_exercise_sheet',
+        shotApp(
+            buildTheme(),
+            Builder(
+              builder: (ctx) => Scaffold(
+                body: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: Material(child: exerciseFormBody()),
+                  ),
+                ),
+              ),
+            )),
+        size: const Size(390, 640),
+        pixelRatio: 2);
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
   testWidgets('تنبيهاتك على الساعة', (tester) async {
     final f = await shot(tester, 'real_watch_help',
         shotApp(buildTheme(), const WatchHelpScreen()),

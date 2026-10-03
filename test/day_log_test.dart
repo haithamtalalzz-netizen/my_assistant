@@ -175,4 +175,52 @@ void main() {
       expect((await MealsRepo().forDay(today)).single.description, 'الأحدث');
     });
   });
+
+  group('ورقة التسجيل: عملت إيه · قد إيه · حرقت كام', () {
+    test('التمرينة المكتوبة بتتسجّل باسمها ومدتها وسعراتها', () async {
+      await DayLog.logExercise(const ExercisePreset('كورة', 90),
+          calories: 700);
+      final e = await DayLog.exerciseToday();
+      expect(e.minutes, 90);
+      expect(e.what, 'كورة 90 د');
+      expect(e.calories, 700);
+    });
+
+    test('السعرات اختيارية — من غيرها الرقم صفر مش كدب', () async {
+      await DayLog.logExercise(const ExercisePreset('إطالة', 10));
+      expect((await DayLog.exerciseToday()).calories, 0);
+    });
+
+    test('السعرات المحروقة بتتجمع من كل تمارين اليوم', () async {
+      await DayLog.logExercise(const ExercisePreset('مشى', 30), calories: 150);
+      await DayLog.logExercise(const ExercisePreset('عجل', 20), calories: 250);
+      final e = await DayLog.exerciseToday();
+      expect(e.calories, 400);
+      expect(e.minutes, 50);
+    });
+
+    test('السعرات المحروقة غير سعرات الأكل', () async {
+      // الاتنين اسمهم «سعرة» والاتنين رقم — لو اتخلطوا، «أكلت ١٤٥٠»
+      // تبقى كدب. دول مصدرين منفصلين تمامًا.
+      await DayLog.logExercise(const ExercisePreset('جرى', 30), calories: 300);
+      await MealsRepo().add(Meal(
+          day: today, slot: 'غدا', description: 'فراخ', calories: 800));
+      expect((await DayLog.exerciseToday()).calories, 300);
+      expect((await DayLog.mealsToday()).calories, 800);
+    });
+
+    test('تمرينة إمبارح مابتدخلش فى حريق النهاردة', () async {
+      final yesterday =
+          dayKey(dateOnly(now).subtract(const Duration(days: 1)));
+      await ActivityRepo().add(ActivitySession(
+        day: yesterday,
+        type: 'مشى',
+        distanceKm: 0,
+        durationSec: 3600,
+        calories: 500,
+        createdAt: now.toIso8601String(),
+      ));
+      expect((await DayLog.exerciseToday()).calories, 0);
+    });
+  });
 }

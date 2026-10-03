@@ -50,7 +50,10 @@ class ExerciseDay {
 
   /// «مشى ٣٠ د · جيم ١٠ د».
   final String what;
-  const ExerciseDay(this.minutes, this.what);
+
+  /// سعرات **محروقة** — غير سعرات الأكل اللى فى مربّع «سعرة».
+  final int calories;
+  const ExerciseDay(this.minutes, this.what, {this.calories = 0});
 
   bool get isEmpty => minutes == 0;
 }
@@ -63,8 +66,10 @@ class DayLog {
   static Future<ExerciseDay> exerciseToday([DateTime? at]) async {
     final day = dayKey(at ?? DateTime.now());
     final parts = <String, int>{};
+    var burned = 0;
 
     for (final s in await ActivityRepo().forDay(day)) {
+      burned += s.calories;
       final mins = (s.durationSec / 60).round();
       if (mins <= 0) continue;
       parts[_typeLabel(s.type)] = (parts[_typeLabel(s.type)] ?? 0) + mins;
@@ -79,7 +84,7 @@ class DayLog {
     final what = parts.entries
         .map((e) => '${e.key} ${arNum(e.value)} د')
         .join(' · ');
-    return ExerciseDay(total, what);
+    return ExerciseDay(total, what, calories: burned);
   }
 
   /// النوع المخزّن بالإنجليزى من متتبّع الـGPS — بنعرّبه للعرض.
@@ -112,15 +117,19 @@ class DayLog {
     return out;
   }
 
-  /// بتسجّل تمرينة سريعة وبترجّع رقمها (عشان «تراجع»).
-  static Future<int> logExercise(ExercisePreset p, [DateTime? at]) async {
+  /// بتسجّل تمرينة وبترجّع رقمها (عشان «تراجع»).
+  ///
+  /// [calories] **محروقة** — اللى بتدخلها بإيدك من ورقة التسجيل، أو صفر
+  /// لو الزرار الجاهز هو اللى سجّل (الزرار بيعرف النوع والمدة بس).
+  static Future<int> logExercise(ExercisePreset p,
+      {int calories = 0, DateTime? at}) async {
     final now = at ?? DateTime.now();
     return ActivityRepo().add(ActivitySession(
       day: dayKey(now),
       type: p.type,
       distanceKm: 0,
       durationSec: p.minutes * 60,
-      calories: 0,
+      calories: calories,
       createdAt: now.toIso8601String(),
     ));
   }
