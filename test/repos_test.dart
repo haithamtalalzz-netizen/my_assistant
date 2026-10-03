@@ -53,8 +53,6 @@ import 'package:my_assistant/core/password_tools.dart';
 import 'package:my_assistant/core/budget_calc.dart';
 import 'package:my_assistant/core/day_progress.dart';
 import 'package:my_assistant/data/mushaf_repo.dart';
-import 'package:my_assistant/core/demo_images.dart';
-import 'package:my_assistant/core/seed_demo_wardrobe.dart';
 import 'package:my_assistant/core/seed_demo.dart';
 import 'package:my_assistant/data/money_categories.dart';
 import 'package:my_assistant/data/wallets_repo.dart';
@@ -66,7 +64,6 @@ import 'package:my_assistant/data/docs_repo.dart';
 import 'package:my_assistant/data/habits_repo.dart';
 import 'package:my_assistant/data/health_repo.dart';
 import 'package:my_assistant/data/meds_repo.dart';
-import 'package:my_assistant/data/wardrobe_repo.dart';
 import 'package:my_assistant/data/reading_repo.dart';
 import 'package:my_assistant/data/mood_repo.dart';
 import 'package:my_assistant/data/wishlist_repo.dart';
@@ -1489,23 +1486,7 @@ void main() {
       expect((await WalletsRepo().all()).length, 3);
       expect((await PlantsRepo().all()).length, 2);
 
-      // الأقسام اللى كانت فاضية بقت مليانة (تطوّرى / ملابسى / صحة / مهام).
-      final clothes = await WardrobeRepo().all();
-      expect(clothes.length, 21);
-      // كل فئة فيها قطع (عشان كل فلتر يبان)، وكل موسم/رسمية ممثّلة،
-      // وفيه مفضّلة وشوية للغسيل.
-      for (final cat in kClothingCategories) {
-        expect(clothes.any((c) => c.category == cat), isTrue,
-            reason: 'فئة $cat فاضية');
-      }
-      for (final s in kClothingSeasons) {
-        expect(clothes.any((c) => c.season == s), isTrue);
-      }
-      for (final f in kClothingFormality) {
-        expect(clothes.any((c) => c.formality == f), isTrue);
-      }
-      expect(clothes.any((c) => c.favorite), isTrue);
-      expect((await WardrobeRepo().laundry()).isNotEmpty, isTrue);
+      // الأقسام اللى كانت فاضية بقت مليانة (تطوّرى / صحة / مهام).
       expect((await ReadingRepo().all()).length, 3);
       expect((await CoursesRepo().all()).length, 2);
       expect((await GoalsRepo().all()).length, 2);
@@ -1532,18 +1513,18 @@ void main() {
   group('مسح وبذر من جديد', () {
     test('تشغيلتين ورا بعض مابيتراكموش لو مسحنا بينهم', () async {
       await seedDemoData();
-      final firstClothes = (await WardrobeRepo().all()).length;
+      final firstPlants = (await PlantsRepo().all()).length;
       final firstWallets = (await WalletsRepo().all()).length;
 
       // من غير مسح: التكرار بيتضاعف — ده اللى الزرار الجديد بيمنعه.
       await seedDemoData();
-      expect((await WardrobeRepo().all()).length, firstClothes * 2);
+      expect((await PlantsRepo().all()).length, firstPlants * 2);
 
       // مسح ثم بذر = نفس أرقام أول مرة بالظبط.
       await AppDb.wipeAllData(keepSettings: true);
-      expect((await WardrobeRepo().all()), isEmpty);
+      expect((await PlantsRepo().all()), isEmpty);
       await seedDemoData();
-      expect((await WardrobeRepo().all()).length, firstClothes);
+      expect((await PlantsRepo().all()).length, firstPlants);
       expect((await WalletsRepo().all()).length, firstWallets);
     });
   });
@@ -2746,17 +2727,6 @@ void main() {
       await v44.close();
     });
 
-    test('WardrobeRepo: سلة الغسيل + غسلت الكل', () async {
-      final repo = WardrobeRepo();
-      final id = await repo.save(const ClothingItem(name: 'ت', category: 'top'));
-      await repo.save(const ClothingItem(name: 'ب', category: 'bottom'));
-      expect(await repo.laundryCount(), 0);
-      await repo.setNeedsWash(id, true);
-      expect(await repo.laundryCount(), 1);
-      expect((await repo.laundry()).first.name, 'ت');
-      await repo.washAll();
-      expect(await repo.laundryCount(), 0);
-    });
   });
 
   group('التسوق: تصنيفات وأسعار وأساسيات (v46)', () {
@@ -4867,153 +4837,6 @@ void main() {
       final raw = await SettingsRepo().get(kCustomApptTemplatesSetting);
       expect(decodeCustomTemplates(raw), ['ميعاد الكهربا', 'اجتماع الأسبوع']);
       await SettingsRepo().set(kCustomApptTemplatesSetting, '');
-    });
-  });
-
-
-  group('اقتراح الطقم (ألبس إيه النهارده)', () {
-    test('بيرجّع كل فئات الملابس — مش الأساسيات بس', () async {
-      final repo = WardrobeRepo();
-      for (final cat in kClothingCategories) {
-        await repo.save(ClothingItem(
-            name: 'قطعة $cat', category: cat, season: 'all',
-            formality: 'casual'));
-      }
-      // طقس ثابت عشان الاختبار مايعتمدش على الإنترنت.
-      final outfit = await repo.suggestOutfit(
-          formality: 'casual',
-          weather: const WeatherToday(25, 18, 0));
-      // الإكسسوار والجاكيت كانوا ناقصين قبل كده.
-      for (final cat in kClothingCategories) {
-        expect(outfit.containsKey(cat), isTrue, reason: 'الفئة $cat ناقصة');
-        expect(outfit[cat], isNotNull, reason: 'مفيش قطعة لـ$cat');
-      }
-    });
-
-    test('بيختار الأقل لبسًا مؤخرًا', () async {
-      final repo = WardrobeRepo();
-      await repo.save(const ClothingItem(
-          name: 'اتلبس امبارح', category: 'top', season: 'all',
-          formality: 'casual', lastWorn: '2026-07-21'));
-      await repo.save(const ClothingItem(
-          name: 'عمره مااتلبس', category: 'top', season: 'all',
-          formality: 'casual'));
-      final outfit = await repo.suggestOutfit(
-          formality: 'casual',
-          weather: const WeatherToday(25, 18, 0));
-      expect(outfit['top']!.name, 'عمره مااتلبس');
-    });
-  });
-
-
-  group('صور الملابس التجريبية', () {
-    test('السواتش بتتولّد PNG صالح بلون القطعة', () {
-      final png = demoSwatchPng('أزرق', width: 40, height: 50);
-      expect(png.length, greaterThan(50));
-      // توقيع PNG.
-      expect(png.sublist(0, 4), [0x89, 0x50, 0x4E, 0x47]);
-      final decoded = img.decodePng(png)!;
-      expect(decoded.width, 40);
-      expect(decoded.height, 50);
-      // أعلى الصورة باللون الأصلى، وأسفلها أغمق (تدرّج).
-      final top = decoded.getPixel(20, 0);
-      final bottom = decoded.getPixel(20, 49);
-      expect(top.b, greaterThan(bottom.b));
-      final (r, g, b) = demoColorOf('أزرق');
-      expect(top.r.round(), closeTo(r, 3));
-      expect(top.g.round(), closeTo(g, 3));
-      expect(top.b.round(), closeTo(b, 3));
-    });
-
-    test('لون مش معروف بياخد رمادى بدل ما يفشل', () {
-      expect(demoColorOf('لون مخترع'), demoColorOf('حاجة تانية'));
-      expect(demoSwatchPng('لون مخترع', width: 8, height: 8).isNotEmpty, isTrue);
-    });
-
-    test('كل قطعة تجريبية ليها صورة متخزّنة تتقرا فعلاً', () async {
-      await AppDb.wipeAllData(keepSettings: true);
-      await seedDemoData();
-      final clothes = await WardrobeRepo().all();
-      expect(clothes.every((c) => c.photo.isNotEmpty), isTrue);
-      // مش بس الحقل مليان — البايتات موجودة فى القاعدة وبترجع.
-      for (final c in clothes.take(3)) {
-        expect(AppImages.isInline(c.photo), isTrue);
-        final bytes = await AppImages.bytesOf(c.photo);
-        expect(bytes, isNotNull);
-        expect(bytes!.length, greaterThan(50));
-      }
-    });
-
-    test('كل نوع رسمة بيطلع PNG ٣٢٠×٤٠٠ فيه لون القطعة فعلاً', () {
-      for (final kind in kDemoClothingKinds) {
-        final png = demoClothingPng(kind, 'أحمر');
-        expect(png.sublist(0, 4), [0x89, 0x50, 0x4E, 0x47], reason: kind);
-        final im = img.decodePng(png)!;
-        expect(im.width, 320, reason: kind);
-        expect(im.height, 400, reason: kind);
-        // الركن خلفية فاتحة (مش لون القطعة) — الرسمة مش بتملى الصورة كلها.
-        final corner = im.getPixel(2, 2);
-        expect(corner.r, greaterThan(220), reason: kind);
-        // وفيه عدد معقول من البكسلات بلون القطعة (الأحمر ١٨٦,٦٠,٦٠) أو ظلّه.
-        final (r, g, b) = demoColorOf('أحمر');
-        var reds = 0;
-        for (final px in im) {
-          if ((px.r - r).abs() < 40 && (px.g - g).abs() < 40 &&
-              (px.b - b).abs() < 40) {
-            reds++;
-          }
-        }
-        // على الأقل ٣٪ من المساحة (الساعة والحزام أصغر حاجة).
-        expect(reds, greaterThan(320 * 400 * 0.03), reason: kind);
-      }
-    });
-
-    test('نوع رسمة مش معروف بيرجع سواتش بدل ما يرمى', () {
-      final png = demoClothingPng('spaceship', 'أزرق');
-      final im = img.decodePng(png)!;
-      expect(im.width, 320);
-      expect(im.height, 400);
-      // السواتش بيملى الصورة كلها بلون القطعة.
-      final (r, _, _) = demoColorOf('أزرق');
-      expect(im.getPixel(0, 0).r.round(), closeTo(r, 3));
-    });
-
-    test('الملابس التجريبية بتتضاف وتتشال من غير ما تلمس قطعة المستخدم', () async {
-      await AppDb.wipeAllData(keepSettings: true);
-      final repo = WardrobeRepo();
-      // قطعة حقيقية من غير صورة + واحدة بصورة حقيقية (مش تجريبية).
-      final mine = await repo.save(const ClothingItem(
-          name: 'قميصى الحقيقى', category: 'top'));
-      final realPhoto = await AppImages.storeBytes(
-          demoSwatchPng('أخضر', width: 8, height: 8),
-          mime: 'image/png', namePrefix: 'cloth');
-      final mine2 = await repo.save(ClothingItem(
-          name: 'جاكيتى', category: 'outer', photo: realPhoto));
-      expect(await demoWardrobeCount(), 0);
-
-      final added = await seedDemoWardrobe();
-      expect(added, kDemoClothes.length);
-      expect(await demoWardrobeCount(), kDemoClothes.length);
-      final all = await repo.all_();
-      expect(all.length, kDemoClothes.length + 2);
-      // كل فئة اتغطّت (عشان الفلاتر و«ألبس إيه» يتجرّبوا).
-      for (final cat in kClothingCategories) {
-        expect(all.where((c) => c.category == cat && isDemoClothing(c)),
-            isNotEmpty, reason: cat);
-      }
-      // الصور موجودة فعلاً فى القاعدة.
-      final demoPhoto = all.firstWhere(isDemoClothing).photo;
-      expect(demoPhoto, startsWith(kDemoClothPhotoPrefix));
-      expect(await AppImages.bytesOf(demoPhoto), isNotNull);
-
-      final removed = await removeDemoWardrobe();
-      expect(removed, kDemoClothes.length);
-      expect(await demoWardrobeCount(), 0);
-      final left = await repo.all_();
-      expect(left.map((c) => c.id), unorderedEquals([mine, mine2]));
-      // صورة القطعة التجريبية اتمسحت من القاعدة، وصورة المستخدم فضلت.
-      expect(await AppImages.bytesOf(demoPhoto), isNull);
-      expect(await AppImages.bytesOf(realPhoto), isNotNull);
     });
   });
 

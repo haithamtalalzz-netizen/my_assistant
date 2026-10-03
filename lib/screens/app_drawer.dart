@@ -55,7 +55,6 @@ import 'inbox_screen.dart';
 import 'medical/medical_screen.dart';
 import 'quit_screen.dart';
 import 'settings_screen.dart';
-import 'wardrobe/wardrobe_screen.dart';
 import 'weekly/weekly_planning_screen.dart';
 import 'worship/prayer_screen.dart';
 
@@ -66,7 +65,6 @@ const _cTasks = Color(0xFF4F7FE8);
 const _cNotes = Color(0xFF8B5CF6);
 const _cGoals = Color(0xFFE8A33B);
 const _cPrayer = Color(0xFF2FA36B);
-const _cClothes = Color(0xFF9B6BE8);
 const _cEmergency = Color(0xFFE85C5C);
 
 /// صفّ بند فى السايدبار: أيقونة مربّعة ملوّنة + العنوان + مؤشّر جانبى للمختار.
@@ -487,10 +485,6 @@ class AppDrawer extends StatelessWidget {
                     return n == 0 ? const SizedBox.shrink() : badge(n);
                   },
                 )),
-            rowDivider,
-            // ---- ملابس (بند مستقل) ----
-            push(Icons.checkroom_outlined, tr('ملابسى', 'My clothes'),
-                const WardrobeScreen(), _cClothes),
             rowDivider,
             groupTile(Icons.self_improvement, tr('تطوّري', 'Growth'),
                 accent: Colors.indigo,

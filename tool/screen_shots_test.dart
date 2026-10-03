@@ -38,7 +38,6 @@ import 'package:my_assistant/screens/money/fixed_bills_screen.dart';
 import 'package:my_assistant/screens/money/wallets_screen.dart';
 import 'package:my_assistant/screens/alerts_center_screen.dart';
 import 'package:my_assistant/data/notes_repo.dart';
-import 'package:my_assistant/data/wardrobe_repo.dart';
 
 import 'package:my_assistant/data/goals_repo.dart';
 import 'package:my_assistant/data/tasks_repo.dart';
@@ -51,9 +50,7 @@ import 'package:my_assistant/screens/schedule/schedule_screen.dart';
 import 'package:my_assistant/screens/tasks/tasks_screen.dart';
 import 'package:my_assistant/screens/today_screen.dart';
 import 'package:my_assistant/screens/emergency_view.dart';
-import 'package:my_assistant/screens/wardrobe/wardrobe_screen.dart';
 import 'package:my_assistant/screens/worship/prayer_screen.dart';
-import 'package:my_assistant/core/seed_demo_wardrobe.dart';
 import 'package:my_assistant/data/settings_repo.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -225,33 +222,6 @@ void main() {
   testWidgets('صلاتى — الشكل الجديد', (tester) async {
     final f = await shot(tester, 'real_prayer',
         shotApp(buildTheme(), const PrayerScreen()),
-        size: const Size(390, 1100), pixelRatio: 2);
-    expect(f.lengthSync(), greaterThan(10000));
-  });
-
-  testWidgets('ملابسى — قطع من غير صور (المربّع الملوّن)', (tester) async {
-    // من غير صور عشان نشوف البديل: قبل كده كان مساحة بيضا فاضية.
-    final repo = WardrobeRepo();
-    for (final (n, c) in [
-      ('قميص أزرق', 'top'),
-      ('بنطلون جينز', 'bottom'),
-      ('جاكيت شتوى', 'outer'),
-      ('حذاء رياضى', 'shoes'),
-      ('حزام جلد', 'accessory'),
-      ('تيشيرت قطن', 'top'),
-    ]) {
-      await repo.save(ClothingItem(name: n, category: c, color: 'أزرق'));
-    }
-    final f0 = await shot(tester, 'real_wardrobe_nophoto',
-        shotApp(buildTheme(), const WardrobeScreen()),
-        size: const Size(390, 700), pixelRatio: 2);
-    expect(f0.lengthSync(), greaterThan(10000));
-  });
-
-  testWidgets('ملابسى — الشكل الجديد', (tester) async {
-    await seedDemoWardrobe();
-    final f = await shot(tester, 'real_wardrobe',
-        shotApp(buildTheme(), const WardrobeScreen()),
         size: const Size(390, 1100), pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
   });

@@ -84,9 +84,6 @@ import 'package:my_assistant/screens/tasks/focus_screen.dart';
 import 'package:my_assistant/screens/tasks/tasks_screen.dart';
 import 'package:my_assistant/screens/time_machine_screen.dart';
 import 'package:my_assistant/screens/today_screen.dart';
-import 'package:my_assistant/screens/wardrobe/clothing_form.dart';
-import 'package:my_assistant/screens/wardrobe/outfit_screen.dart';
-import 'package:my_assistant/screens/wardrobe/wardrobe_screen.dart';
 import 'package:my_assistant/screens/weekly/weekly_planning_screen.dart';
 import 'package:my_assistant/screens/workout/workout_plan_screen.dart';
 import 'package:my_assistant/screens/worship/adhkar_hub_screen.dart';
@@ -193,7 +190,6 @@ void main() {
   testWidgets('ChallengesScreen', (t) => walk(t, const ChallengesScreen()));
   testWidgets('ChartsScreen', (t) => walk(t, const ChartsScreen()));
   testWidgets('ChatScreen', (t) => walk(t, const ChatScreen()));
-  testWidgets('ClothingForm', (t) => walk(t, const ClothingForm()));
   testWidgets('CoursesScreen', (t) => walk(t, const CoursesScreen()));
   testWidgets('CustomPdfScreen', (t) => walk(t, const CustomPdfScreen()));
   testWidgets('CycleScreen', (t) => walk(t, const CycleScreen()));
@@ -252,7 +248,6 @@ void main() {
   testWidgets('NafilFastingScreen', (t) => walk(t, const NafilFastingScreen()));
   testWidgets('NamesScreen', (t) => walk(t, const NamesScreen()));
   testWidgets('NotesScreen', (t) => walk(t, const NotesScreen()));
-  testWidgets('OutfitScreen', (t) => walk(t, const OutfitScreen()));
   testWidgets('PasswordsScreen', (t) => walk(t, const PasswordsScreen()));
   testWidgets('PetsScreen', (t) => walk(t, const PetsScreen()));
   testWidgets('PharmacyScreen', (t) => walk(t, const PharmacyScreen()));
@@ -287,7 +282,6 @@ void main() {
   testWidgets('VaccinationsScreen', (t) => walk(t, const VaccinationsScreen()));
   testWidgets('WalkTrackerScreen', (t) => walk(t, const WalkTrackerScreen()));
   testWidgets('WalletsScreen', (t) => walk(t, const WalletsScreen()));
-  testWidgets('WardrobeScreen', (t) => walk(t, const WardrobeScreen()));
   testWidgets('WeeklyPlanningScreen', (t) => walk(t, const WeeklyPlanningScreen()));
   testWidgets('WishlistScreen', (t) => walk(t, const WishlistScreen()));
   testWidgets('WorkoutPlanScreen', (t) => walk(t, const WorkoutPlanScreen()));

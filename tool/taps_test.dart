@@ -92,9 +92,6 @@ import 'package:my_assistant/screens/tasks/focus_screen.dart';
 import 'package:my_assistant/screens/tasks/tasks_screen.dart';
 import 'package:my_assistant/screens/time_machine_screen.dart';
 import 'package:my_assistant/screens/today_screen.dart';
-import 'package:my_assistant/screens/wardrobe/clothing_form.dart';
-import 'package:my_assistant/screens/wardrobe/outfit_screen.dart';
-import 'package:my_assistant/screens/wardrobe/wardrobe_screen.dart';
 import 'package:my_assistant/screens/weekly/weekly_planning_screen.dart';
 import 'package:my_assistant/screens/workout/workout_plan_screen.dart';
 import 'package:my_assistant/screens/worship/adhkar_hub_screen.dart';
@@ -476,7 +473,6 @@ void main() {
   testWidgets('ChallengesScreen', (t) => tapWalk(t, () => const ChallengesScreen()));
   testWidgets('ChartsScreen', (t) => tapWalk(t, () => const ChartsScreen()));
   testWidgets('ChatScreen', (t) => tapWalk(t, () => const ChatScreen()));
-  testWidgets('ClothingForm', (t) => tapWalk(t, () => const ClothingForm()));
   testWidgets('CoursesScreen', (t) => tapWalk(t, () => const CoursesScreen()));
   testWidgets('CustomPdfScreen', (t) => tapWalk(t, () => const CustomPdfScreen()));
   testWidgets('CycleScreen', (t) => tapWalk(t, () => const CycleScreen()));
@@ -527,7 +523,6 @@ void main() {
   testWidgets('NafilFastingScreen', (t) => tapWalk(t, () => const NafilFastingScreen()));
   testWidgets('NamesScreen', (t) => tapWalk(t, () => const NamesScreen()));
   testWidgets('NotesScreen', (t) => tapWalk(t, () => const NotesScreen()));
-  testWidgets('OutfitScreen', (t) => tapWalk(t, () => const OutfitScreen()));
   testWidgets('PasswordsScreen', (t) => tapWalk(t, () => const PasswordsScreen()));
   testWidgets('PetsScreen', (t) => tapWalk(t, () => const PetsScreen()));
   testWidgets('PharmacyForm', (t) => tapWalk(t, () => const PharmacyForm()));
@@ -563,7 +558,6 @@ void main() {
   testWidgets('VaccinationsScreen', (t) => tapWalk(t, () => const VaccinationsScreen()));
   testWidgets('WalkTrackerScreen', (t) => tapWalk(t, () => const WalkTrackerScreen()));
   testWidgets('WalletsScreen', (t) => tapWalk(t, () => const WalletsScreen()));
-  testWidgets('WardrobeScreen', (t) => tapWalk(t, () => const WardrobeScreen()));
   testWidgets('WeeklyPlanningScreen', (t) => tapWalk(t, () => const WeeklyPlanningScreen()));
   testWidgets('WishlistScreen', (t) => tapWalk(t, () => const WishlistScreen()));
   testWidgets('WorkoutPlanScreen', (t) => tapWalk(t, () => const WorkoutPlanScreen()));

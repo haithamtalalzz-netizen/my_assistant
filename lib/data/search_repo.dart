@@ -184,15 +184,6 @@ class SearchRepo {
             subtitle:
                 '${tr('دين/سلفة', 'Debt')} • ${egp((r['amount'] as num).toDouble())}'));
 
-    // الملابس.
-    await add(
-        "SELECT name, color FROM clothes WHERE name LIKE ? OR color LIKE ? LIMIT 10",
-        [like, like],
-        (r) => SearchHit(
-            kind: 'clothing',
-            title: r['name'] as String,
-            subtitle: tr('ملابس', 'Clothing')));
-
     // أهداف الادخار.
     await add(
         "SELECT name FROM savings_goals WHERE name LIKE ? LIMIT 10",

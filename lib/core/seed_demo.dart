@@ -40,7 +40,6 @@ import '../data/wallets_repo.dart';
 import '../data/workout_repo.dart';
 import '../models/models.dart';
 import 'ar.dart';
-import 'seed_demo_wardrobe.dart';
 
 /// يملأ التطبيق ببيانات وهمية لتجربة كل البنود. بيرجّع عدد العناصر المضافة.
 /// (بيضيف من غير ما يمسح — لو اتضغط مرتين هيتضاعف؛ للتجربة بس.)
@@ -293,7 +292,6 @@ Future<int> seedDemoData() async {
   n += 5;
 
   // ---- ملابسى: ٢١ قطعة بصور مرسومة (نفس اللى زرار «ملابس تجريبية» بيضيفه) ----
-  n += await seedDemoWardrobe(now: now);
 
   // ---- تطوّرى: قراءة + كورسات + أهداف ----
   await ReadingRepo().save(Book(

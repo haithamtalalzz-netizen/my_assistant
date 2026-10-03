@@ -14,7 +14,6 @@ import 'baladna/home_maintenance_screen.dart';
 import 'medical/medical_screen.dart';
 import 'money/money_screen.dart';
 import 'schedule/schedule_screen.dart';
-import 'wardrobe/wardrobe_screen.dart';
 import 'tasks/tasks_screen.dart';
 import 'money/subscriptions_screen.dart';
 import 'money/wishlist_screen.dart';
@@ -94,7 +93,6 @@ class _SearchScreenState extends State<SearchScreen> {
         'medical' => tr('سجل طبى', 'Medical'),
         'pharmacy' => tr('صيدلية', 'Pharmacy'),
         'debt' => tr('ديون', 'Debts'),
-        'clothing' => tr('ملابس', 'Clothes'),
         'savings' => tr('ادخار', 'Savings'),
         'habit' => tr('عادات', 'Habits'),
         'meal' => tr('وجبات', 'Meals'),
@@ -163,7 +161,6 @@ class _SearchScreenState extends State<SearchScreen> {
         'medical' => Icons.medical_information_outlined,
         'pharmacy' => Icons.medication,
         'debt' => Icons.handshake_outlined,
-        'clothing' => Icons.checkroom_outlined,
         'savings' => Icons.savings_outlined,
         'habit' => Icons.task_alt,
         'meal' => Icons.restaurant_outlined,
@@ -192,7 +189,6 @@ class _SearchScreenState extends State<SearchScreen> {
         'medical' => const MedicalScreen(),
         'pharmacy' => const PharmacyScreen(),
         'debt' => const DebtsScreen(),
-        'clothing' => const WardrobeScreen(),
         'savings' => const SavingsScreen(),
         'habit' => const HabitsScreen(),
         'home_maint' => const HomeMaintenanceScreen(),

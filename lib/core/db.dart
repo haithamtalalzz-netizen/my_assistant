@@ -1219,6 +1219,10 @@ class AppDb {
 
   static const List<String> _v12Tables = [
     '''
+      -- 🔴 بند «ملابسى» **اتشال من الواجهة** (2026-10-03) والجدول ده
+      -- فضل بقصد: مسحه كان هيضيّع ملابس المستخدمين اللى على الويب
+      -- **من غير رجعة**. شيل البند ≠ امسح البيانات. لو اتقرّر المسح
+      -- فعلاً، يبقى قرار صريح لوحده مش تنضيف جانبى.
       CREATE TABLE clothes(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,

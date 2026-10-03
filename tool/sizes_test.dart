@@ -88,9 +88,6 @@ import 'package:my_assistant/screens/tasks/focus_screen.dart';
 import 'package:my_assistant/screens/tasks/tasks_screen.dart';
 import 'package:my_assistant/screens/time_machine_screen.dart';
 import 'package:my_assistant/screens/today_screen.dart';
-import 'package:my_assistant/screens/wardrobe/clothing_form.dart';
-import 'package:my_assistant/screens/wardrobe/outfit_screen.dart';
-import 'package:my_assistant/screens/wardrobe/wardrobe_screen.dart';
 import 'package:my_assistant/screens/weekly/weekly_planning_screen.dart';
 import 'package:my_assistant/screens/workout/workout_plan_screen.dart';
 import 'package:my_assistant/screens/worship/adhkar_hub_screen.dart';
@@ -353,7 +350,6 @@ void main() {
   testWidgets('ChallengesScreen', (t) => sweep(t, () => const ChallengesScreen()));
   testWidgets('ChartsScreen', (t) => sweep(t, () => const ChartsScreen()));
   testWidgets('ChatScreen', (t) => sweep(t, () => const ChatScreen()));
-  testWidgets('ClothingForm', (t) => sweep(t, () => const ClothingForm()));
   testWidgets('CoursesScreen', (t) => sweep(t, () => const CoursesScreen()));
   testWidgets('CustomPdfScreen', (t) => sweep(t, () => const CustomPdfScreen()));
   testWidgets('CycleScreen', (t) => sweep(t, () => const CycleScreen()));
@@ -404,7 +400,6 @@ void main() {
   testWidgets('NafilFastingScreen', (t) => sweep(t, () => const NafilFastingScreen()));
   testWidgets('NamesScreen', (t) => sweep(t, () => const NamesScreen()));
   testWidgets('NotesScreen', (t) => sweep(t, () => const NotesScreen()));
-  testWidgets('OutfitScreen', (t) => sweep(t, () => const OutfitScreen()));
   testWidgets('PasswordsScreen', (t) => sweep(t, () => const PasswordsScreen()));
   testWidgets('PetsScreen', (t) => sweep(t, () => const PetsScreen()));
   testWidgets('PharmacyForm', (t) => sweep(t, () => const PharmacyForm()));
@@ -440,7 +435,6 @@ void main() {
   testWidgets('VaccinationsScreen', (t) => sweep(t, () => const VaccinationsScreen()));
   testWidgets('WalkTrackerScreen', (t) => sweep(t, () => const WalkTrackerScreen()));
   testWidgets('WalletsScreen', (t) => sweep(t, () => const WalletsScreen()));
-  testWidgets('WardrobeScreen', (t) => sweep(t, () => const WardrobeScreen()));
   testWidgets('WeeklyPlanningScreen', (t) => sweep(t, () => const WeeklyPlanningScreen()));
   testWidgets('WishlistScreen', (t) => sweep(t, () => const WishlistScreen()));
   testWidgets('WorkoutPlanScreen', (t) => sweep(t, () => const WorkoutPlanScreen()));

@@ -1053,67 +1053,6 @@ class SavingsGoal {
   double get remaining => (target - saved).clamp(0, double.infinity);
 }
 
-class ClothingItem {
-  final int? id;
-  final String name;
-
-  /// خانة اللبس: top / bottom / outer / shoes / accessory.
-  final String category;
-  final String color;
-
-  /// all / summer / winter.
-  final String season;
-
-  /// casual / formal / sport.
-  final String formality;
-  final String photo;
-
-  /// آخر يوم اتلبست فيه (YYYY-MM-DD) أو null.
-  final String? lastWorn;
-  final bool favorite;
-
-  /// محتاجة غسيل (فى سلة الغسيل).
-  final bool needsWash;
-
-  const ClothingItem({
-    this.id,
-    required this.name,
-    required this.category,
-    this.color = '',
-    this.season = 'all',
-    this.formality = 'casual',
-    this.photo = '',
-    this.lastWorn,
-    this.favorite = false,
-    this.needsWash = false,
-  });
-
-  factory ClothingItem.fromMap(Map<String, Object?> m) => ClothingItem(
-        id: m['id'] as int?,
-        name: m['name'] as String,
-        category: m['category'] as String,
-        color: m['color'] as String? ?? '',
-        season: m['season'] as String? ?? 'all',
-        formality: m['formality'] as String? ?? 'casual',
-        photo: m['photo'] as String? ?? '',
-        lastWorn: m['last_worn'] as String?,
-        favorite: (m['favorite'] as int? ?? 0) == 1,
-        needsWash: (m['needs_wash'] as int? ?? 0) == 1,
-      );
-
-  Map<String, Object?> toMap() => {
-        'name': name,
-        'category': category,
-        'color': color,
-        'season': season,
-        'formality': formality,
-        'photo': photo,
-        'last_worn': lastWorn,
-        'favorite': favorite ? 1 : 0,
-        'needs_wash': needsWash ? 1 : 0,
-      };
-}
-
 class GymSession {
   final int? id;
 
