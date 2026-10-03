@@ -408,8 +408,9 @@ void main() {
         shotApp(
             buildTheme(),
             MyHealthScreen(sections: [
-              // نفس القايمة اللى فى السايدبار بعد ما بند «الصحة» اتفكّ:
-              // أبوابه الأربعة بقوا كروت هنا، والعادات راحت لـ«تطوّرى».
+              // نفس القايمة اللى فى السايدبار: بند «الصحة» اتفكّ لكروت،
+              // والعادات راحت لـ«تطوّرى»، و«الرياضة» و«الأكل» طلعوا
+              // بندين مستقلّين — صحتى بقت صفحة تسجيل اليوم.
               HealthSection(Icons.mood, 'تتبّع المزاج',
                   'علامة فى اليوم — ومنحناك', Colors.amber,
                   () => const SizedBox()),
@@ -418,13 +419,8 @@ void main() {
               HealthSection(Icons.medical_information_outlined, 'الملف الطبي',
                   'كشوفات · أشعة · عمليات', Colors.teal,
                   () => const SizedBox()),
-              HealthSection(Icons.fitness_center, 'الرياضة',
-                  'جيم · مشى · تقدّم · تمارين', Colors.deepPurple,
-                  () => const SizedBox()),
-              HealthSection(Icons.restaurant_outlined, 'النظام الغذائي',
-                  'وجبات · صيام · وصفات', Colors.green, () => const SizedBox()),
             ])),
-        size: const Size(390, 1150),
+        size: const Size(390, 1000),
         pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
   });
