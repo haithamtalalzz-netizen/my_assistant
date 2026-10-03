@@ -11,8 +11,13 @@ import '../schedule/med_form.dart';
 import 'pharmacy_form.dart';
 import '../../core/privacy.dart';
 
+/// جسم صيدلية البيت من غير شريط — عشان «أدويتى» المدمجة تحطّه فى
+/// تبويب. الشاشة المستقلة لسه موجودة لأى مكان بيفتحها لوحدها.
 class PharmacyScreen extends StatefulWidget {
-  const PharmacyScreen({super.key});
+  /// جوّه تبويب: من غير شريط علوى (الشريط بتاع «أدويتى» بيكفى).
+  final bool embedded;
+
+  const PharmacyScreen({super.key, this.embedded = false});
 
   @override
   State<PharmacyScreen> createState() => _PharmacyScreenState();
@@ -131,16 +136,21 @@ class _PharmacyScreenState extends State<PharmacyScreen> {
     final visible =
         _expiredOnly ? _items.where((it) => _isExpired(it, now)).toList() : _items;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('صيدلية البيت', 'Home pharmacy')), actions: [
-          const PrivacyAction(),
-        IconButton(
-          tooltip: tr('المنتهى فقط', 'Expired only'),
-          isSelected: _expiredOnly,
-          icon: const Icon(Icons.filter_alt_outlined),
-          selectedIcon: const Icon(Icons.filter_alt),
-          onPressed: () => setState(() => _expiredOnly = !_expiredOnly),
-        ),
-      ]),
+      appBar: widget.embedded
+          ? null
+          : AppBar(
+              title: Text(tr('صيدلية البيت', 'Home pharmacy')),
+              actions: [
+                const PrivacyAction(),
+                IconButton(
+                  tooltip: tr('المنتهى فقط', 'Expired only'),
+                  isSelected: _expiredOnly,
+                  icon: const Icon(Icons.filter_alt_outlined),
+                  selectedIcon: const Icon(Icons.filter_alt),
+                  onPressed: () =>
+                      setState(() => _expiredOnly = !_expiredOnly),
+                ),
+              ]),
       body: Column(
         children: [
           Padding(

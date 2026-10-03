@@ -119,6 +119,7 @@ import 'package:my_assistant/screens/worship/zakat_guide_screen.dart';
 import 'package:my_assistant/screens/worship/zakat_livestock_screen.dart';
 import 'package:my_assistant/screens/worship/zakat_screen.dart';
 import 'package:my_assistant/screens/day_full_screen.dart';
+import 'package:my_assistant/screens/health/meds_hub_screen.dart';
 
 /// مقاسات حقيقية: أصغر أندرويد شائع → تابلت كبير بالعرض.
 const _sizes = <String, Size>{
@@ -391,6 +392,7 @@ void main() {
   testWidgets('MedicalForm', (t) => sweep(t, () => const MedicalForm()));
   testWidgets('MedicalScreen', (t) => sweep(t, () => const MedicalScreen()));
   testWidgets('MedsScreen', (t) => sweep(t, () => const MedsScreen()));
+  testWidgets('MedsHubScreen', (t) => sweep(t, () => const MedsHubScreen()));
   testWidgets('MemorizationScreen', (t) => sweep(t, () => const MemorizationScreen()));
   testWidgets('MoneyScreen', (t) => sweep(t, () => const MoneyScreen()));
   testWidgets('MonthlyTimesScreen', (t) => sweep(t, () => const MonthlyTimesScreen()));

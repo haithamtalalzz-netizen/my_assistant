@@ -58,7 +58,7 @@ class MedsScreen extends StatelessWidget {
           actions: [
           const PrivacyAction(),searchAction(context)],
         ),
-        body: const _MedsTab(),
+        body: const MedsTab(),
       );
 }
 
@@ -321,14 +321,15 @@ class _AppointmentsTabState extends State<_AppointmentsTab> {
   }
 }
 
-class _MedsTab extends StatefulWidget {
-  const _MedsTab();
+/// تبويب الجرعات — عام عشان «أدويتى» المدمجة تستعمله من غير تكرار.
+class MedsTab extends StatefulWidget {
+  const MedsTab({super.key});
 
   @override
-  State<_MedsTab> createState() => _MedsTabState();
+  State<MedsTab> createState() => _MedsTabState();
 }
 
-class _MedsTabState extends State<_MedsTab> {
+class _MedsTabState extends State<MedsTab> {
   final _repo = MedsRepo();
   bool _loading = true;
   List<Medication> _meds = [];

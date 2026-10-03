@@ -6,10 +6,10 @@ import '../core/app_state.dart';
 import '../core/l10n.dart';
 import '../data/hub_stats.dart';
 import '../widgets/growth_week_card.dart';
+import 'health/meds_hub_screen.dart';
 import 'health/my_health_screen.dart';
 import '../data/settings_repo.dart';
 import 'account_screen.dart';
-import 'schedule/schedule_screen.dart';
 import 'tasks/tasks_screen.dart';
 import 'notes_screen.dart';
 import 'money/subscriptions_screen.dart';
@@ -49,7 +49,6 @@ import 'gym/progress_screen.dart';
 import 'gym/walk_tracker_screen.dart';
 import 'gym/workout_programs_screen.dart';
 import 'health/cycle_screen.dart';
-import 'home/pharmacy_screen.dart';
 import 'inbox_screen.dart';
 import 'medical/medical_screen.dart';
 import 'quit_screen.dart';
@@ -382,15 +381,15 @@ class AppDrawer extends StatelessWidget {
                                 GroupHubItem(Icons.mood,
                                     tr('تتبّع المزاج', 'Mood tracker'),
                                     screen: const MoodScreen()),
+                                // «الأدوية» و«صيدلية البيت» اتدمجوا:
+                                // الاتنين عن الدوا والاسمين ماكانوش
+                                // بيقولوا الفرق (جرعات ضد مخزون).
                                 GroupHubItem(Icons.medication_outlined,
-                                    tr('الأدوية', 'Medications'),
-                                    screen: const MedsScreen()),
+                                    tr('أدويتى', 'My medicines'),
+                                    screen: const MedsHubScreen()),
                                 GroupHubItem(Icons.medical_information_outlined,
                                     tr('الملف الطبي', 'Medical file'),
                                     screen: const MedicalScreen()),
-                                GroupHubItem(Icons.medication_outlined,
-                                    tr('صيدلية البيت', 'Home pharmacy'),
-                                    screen: const PharmacyScreen()),
                               ],
                             )),
                     HealthSection(

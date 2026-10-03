@@ -7,12 +7,19 @@ import '../../data/measurements_repo.dart';
 import '../../data/meds_repo.dart';
 import '../../data/settings_repo.dart';
 import '../../models/models.dart';
+import '../../core/health_calc.dart';
+import '../../data/lab_results_repo.dart';
+import '../../data/symptoms_repo.dart';
+import '../../data/vaccinations_repo.dart';
 import '../../widgets/a_kit.dart';
+import '../brain/charts_screen.dart';
+import 'lab_results_screen.dart';
+import 'symptom_journal_screen.dart';
+import 'vaccinations_screen.dart';
 import '../../widgets/measurement_sheet.dart';
 import '../../widgets/search_action.dart';
 import '../food/meal_sheet.dart';
 import '../gym/walk_tracker_screen.dart';
-import 'health_hub_screen.dart';
 import '../../core/privacy.dart';
 
 /// **صحتى** — قسمين واضحين وبعدهم البنود.
@@ -62,6 +69,17 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
   HealthDay? _day;
   final Map<String, List<Measurement>> _vitals = {};
 
+  /// الطول وسنة الميلاد — بيتحسب منهم مؤشر كتلة الجسم. كانوا جوّه
+  /// «لوحة الصحة» اللى اتشالت من الطريق.
+  double? _heightCm;
+  int? _birthYear;
+
+  /// أعداد ورقك الطبى — بتتعرض على المربعات عشان تعرف اللى جوّه قبل
+  /// ما تفتح (نفس قاعدة «فلوسى»: مافيش باب أعمى).
+  int? _labs;
+  int? _vaccines;
+  int? _symptoms;
+
   String get _today => dayKey(DateTime.now());
 
   @override
@@ -76,6 +94,12 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
     final ml = await _health.waterMlOn(_today);
     final goal = await SettingsRepo().waterGoalMl();
     final day = await _health.dayReport(_today);
+    final st = SettingsRepo();
+    final heightCm = double.tryParse(await st.get('height_cm') ?? '');
+    final birthYear = int.tryParse(await st.get('birth_year') ?? '');
+    final labs = (await LabResultsRepo().all()).length;
+    final vaccines = (await VaccinationsRepo().all()).length;
+    final symptoms = (await SymptomsRepo().recent()).length;
     final vitals = <String, List<Measurement>>{};
     for (final t in kMeasurementTypes) {
       vitals[t] = await MeasurementsRepo().recent(limit: 2, type: t);
@@ -87,6 +111,11 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
       _waterMl = ml;
       _waterGoalMl = goal <= 0 ? 2000 : goal;
       _day = day;
+      _heightCm = heightCm;
+      _birthYear = birthYear;
+      _labs = labs;
+      _vaccines = vaccines;
+      _symptoms = symptoms;
       _vitals
         ..clear()
         ..addAll(vitals);
@@ -393,6 +422,188 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
 
   // ————————————————— بنودك —————————————————
 
+  /// **كتلة الجسم + الرسوم** — كانوا جوّه «لوحة الصحة»، وهى بقت مكرّرة
+  /// مع الشاشة دى (نفس المياه والنوم والخطوات والقياسات). فاللى كان
+  /// حصرى فيها نزل هنا، واللوحة اتشالت من الطريق.
+  Widget _bmiRow() {
+    final scheme = Theme.of(context).colorScheme;
+    final list = _vitals['وزن'] ?? const <Measurement>[];
+    final w = list.isEmpty ? null : list.first.value;
+    final ready = w != null && _heightCm != null && _heightCm! > 0;
+    final v = ready ? bmi(w, _heightCm!) : 0.0;
+    // النطاق المعروض ١٥→٣٥: برّه كده الشريط بيتسطّح ومابيقولش حاجة.
+    final pct = ((v - 15) / 20).clamp(0.0, 1.0);
+    final c = !ready
+        ? scheme.outline
+        : (v < 18.5 || v >= 30)
+            ? scheme.error
+            : v < 25
+                ? scheme.primary
+                : const Color(0xFFF59E0B);
+
+    return Material(
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: _openBodyInfo,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Row(children: [
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        ready
+                            ? tr(
+                                'كتلة الجسم ${v.toStringAsFixed(1)} — ${bmiCategoryAr(v)}',
+                                'BMI ${v.toStringAsFixed(1)} — ${bmiCategoryEn(v)}')
+                            : tr('حدّد طولك عشان نحسب كتلة الجسم',
+                                'Set your height to get BMI'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 7),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(99),
+                      child: LinearProgressIndicator(
+                        value: pct,
+                        minHeight: 7,
+                        backgroundColor:
+                            scheme.outlineVariant.withValues(alpha: 0.6),
+                        valueColor: AlwaysStoppedAnimation(c),
+                      ),
+                    ),
+                  ]),
+            ),
+            const SizedBox(width: 8),
+            TextButton.icon(
+              onPressed: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const ChartsScreen())),
+              icon: const Icon(Icons.show_chart, size: 17),
+              label: Text(tr('الرسوم', 'Charts'),
+                  style: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w800)),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  /// طولك وسنة ميلادك — المدخلات اللى الـBMI محتاجها.
+  Future<void> _openBodyInfo() async {
+    final h = TextEditingController(
+        text: _heightCm == null ? '' : _heightCm!.toStringAsFixed(0));
+    final y = TextEditingController(text: _birthYear?.toString() ?? '');
+    try {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(tr('بياناتك', 'Your body')),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+                controller: h,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                    labelText: tr('الطول (سم)', 'Height (cm)'))),
+            const SizedBox(height: 10),
+            TextField(
+                controller: y,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                    labelText: tr('سنة الميلاد', 'Birth year'))),
+          ]),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(tr('إلغاء', 'Cancel'))),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(tr('حفظ', 'Save'))),
+          ],
+        ),
+      );
+      if (ok != true) return;
+      final st = SettingsRepo();
+      final hv = parseNumber(h.text);
+      final yv = int.tryParse(toEnglishDigits(y.text).trim());
+      if (hv != null && hv > 0) await st.set('height_cm', hv.toString());
+      if (yv != null && yv > 1900) await st.set('birth_year', yv.toString());
+      if (mounted) await _load();
+    } finally {
+      // الـcontrollers بتتمسح فى finally: لو الحوار اتقفل بضغطة رجوع
+      // كانت هتفضل شايلة ذاكرة.
+      h.dispose();
+      y.dispose();
+    }
+  }
+
+  /// **ورقك الطبى** — تلات شاشات كان طريقها الوحيد أيقونة فى الشريط ←
+  /// كارت جوّه لوحة الصحة. دوستين ورا أيقونة محدّش يعرف معناها معناها
+  /// إن الشاشات دى موجودة ومش مكتشفة.
+  Widget _papersRow() {
+    final scheme = Theme.of(context).colorScheme;
+
+    Widget box(String label, Color c, IconData icon, int? value,
+            Widget Function() open) =>
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Material(
+              color: c.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(16),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () async {
+                  await Navigator.push(
+                      context, MaterialPageRoute(builder: (_) => open()));
+                  if (mounted) await _load();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: c.withValues(alpha: 0.25))),
+                  child: Column(children: [
+                    Icon(icon, size: 17, color: c),
+                    const SizedBox(height: 5),
+                    // «—» مش «0»: الصفر بيتقرا كأنه حاجة اتحسبت.
+                    Text(value == null || value == 0 ? '—' : arNum(value),
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: c)),
+                    Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 9.5, color: scheme.onSurfaceVariant)),
+                  ]),
+                ),
+              ),
+            ),
+          ),
+        );
+
+    return Row(children: [
+      box(tr('تحاليل', 'Labs'), const Color(0xFF06B6D4),
+          Icons.science_outlined, _labs, () => const LabResultsScreen()),
+      box(tr('تطعيمات', 'Vaccines'), const Color(0xFF10B981),
+          Icons.vaccines_outlined, _vaccines,
+          () => const VaccinationsScreen()),
+      box(tr('أعراض', 'Symptoms'), const Color(0xFFF59E0B),
+          Icons.sick_outlined, _symptoms,
+          () => const SymptomJournalScreen()),
+    ]);
+  }
+
   Widget _sectionRow(HealthSection s) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
@@ -455,19 +666,10 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(tr('صحتى', 'My health')),
-        actions: [
-          const PrivacyAction(),
-          searchAction(context),
-          IconButton(
-            tooltip: tr('لوحة الصحة', 'Health dashboard'),
-            icon: const Icon(Icons.dashboard_outlined),
-            onPressed: () async {
-              await Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const HealthHubScreen()));
-              if (mounted) await _load();
-            },
-          ),
-        ],
+        // زرار «لوحة الصحة» اتشال: اللوحة كانت بتعرض **نفس** اللقطة
+        // والقياسات اللى فوق، واللى كان حصرى فيها (كتلة الجسم · الرسوم ·
+        // الورق الطبى) نزل جوّه الشاشة دى.
+        actions: [const PrivacyAction(), searchAction(context)],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -485,9 +687,14 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
                           ? null
                           : tr('دوس على أى مربّع تسجّل', 'Tap any to log'))),
                   AppPad(_numbersSection()),
+                  AppPad(Padding(
+                      padding: const EdgeInsets.only(top: 9),
+                      child: _bmiRow())),
                   AppPad(AppGroupHead(tr('بنودك', 'Your sections'))),
                   AppPad(Column(
                       children: [for (final s in widget.sections) _sectionRow(s)])),
+                  AppPad(AppGroupHead(tr('ورقك الطبى', 'Your records'))),
+                  AppPad(_papersRow()),
                 ],
               ),
             ),

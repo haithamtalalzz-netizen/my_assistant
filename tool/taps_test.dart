@@ -123,6 +123,7 @@ import 'package:my_assistant/screens/worship/zakat_guide_screen.dart';
 import 'package:my_assistant/screens/worship/zakat_livestock_screen.dart';
 import 'package:my_assistant/screens/worship/zakat_screen.dart';
 import 'package:my_assistant/screens/day_full_screen.dart';
+import 'package:my_assistant/screens/health/meds_hub_screen.dart';
 
 /// مقاسين بس (مش ٦): الضيّق هو اللى القصّ بيبان فيه، والتابلت عشان
 /// الحوارات اللى شكلها بيتغيّر بالعرض. المسح الكامل فى `sizes_test.dart`.
@@ -514,6 +515,7 @@ void main() {
   testWidgets('MedicalForm', (t) => tapWalk(t, () => const MedicalForm()));
   testWidgets('MedicalScreen', (t) => tapWalk(t, () => const MedicalScreen()));
   testWidgets('MedsScreen', (t) => tapWalk(t, () => const MedsScreen()));
+  testWidgets('MedsHubScreen', (t) => tapWalk(t, () => const MedsHubScreen()));
   testWidgets('MemorizationScreen', (t) => tapWalk(t, () => const MemorizationScreen()));
   testWidgets('MoneyScreen', (t) => tapWalk(t, () => const MoneyScreen()));
   testWidgets('MonthlyTimesScreen', (t) => tapWalk(t, () => const MonthlyTimesScreen()));
