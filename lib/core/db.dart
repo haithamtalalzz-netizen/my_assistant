@@ -18,7 +18,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 67,
+      version: 68,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -440,6 +440,12 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 68 && newV >= 68) {
+      // صور ورقة التحليل. عمود بقيمة افتراضية فاضية → كل النتايج
+      // المسجّلة قبل كده تفضل صالحة زى ما هى، من غير صور.
+      await _addColumnIfMissing(
+          db, 'lab_results', 'photos', "TEXT NOT NULL DEFAULT ''");
+    }
     if (oldV < 67 && newV >= 67) {
       // ترتيب ظهور المحافظ. الافتراضى صفر للكل → بيرجعوا بترتيب الـid
       // زى الأول بالظبط لحد ما يرتّبهم بنفسه.
@@ -703,6 +709,7 @@ class AppDb {
         ref_low TEXT NOT NULL DEFAULT '',
         ref_high TEXT NOT NULL DEFAULT '',
         notes TEXT NOT NULL DEFAULT '',
+        photos TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL
       )''',
     'CREATE INDEX idx_lab_name_date ON lab_results(name, date)',

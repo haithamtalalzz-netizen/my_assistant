@@ -1,11 +1,13 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/app_images.dart';
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
 import '../../data/lab_results_repo.dart';
 import '../../models/models.dart';
 import '../../widgets/common.dart';
+import '../../widgets/photos_field.dart';
 import '../../widgets/wheel_date_picker.dart';
 import '../../core/privacy.dart';
 
@@ -165,6 +167,11 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
         subtitle: Text([
           if (r.dateTime != null) arShortDate(r.dateTime!),
           _statusLabel(r.status),
+          // علامة إن الورقة نفسها متصوّرة — من غيرها مش هتعرف تفرّق
+          // بين تحليل معاه ورقته وتحليل رقمه متكتّب بس.
+          if (r.photos.isNotEmpty)
+            tr('${arNum(r.photos.length)} صورة',
+                '${arNum(r.photos.length)} photos'),
         ].join('  •  '),
             style: TextStyle(color: color, fontWeight: FontWeight.w600)),
         trailing: Text(
@@ -184,7 +191,8 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-          builder: (_) => _LabDetailScreen(name: name, repo: _repo)),
+          builder: (_) =>
+              _LabDetailScreen(name: name, repo: _repo, onEdit: _form)),
     );
     if (mounted) await _load();
   }
@@ -198,6 +206,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
     final high = TextEditingController(text: item?.refHigh ?? '');
     final notes = TextEditingController(text: item?.notes ?? '');
     DateTime date = item?.dateTime ?? DateTime.now();
+    var photos = [...?item?.photos];
 
     void applySpec(LabTestSpec s) {
       name.text = s.name;
@@ -206,7 +215,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
       if (high.text.trim().isEmpty) high.text = s.high;
     }
 
-    final saved = await showDialog<bool>(
+    final action = await showDialog<String>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
@@ -304,22 +313,44 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
               TextField(
                   controller: notes,
                   decoration: InputDecoration(labelText: tr('ملاحظة', 'Note'))),
+              const SizedBox(height: 14),
+              // صورة الورقة نفسها: الرقم بيقول القيمة، والورقة بتقول
+              // الباقى — ملاحظة المعمل، والتحاليل التانية اللى معاه،
+              // وإنها فعلاً نتيجتك مش رقم اتكتب بالغلط.
+              PhotosField(
+                label: tr('صور ورقة التحليل', 'Lab report photos'),
+                namePrefix: 'lab',
+                photos: photos,
+                onChanged: (v) => setD(() => photos = v),
+              ),
             ],
           ),
           actions: [
+            // الحذف كان موجود فى المخزن ومحدش بينادى عليه — فقراءة
+            // اتسجّلت غلط كانت بتفضل فى المنحنى للأبد.
+            if (item?.id != null)
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, 'delete'),
+                  child: Text(tr('حذف', 'Delete'),
+                      style: TextStyle(
+                          color: Theme.of(ctx).colorScheme.error))),
             TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
+                onPressed: () => Navigator.pop(ctx, 'cancel'),
                 child: Text(tr('إلغاء', 'Cancel'))),
             FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
+                onPressed: () => Navigator.pop(ctx, 'save'),
                 child: Text(tr('حفظ', 'Save'))),
           ],
         ),
       ),
     );
 
+    if (action == 'delete' && item?.id != null) {
+      await _repo.delete(item!.id!);
+      if (mounted) await _load();
+    }
     final v = parseNumber(value.text);
-    if (saved == true && name.text.trim().isNotEmpty && v != null) {
+    if (action == 'save' && name.text.trim().isNotEmpty && v != null) {
       await _repo.save(LabResult(
         id: item?.id,
         name: name.text.trim(),
@@ -329,6 +360,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
         refLow: (parseNumber(low.text)?.toString()) ?? '',
         refHigh: (parseNumber(high.text)?.toString()) ?? '',
         notes: notes.text.trim(),
+        photos: photos,
         createdAt: item?.createdAt ?? DateTime.now().toIso8601String(),
       ));
       if (mounted) await _load();
@@ -343,7 +375,15 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
 class _LabDetailScreen extends StatefulWidget {
   final String name;
   final LabResultsRepo repo;
-  const _LabDetailScreen({required this.name, required this.repo});
+
+  /// بيفتح نفس فورم التسجيل على قراءة قديمة.
+  ///
+  /// الفورم كان بيقبل `item` من يوم ما اتكتب، بس **محدش كان بيبعته** —
+  /// فقراءة اتسجّلت غلط مكانش ليها طريقة تتصلّح. بقى السجل نفسه هو
+  /// المدخل، وده المكان الوحيد اللى بتشوف فيه القراءات القديمة.
+  final Future<void> Function(LabResult item) onEdit;
+  const _LabDetailScreen(
+      {required this.name, required this.repo, required this.onEdit});
 
   @override
   State<_LabDetailScreen> createState() => _LabDetailScreenState();
@@ -502,16 +542,49 @@ class _LabDetailScreenState extends State<_LabDetailScreen> {
 
   Widget _historyRow(LabResult r, ColorScheme scheme) {
     final color = _statusColor(r.status, scheme);
-    return ListTile(
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(Icons.circle, size: 12, color: color),
-      title: Text(
-        '${arNum(_fmtD(r.value))}${r.unit.isEmpty ? '' : ' ${r.unit}'}',
-        style: TextStyle(fontWeight: FontWeight.w700, color: color),
-      ),
-      subtitle: r.notes.isEmpty ? null : Text(r.notes),
-      trailing: Text(r.dateTime == null ? r.date : arShortDate(r.dateTime!)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(Icons.circle, size: 12, color: color),
+          title: Text(
+            '${arNum(_fmtD(r.value))}${r.unit.isEmpty ? '' : ' ${r.unit}'}',
+            style: TextStyle(fontWeight: FontWeight.w700, color: color),
+          ),
+          subtitle: r.notes.isEmpty ? null : Text(r.notes),
+          trailing: Text(r.dateTime == null ? r.date : arShortDate(r.dateTime!)),
+          onTap: () async {
+            await widget.onEdit(r);
+            if (mounted) await _load();
+          },
+        ),
+        // صور الورقة تحت القراءة بتاعتها — عشان تفتح الورقة اللى الرقم
+        // ده طالع منها، مش أى ورقة.
+        if (r.photos.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(right: 20, bottom: 8),
+            child: Row(children: [
+              for (var i = 0; i < r.photos.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(left: 6),
+                  child: InkWell(
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                            builder: (_) =>
+                                PhotoViewScreen(photos: r.photos, index: i))),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: AppImage(r.photos[i],
+                          width: 54, height: 54, fit: BoxFit.cover),
+                    ),
+                  ),
+                ),
+            ]),
+          ),
+      ],
     );
   }
 

@@ -33,6 +33,9 @@ class AppImages {
   static const int webMaxDimension = 1280;
   static const int webJpegQuality = 70;
 
+  /// عدّاد بيفرّق الصور اللى اتحفظت فى نفس اللحظة (شوف [storeBytes]).
+  static int _seq = 0;
+
   /// بيصغّر الصورة ويعيد ترميزها JPEG.
   ///
   /// ليه ده لازم على الويب: `image_picker` على المتصفح **بيتجاهل**
@@ -120,7 +123,13 @@ class AppImages {
     final data = compress ? compressForWeb(bytes) : bytes;
     if (compress && !identical(data, bytes)) mime = 'image/jpeg';
     final db = await AppDb.instance;
-    final key = '${namePrefix}_${DateTime.now().microsecondsSinceEpoch}';
+    // 🔴 المفتاح كان الوقت لوحده — و`DateTime.now()` **على الويب دقّته
+    // ملّى ثانية** (الميكرو = ملّى × ١٠٠٠)، والويب هو بالظبط المنصة اللى
+    // بتستخدم الدالة دى. يعنى صورتين اتحفظوا فى نفس الملّى (وده اللى
+    // بيحصل لما تختار كذا صورة مرة واحدة) كانوا بيضربوا فى
+    // `UNIQUE constraint` — صورة بتضيع والشاشة بترمى استثناء.
+    final key = '${namePrefix}_${DateTime.now().microsecondsSinceEpoch}'
+        '_${_seq++}';
     await db.insert(table, {
       'key': key,
       'mime': mime,

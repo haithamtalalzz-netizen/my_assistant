@@ -1,3 +1,4 @@
+import '../core/app_images.dart';
 import '../core/db.dart';
 import '../models/models.dart';
 
@@ -132,13 +133,33 @@ class LabResultsRepo {
   Future<int> save(LabResult r) async {
     final db = await AppDb.instance;
     if (r.id == null) return db.insert('lab_results', r.toMap());
+    // الصور اللى المستخدم شالها من الورقة لازم تتمسح من مخزن الصور كمان.
+    // على الويب الصورة بتتخزّن **جوّه القاعدة**، فصورة متنسية بتفضل
+    // محمولة فى كل نسخة احتياطية وهى مالهاش صاحب.
+    final old = await _byId(r.id!);
     await db
         .update('lab_results', r.toMap(), where: 'id = ?', whereArgs: [r.id]);
+    if (old != null) {
+      for (final p in old.photos) {
+        if (!r.photos.contains(p)) await AppImages.remove(p);
+      }
+    }
     return r.id!;
+  }
+
+  Future<LabResult?> _byId(int id) async {
+    final db = await AppDb.instance;
+    final rows =
+        await db.query('lab_results', where: 'id = ?', whereArgs: [id], limit: 1);
+    return rows.isEmpty ? null : LabResult.fromMap(rows.first);
   }
 
   Future<void> delete(int id) async {
     final db = await AppDb.instance;
+    final row = await _byId(id);
     await db.delete('lab_results', where: 'id = ?', whereArgs: [id]);
+    for (final p in row?.photos ?? const <String>[]) {
+      await AppImages.remove(p);
+    }
   }
 }

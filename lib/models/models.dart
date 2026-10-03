@@ -3,6 +3,13 @@ library;
 
 import 'dart:convert';
 
+/// عمود بيخزّن أكتر من قيمة، كل واحدة فى سطر (زى مسارات الصور).
+///
+/// الفاضى بيرجّع لستة فاضية مش `['']` — السطر الفاضى اللى بين القيمتين
+/// بيبقى مسار صورة مالهاش وجود، وبيطلع مربّع مكسور فى الشاشة.
+List<String> splitLines(String? raw) =>
+    (raw ?? '').split('\n').where((s) => s.isNotEmpty).toList();
+
 class Appointment {
   final int? id;
   final String title;
@@ -2460,6 +2467,11 @@ class LabResult {
   final String refLow; // نص (فاضى = مش محدّد)
   final String refHigh;
   final String notes;
+
+  /// صور ورقة التحليل — مسار ملف أو `img:<key>` (شوف `AppImages`).
+  /// الورقة نفسها فيها حاجات الرقم مابيقولهاش: ملاحظة المعمل، وتحاليل
+  /// تانية فى نفس الورقة، وختم التاريخ.
+  final List<String> photos;
   final String createdAt;
 
   const LabResult({
@@ -2471,6 +2483,7 @@ class LabResult {
     this.refLow = '',
     this.refHigh = '',
     this.notes = '',
+    this.photos = const [],
     required this.createdAt,
   });
 
@@ -2483,6 +2496,7 @@ class LabResult {
         refLow: m['ref_low'] as String? ?? '',
         refHigh: m['ref_high'] as String? ?? '',
         notes: m['notes'] as String? ?? '',
+        photos: splitLines(m['photos'] as String?),
         createdAt: m['created_at'] as String,
       );
 
@@ -2494,6 +2508,7 @@ class LabResult {
         'ref_low': refLow,
         'ref_high': refHigh,
         'notes': notes,
+        'photos': photos.join('\n'),
         'created_at': createdAt,
       };
 
