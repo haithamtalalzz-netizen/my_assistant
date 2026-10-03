@@ -21,9 +21,8 @@ class DayEvent {
 class DayLogRepo {
   static const List<String> _dayTables = [
     'expenses', 'income', 'meals', 'med_logs', 'habit_logs', 'workout_logs',
-    'gym_sessions', 'measurements', 'medical_records',
+    'measurements', 'medical_records',
     'water_logs', 'sleep_logs', 'steps_logs',
-    'body_progress',
   ];
 
   /// أيام الشهر اللي فيها أي نشاط (لتنقيط خلايا التقويم).
@@ -116,7 +115,7 @@ class DayLogRepo {
           text: tr('عادة: ${h['name']}', 'Habit: ${h['name']}')));
     }
 
-    // التمرين + جلسات الجيم.
+    // التمرين.
     for (final w in await db.query('workout_logs',
         where: 'day = ?', whereArgs: [day])) {
       final title = (w['title'] as String? ?? '').trim();
@@ -126,18 +125,6 @@ class DayLogRepo {
               ? tr('تمرين اتعمل', 'Workout done')
               : tr('تمرين: $title', 'Workout: $title')));
     }
-    for (final g in await db.query('gym_sessions',
-        where: 'day = ?', whereArgs: [day])) {
-      final prog = (g['program'] as String? ?? '').trim();
-      final sets = await db.rawQuery(
-          'SELECT COUNT(*) AS c FROM gym_sets WHERE session_id = ?', [g['id']]);
-      final c = (sets.first['c'] as num).toInt();
-      events.add(DayEvent(
-          kind: 'gym',
-          text: tr('جيم${prog.isEmpty ? '' : ' ($prog)'}: ${arNum(c)} مجموعة',
-              'Gym${prog.isEmpty ? '' : ' ($prog)'}: ${arNum(c)} sets')));
-    }
-
     // القياسات.
     for (final m in await db.query('measurements',
         where: 'day = ?', whereArgs: [day])) {

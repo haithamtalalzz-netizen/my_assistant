@@ -45,8 +45,6 @@ import '../widgets/dash_card.dart';
 import 'dashboard_screen.dart';
 import 'emergency_view.dart';
 import 'health/health_hub_screen.dart';
-import 'food/food_card_screen.dart';
-import 'gym/gym_screen.dart';
 
 import 'money/money_screen.dart';
 import 'schedule/schedule_screen.dart';
@@ -2177,14 +2175,9 @@ class _TodayScreenState extends State<TodayScreen> {
       (key: 'prayer', icon: Icons.mosque_outlined, label: tr('الصلاة', 'Prayer'),
           color: const Color(0xFF2FA36B), onTap: () => open(const PrayerScreen()),
           badge: 0),
-      (key: 'food', icon: Icons.restaurant_menu_outlined,
-          label: tr('الأكل', 'Food'), color: Colors.deepOrange,
-          onTap: () => open(const FoodCardScreen()), badge: 0),
       (key: 'dashboard', icon: Icons.dashboard_outlined,
           label: tr('لوحة', 'Board'), color: Colors.indigo,
           onTap: () => open(const DashboardScreen()), badge: 0),
-      (key: 'gym', icon: Icons.fitness_center, label: tr('رياضة', 'Gym'),
-          color: Colors.green, onTap: () => open(const GymScreen()), badge: 0),
     ];
   }
 

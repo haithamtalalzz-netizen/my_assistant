@@ -22,7 +22,6 @@ import '../../widgets/measurement_sheet.dart';
 import '../../widgets/search_action.dart';
 import '../food/meal_sheet.dart';
 import 'exercise_sheet.dart';
-import '../gym/walk_tracker_screen.dart';
 import '../../core/privacy.dart';
 
 /// **صحتى** — قسمين واضحين وبعدهم البنود.
@@ -43,20 +42,7 @@ class MyHealthScreen extends StatefulWidget {
   /// البنود اللى تحت — بتيجى من السايدبار عشان الشاشة ماتعرفش بالشاشات.
   final List<HealthSection> sections;
 
-  /// مكتبتَى «الرياضة» و«الأكل». اتشالوا من السايدبار، فبيتفتحوا من
-  /// سطرهم هنا — لإن جوّاهم شاشات (مخطّط الوجبات · الأنظمة الغذائية ·
-  /// الصيام) **مالهاش باب تانى فى التطبيق كله**، وحذف البند كان
-  /// هييتّمها.
-  final Widget Function()? exerciseHub;
-  final Widget Function()? foodHub;
-
-  const MyHealthScreen({
-    super.key,
-    this.onSelectTab,
-    this.sections = const [],
-    this.exerciseHub,
-    this.foodHub,
-  });
+  const MyHealthScreen({super.key, this.onSelectTab, this.sections = const []});
 
   @override
   State<MyHealthScreen> createState() => _MyHealthScreenState();
@@ -423,11 +409,7 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
         _sq(Icons.directions_walk, const Color(0xFF10B981),
             (d?.steps ?? 0) > 0 ? arMoney(d!.steps) : null,
             tr('خطوة', 'steps'),
-            goodWhenUp: true, onTap: () async {
-          await Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const WalkTrackerScreen()));
-          if (mounted) await _load();
-        }),
+            goodWhenUp: true),
         const SizedBox(width: 9),
         _sq(
             Icons.bedtime_outlined,
@@ -586,11 +568,6 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
         () => DayLog.undoExercise(id));
   }
 
-  Future<void> _openHub(Widget Function() build) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => build()));
-    if (mounted) await _load();
-  }
-
   Future<void> _openExerciseSheet() async {
     final id = await showExerciseSheet(context);
     if (id == null || !mounted) return;
@@ -636,7 +613,6 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
           for (final p in _presets) (p.label, () => _quickExercise(p)),
         ],
         onMore: _openExerciseSheet,
-        onOpenHub: widget.exerciseHub == null ? null : () => _openHub(widget.exerciseHub!),
       ),
       _doneRow(
         icon: Icons.restaurant_outlined,
@@ -653,7 +629,6 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
         onMore: () async {
           if (await showMealSheet(context) == true && mounted) await _load();
         },
-        onOpenHub: widget.foodHub == null ? null : () => _openHub(widget.foodHub!),
       ),
     ]);
   }

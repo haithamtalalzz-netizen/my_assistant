@@ -1,7 +1,6 @@
 import '../core/ar.dart';
 import 'appointments_repo.dart';
 import 'docs_repo.dart';
-import 'gym_repo.dart';
 import 'habits_repo.dart';
 import 'income_repo.dart';
 import 'insights_repo.dart';
@@ -100,17 +99,6 @@ Future<String> buildBrainContext() async {
     final measurements = await MeasurementsRepo().recent(limit: 6);
     if (measurements.isNotEmpty) {
       buf.writeln('آخر قياسات: ${measurements.map((m) => '${m.type} ${m.display()} (${m.day})').join('، ')}');
-    }
-    // الجيم: الوضع الحالي وأعلى أوزان.
-    final gym = GymRepo();
-    final program = await gym.currentProgram();
-    if (program.isNotEmpty) {
-      buf.writeln('وضع التمرين الحالي: ${gymProgramLabel(program)}');
-    }
-    final prs = await gym.personalRecords();
-    if (prs.isNotEmpty) {
-      buf.writeln('أعلى أوزان: ${prs.take(5).map((p) => '${p.exercise} '
-          '${arNum(p.weight % 1 == 0 ? p.weight.toInt() : p.weight)}كجم').join('، ')}');
     }
     // هدف السعرات.
     final calGoal = await settings.calorieGoal();

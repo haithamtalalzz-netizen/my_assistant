@@ -38,7 +38,6 @@ import 'data/voice_memos_repo.dart';
 import 'data/tasks_repo.dart';
 import 'data/subscriptions_repo.dart';
 import 'data/pets_repo.dart';
-import 'data/fasting_repo.dart';
 import 'data/vaccinations_repo.dart';
 import 'data/relatives_repo.dart';
 import 'data/money_categories.dart';
@@ -140,7 +139,6 @@ Future<void> _startup() async {
   unawaited(TasksRepo().rescheduleAll());
   unawaited(SubscriptionsRepo().rescheduleAll());
   unawaited(PetsRepo().rescheduleAll());
-  unawaited(FastingRepo().rescheduleCurrent());
   unawaited(ProactiveInsight.ensureScheduled());
   unawaited(VaccinationsRepo().rescheduleAll());
 }

@@ -61,16 +61,6 @@ class SearchRepo {
       ));
     }
 
-    // الوصفات.
-    await add(
-        'SELECT name, ingredients FROM recipes '
-        'WHERE name LIKE ? OR ingredients LIKE ? LIMIT 10',
-        [like, like],
-        (r) => SearchHit(
-            kind: 'recipe',
-            title: r['name'] as String,
-            subtitle: tr('وصفة', 'Recipe')));
-
     // صلة الرحم.
     await add(
         'SELECT name, phone FROM relatives WHERE name LIKE ? LIMIT 10',

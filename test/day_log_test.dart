@@ -8,7 +8,6 @@ import 'package:my_assistant/core/ar.dart';
 import 'package:my_assistant/core/db.dart';
 import 'package:my_assistant/data/activity_repo.dart';
 import 'package:my_assistant/data/day_log.dart';
-import 'package:my_assistant/data/gym_repo.dart';
 import 'package:my_assistant/data/meals_repo.dart';
 import 'package:my_assistant/models/models.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -48,14 +47,15 @@ void main() {
       expect(e.what, '');
     });
 
-    test('بتجمع المصدرين: نشاط حُرّ + جيم', () async {
+    test('بتجمع أنواع اليوم كلها', () async {
+      // كان فيه مصدر تانى (جلسات الجيم) — راح مع شاشته، فالنشاط الحُرّ
+      // بقى المصدر الوحيد وكل الأنواع بتتجمع فيه.
       await walk(30);
-      await GymRepo().addSession(
-          GymSession(day: today, program: 'Push', durationMin: 45));
+      await DayLog.logExercise(const ExercisePreset('جيم', 45));
       final e = await DayLog.exerciseToday();
-      expect(e.minutes, 75, reason: 'لو قرا مصدر واحد هيقول ٣٠ أو ٤٥');
+      expect(e.minutes, 75);
       expect(e.what, contains('مشى'));
-      expect(e.what, contains('Push'));
+      expect(e.what, contains('جيم'));
     });
 
     test('نفس النوع مرتين بيتجمع فى سطر واحد', () async {
@@ -73,11 +73,7 @@ void main() {
       expect((await DayLog.exerciseToday()).isEmpty, isTrue);
     });
 
-    test('جلسة جيم من غير برنامج بتتقال «جيم»', () async {
-      await GymRepo()
-          .addSession(GymSession(day: today, program: '', durationMin: 40));
-      expect((await DayLog.exerciseToday()).what, 'جيم 40 د');
-    });
+
 
     test('النوع الإنجليزى من متتبّع الـGPS بيتعرّب', () async {
       await walk(15, type: 'run');

@@ -30,7 +30,8 @@ Future<List<YearStat>> collectYearReview(int year) async {
   final income = await sum('income', 'amount', 'day');
   final tasksDone =
       await count("SELECT COUNT(*) FROM tasks WHERE done = 1 AND done_at LIKE ?");
-  final workouts = await count('SELECT COUNT(*) FROM gym_sessions WHERE day LIKE ?');
+  final workouts =
+      await count('SELECT COUNT(*) FROM workout_logs WHERE day LIKE ?');
   final fullPrayerDays = await count(
       'SELECT COUNT(*) FROM (SELECT day FROM prayer_log WHERE day LIKE ? '
       'GROUP BY day HAVING COUNT(*) >= 5)');

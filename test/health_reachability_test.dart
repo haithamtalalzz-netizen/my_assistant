@@ -1,56 +1,99 @@
-// الشاشات اللى اتشالت من السايدبار لازم يفضل ليها باب.
+// بندَا «الرياضة» و«الأكل» اتشالوا بالكامل — الاختبار ده بيمنع رجوعهم
+// بالغلط، وبيحرس اللى **لازم** يفضل.
 //
-// أكتر عيب بيتكرّر فى التطبيق ده: ميزة مبنية ومحدش يقدر يوصلها. لمّا
-// «الرياضة» و«الأكل» اتشالوا من السايدبار، تلات شاشات كان **السايدبار
-// بابها الوحيد** (الأنظمة الغذائية · مخطّط الوجبات · الصيام المتقطّع).
-// فاتنقلوا جوّه سطرَى «صحتى» بدل ما يتحذفوا.
-//
-// الاختبار ده بيقرا الكود نفسه: لو حد شال المعاملين من السايدبار، أو
-// شال بند من جوّه الهَب، الشاشة تبقى موجودة ومحدش يقدر يفتحها —
-// ومفيش اختبار سلوك هيلاحظ، لإن مفيش حاجة بتكسر.
+// الملف ده كان بيعمل العكس بالظبط: لمّا البندين اتشالوا من السايدبار
+// بس، كان بيتأكد إن شاشاتهم لسه ليها باب (تلاتة منها كان السايدبار
+// بابها الوحيد). بعد ما المستخدم قرّر الحذف الكامل، بقى يتأكد إنها
+// راحت — بشاشاتها ومخازنها وجداولها.
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  final drawer = File('lib/screens/app_drawer.dart').readAsStringSync();
+  String read(String p) => File(p).readAsStringSync();
 
-  test('«الرياضة» و«الأكل» مابقوش بنود فى السايدبار', () {
-    // البند فى السايدبار بيتبنى بـ`push(أيقونة, اسم, شاشة, لون)`.
-    expect(drawer.contains("push(\n                Icons.fitness_center"), isFalse);
-    expect(
-        drawer.contains("push(\n                Icons.restaurant_outlined"), isFalse);
-  });
-
-  test('بس لسه ليهم باب من «صحتى»', () {
-    expect(drawer.contains('exerciseHub:'), isTrue);
-    expect(drawer.contains('foodHub:'), isTrue);
-  });
-
-  test('الشاشات اللى السايدبار كان بابها الوحيد لسه مفتوحة', () {
-    // الثلاثة دول لو اتشالوا من الهَب مفيش حتة تانية فى التطبيق كله
-    // بتفتحهم — اتأكدنا بالبحث وقت النقل.
-    for (final screen in const [
-      'DietPlansScreen',
-      'MealPlannerScreen',
-      'FastingScreen',
-      'RecipesScreen',
+  test('ملفات الشاشات والمخازن اتمسحت', () {
+    for (final f in const [
+      'lib/screens/gym/gym_screen.dart',
+      'lib/screens/gym/walk_tracker_screen.dart',
+      'lib/screens/gym/progress_screen.dart',
+      'lib/screens/gym/exercise_library_screen.dart',
+      'lib/screens/gym/workout_programs_screen.dart',
+      'lib/screens/food/food_card_screen.dart',
+      'lib/screens/food/diet_plans_screen.dart',
+      'lib/screens/food/meal_planner_screen.dart',
+      'lib/screens/food/fasting_screen.dart',
+      'lib/screens/recipes_screen.dart',
+      'lib/data/gym_repo.dart',
+      'lib/data/body_progress_repo.dart',
+      'lib/data/meal_plan_repo.dart',
+      'lib/data/fasting_repo.dart',
+      'lib/data/recipes_repo.dart',
+      'lib/core/exercise_library.dart',
+      'lib/core/workout_programs.dart',
+      'lib/core/diet_plans.dart',
     ]) {
-      expect(drawer.contains('const $screen()'), isTrue,
-          reason: '$screen بقت من غير باب');
+      expect(File(f).existsSync(), isFalse, reason: '$f لسه موجود');
     }
   });
 
-  test('مفيش شاشة جوّه الهَبّين اتسابت ورا', () {
-    for (final screen in const [
-      'GymScreen',
-      'WalkTrackerScreen',
-      'ProgressScreen',
-      'ExerciseLibraryScreen',
-      'WorkoutProgramsScreen',
-      'FoodCardScreen',
+  test('الجداول اتشالت من الـDDL وفيه هجرة بتمسحها', () {
+    final db = read('lib/core/db.dart');
+    for (final t in const [
+      'gym_sessions',
+      'gym_sets',
+      'body_progress',
+      'meal_plan',
+      'if_fasts',
+      'recipes',
     ]) {
-      expect(drawer.contains('const $screen()'), isTrue, reason: screen);
+      expect(db.contains('CREATE TABLE $t('), isFalse,
+          reason: 'جدول $t لسه بيتعمل فى قاعدة جديدة');
+      expect(db.contains("'$t',"), isTrue,
+          reason: 'جدول $t مش فى قايمة الحذف — القواعد القديمة هتفضل شايلاه');
+    }
+    expect(db.contains('version: 69'), isTrue);
+  });
+
+  test('اللى لازم يفضل فضل', () {
+    // 🔴 دول **مش** جزء من البندين، ولو اتشالوا بالغلط حاجات تانية
+    // بتقع: تسجيل التمرينة بيكتب فى `activity_sessions`، وسطر «أكلت»
+    // بيقرا `meals`، و«خطة التمارين» شاشة مستقلّة لسه موجودة.
+    for (final f in const [
+      'lib/data/activity_repo.dart',
+      'lib/data/meals_repo.dart',
+      'lib/data/workout_repo.dart',
+      'lib/screens/food/meal_sheet.dart',
+      'lib/screens/food/food_picker_sheet.dart',
+      'lib/screens/food/barcode_scan_screen.dart',
+      'lib/screens/workout/workout_plan_screen.dart',
+      'lib/screens/health/exercise_sheet.dart',
+    ]) {
+      expect(File(f).existsSync(), isTrue, reason: '$f اتشال بالغلط');
+    }
+    final db = read('lib/core/db.dart');
+    for (final t in const [
+      'activity_sessions',
+      'meals',
+      'workout_plan',
+      'workout_logs',
+    ]) {
+      expect(db.contains('CREATE TABLE $t('), isTrue, reason: 'جدول $t اتشال');
+    }
+  });
+
+  test('مفيش بند راجع فى السايدبار', () {
+    final drawer = read('lib/screens/app_drawer.dart');
+    for (final name in const [
+      'GymScreen',
+      'FoodCardScreen',
+      'DietPlansScreen',
+      'MealPlannerScreen',
+      'RecipesScreen',
+      'exerciseHub',
+      'foodHub',
+    ]) {
+      expect(drawer.contains(name), isFalse, reason: '$name رجع');
     }
   });
 }

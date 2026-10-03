@@ -31,9 +31,7 @@ import 'package:my_assistant/core/egyptian_dishes.dart';
 import 'package:my_assistant/core/attention.dart';
 import 'package:flutter/material.dart';
 import 'package:my_assistant/core/food_db.dart';
-import 'package:my_assistant/core/exercise_library.dart';
 import 'package:my_assistant/core/countries.dart';
-import 'package:my_assistant/core/diet_plans.dart';
 import 'package:my_assistant/core/location_tracker.dart';
 import 'package:my_assistant/data/activity_repo.dart';
 import 'package:my_assistant/data/cycle_repo.dart';
@@ -77,8 +75,6 @@ import 'package:my_assistant/data/courses_repo.dart';
 import 'package:my_assistant/data/pets_repo.dart';
 import 'package:my_assistant/data/passwords_repo.dart';
 import 'package:my_assistant/data/symptoms_repo.dart';
-import 'package:my_assistant/data/fasting_repo.dart';
-import 'package:my_assistant/data/meal_plan_repo.dart';
 import 'package:my_assistant/core/week_overview.dart';
 import 'package:my_assistant/core/year_review.dart';
 import 'package:my_assistant/core/streak_guard.dart';
@@ -103,14 +99,11 @@ import 'package:my_assistant/data/plants_repo.dart';
 import 'package:my_assistant/data/worship_repo.dart';
 import 'package:my_assistant/data/search_repo.dart';
 import 'package:my_assistant/data/settings_repo.dart';
-import 'package:my_assistant/data/body_progress_repo.dart';
 import 'package:my_assistant/data/challenges_repo.dart';
-import 'package:my_assistant/data/gym_repo.dart';
 import 'package:my_assistant/data/insights_repo.dart';
 import 'package:my_assistant/data/medical_repo.dart';
 import 'package:my_assistant/data/pharmacy_repo.dart';
 import 'package:my_assistant/data/quit_repo.dart';
-import 'package:my_assistant/data/recipes_repo.dart';
 import 'package:my_assistant/data/relatives_repo.dart';
 import 'package:my_assistant/data/savings_repo.dart';
 import 'package:my_assistant/data/worship_extras_repo.dart';
@@ -2023,56 +2016,7 @@ void main() {
     });
   });
 
-  group('مكتبة التمارين', () {
-    test('فيه تمارين لكل عضلة', () {
-      for (final m in kMuscles) {
-        expect(filterExercises(muscle: m).isNotEmpty, true,
-            reason: 'العضلة $m لازم يكون ليها تمارين');
-      }
-    });
 
-    test('فلتر «بدون معدّات» بيرجّع تمارين وزن الجسم بس', () {
-      final noGear = filterExercises(equipment: 'none');
-      expect(noGear.isNotEmpty, true);
-      expect(noGear.every((e) => e.equipment == eBody), true);
-    });
-
-    test('فلتر معدّة معيّنة بيرجّع نوعها بس', () {
-      final dumbbell = filterExercises(equipment: eDumbbell);
-      expect(dumbbell.isNotEmpty, true);
-      expect(dumbbell.every((e) => e.equipment == eDumbbell), true);
-    });
-  });
-
-  group('الأنظمة الغذائية', () {
-    test('التنشيف عجز والتضخيم فائض عن الحفاظ', () {
-      final cut = dietPlanById('cutting')!;
-      final bulk = dietPlanById('bulking')!;
-      const weight = 80.0; // حفاظ ≈ 2400
-      expect(cut.targetCalories(weight) < cut.maintenanceCalories(weight), true);
-      expect(bulk.targetCalories(weight) > bulk.maintenanceCalories(weight), true);
-    });
-
-    test('توزيع الماكروز بيجمع 100% وجراماته بتطلع بالسعرات', () {
-      for (final p in kDietPlans) {
-        expect(p.proteinPct + p.carbsPct + p.fatPct, 100,
-            reason: 'نظام ${p.id} لازم مجموع نسبه 100');
-      }
-      final plan = dietPlanById('balanced')!;
-      final macros = plan.targetMacros(2000);
-      // 30% بروتين من 2000 = 600 سعرة / 4 = 150 جم
-      expect(macros.protein.round(), 150);
-      // 40% كارب = 800 / 4 = 200 جم
-      expect(macros.carbs.round(), 200);
-      // 30% دهون = 600 / 9 ≈ 67 جم
-      expect(macros.fat.round(), 67);
-    });
-
-    test('السعرات مش بتنزل تحت 1200', () {
-      final cut = dietPlanById('cutting')!;
-      expect(cut.targetCalories(30) >= 1200, true); // وزن صغير جدًا
-    });
-  });
 
   group('ترقية قاعدة البيانات v25 ← v26', () {
     test('عمودي form و unit بيتضافوا للأدوية', () async {
@@ -2193,16 +2137,13 @@ void main() {
   });
 
   group('ترقية قاعدة البيانات v20 ← v21', () {
-    test('جداول اليوميات والوصفات بتتعمل', () async {
+    test('جدول اليوميات بيتعمل (الوصفات اتشالت)', () async {
       final v20 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
           options: OpenDatabaseOptions(singleInstance: false));
       await AppDb.upgradeSchema(v20, 20, 21);
       await v20.insert('diaries',
           {'day': '2026-07-08', 'text': 'يوم كويس', 'created_at': 'x'});
-      await v20.insert('recipes',
-          {'name': 'كشري', 'ingredients': 'رز\nعدس', 'steps': 'اسلق'});
       expect((await v20.query('diaries')).length, 1);
-      expect((await v20.query('recipes')).length, 1);
       await v20.close();
     });
   });
@@ -2264,18 +2205,17 @@ void main() {
   });
 
   group('ترقية قاعدة البيانات v13 ← v14', () {
-    test('جدول التقدّم البدني بيتعمل', () async {
+    test('جدول التقدّم البدني مابقاش بيتعمل', () async {
+      // البند اتشال بالكامل، فالترقية مابقتش تعمل جدوله.
       final v13 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
           options: OpenDatabaseOptions(singleInstance: false));
       await AppDb.upgradeSchema(v13, 13, 14);
-      await v13.insert('body_progress', {
-        'day': '2026-07-07',
-        'weight': 90,
-        'waist': 95,
-      });
-      final rows = await v13.query('body_progress');
-      expect(rows.length, 1);
-      expect((rows.first['weight'] as num).toDouble(), 90);
+      final names = {
+        for (final r in await v13.rawQuery(
+            "SELECT name FROM sqlite_master WHERE type='table'"))
+          r['name'] as String
+      };
+      expect(names.contains('body_progress'), isFalse);
       await v13.close();
     });
   });
@@ -2320,23 +2260,17 @@ void main() {
   });
 
   group('ترقية قاعدة البيانات v10 ← v11', () {
-    test('جداول الجيم (جلسات ومجموعات) بتتعمل', () async {
+    test('جداول الجيم مابقتش بتتعمل', () async {
       final v10 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
           options: OpenDatabaseOptions(singleInstance: false));
       await AppDb.upgradeSchema(v10, 10, 11);
-      final sid = await v10.insert('gym_sessions', {
-        'day': '2026-07-07',
-        'program': 'دفع',
-      });
-      await v10.insert('gym_sets', {
-        'session_id': sid,
-        'exercise': 'بنش برس',
-        'reps': 10,
-        'weight': 60,
-        'set_index': 1,
-      });
-      expect((await v10.query('gym_sessions')).length, 1);
-      expect((await v10.query('gym_sets')).length, 1);
+      final names = {
+        for (final r in await v10.rawQuery(
+            "SELECT name FROM sqlite_master WHERE type='table'"))
+          r['name'] as String
+      };
+      expect(names.contains('gym_sessions'), isFalse);
+      expect(names.contains('gym_sets'), isFalse);
       await v10.close();
     });
   });
@@ -2646,37 +2580,18 @@ void main() {
       final v42 = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath,
           options: OpenDatabaseOptions(singleInstance: false));
       await AppDb.upgradeSchema(v42, 42, 43);
-      await v42.insert('if_fasts',
-          {'start_at': '2026-07-14T08:00:00.000', 'target_hours': 16, 'created_at': '2026-07-14'});
-      await v42.insert('meal_plan', {'weekday': 6, 'slot': 'غدا', 'text': 'فراخ'});
-      expect((await v42.query('if_fasts')).length, 1);
-      expect((await v42.query('meal_plan')).length, 1);
+      // الجدولين دول اتمسحوا مع بندهم فى نسخة ٦٩، فالترقية لازم
+      // تسيب القاعدة من غيرهم.
+      final names = {
+        for (final r in await v42.rawQuery(
+            "SELECT name FROM sqlite_master WHERE type='table'"))
+          r['name'] as String
+      };
+      expect(names.contains('if_fasts'), isFalse);
+      expect(names.contains('meal_plan'), isFalse);
       await v42.close();
     });
 
-    test('FastingRepo: بدء وإنهاء صيام', () async {
-      final repo = FastingRepo();
-      expect(await repo.current(), isNull);
-      await repo.start(targetHours: 16);
-      final cur = await repo.current();
-      expect(cur, isNotNull);
-      expect(cur!.ongoing, isTrue);
-      expect(cur.targetHours, 16);
-      await repo.stop();
-      expect(await repo.current(), isNull);
-      expect((await repo.recent()).length, 1);
-    });
-
-    test('MealPlanRepo: حفظ خانة + حذف بالنص الفاضى', () async {
-      final repo = MealPlanRepo();
-      await repo.setItem(6, 'غدا', 'كشري');
-      var m = await repo.weekMap();
-      expect(m['6|غدا'], 'كشري');
-      expect((await repo.allTexts()).contains('كشري'), isTrue);
-      await repo.setItem(6, 'غدا', ''); // حذف
-      m = await repo.weekMap();
-      expect(m.containsKey('6|غدا'), isFalse);
-    });
   });
 
   group('العقل المحلي — بنود جديدة', () {
@@ -2698,10 +2613,6 @@ void main() {
       expect(r.text.contains('نتفليكس'), isTrue);
     });
 
-    test('الصيام: بيقول مش صايم لو مفيش', () async {
-      final r = await LocalBrain.answer('انا صايم؟');
-      expect(r.handled, isTrue);
-    });
   });
 
   group('جرد الممتلكات واستهلاك العدادات (v44)', () {
@@ -5961,46 +5872,6 @@ void main() {
     });
   });
 
-  group('الجيم', () {
-    test('المجموعات بترتيبها، وحذف الجلسة بيشيلها معاها', () async {
-      final repo = GymRepo();
-      final s1 = await repo.addSession(const GymSession(
-          day: '2026-09-20', program: 'push', durationMin: 45));
-      final s2 = await repo.addSession(
-          const GymSession(day: '2026-09-22', program: 'pull'));
-      // بندخّلهم بترتيب مقلوب عشان نتأكد إن الترتيب من الـset_index.
-      await repo.addSet(GymSet(
-          sessionId: s1, exercise: 'بنش', reps: 8, weight: 60, setIndex: 2));
-      await repo.addSet(GymSet(
-          sessionId: s1, exercise: 'بنش', reps: 10, weight: 50, setIndex: 1));
-
-      final sets = await repo.setsFor(s1);
-      expect(sets.map((e) => e.setIndex), [1, 2]);
-      expect(sets.first.weight, 50);
-      // مجموعات جلسة تانية مابتتخلطش.
-      expect(await repo.setsFor(s2), isEmpty);
-
-      // الأحدث أولاً.
-      expect((await repo.recentSessions()).map((e) => e.id), [s2, s1]);
-      expect((await repo.recentSessions(limit: 1)).length, 1);
-
-      await repo.deleteSession(s1);
-      expect(await repo.setsFor(s1), isEmpty);
-      expect((await repo.recentSessions()).map((e) => e.id), [s2]);
-    });
-
-    test('اختيار برنامج بيكتب توزيعه فى الخطة الأسبوعية', () async {
-      final repo = GymRepo();
-      // مفيش برنامج مختار فى الأول.
-      expect(await repo.currentProgram(), '');
-      await repo.setProgram('ppl');
-      expect(await repo.currentProgram(), 'ppl');
-      // ده مش مجرد إعداد — بيتكتب فى الخطة عشان يظهر فى اليوم والتذكيرات.
-      final plan = await WorkoutRepo().plan();
-      expect(plan[6], 'دفع');
-      expect(plan[1], 'أرجل');
-    });
-  });
 
   group('الصيدلية المنزلية', () {
     test('استبدال الدفعات بيحدّث الكمية وأقرب صلاحية', () async {
@@ -6160,30 +6031,6 @@ void main() {
     });
   });
 
-  group('الوصفات', () {
-    test('المقادير بتتضاف لقائمة التسوق سطر سطر', () async {
-      final repo = RecipesRepo();
-      const r = Recipe(
-          name: 'كشرى',
-          ingredients: 'رز\n  عدس  \n\nمكرونة\n',
-          steps: 'اسلق');
-      // السطور الفاضية والمسافات مابتدخلش القايمة.
-      expect(r.ingredientList, ['رز', 'عدس', 'مكرونة']);
-      final added = await repo.addIngredientsToShopping(r);
-      expect(added, 3);
-      final names = (await MealsRepo().shoppingItems()).map((i) => i.name);
-      expect(names, containsAll(['رز', 'عدس', 'مكرونة']));
-    });
-
-    test('حفظ/تعديل/حذف', () async {
-      final repo = RecipesRepo();
-      final id = await repo.save(const Recipe(name: 'ملوخية'));
-      await repo.save(Recipe(id: id, name: 'ملوخية بالأرانب'));
-      expect((await repo.all()).single.name, 'ملوخية بالأرانب');
-      await repo.delete(id);
-      expect(await repo.all(), isEmpty);
-    });
-  });
 
   group('قيام الليل والصدقات', () {
     test('السلسلة بتعدّ لورا وبتتوقف عند أول يوم ناقص', () async {
@@ -6217,18 +6064,6 @@ void main() {
     });
   });
 
-  group('التقدّم البدنى واليوميات', () {
-    test('قياسات الجسم بتترتّب بالأحدث', () async {
-      final repo = BodyProgressRepo();
-      await repo.add(const BodyProgress(day: '2026-09-01', weight: 90));
-      final newer =
-          await repo.add(const BodyProgress(day: '2026-09-20', weight: 88));
-      expect((await repo.all()).first.day, '2026-09-20');
-      await repo.delete(newer);
-      expect((await repo.all()).single.day, '2026-09-01');
-    });
-
-  });
 
   group('محرّك الرؤى', () {
     test('بيتجمّع على قاعدة فاضية من غير ما يرمى', () async {
@@ -6500,12 +6335,9 @@ void main() {
       expect(notes.first.title, contains('مهمة'));
     });
 
-    test('بيلاقى الوصفات وصلة الرحم', () async {
-      await RecipesRepo().save(const Recipe(name: 'كشرى', ingredients: 'رز'));
+    test('بيلاقى صلة الرحم', () async {
+      // الوصفات اتشالت من البحث مع بندها.
       await RelativesRepo().save(const Relative(name: 'خالد', phone: '0100'));
-
-      expect((await SearchRepo().search('كشرى'))
-          .any((h) => h.kind == 'recipe'), isTrue);
       expect((await SearchRepo().search('خالد'))
           .any((h) => h.kind == 'relative'), isTrue);
     });

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../core/dashboard_stats.dart';
 import '../screens/baladna/debts_screen.dart';
 import '../screens/docs/docs_screen.dart';
-import '../screens/food/food_card_screen.dart';
 import '../screens/growth/reading_screen.dart';
 import '../screens/habits/habits_screen.dart';
 import '../screens/health/cycle_screen.dart';
@@ -38,11 +37,6 @@ import '../screens/worship/prayer_screen.dart';
           icon: Icons.mosque_outlined,
           color: Color(0xFF2FA36B),
           screen: PrayerScreen.new
-        ),
-      'food' => (
-          icon: Icons.restaurant_outlined,
-          color: Colors.deepOrange,
-          screen: FoodCardScreen.new
         ),
       'cycle' => (
           icon: Icons.favorite,

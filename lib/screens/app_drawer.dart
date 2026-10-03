@@ -14,8 +14,6 @@ import 'tasks/tasks_screen.dart';
 import 'notes_screen.dart';
 import 'money/subscriptions_screen.dart';
 import 'growth/goals_screen.dart';
-import 'food/fasting_screen.dart';
-import 'food/meal_planner_screen.dart';
 import 'growth/courses_screen.dart';
 import 'growth/reading_screen.dart';
 import 'growth/habit_analytics_screen.dart';
@@ -35,17 +33,9 @@ import 'baladna/savings_screen.dart';
 import 'calendar_screen.dart';
 import 'challenges_screen.dart';
 import 'rules_screen.dart';
-import 'food/diet_plans_screen.dart';
-import 'food/food_card_screen.dart';
-import 'recipes_screen.dart';
 import 'brain/charts_screen.dart';
 import 'emergency_view.dart';
 import 'group_hub_screen.dart';
-import 'gym/exercise_library_screen.dart';
-import 'gym/gym_screen.dart';
-import 'gym/progress_screen.dart';
-import 'gym/walk_tracker_screen.dart';
-import 'gym/workout_programs_screen.dart';
 import 'health/cycle_screen.dart';
 import 'inbox_screen.dart';
 import 'medical/medical_screen.dart';
@@ -390,49 +380,6 @@ class AppDrawer extends StatelessWidget {
                         Colors.teal,
                         () => const MedicalScreen()),
                   ],
-                  exerciseHub: () => GroupHubScreen(
-                        title: tr('الرياضة', 'Exercise'),
-                        onSelectTab: onSelect,
-                        accent: Colors.deepPurple,
-                        items: [
-                          GroupHubItem(Icons.fitness_center, tr('الجيم', 'Gym'),
-                              screen: const GymScreen()),
-                          GroupHubItem(Icons.directions_run,
-                              tr('تتبّع المشي/الجري', 'Walk / run'),
-                              screen: const WalkTrackerScreen()),
-                          GroupHubItem(Icons.monitor_weight_outlined,
-                              tr('التقدم البدني', 'Body progress'),
-                              screen: const ProgressScreen()),
-                          GroupHubItem(Icons.menu_book_outlined,
-                              tr('مكتبة التمارين', 'Exercise library'),
-                              screen: const ExerciseLibraryScreen()),
-                          GroupHubItem(Icons.list_alt_outlined,
-                              tr('برامج التمارين', 'Workout programs'),
-                              screen: const WorkoutProgramsScreen()),
-                        ],
-                      ),
-                  foodHub: () => GroupHubScreen(
-                        title: tr('الأكل', 'Food'),
-                        onSelectTab: onSelect,
-                        accent: Colors.green,
-                        items: [
-                          GroupHubItem(Icons.menu_book_outlined,
-                              tr('دليل الأكل', 'Food guide'),
-                              screen: const FoodCardScreen()),
-                          GroupHubItem(Icons.restaurant_menu,
-                              tr('الأنظمة الغذائية', 'Diet plans'),
-                              screen: const DietPlansScreen()),
-                          GroupHubItem(Icons.calendar_view_week_outlined,
-                              tr('مخطّط الوجبات', 'Meal planner'),
-                              screen: const MealPlannerScreen()),
-                          GroupHubItem(Icons.timer_outlined,
-                              tr('الصيام المتقطّع', 'Intermittent fasting'),
-                              screen: const FastingScreen()),
-                          GroupHubItem(Icons.restaurant_menu_outlined,
-                              tr('دفتر الوصفات', 'Recipes'),
-                              screen: const RecipesScreen()),
-                        ],
-                      ),
                 ),
                 Colors.pink),
             rowDivider,

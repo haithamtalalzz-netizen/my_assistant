@@ -23,8 +23,6 @@ import '../schedule/schedule_screen.dart';
 import 'lab_results_screen.dart';
 import 'symptom_journal_screen.dart';
 import 'vaccinations_screen.dart';
-import '../gym/gym_screen.dart';
-import '../gym/progress_screen.dart';
 import '../home/pharmacy_screen.dart';
 import '../medical/medical_screen.dart';
 import '../../widgets/measurement_sheet.dart';
@@ -274,22 +272,6 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
                   _navCard(
-                    icon: Icons.fitness_center,
-                    color: Colors.deepPurple,
-                    title: tr('الجيم', 'Gym'),
-                    subtitle: tr('برنامجك وجلساتك وأرقامك القياسية',
-                        'Your program, sessions & PRs'),
-                    onTap: () => _open(const GymScreen()),
-                  ),
-                  _navCard(
-                    icon: Icons.monitor_weight_outlined,
-                    color: Colors.teal,
-                    title: tr('التقدم البدني', 'Body progress'),
-                    subtitle: tr('الوزن والمقاسات وصور التغيّر',
-                        'Weight, measurements & photos'),
-                    onTap: () => _open(const ProgressScreen()),
-                  ),
-                  _navCard(
                     icon: Icons.medical_information_outlined,
                     color: Colors.redAccent,
                     title: tr('الملف الطبي', 'Medical file'),
@@ -422,7 +404,7 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
               tr('من «التقدم البدني» عشان نحسب مؤشراتك',
                   'From “Body progress” to compute your metrics')),
           trailing: const Icon(Icons.chevron_left),
-          onTap: () => _open(const ProgressScreen()),
+          onTap: () => openMeasurementSheet(context, 'وزن').then((_) => _load()),
         ),
       );
     }

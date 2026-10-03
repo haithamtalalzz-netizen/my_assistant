@@ -2,7 +2,6 @@ import '../data/appointments_repo.dart';
 import '../data/courses_repo.dart';
 import '../data/docs_repo.dart';
 import '../data/goals_repo.dart';
-import '../data/gym_repo.dart';
 import '../data/lab_results_repo.dart';
 import '../data/pets_repo.dart';
 import '../data/quit_repo.dart';
@@ -15,7 +14,6 @@ import '../data/wishlist_repo.dart';
 import '../data/worship_repo.dart';
 import 'db.dart';
 import '../data/bills_repo.dart';
-import '../data/body_progress_repo.dart';
 import '../data/challenges_repo.dart';
 import '../data/debts_repo.dart';
 import '../data/gameya_repo.dart';
@@ -32,7 +30,6 @@ import '../data/money_repo.dart';
 import '../data/occasions_repo.dart';
 import '../data/pharmacy_repo.dart';
 import '../data/plants_repo.dart';
-import '../data/recipes_repo.dart';
 import '../data/relatives_repo.dart';
 import '../data/savings_repo.dart';
 import '../data/wallets_repo.dart';
@@ -210,13 +207,7 @@ Future<int> seedDemoData() async {
   await add(() => HomeMaintenanceRepo().save(const HomeMaintenance(
       name: 'فلتر المياه', intervalMonths: 6, lastDone: '2025-01-01')));
 
-  // ---- التقدّم البدني ----
-  await add(() => BodyProgressRepo()
-      .add(BodyProgress(day: d(7), weight: 83, waist: 92)));
-
-  // ---- وصفة + تحديات + وارد ----
-  await add(() => RecipesRepo().save(const Recipe(
-      name: 'كشري', ingredients: 'رز\nعدس\nمكرونة', steps: 'اسلق وقلّب')));
+  // ---- تحديات + وارد ----
   await add(() => ChallengesRepo().add(
       Challenge(name: 'تحدي المشي', startDate: d(3), days: 30)));
   await add(() => InboxRepo().add('أفتكر أجدد رخصة العربية'));
@@ -378,17 +369,6 @@ Future<int> seedDemoData() async {
       name: 'إنفلونزا', person: 'أنا', date: d(90),
       nextDue: dayKey(now.add(const Duration(days: 20))), createdAt: iso));
   n += 4;
-
-  // ---- الجيم (حصص وتمارين) ----
-  for (var k = 0; k < 8; k++) {
-    final sid = await GymRepo().addSession(GymSession(
-        day: d(k * 3), program: k % 2 == 0 ? 'صدر وترايسبس' : 'ظهر وبايسبس',
-        durationMin: 45 + (k % 3) * 15));
-    await GymRepo().addSet(GymSet(
-        sessionId: sid, exercise: k % 2 == 0 ? 'بنش برس' : 'عقلة',
-        setIndex: 1, reps: 10, weight: 40 + k * 2.5));
-    n += 2;
-  }
 
   // ---- الإقلاع + الأعراض + الحيوانات ----
   await QuitRepo().add(QuitCounter(

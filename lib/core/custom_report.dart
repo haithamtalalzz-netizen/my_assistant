@@ -23,7 +23,6 @@ const Map<String, String> kReportSections = {
   'medical': 'السجل الطبي',
   'habit': 'العادات',
   'workout': 'التمرين',
-  'gym': 'الجيم',
   'health': 'الصحة العامة',
 };
 

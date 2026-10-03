@@ -19,7 +19,6 @@ import 'package:my_assistant/core/privacy.dart';
 import 'package:my_assistant/core/theme.dart';
 import 'package:my_assistant/data/appointments_repo.dart';
 import 'package:my_assistant/data/activity_repo.dart';
-import 'package:my_assistant/data/gym_repo.dart';
 import 'package:my_assistant/data/health_repo.dart';
 import 'package:my_assistant/data/meals_repo.dart';
 import 'package:my_assistant/data/measurements_repo.dart';
@@ -417,8 +416,13 @@ void main() {
         durationSec: 30 * 60,
         calories: 120,
         createdAt: DateTime.now().toIso8601String()));
-    await GymRepo().addSession(GymSession(
-        day: dayKey(DateTime.now()), program: 'جيم', durationMin: 10));
+    await ActivityRepo().add(ActivitySession(
+        day: dayKey(DateTime.now()),
+        type: 'جيم',
+        distanceKm: 0,
+        durationSec: 10 * 60,
+        calories: 90,
+        createdAt: DateTime.now().toIso8601String()));
     await MealsRepo().add(Meal(
         day: dayKey(DateTime.now()),
         slot: 'فطار',

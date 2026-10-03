@@ -14,7 +14,6 @@ import '../data/docs_repo.dart';
 import '../data/gameya_repo.dart';
 import '../data/lab_results_repo.dart';
 import '../data/vaccinations_repo.dart';
-import '../data/gym_repo.dart';
 import '../data/habits_repo.dart';
 import '../data/inbox_repo.dart';
 import '../data/health_repo.dart';
@@ -38,7 +37,6 @@ import '../data/tasks_repo.dart';
 import '../data/subscriptions_repo.dart';
 import '../data/goals_repo.dart';
 import '../data/courses_repo.dart';
-import '../data/fasting_repo.dart';
 import '../models/models.dart';
 import 'ar.dart';
 import 'egyptian_dishes.dart';
@@ -246,10 +244,6 @@ class LocalBrain {
     // التعلّم / الكورسات.
     if (_has(t, ['كورساتي', 'كورسات', 'دوراتي', 'بتعلم ايه', 'التعلم'])) {
       return (text: await _coursesBrief(), handled: true);
-    }
-    // الصيام المتقطّع.
-    if (_has(t, ['الصيام المتقطع', 'صيامي', 'صايم بقالي', 'ساعات الصيام', 'انا صايم', 'fasting'])) {
-      return (text: await _fastingBrief(), handled: true);
     }
     // نظرة الأسبوع / اللى جاى.
     if (_has(t, ['الاسبوع الجاي', 'اللي جاي', 'اللى جاى', 'عندي ايه الاسبوع', 'مواعيد الاسبوع', 'اجندتي', 'week ahead'])) {
@@ -1101,24 +1095,6 @@ class LocalBrain {
     return b.toString().trim();
   }
 
-  static Future<String> _fastingBrief() async {
-    final repo = FastingRepo();
-    final cur = await repo.current();
-    final week = await repo.completedLast(7);
-    if (cur != null) {
-      final h = cur.elapsed.inHours;
-      final m = cur.elapsed.inMinutes % 60;
-      return tr(
-          'صايم بقالك ${arNum(h)} ساعة و${arNum(m)} دقيقة من هدف ${arNum(cur.targetHours)} ساعة.'
-          '${cur.reachedTarget ? ' كمّلت الهدف 🎉 تقدر تفطر.' : ''}',
-          'Fasting ${arNum(h)}h ${arNum(m)}m of a ${arNum(cur.targetHours)}h goal.'
-          '${cur.reachedTarget ? ' Goal reached 🎉 you can eat.' : ''}');
-    }
-    return tr(
-        'مش صايم دلوقتي. كمّلت ${arNum(week)} صيام الأسبوع ده. ابدأ من «الصيام المتقطّع».',
-        'Not fasting now. ${arNum(week)} fasts completed this week. Start from Intermittent fasting.');
-  }
-
   static Future<String> _weekAheadBrief() async {
     final items = await collectWeekOverview();
     if (items.isEmpty) {
@@ -1916,19 +1892,6 @@ class LocalBrain {
           'Today\'s workout "$title" — done ✅'));
     } else {
       b.writeln(tr('تمرين النهاردة: $title', "Today's workout: $title"));
-    }
-    final program = await GymRepo().currentProgram();
-    if (program.isNotEmpty) {
-      b.writeln(tr('برنامجك: ${gymProgramLabel(program)}',
-          'Your program: ${gymProgramLabel(program)}'));
-    }
-    final prs = await GymRepo().personalRecords();
-    if (prs.isNotEmpty) {
-      b.writeln(tr('أعلى أوزانك:', 'Your PRs:'));
-      for (final p in prs.take(4)) {
-        final w = p.weight % 1 == 0 ? p.weight.toInt() : p.weight;
-        b.writeln('• ${p.exercise}: ${arNum(w)} ${tr('كجم', 'kg')}');
-      }
     }
     return b.toString().trim();
   }

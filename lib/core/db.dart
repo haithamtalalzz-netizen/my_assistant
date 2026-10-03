@@ -18,7 +18,7 @@ class AppDb {
   static Future<Database> _open() async {
     return openDatabase(
       await dbPath(),
-      version: 68,
+      version: 69,
       onCreate: createSchema,
       onUpgrade: upgradeSchema,
     );
@@ -440,6 +440,21 @@ class AppDb {
         await db.execute(ddl);
       }
     }
+    if (oldV < 69 && newV >= 69) {
+      // 🔴 حذف فعلى لبيانات. بنود «الرياضة» و«الأكل» اتشالت بالكامل
+      // بقرار المستخدم بعد ما اتقال له إن ده بيمسح بيانات مستخدمى
+      // النسخة المنشورة ومالوش رجعة.
+      for (final t in const [
+        'gym_sessions',
+        'gym_sets',
+        'body_progress',
+        'meal_plan',
+        'if_fasts',
+        'recipes',
+      ]) {
+        await db.execute('DROP TABLE IF EXISTS $t');
+      }
+    }
     if (oldV < 68 && newV >= 68) {
       // صور ورقة التحليل. عمود بقيمة افتراضية فاضية → كل النتايج
       // المسجّلة قبل كده تفضل صالحة زى ما هى، من غير صور.
@@ -784,23 +799,7 @@ class AppDb {
   ];
 
   /// الصيام المتقطّع (نوافذ صيام) + مخطّط الوجبات الأسبوعى.
-  static const List<String> _v43Tables = [
-    '''
-      CREATE TABLE if_fasts(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        start_at TEXT NOT NULL,
-        end_at TEXT,
-        target_hours INTEGER NOT NULL DEFAULT 16,
-        created_at TEXT NOT NULL
-      )''',
-    '''
-      CREATE TABLE meal_plan(
-        weekday INTEGER NOT NULL,
-        slot TEXT NOT NULL,
-        text TEXT NOT NULL DEFAULT '',
-        PRIMARY KEY(weekday, slot)
-      )''',
-  ];
+  static const List<String> _v43Tables = [];
 
   /// مفكرة الأعراض — سجل يومى لأعراض بشدّة وملاحظة.
   static const List<String> _v42Tables = [
@@ -1121,14 +1120,6 @@ class AppDb {
         text TEXT NOT NULL,
         created_at TEXT NOT NULL
       )''',
-    '''
-      CREATE TABLE recipes(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        photo TEXT NOT NULL DEFAULT '',
-        ingredients TEXT NOT NULL DEFAULT '',
-        steps TEXT NOT NULL DEFAULT ''
-      )''',
   ];
 
   static const List<String> _v20Tables = [
@@ -1195,19 +1186,7 @@ class AppDb {
   static const List<String> _v15Tables = [
   ];
 
-  static const List<String> _v14Tables = [
-    '''
-      CREATE TABLE body_progress(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        day TEXT NOT NULL,
-        weight REAL,
-        waist REAL,
-        chest REAL,
-        arms REAL,
-        photo TEXT NOT NULL DEFAULT ''
-      )''',
-    'CREATE INDEX idx_body_progress_day ON body_progress(day)',
-  ];
+  static const List<String> _v14Tables = [];
 
   static const List<String> _v13Tables = [
     '''
@@ -1247,27 +1226,7 @@ class AppDb {
       )''',
   ];
 
-  static const List<String> _v11Tables = [
-    '''
-      CREATE TABLE gym_sessions(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        day TEXT NOT NULL,
-        program TEXT NOT NULL DEFAULT '',
-        duration_min INTEGER NOT NULL DEFAULT 0,
-        notes TEXT NOT NULL DEFAULT ''
-      )''',
-    'CREATE INDEX idx_gym_sessions_day ON gym_sessions(day)',
-    '''
-      CREATE TABLE gym_sets(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id INTEGER NOT NULL,
-        exercise TEXT NOT NULL,
-        reps INTEGER NOT NULL DEFAULT 0,
-        weight REAL NOT NULL DEFAULT 0,
-        set_index INTEGER NOT NULL DEFAULT 0
-      )''',
-    'CREATE INDEX idx_gym_sets_session ON gym_sets(session_id)',
-  ];
+  static const List<String> _v11Tables = [];
 
   static const List<String> _v10Tables = [
     '''

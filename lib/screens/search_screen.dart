@@ -25,7 +25,6 @@ import 'health/vaccinations_screen.dart';
 import 'health/lab_results_screen.dart';
 import 'home/plants_screen.dart';
 import 'notes_screen.dart';
-import 'recipes_screen.dart';
 import 'baladna/relatives_screen.dart';
 import '../core/privacy.dart';
 
@@ -177,7 +176,6 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget? _screenFor(String kind) => switch (kind) {
         'note' => const NotesScreen(),
-        'recipe' => const RecipesScreen(),
         'relative' => const RelativesScreen(),
         'appointment' || 'medication' => const ScheduleScreen(),
         'expense' || 'income' => const MoneyScreen(),

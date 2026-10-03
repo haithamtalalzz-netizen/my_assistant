@@ -11,7 +11,6 @@ import '../core/ar.dart';
 import '../core/db.dart';
 import '../models/models.dart';
 import 'activity_repo.dart';
-import 'gym_repo.dart';
 import 'meals_repo.dart';
 
 /// زرار جاهز: نوعه المخزّن ومدته بالدقايق.
@@ -61,8 +60,11 @@ class ExerciseDay {
 class DayLog {
   // ————————————————— رياضة —————————————————
 
-  /// بتجمع نشاط اليوم من **المصدرين**: الجلسات الحُرّة (اللى الأزرار
-  /// الجاهزة ومتتبّع الـGPS بيكتبوا فيها) وجلسات الجيم.
+  /// نشاط اليوم كله من `activity_sessions` — اللى الأزرار الجاهزة وورقة
+  /// «سجّل تمرينة» بيكتبوا فيها.
+  ///
+  /// كان بيقرا من مصدر تانى كمان (جلسات الجيم)، بس شاشة الجيم اتشالت
+  /// بالكامل فالمصدر ده مابقاش حد بيكتب فيه.
   static Future<ExerciseDay> exerciseToday([DateTime? at]) async {
     final day = dayKey(at ?? DateTime.now());
     final parts = <String, int>{};
@@ -74,12 +76,6 @@ class DayLog {
       if (mins <= 0) continue;
       parts[_typeLabel(s.type)] = (parts[_typeLabel(s.type)] ?? 0) + mins;
     }
-    for (final g in await GymRepo().recentSessions(limit: 60)) {
-      if (g.day != day || g.durationMin <= 0) continue;
-      final label = g.program.trim().isEmpty ? 'جيم' : g.program.trim();
-      parts[label] = (parts[label] ?? 0) + g.durationMin;
-    }
-
     final total = parts.values.fold(0, (a, b) => a + b);
     final what = parts.entries
         .map((e) => '${e.key} ${arNum(e.value)} د')
