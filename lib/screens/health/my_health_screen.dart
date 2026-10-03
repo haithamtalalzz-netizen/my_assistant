@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../core/ar.dart';
 import '../../core/l10n.dart';
+import '../../data/day_log.dart';
 import '../../data/health_repo.dart';
 import '../../data/measurements_repo.dart';
+import '../../data/meals_repo.dart';
 import '../../data/meds_repo.dart';
 import '../../data/settings_repo.dart';
 import '../../models/models.dart';
@@ -74,6 +76,12 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
   double? _heightCm;
   int? _birthYear;
 
+  /// «عملت إيه النهاردة» — الرقم جاى من مصدرين (نشاط حُرّ + جيم)،
+  /// والأزرار الجاهزة بتتعلّم من اللى بتسجّله.
+  ExerciseDay _exercise = const ExerciseDay(0, '');
+  List<ExercisePreset> _presets = const [];
+  ({int calories, String what}) _meals = (calories: 0, what: '');
+
   /// أعداد ورقك الطبى — بتتعرض على المربعات عشان تعرف اللى جوّه قبل
   /// ما تفتح (نفس قاعدة «فلوسى»: مافيش باب أعمى).
   int? _labs;
@@ -97,6 +105,9 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
     final st = SettingsRepo();
     final heightCm = double.tryParse(await st.get('height_cm') ?? '');
     final birthYear = int.tryParse(await st.get('birth_year') ?? '');
+    final exercise = await DayLog.exerciseToday();
+    final presets = await DayLog.presets();
+    final meals = await DayLog.mealsToday();
     final labs = (await LabResultsRepo().all()).length;
     final vaccines = (await VaccinationsRepo().all()).length;
     final symptoms = (await SymptomsRepo().recent()).length;
@@ -113,6 +124,9 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
       _day = day;
       _heightCm = heightCm;
       _birthYear = birthYear;
+      _exercise = exercise;
+      _presets = presets;
+      _meals = meals;
       _labs = labs;
       _vaccines = vaccines;
       _symptoms = symptoms;
@@ -420,6 +434,190 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
     ]);
   }
 
+  // ————————————————— عملت إيه النهاردة —————————————————
+
+  /// سطر بيقول اللى اتسجّل بالكلام، ومعاه أزرار بتسجّل **بدوسة واحدة**.
+  ///
+  /// السطر بدل المربّع لإن المربّع بيقول رقم: «٤٠ د» مابتقولش مشيت ولا
+  /// لعبت حديد، و«١٤٥٠ سعرة» مابتقولش أكلت إيه.
+  Widget _doneRow({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String sub,
+    String? big,
+    required List<(String, VoidCallback)> chips,
+    required VoidCallback onMore,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(13, 11, 11, 11),
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: scheme.outlineVariant),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              width: 38,
+              height: 38,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(13)),
+              child: Icon(icon, size: 19, color: color),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 13.5, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 2),
+                    Text(sub,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 11, color: scheme.onSurfaceVariant)),
+                  ]),
+            ),
+            if (big != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 6),
+                child: Text(big,
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: color)),
+              ),
+            IconButton(
+              tooltip: tr('ورقة التسجيل الكاملة', 'Full form'),
+              visualDensity: VisualDensity.compact,
+              icon: Icon(Icons.add_circle_outline, size: 21, color: color),
+              onPressed: onMore,
+            ),
+          ]),
+          const SizedBox(height: 8),
+          Wrap(spacing: 7, runSpacing: 7, children: [
+            for (final (label, tap) in chips)
+              _chip(label, color, tap),
+            _chip(tr('غير كده…', 'Other…'), scheme.outline, onMore,
+                faded: true),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  Widget _chip(String label, Color color, VoidCallback onTap,
+          {bool faded = false}) =>
+      Material(
+        color: color.withValues(alpha: faded ? 0.08 : 0.13),
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: faded
+                        ? Theme.of(context).colorScheme.onSurfaceVariant
+                        : color)),
+          ),
+        ),
+      );
+
+  /// الزرار بيكتب على طول — فلازم يبقى فيه «تراجع»، وإلا دوسة بالغلط
+  /// بتخلّى الرقم كدب ومفيش طريقة تصلّحه من هنا.
+  void _undoBar(String text, Future<void> Function() undo) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(text),
+      action: SnackBarAction(
+        label: tr('تراجع', 'Undo'),
+        onPressed: () async {
+          await undo();
+          if (mounted) await _load();
+        },
+      ),
+    ));
+  }
+
+  Future<void> _quickExercise(ExercisePreset p) async {
+    final id = await DayLog.logExercise(p);
+    await _load();
+    _undoBar(tr('اتسجّل: ${p.label}', 'Logged: ${p.label}'),
+        () => DayLog.undoExercise(id));
+  }
+
+  Future<void> _quickMeal(String slot) async {
+    final id = await DayLog.repeatMeal(slot);
+    // أول مرة فى الخانة دى: مفيش حاجة نكرّرها، فبنفتح الورقة بدل ما
+    // نسجّل حاجة من دماغنا.
+    if (id == null) {
+      if (!mounted) return;
+      if (await showMealSheet(context) == true && mounted) await _load();
+      return;
+    }
+    final prev = await DayLog.lastMealForSlot(slot);
+    await _load();
+    _undoBar(
+        tr('اتسجّل: $slot — ${prev?.description ?? ''}',
+            'Logged: $slot — ${prev?.description ?? ''}'),
+        () => DayLog.undoMeal(id));
+  }
+
+  Widget _doneSection() {
+    return Column(children: [
+      _doneRow(
+        icon: Icons.fitness_center,
+        color: const Color(0xFF8B5CF6),
+        title: tr('رياضة', 'Exercise'),
+        sub: _exercise.isEmpty
+            ? tr('دوس على زرار جاهز يتسجّل على طول',
+                'Tap a preset — it logs instantly')
+            : _exercise.what,
+        big: _exercise.isEmpty
+            ? null
+            : tr('${arNum(_exercise.minutes)} د', '${_exercise.minutes}m'),
+        chips: [
+          for (final p in _presets) (p.label, () => _quickExercise(p)),
+        ],
+        onMore: () async {
+          await Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const WalkTrackerScreen()));
+          if (mounted) await _load();
+        },
+      ),
+      _doneRow(
+        icon: Icons.restaurant_outlined,
+        color: const Color(0xFF10B981),
+        title: tr('أكلت', 'Ate'),
+        sub: _meals.what.isEmpty
+            ? tr('الزرار بيكرّر آخر مرة أكلتها فى الخانة دى',
+                'A tap repeats your last meal in that slot')
+            : _meals.what,
+        big: _meals.calories <= 0 ? null : arMoney(_meals.calories),
+        chips: [
+          for (final slot in kMealSlots) (slot, () => _quickMeal(slot)),
+        ],
+        onMore: () async {
+          if (await showMealSheet(context) == true && mounted) await _load();
+        },
+      ),
+    ]);
+  }
+
   // ————————————————— بنودك —————————————————
 
   /// **كتلة الجسم + الرسوم** — كانوا جوّه «لوحة الصحة»، وهى بقت مكرّرة
@@ -682,6 +880,9 @@ class _MyHealthScreenState extends State<MyHealthScreen> {
                       trail: tr('${arNum(done)} من ${arNum(total)}',
                           '${arNum(done)} of ${arNum(total)}'))),
                   AppPad(_todaySection()),
+                  AppPad(AppGroupHead(
+                      tr('عملت إيه النهاردة', 'What you did today'))),
+                  AppPad(_doneSection()),
                   AppPad(AppGroupHead(tr('أرقامك', 'Your numbers'),
                       trail: _anyNumber
                           ? null

@@ -18,7 +18,10 @@ import 'package:my_assistant/screens/day_full_screen.dart';
 import 'package:my_assistant/core/privacy.dart';
 import 'package:my_assistant/core/theme.dart';
 import 'package:my_assistant/data/appointments_repo.dart';
+import 'package:my_assistant/data/activity_repo.dart';
+import 'package:my_assistant/data/gym_repo.dart';
 import 'package:my_assistant/data/health_repo.dart';
+import 'package:my_assistant/data/meals_repo.dart';
 import 'package:my_assistant/data/measurements_repo.dart';
 import 'package:my_assistant/data/meds_repo.dart';
 import 'package:my_assistant/screens/health/my_health_screen.dart';
@@ -384,6 +387,26 @@ void main() {
     final m = (await meds.all()).first;
     await meds.setTaken(m.id!, dayKey(DateTime.now()), '08:00', true);
     await HealthRepo().setWaterMl(dayKey(DateTime.now()), 1500);
+    // «عملت إيه النهاردة»: نشاط حُرّ + جلسة جيم + وجبتين.
+    await ActivityRepo().add(ActivitySession(
+        day: dayKey(DateTime.now()),
+        type: 'walk',
+        distanceKm: 2.4,
+        durationSec: 30 * 60,
+        calories: 120,
+        createdAt: DateTime.now().toIso8601String()));
+    await GymRepo().addSession(GymSession(
+        day: dayKey(DateTime.now()), program: 'جيم', durationMin: 10));
+    await MealsRepo().add(Meal(
+        day: dayKey(DateTime.now()),
+        slot: 'فطار',
+        description: 'فول وبيض',
+        calories: 450));
+    await MealsRepo().add(Meal(
+        day: dayKey(DateTime.now()),
+        slot: 'غدا',
+        description: 'فراخ ورز',
+        calories: 1000));
     await HealthRepo().setSleep(dayKey(DateTime.now()), 6);
     final mr = MeasurementsRepo();
     // قياسين من كل نوع عشان السهم (الاتجاه) يبان — واحد مايكفيش.
@@ -420,7 +443,7 @@ void main() {
                   'كشوفات · أشعة · عمليات', Colors.teal,
                   () => const SizedBox()),
             ])),
-        size: const Size(390, 1000),
+        size: const Size(390, 1250),
         pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
   });
