@@ -73,9 +73,9 @@ class PlantsRepo {
     final where = p.location.isEmpty ? '' : ' (${p.location})';
     await Notifications.scheduleOnce(
       id: Notifications.plantNotifId(p.id!),
-      title: tr('اسقي النبات 🪴', 'Water your plant 🪴'),
-      body: tr('${p.name}$where محتاجة مياه النهارده',
-          '${p.name}$where needs water today'),
+      title: Notifications.titleLine(
+          tr('اسقى ${p.name}$where 🪴', 'Water ${p.name}$where 🪴')),
+      body: tr('محتاجة مياه النهارده', 'Needs water today'),
       when: when,
     );
   }

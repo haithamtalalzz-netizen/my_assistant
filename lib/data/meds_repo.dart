@@ -98,7 +98,8 @@ class MedsRepo {
         await setActive(m.id!, false);
         await Notifications.showNow(
           id: 940000 + m.id!,
-          title: tr('كورس الدوا خلص', 'Medication course ended'),
+          title: Notifications.titleLine(
+              tr('خلص كورس ${m.name}', '${m.name} course ended')),
           body: tr(
               '«${m.name}» وصل لآخر يوم في الكورس — وقفنا تذكيراته تلقائيًا',
               '"${m.name}" reached its last day — we stopped its reminders automatically'),

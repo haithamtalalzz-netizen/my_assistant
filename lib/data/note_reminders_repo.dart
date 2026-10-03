@@ -205,7 +205,7 @@ class NoteRemindersRepo {
       case NoteRepeat.once:
         await Notifications.scheduleOnce(
           id: id,
-          title: 'تذكير',
+          title: Notifications.titleLine(body),
           body: body,
           when: t,
           payload: 'note|${r.noteId}|${r.slot}',
@@ -217,7 +217,7 @@ class NoteRemindersRepo {
       case NoteRepeat.daily:
         await Notifications.scheduleDaily(
           id: id,
-          title: 'تذكير يومى',
+          title: Notifications.titleLine(body),
           body: body,
           hour: t.hour,
           minute: t.minute,

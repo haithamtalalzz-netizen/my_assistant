@@ -69,9 +69,10 @@ class RelativesRepo {
     if (when.isBefore(DateTime.now())) return;
     await Notifications.scheduleOnce(
       id: Notifications.relativeNotifId(r.id!),
-      title: tr('صلة رحم', 'Keep in touch'),
-      body: tr('بقالك فترة ما اتصلتش بـ ${r.name} — اطمن عليه',
-          "It's been a while since you called ${r.name} — check on them"),
+      title: Notifications.titleLine(
+          tr('اطمن على ${r.name}', 'Check on ${r.name}')),
+      body: tr('بقالك فترة ما اتصلتش بيه',
+          "It's been a while since you called"),
       when: when,
     );
   }

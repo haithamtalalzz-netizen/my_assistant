@@ -1111,7 +1111,7 @@ class _TodayScreenState extends State<TodayScreen> {
       if (when != null && when.isAfter(DateTime.now()) && !kIsWeb) {
         await Notifications.scheduleOnce(
           id: 1100000 + (id % 100000),
-          title: tr('تذكير', 'Reminder'),
+          title: Notifications.titleLine(text),
           body: text,
           when: when,
         );

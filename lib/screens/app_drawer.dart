@@ -357,39 +357,38 @@ class AppDrawer extends StatelessWidget {
                 MyHealthScreen(
                   onSelectTab: onSelect,
                   sections: [
+                    // بند «الصحة» اتشال كطبقة: كان هَب جوّاه ٥ أبواب،
+                    // فكل واحد فيهم كان محتاج دوستين. الأربعة اللى فضلوا
+                    // بقوا كروت على طول هنا، و«العادات» راحت لـ«تطوّرى»
+                    // جنب «تحليلات العادات» — مكانها الطبيعى.
+                    if (AppState.gender.value == 'female')
+                      HealthSection(
+                          Icons.favorite,
+                          tr('الدورة الشهرية', 'Menstrual cycle'),
+                          tr('توقّع الدورة · أعراض · حبوب',
+                              'Prediction · symptoms · pill'),
+                          Colors.pink,
+                          () => const CycleScreen()),
                     HealthSection(
-                        Icons.favorite_outline,
-                        tr('الصحة', 'Health'),
-                        tr('دورة · عادات · مزاج · أدوية · ملف طبى',
-                            'Cycle · habits · mood · meds · file'),
-                        Colors.pink,
-                        () => GroupHubScreen(
-                              title: tr('الصحة', 'Health'),
-                              onSelectTab: onSelect,
-                              accent: Colors.pink,
-                              items: [
-                                if (AppState.gender.value == 'female')
-                                  GroupHubItem(Icons.favorite,
-                                      tr('الدورة الشهرية', 'Menstrual cycle'),
-                                      screen: const CycleScreen(),
-                                      color: Colors.pink),
-                                GroupHubItem(
-                                    Icons.task_alt, tr('العادات', 'Habits'),
-                                    tabIndex: 3),
-                                GroupHubItem(Icons.mood,
-                                    tr('تتبّع المزاج', 'Mood tracker'),
-                                    screen: const MoodScreen()),
-                                // «الأدوية» و«صيدلية البيت» اتدمجوا:
-                                // الاتنين عن الدوا والاسمين ماكانوش
-                                // بيقولوا الفرق (جرعات ضد مخزون).
-                                GroupHubItem(Icons.medication_outlined,
-                                    tr('أدويتى', 'My medicines'),
-                                    screen: const MedsHubScreen()),
-                                GroupHubItem(Icons.medical_information_outlined,
-                                    tr('الملف الطبي', 'Medical file'),
-                                    screen: const MedicalScreen()),
-                              ],
-                            )),
+                        Icons.mood,
+                        tr('تتبّع المزاج', 'Mood tracker'),
+                        tr('علامة فى اليوم — ومنحناك',
+                            'One tap a day — and your trend'),
+                        Colors.amber,
+                        () => const MoodScreen()),
+                    HealthSection(
+                        Icons.medication_outlined,
+                        tr('أدويتى', 'My medicines'),
+                        tr('جرعاتك ومخزونك', 'Your doses & your stock'),
+                        Colors.redAccent,
+                        () => const MedsHubScreen()),
+                    HealthSection(
+                        Icons.medical_information_outlined,
+                        tr('الملف الطبي', 'Medical file'),
+                        tr('كشوفات · أشعة · عمليات',
+                            'Visits · imaging · procedures'),
+                        Colors.teal,
+                        () => const MedicalScreen()),
                     HealthSection(
                         Icons.fitness_center,
                         tr('الرياضة', 'Exercise'),
@@ -493,6 +492,11 @@ class AppDrawer extends StatelessWidget {
                       screen: const CoursesScreen(), stat: coursesStat),
                   GroupHubItem(Icons.menu_book_outlined, tr('القراءة', 'Reading'),
                       screen: const ReadingScreen(), stat: readingStat),
+                  // «العادات» جت من «صحتى»: عادة مش بالضرورة صحة (قراءة،
+                  // مذاكرة، صلاة)، و«تحليلات العادات» كانت هنا من غيرها —
+                  // يعنى الأرقام فى بند والبند نفسه فى بند تانى.
+                  GroupHubItem(Icons.task_alt, tr('العادات', 'Habits'),
+                      tabIndex: 3),
                   GroupHubItem(Icons.insights_outlined,
                       tr('تحليلات العادات', 'Habit analytics'),
                       screen: const HabitAnalyticsScreen(), stat: habitsStat),

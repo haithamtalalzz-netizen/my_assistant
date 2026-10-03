@@ -374,14 +374,34 @@ class Notifications {
   }
 
   /// إشعار فوري (مش مجدول).
+  /// بيقصّ نصّ عشان يبقى **عنوان** إشعار.
+  ///
+  /// ليه ده مهم: على شاشة ساعة (ومعاها الإشعار المطوّى على الموبايل)
+  /// اللى بيبان هو العنوان، والجسم ممكن مايتقراش. فالعنوان لازم يقول
+  /// الحاجة نفسها — «تذكير» مش عنوان، «📌 ادفع فاتورة النور» عنوان.
+  static String titleLine(String raw, {int max = 42}) {
+    final s = raw.replaceAll('\n', ' ').trim();
+    if (s.length <= max) return s;
+    // بنقطع عند آخر مسافة قبل الحد عشان ما نقسمش كلمة نُصّين.
+    final cut = s.substring(0, max);
+    final sp = cut.lastIndexOf(' ');
+    return '${(sp > max * 0.6 ? cut.substring(0, sp) : cut).trimRight()}…';
+  }
+
   static Future<void> showNow({
     required int id,
     required String title,
     required String body,
+    String? payload,
+    List<AndroidNotificationAction>? actions,
   }) async {
     if (!_ready) return;
     await _plugin.show(
-        id: id, title: title, body: body, notificationDetails: _details);
+        id: id,
+        title: title,
+        body: body,
+        payload: payload,
+        notificationDetails: _detailsWith(actions));
   }
 
   static Future<void> cancel(int id) async {

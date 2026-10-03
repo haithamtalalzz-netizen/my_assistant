@@ -48,6 +48,7 @@ import 'package:my_assistant/models/models.dart';
 import 'package:my_assistant/screens/group_hub_screen.dart';
 import 'package:my_assistant/screens/notes_screen.dart';
 import 'package:my_assistant/screens/settings_screen.dart';
+import 'package:my_assistant/screens/watch_help_screen.dart';
 import 'package:my_assistant/screens/growth/goals_screen.dart';
 import 'package:my_assistant/screens/schedule/schedule_screen.dart';
 import 'package:my_assistant/screens/tasks/tasks_screen.dart';
@@ -315,6 +316,13 @@ void main() {
   // اللقطة القديمة هنا كانت لهَب «صحتى» القديم (لوحة الصحة + الأدوية +
   // صيدلية البيت كـتلات أبواب) — البنود دى اتدمجت، فاللقطة بقت بتصوّر
   // حاجة مش موجودة. استبدلناها بالهَب اللى لسه اتغيّر.
+  testWidgets('تنبيهاتك على الساعة', (tester) async {
+    final f = await shot(tester, 'real_watch_help',
+        shotApp(buildTheme(), const WatchHelpScreen()),
+        size: const Size(390, 1500), pixelRatio: 2);
+    expect(f.lengthSync(), greaterThan(10000));
+  });
+
   testWidgets('هَب المتابعة والأدوات — قايمة بأرقامها', (tester) async {
     final today = dayKey(DateTime.now());
     // بيانات تخلّى الأرقام تبان: رسمين فيهم قراءة، يومين فيهم نشاط،
@@ -400,8 +408,15 @@ void main() {
         shotApp(
             buildTheme(),
             MyHealthScreen(sections: [
-              HealthSection(Icons.favorite_outline, 'الصحة',
-                  'دورة · عادات · مزاج · أدوية · ملف طبى', Colors.pink,
+              // نفس القايمة اللى فى السايدبار بعد ما بند «الصحة» اتفكّ:
+              // أبوابه الأربعة بقوا كروت هنا، والعادات راحت لـ«تطوّرى».
+              HealthSection(Icons.mood, 'تتبّع المزاج',
+                  'علامة فى اليوم — ومنحناك', Colors.amber,
+                  () => const SizedBox()),
+              HealthSection(Icons.medication_outlined, 'أدويتى',
+                  'جرعاتك ومخزونك', Colors.redAccent, () => const SizedBox()),
+              HealthSection(Icons.medical_information_outlined, 'الملف الطبي',
+                  'كشوفات · أشعة · عمليات', Colors.teal,
                   () => const SizedBox()),
               HealthSection(Icons.fitness_center, 'الرياضة',
                   'جيم · مشى · تقدّم · تمارين', Colors.deepPurple,
@@ -409,7 +424,7 @@ void main() {
               HealthSection(Icons.restaurant_outlined, 'النظام الغذائي',
                   'وجبات · صيام · وصفات', Colors.green, () => const SizedBox()),
             ])),
-        size: const Size(390, 1000),
+        size: const Size(390, 1150),
         pixelRatio: 2);
     expect(f.lengthSync(), greaterThan(10000));
   });

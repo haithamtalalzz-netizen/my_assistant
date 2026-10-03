@@ -86,6 +86,7 @@ import 'package:my_assistant/screens/schedule/med_form.dart';
 import 'package:my_assistant/screens/schedule/schedule_screen.dart';
 import 'package:my_assistant/screens/search_screen.dart';
 import 'package:my_assistant/screens/settings_screen.dart';
+import 'package:my_assistant/screens/watch_help_screen.dart';
 import 'package:my_assistant/screens/shell.dart';
 import 'package:my_assistant/screens/tasks/focus_screen.dart';
 import 'package:my_assistant/screens/tasks/tasks_screen.dart';
@@ -546,6 +547,7 @@ void main() {
   testWidgets('ScheduleScreen', (t) => tapWalk(t, () => const ScheduleScreen()));
   testWidgets('SearchScreen', (t) => tapWalk(t, () => const SearchScreen()));
   testWidgets('SettingsScreen', (t) => tapWalk(t, () => const SettingsScreen()));
+  testWidgets('WatchHelpScreen', (t) => tapWalk(t, () => const WatchHelpScreen()));
   testWidgets('Shell', (t) => tapWalk(t, () => const Shell()));
   testWidgets('SpiritualStatsScreen', (t) => tapWalk(t, () => const SpiritualStatsScreen()));
   testWidgets('SubscriptionsScreen', (t) => tapWalk(t, () => const SubscriptionsScreen()));

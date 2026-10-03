@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:quick_actions/quick_actions.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -148,12 +149,44 @@ class _ShellState extends State<Shell> {
 
   void _go(int i) => setState(() => _index = i);
 
+  /// زرار الرجوع بتاع الموبايل.
+  ///
+  /// المشكلة اللى بيحلّها: التبويبات دى **مش رواتس** — `_go` بيغيّر رقم
+  /// وخلاص. يعنى لو انت فى «العادات» ودست رجوع، أندرويد مالقاش حاجة
+  /// يرجعها فكان **بيقفل التطبيق** من نُص الشغل.
+  ///
+  /// بقى: من أى تبويب → يرجّعك للرئيسية. من الرئيسية بس → يسأل.
+  /// والشاشات اللى بتتفتح فوق (ملف نزيل، فورم، إلخ) مالهاش دعوة بالكلام
+  /// ده — دى رواتس حقيقية وبتترجع عادى.
+  Future<void> _onBack(bool didPop) async {
+    if (didPop || !mounted) return;
+    if (_index != 0) {
+      _go(0);
+      return;
+    }
+    final out = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('تقفل Vida؟', 'Close Vida?')),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('أفضل فيه', 'Stay'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(tr('اقفل', 'Close'))),
+        ],
+      ),
+    );
+    if (out == true) await SystemNavigator.pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     // الشاشة بتتبني من جديد مع كل تنقل عشان البيانات تفضل طازة.
     // كل شاشة رئيسية بتاخد نفس الدرج الجانبي، والهمبرجر بيفتحه.
     final drawer = AppDrawer(current: _index, onSelect: _go);
-    return switch (_index) {
+    final body = switch (_index) {
       1 => ScheduleScreen(drawer: drawer),
       2 => MoneyScreen(drawer: drawer),
       3 => HabitsScreen(drawer: drawer),
@@ -161,5 +194,13 @@ class _ShellState extends State<Shell> {
       5 => InsightsScreen(drawer: drawer),
       _ => TodayScreen(drawer: drawer, onGoToTab: _go),
     };
+    // على الويب الرجوع بتاع المتصفّح مش بتاعنا — لو منعناه بنحبس الناس
+    // فى الصفحة.
+    if (kIsWeb) return body;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) => _onBack(didPop),
+      child: body,
+    );
   }
 }

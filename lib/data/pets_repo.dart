@@ -73,9 +73,18 @@ class PetsRepo {
     if (due == null) return;
     final when = DateTime(due.year, due.month, due.day, 10);
     if (when.isBefore(DateTime.now())) return;
+    // اسم الحيوان فى العنوان: «موعد تطعيم» لوحده مابيقولش بتاع مين لو
+    // عندك أكتر من واحد.
+    final name = (await pets())
+        .where((p) => p.id == e.petId)
+        .map((p) => p.name)
+        .firstOrNull;
+    final what = petEventTypeLabel(e.type);
     await Notifications.scheduleOnce(
       id: Notifications.petEventNotifId(e.id!),
-      title: tr('موعد ${petEventTypeLabel(e.type)}', '${petEventTypeLabel(e.type)} due'),
+      title: Notifications.titleLine(name == null || name.trim().isEmpty
+          ? tr('موعد $what', '$what due')
+          : tr('$name — موعد $what', '$name — $what due')),
       body: e.note.isEmpty ? tr('قرب الموعد', 'Coming up soon') : e.note,
       when: when,
     );

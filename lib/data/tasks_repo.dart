@@ -220,8 +220,9 @@ class TasksRepo {
     if (t.done || due == null || due.isBefore(DateTime.now())) return;
     await Notifications.scheduleOnce(
       id: Notifications.taskNotifId(t.id!),
-      title: tr('مهمة مستحقة', 'Task due'),
-      body: t.title,
+      title: Notifications.titleLine(
+          tr('مهمة: ${t.title}', 'Task: ${t.title}')),
+      body: tr('مستحقة دلوقتى', 'Due now'),
       when: due,
     );
   }

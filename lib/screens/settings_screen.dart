@@ -22,6 +22,8 @@ import '../core/db.dart';
 import '../core/evening.dart';
 import '../core/health_service.dart';
 import '../core/l10n.dart';
+import '../core/mood_reminder.dart';
+import 'watch_help_screen.dart';
 import '../core/morning_digest.dart';
 import '../core/notifications.dart';
 import '../core/prayers.dart';
@@ -84,6 +86,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _digest = true;
   TimeOfDay _digestAt = const TimeOfDay(
       hour: MorningDigest.defaultHour, minute: MorningDigest.defaultMinute);
+  bool _moodReminder = false;
+  TimeOfDay _moodAt = const TimeOfDay(
+      hour: MoodReminder.defaultHour, minute: MoodReminder.defaultMinute);
   bool _loading = true;
   bool _busy = false;
   String? _openCat; // الفئة المفتوحة حاليًا (null = القائمة الرئيسية)
@@ -132,12 +137,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ? (int.tryParse(digestParts[1]) ?? MorningDigest.defaultMinute)
           : MorningDigest.defaultMinute,
     );
+    final moodOn = await MoodReminder.isEnabled(_settings);
+    final (moodH, moodM) = await MoodReminder.timeOf(_settings);
     final catOrder = await _settings.get('settings_order') ?? '';
     if (!mounted) return;
     setState(() {
       _notifMode = notifMode;
       _digest = digestOn;
       _digestAt = digestAt;
+      _moodReminder = moodOn;
+      _moodAt = TimeOfDay(hour: moodH, minute: moodM);
       _catOrder =
           catOrder.split(',').where((e) => e.isNotEmpty).toList();
       _name.text = name;
@@ -1062,6 +1071,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       await MorningDigest.reschedule();
                     },
                   ),
+                const Divider(height: 26),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(tr('اسألنى عن مزاجى', 'Ask about my mood')),
+                  subtitle: Text(tr(
+                      'إشعار فيه ٣ وشوش — تدوس على واحد يتسجّل من غير ما تفتح',
+                      'A notification with 3 faces — one tap logs it')),
+                  value: _moodReminder,
+                  onChanged: (v) async {
+                    setState(() => _moodReminder = v);
+                    await _settings.set(MoodReminder.enabledKey, v ? '1' : '0');
+                    await MoodReminder.reschedule();
+                  },
+                ),
+                if (_moodReminder)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.schedule),
+                    title: Text(tr('ميعاد السؤال', 'Ask at')),
+                    trailing: Text(_moodAt.format(context),
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    onTap: () async {
+                      final t = await showTimePicker(
+                          context: context, initialTime: _moodAt);
+                      if (t == null) return;
+                      setState(() => _moodAt = t);
+                      await _settings.set(MoodReminder.timeKey,
+                          '${t.hour.toString().padLeft(2, '0')}:'
+                          '${t.minute.toString().padLeft(2, '0')}');
+                      await MoodReminder.reschedule();
+                    },
+                  ),
                 ],
                 if (_openCat == 'health') ...[
                 SwitchListTile(
@@ -1073,6 +1114,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'Steps, sleep, calories, heart rate & distance — auto from any watch via Health Connect')),
                   value: _healthSync,
                   onChanged: _toggleHealthSync,
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.watch_outlined),
+                  title: Text(tr('تنبيهاتك على الساعة', 'Alerts on your watch')),
+                  subtitle: Text(tr('الخطوات بالترتيب — ومين بيقطعها',
+                      'The exact steps — and what breaks them')),
+                  trailing: const Icon(Icons.chevron_left),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                          builder: (_) => const WatchHelpScreen())),
                 ),
                 ],
                 if (_openCat == 'modes') ...[

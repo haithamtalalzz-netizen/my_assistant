@@ -53,8 +53,9 @@ class VaccinationsRepo {
     final who = v.person.trim().isEmpty ? '' : ' (${v.person})';
     await Notifications.scheduleOnce(
       id: Notifications.vaccineNotifId(id),
-      title: tr('قرب موعد تطعيم', 'Vaccine due soon'),
-      body: tr('جرعة ${v.name}$who بعد أسبوع', '${v.name}$who dose in a week'),
+      title: Notifications.titleLine(
+          tr('تطعيم: ${v.name}$who', 'Vaccine: ${v.name}$who')),
+      body: tr('الجرعة بعد أسبوع', 'Dose in a week'),
       when: when,
     );
   }

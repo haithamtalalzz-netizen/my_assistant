@@ -10,6 +10,7 @@ import '../data/note_reminders_repo.dart';
 import '../data/notes_repo.dart';
 import 'ar.dart';
 import 'l10n.dart';
+import 'mood_reminder.dart';
 import 'notifications.dart';
 import 'widget_bridge.dart';
 
@@ -30,6 +31,12 @@ Future<void> handleNotificationResponse(NotificationResponse response) async {
   final action = response.actionId ?? '';
   if (action.isEmpty || payload.isEmpty) return;
   try {
+    // المزاج بيتسجّل من الوش اللى اتداس عليه — الدرجة جوّه اسم الزرار،
+    // فمش محتاج بيانات فى الـpayload زى الباقيين.
+    if (await MoodReminder.applyAction(action)) {
+      await WidgetBridge.push();
+      return;
+    }
     final parts = payload.split('|');
     switch (action) {
       case 'med_taken':
