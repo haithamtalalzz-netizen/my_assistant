@@ -194,11 +194,14 @@ class _ShellState extends State<Shell> {
       5 => InsightsScreen(drawer: drawer),
       _ => TodayScreen(drawer: drawer, onGoToTab: _go),
     };
-    // على الويب الرجوع بتاع المتصفّح مش بتاعنا — لو منعناه بنحبس الناس
-    // فى الصفحة.
-    if (kIsWeb) return body;
+    // على الويب كمان — بس بنُص الطريق.
+    //
+    // أول نسخة استثنت الويب خالص، فالرجوع من أى تبويب كان بيطلّعك من
+    // الموقع. الصحّ: التبويب يرجّع للرئيسية زى الموبايل بالظبط، لكن من
+    // الرئيسية سيبه يمشى عادى — متصفّح متحبوس فى صفحة مش حاجة كويسة،
+    // والسؤال نفسه مابيوقفش تنقّل المتصفّح أصلاً.
     return PopScope(
-      canPop: false,
+      canPop: kIsWeb && _index == 0,
       onPopInvokedWithResult: (didPop, _) => _onBack(didPop),
       child: body,
     );

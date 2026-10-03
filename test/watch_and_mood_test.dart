@@ -163,6 +163,32 @@ void main() {
       expect(find.text('تقفل Vida؟'), findsNothing);
     });
 
+    testWidgets('كل التبويبات بترجع للرئيسية — مش واحد بس', (tester) async {
+      // الاختبار الأول كان بيجرّب تبويب واحد. الخمسة بيتبنوا من نفس
+      // الـswitch، فلو واحد فيهم اتنسى مفيش حاجة هتقول.
+      await tester.pumpWidget(const MaterialApp(
+        locale: Locale('ar'),
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        supportedLocales: [Locale('ar')],
+        home: Shell(),
+      ));
+      await tester.pumpAndSettle();
+
+      for (final tab in [1, 2, 3, 4, 5]) {
+        tester.widget<TodayScreen>(find.byType(TodayScreen)).onGoToTab!(tab);
+        await tester.pumpAndSettle();
+        expect(find.byType(TodayScreen), findsNothing,
+            reason: 'التبويب $tab مافتحش');
+
+        await pressBack(tester);
+
+        expect(find.byType(TodayScreen), findsOneWidget,
+            reason: 'الرجوع من التبويب $tab مارجعش للرئيسية');
+        expect(find.text('تقفل Vida؟'), findsNothing,
+            reason: 'التبويب $tab سأل سؤال الخروج وهو مش الرئيسية');
+      }
+    });
+
     testWidgets('من الرئيسية بيسأل الأول', (tester) async {
       // بنمسك نداء إغلاق التطبيق عشان ما يقفلش الاختبار نفسه.
       var popped = 0;
